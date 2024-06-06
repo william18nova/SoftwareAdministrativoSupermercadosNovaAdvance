@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Visualizar Inventarios{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizar Inventarios</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{% static 'visualizar_inventarios.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Visualizar Inventarios</h2>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal" required onchange="this.form.submit()">
+                    <option value="">Seleccionar sucursal</option>
+                    <option value="global" {% if inventario_global %}selected{% endif %}>Inventario Global</option>
+                    {% for sucursal in sucursales %}
+                        <option value="{{ sucursal.sucursalid }}" {% if sucursal_seleccionada and sucursal.sucursalid == sucursal_seleccionada.sucursalid %}selected{% endif %}>{{ sucursal.nombre }}</option>
+                    {% endfor %}
+                </select>
+                {% if sucursal_seleccionada %}
+                    <div class="btn-container">
+                        <a href="{% url 'editar_inventario' sucursal_seleccionada.sucursalid %}" class="btn-editar-inventario">Editar Inventario</a>
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+
+        {% if inventarios or inventario_global %}
+            <div class="table-container">
+                <table id="inventarios-list" class="table display">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            {% if not inventario_global %}
+                                <th>Acciones</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if inventario_global %}
+                            {% for item in inventario_global_data %}
+                                <tr>
+                                    <td>{{ item.productoid__nombre }}</td>
+                                    <td>{{ item.total_cantidad }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            {% for inventario in inventarios %}
+                                <tr>
+                                    <td>{{ inventario.productoid.nombre }}</td>
+                                    <td>{{ inventario.cantidad }}</td>
+                                    <td class="text-center">
+                                        <a href="{% url 'eliminar_producto_inventario' inventario.inventarioid %}" class="btn-eliminar"><i class="fas fa-trash-alt"></i></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#inventarios-list').DataTable({
+                paging: false,
+                searching: true,
+                info: false,
+                language: {
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay productos para mostrar",
+                },
+            });
+        });
+    </script>
+</body>
+</html>
+{% endblock %}

@@ -17,7 +17,7 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 500px;
+    width: 800px;
     text-align: center;
     position: relative;
 }
@@ -25,12 +25,6 @@ body {
 .container h2 {
     color: #ffffff;
     margin-bottom: 10px;
-}
-
-.icon {
-    font-size: 90px;
-    margin-bottom: 5px;
-    color: #ffffff;
 }
 
 .form-group {
@@ -45,8 +39,8 @@ body {
     font-weight: bold;
 }
 
-.form-group input[type="text"], .form-group select {
-    width: 101%;
+.form-group select {
+    width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -57,54 +51,9 @@ body {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-.form-group input[type="number"] {
-    width: 96.7%;
-    padding: 10px;
-    border: 1px solid #888;
-    border-radius: 5px;
+.form-group select:hover {
     background-color: #e0e8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.form-group input[type="number"]:hover {
-    background-color: #d0d8ff;
-    border-color: #777;
-}
-
-.btn-agregar-producto, .btn-agregar-inventario {
-    display: block;
-    margin: 0 auto 10px auto; /* Centramos el botón y agregamos margen inferior */
-    padding: 12px;
-    width: 35%; /* Ajustamos el ancho al 50% */
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-    cursor: pointer;
-}
-
-.btn-agregar-producto {
-    background-color: #ffffff;
-    color: #000000;
-    border: none;
-}
-
-.btn-agregar-producto:hover {
-    background-color: #e0e8ff;
-}
-
-.btn-agregar-inventario {
-    background-color: #003366;
-    color: #ffffff;
-    border: none;
-    margin-top: 22px;
-    margin-bottom: -30px;
-}
-
-.btn-agregar-inventario:hover {
-    background-color: #002244;
+    border-color: #aaa;
 }
 
 .table-container {
@@ -116,7 +65,7 @@ body {
 }
 
 .table {
-    width: 100%; /* Ajustamos el ancho */
+    width: 100%;
     border-collapse: collapse;
     text-align: left;
 }
@@ -140,11 +89,40 @@ body {
     text-align: center;
 }
 
+.btn-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.btn-editar-inventario {
+    background-color: #003366;
+    color: #ffffff;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    text-decoration: none;
+    display: inline-block;
+    width: 200px;
+    text-align: center;
+    line-height: 1.5;
+    font-size: 18px;
+    font-family: 'Roboto', Arial, sans-serif;
+    margin-top: 22px;
+    margin-bottom: -30px;
+}
+
+.btn-editar-inventario:hover {
+    background-color: #002244;
+}
+
 .btn-eliminar {
     background-color: #e74c3c;
     color: white;
     border: none;
-    padding: 5px 10px;
+    width: 35px;
+    height: 35px;
     cursor: pointer;
     border-radius: 5px;
     display: flex;
@@ -173,12 +151,10 @@ body {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
-    margin-top: 5px;
 }
 
 .alert-success {
     color: #3c763d;
     background-color: #dff0d8;
     border-color: #d6e9c6;
-    
 }

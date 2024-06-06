@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Editar Inventario{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Inventario</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{% static 'editar_inventario.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const table = $('#productos-list').DataTable({
+                paging: false,
+                searching: true,
+                info: false,
+                language: {
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay productos para mostrar",
+                },
+            });
+
+            $('#agregarProductoBtn').on('click', function() {
+                const productoSelect = $('#nuevo-producto');
+                const cantidadInput = $('#nueva-cantidad');
+                const productoNombre = productoSelect.find('option:selected').text();
+                const productoId = productoSelect.val();
+                const cantidad = cantidadInput.val();
+
+                if (productoId && cantidad) {
+                    table.row.add([
+                        `${productoNombre}<input type="hidden" name="nuevo_producto[]" value="${productoId}">`,
+                        `${cantidad}<input type="hidden" name="nueva_cantidad[]" value="${cantidad}">`,
+                        `<button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '${productoId}')"><i class="fas fa-trash-alt"></i></button>`
+                    ]).draw(false);
+
+                    productoSelect.find(`option[value="${productoId}"]`).hide();
+                    productoSelect.val('');
+                    cantidadInput.val('');
+                } else {
+                    mostrarMensaje('Por favor, selecciona un producto y completa la cantidad.', 'alert-error');
+                }
+            });
+
+            function eliminarProducto(button, productId) {
+                const row = $(button).closest('tr');
+                row.remove();
+                $('#nuevo-producto').find(`option[value="${productId}"]`).show();
+                table.row(row).remove().draw(false);
+            }
+
+            function mostrarMensaje(mensaje, clase) {
+                const mensajeDiv = document.createElement('div');
+                mensajeDiv.className = `alert ${clase}`;
+                mensajeDiv.textContent = mensaje;
+                const form = document.getElementById('inventarioForm');
+                form.appendChild(mensajeDiv);
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <i class="fas fa-pencil-alt icon"></i> <!-- Ícono de inventario -->
+        <h2>Editar Inventario</h2>
+        <form id="inventarioForm" action="{% url 'editar_inventario' sucursal_id=sucursal.sucursalid %}" method="POST">
+            {% csrf_token %}
+            <div class="form-group sucursal-name">
+                <label for="sucursal">Sucursal:</label>
+                <span id="sucursal">{{ sucursal.nombre }}</span>
+                <input type="hidden" name="sucursal" value="{{ sucursal.sucursalid }}">
+            </div>
+            <div class="table-container">
+                <table id="productos-list" class="table display">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productos-body">
+                        {% for inventario in inventarios %}
+                            <tr>
+                                <td>{{ inventario.productoid.nombre }}</td>
+                                <td><input type="number" name="cantidad_{{ inventario.inventarioid }}" value="{{ inventario.cantidad }}"></td>
+                                <td class="text-center"><button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '{{ inventario.inventarioid }}')"><i class="fas fa-trash-alt"></i></button></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-group">
+                <label for="nuevo-producto">Producto</label>
+                <select id="nuevo-producto" name="nuevo-producto">
+                    <option value="">Seleccionar producto</option>
+                    {% for producto in productos %}
+                        <option value="{{ producto.productoid }}">{{ producto.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="nueva-cantidad">Cantidad</label>
+                <input type="number" id="nueva-cantidad" name="nueva-cantidad">
+            </div>
+            <div class="form-group btn-container">
+                <button type="button" class="btn-agregar-producto" id="agregarProductoBtn">Agregar Producto</button>
+            </div>
+            <div class="form-group btn-container">
+                <input type="submit" value="Actualizar Inventario" class="btn-editar-inventario">
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+{% endblock %}

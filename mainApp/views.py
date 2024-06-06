@@ -2,8 +2,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario
-import json
-from django.db.models import Count
+from django.db.models import Count, Sum
+from django.http import JsonResponse
+from collections import defaultdict
 
 def login(request):
     if request.method == 'POST':
@@ -232,3 +233,66 @@ def agregar_inventario_view(request):
         messages.error(request, 'No hay productos en el sistema. Debe ir a agregar productos para añadir productos al sistema y generar un inventario.')
     
     return render(request, 'agregar_inventario.html', {'sucursales': sucursales_sin_inventario, 'productos': productos})
+
+def visualizar_inventarios_view(request):
+    sucursales_con_inventario = Sucursal.objects.filter(inventario__isnull=False).distinct()
+    inventarios = None
+    sucursal_seleccionada = None
+    inventario_global = False
+    inventario_global_data = []
+
+    if request.method == 'POST':
+        sucursal_id = request.POST.get('sucursal')
+        if sucursal_id == 'global':
+            inventario_global = True
+            inventario_global_data = Inventario.objects.values('productoid__nombre').annotate(total_cantidad=Sum('cantidad'))
+        else:
+            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
+            inventarios = Inventario.objects.filter(sucursalid=sucursal_seleccionada)
+
+    return render(request, 'visualizar_inventarios.html', {
+        'sucursales': sucursales_con_inventario,
+        'inventarios': inventarios,
+        'sucursal_seleccionada': sucursal_seleccionada,
+        'inventario_global': inventario_global,
+        'inventario_global_data': inventario_global_data
+    })
+
+
+def editar_inventario_view(request, sucursal_id):
+    sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
+    inventarios = Inventario.objects.filter(sucursalid=sucursal)
+    productos = Producto.objects.exclude(inventario__sucursalid=sucursal)
+
+    if request.method == 'POST':
+        for inventario in inventarios:
+            cantidad = request.POST.get(f'cantidad_{inventario.inventarioid}')
+            if cantidad:
+                inventario.cantidad = cantidad
+                inventario.save()
+
+        nuevos_productos = request.POST.getlist('nuevo_producto[]')
+        nuevas_cantidades = request.POST.getlist('nueva_cantidad[]')
+        for producto_id, cantidad in zip(nuevos_productos, nuevas_cantidades):
+            producto = get_object_or_404(Producto, pk=producto_id)
+            Inventario.objects.create(
+                productoid=producto,
+                sucursalid=sucursal,
+                cantidad=cantidad
+            )
+
+        messages.success(request, f'Inventario de la sucursal {sucursal.nombre} actualizado exitosamente.')
+        return redirect('visualizar_inventarios')
+
+    return render(request, 'editar_inventario.html', {
+        'sucursal': sucursal,
+        'inventarios': inventarios,
+        'productos': productos,
+    })
+
+def eliminar_producto_inventario_view(request, inventario_id):
+    inventario = get_object_or_404(Inventario, pk=inventario_id)
+    sucursal_id = inventario.sucursalid.sucursalid
+    inventario.delete()
+    messages.success(request, 'Producto eliminado del inventario')
+    return redirect('visualizar_inventarios')
