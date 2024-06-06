@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to bottom right, #ADD8E6, #005091);
+    font-family: 'Roboto', Arial, sans-serif;
+    text-align: center;
+    color: white;
+}
+
+.container {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 500px;
+    text-align: center;
+    position: relative;
+}
+
+.container h2 {
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+.icon {
+    font-size: 90px;
+    margin-bottom: 5px;
+    color: #ffffff;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.form-group input[type="text"], .form-group select {
+    width: 101%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f0f8ff;
+    margin: 0 auto;
+    display: block;
+    font-size: 16px;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.form-group input[type="number"] {
+    width: calc(100% - 16px);
+    padding: 10px;
+    border: 1px solid #888;
+    border-radius: 5px;
+    background-color: #e0e8ff;
+    margin: 0 auto;
+    display: block;
+    font-size: 16px;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.form-group input[type="number"]:hover {
+    background-color: #d0d8ff;
+    border-color: #777;
+}
+
+.btn-agregar-producto {
+    background-color: #ffffff;
+    color: #000000;
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+    width: 35%;
+    font-size: 18px;
+    transition: background-color 0.3s;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    margin: 0 auto; /* Centering the button */
+}
+
+.btn-agregar-producto:hover {
+    background-color: #e0e8ff;
+}
+
+.btn-agregar-inventario {
+    background-color: #003366;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+    width: 30%;
+    font-size: 18px;
+    transition: background-color 0.3s;
+    border-radius: 5px;
+    margin: 0 auto; /* Centering the button */
+}
+
+.btn-agregar-inventario:hover {
+    background-color: #002244;
+}
+
+.table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.table th, .table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+.table th {
+    background-color: #003366;
+    color: #fff;
+}
+
+.table td {
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+.table td.text-center {
+    text-align: center;
+}
+
+.btn-eliminar {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.btn-eliminar:hover {
+    background-color: #c0392b;
+}
+
+.alert {
+    padding: 15px;
+    margin-top: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.alert-error {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+}

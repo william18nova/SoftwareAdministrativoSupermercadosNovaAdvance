@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Agregar Inventario{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Inventario</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{% static 'agregar_inventario.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const table = $('#productos-list').DataTable({
+                paging: false,
+                searching: true,
+                info: false,
+                language: {
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay productos para mostrar",
+                },
+            });
+
+            function validarFormulario(event) {
+                if (table.data().count() === 0) {
+                    event.preventDefault();
+                    mostrarMensaje('Por favor, agrega al menos un producto a la lista.', 'alert-error');
+                }
+            }
+
+            function agregarProducto() {
+                const productoSelect = $('#producto');
+                const cantidadInput = $('#cantidad');
+                const productoNombre = productoSelect.find('option:selected').text();
+                const productoId = productoSelect.val();
+                const cantidad = cantidadInput.val();
+
+                if (productoId && cantidad) {
+                    table.row.add([
+                        `${productoNombre}<input type="hidden" name="producto[]" value="${productoId}">`,
+                        `${cantidad}<input type="hidden" name="cantidad[]" value="${cantidad}">`,
+                        `<button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '${productoId}')"><i class="fas fa-trash-alt"></i></button>`
+                    ]).draw(false);
+
+                    productoSelect.find(`option[value="${productoId}"]`).hide();
+                    productoSelect.val('');
+                    cantidadInput.val('');
+                } else {
+                    mostrarMensaje('Por favor, selecciona un producto y completa la cantidad.', 'alert-error');
+                }
+            }
+
+            function eliminarProducto(button, productId) {
+                const row = $(button).closest('tr');
+                row.remove();
+                $('#producto').find(`option[value="${productId}"]`).show();
+                table.row(row).remove().draw(false);
+            }
+
+            function mostrarMensaje(mensaje, clase) {
+                const mensajeDiv = document.createElement('div');
+                mensajeDiv.className = `alert ${clase}`;
+                mensajeDiv.textContent = mensaje;
+                const form = document.getElementById('inventarioForm');
+                form.appendChild(mensajeDiv);
+            }
+
+            $('#inventarioForm').on('submit', validarFormulario);
+            $('#agregarProductoBtn').on('click', agregarProducto);
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <i class="fas fa-warehouse icon"></i> <!-- Ícono de inventario -->
+        <h2>Agregar Inventario</h2>
+        <form id="inventarioForm" action="{% url 'agregar_inventario' %}" method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal" required>
+                    {% for sucursal in sucursales %}
+                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="producto">Producto</label>
+                <select id="producto" name="producto">
+                    <option value="">Seleccionar producto</option>
+                    {% for producto in productos %}
+                        <option value="{{ producto.productoid }}">{{ producto.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="cantidad">Cantidad</label>
+                <input type="number" id="cantidad" name="cantidad">
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn-agregar-producto" id="agregarProductoBtn">Agregar Producto</button>
+            </div>
+            <div class="table-container">
+                <table id="productos-list" class="table display">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productos-body">
+                        <!-- Aquí se agregarán los productos dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Agregar Inventario" class="btn-agregar-inventario">
+            </div>
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>
+{% endblock %}

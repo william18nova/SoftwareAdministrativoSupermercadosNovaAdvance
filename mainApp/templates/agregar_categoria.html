@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Agregar Categoria{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Categoría</title>
+    <!-- Font Awesome CDN -->
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'agregar_categoria.css' %}">
+</head>
+<body>
+    <div class="container">
+        <i class="fas fa-folder-plus icon"></i> <!-- Ícono de carpeta con signo de más -->
+        <h2>Agregar Categoría</h2>
+        <form id="categoriaForm" action="{% url 'agregar_categoria' %}" method="POST">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" id="nombre" name="nombre" required>
+            </div>
+            <div class="form-group">
+                <label for="descripcion">Descripción</label>
+                <input type="text" id="descripcion" name="descripcion">
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Agregar">
+            </div>
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('categoriaForm').addEventListener('submit', function(event) {
+            let nombre = document.getElementById('nombre').value;
+
+            if (!nombre) {
+                alert('El campo Nombre es obligatorio.');
+                event.preventDefault(); // Evita el envío del formulario
+            }
+        });
+    </script>
+</body>
+</html>
+{% endblock %}
