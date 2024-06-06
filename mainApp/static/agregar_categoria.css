@@ -74,9 +74,9 @@ body {
     border-color: #777;
 }
 
-.btn-agregar-producto {
-    background-color: #ffffff;
-    color: #000000;
+.btn-agregar-producto, .btn-agregar-categoria {
+    background-color: #003366;
+    color: #ffffff;
     border: none;
     cursor: pointer;
     padding: 12px;
@@ -85,26 +85,14 @@ body {
     font-size: 18px;
     transition: background-color 0.3s;
     border-radius: 5px;
-    margin-bottom: 10px;
-    margin: 0 auto; /* Centering the button */
+    margin: 0 auto;
+    display: block; /* Centering the button */
+    margin-top: 35px;
+    margin-bottom: -20px;
 }
 
-.btn-agregar-producto:hover {
-    background-color: #e0e8ff;
-}
-
-.btn-agregar-inventario {
-    background-color: #003366;
-    color: #ffffff;
-    border: none;
-    cursor: pointer;
-    padding: 12px;
-    text-align: center;
-    width: 30%;
-    font-size: 18px;
-    transition: background-color 0.3s;
-    border-radius: 5px;
-    margin: 0 auto; /* Centering the button */
+.btn-agregar-producto:hover, .btn-agregar-categoria:hover {
+    background-color: #002244;
 }
 
 .btn-agregar-inventario:hover {
@@ -162,10 +150,14 @@ body {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
+    margin-top: 45px;
+    margin-bottom: -10px;
 }
 
 .alert-success {
     color: #3c763d;
     background-color: #dff0d8;
     border-color: #d6e9c6;
+    margin-top: 45px;
+    margin-bottom: -10px;
 }
