@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% extends 'base.html' %}
-{% block title %}Visualizar Sucursales{% endblock %}
+{% block title %}Visualizar Productos{% endblock %}
 {% block content %}
 <html lang="es">
 <head>
@@ -9,7 +9,7 @@
     <title>Lista de Productos</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_productos.css' %}">
+    <link rel="stylesheet" href="{% static 'visualizar_producto.css' %}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -17,6 +17,15 @@
 <body>
     <div class="container">
         <h2>Lista de Productos</h2>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <table id="productosTable" class="display">
             <thead>
                 <tr>
