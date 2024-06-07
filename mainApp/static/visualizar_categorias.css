@@ -27,6 +27,21 @@ h2 {
     color: #333;
 }
 
+.messages {
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 15px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: center;
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+    margin-bottom: 20px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;

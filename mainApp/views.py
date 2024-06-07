@@ -106,15 +106,17 @@ def visualizar_categorias_view(request):
 
 def eliminar_categoria(request, categoria_id):
     categoria = get_object_or_404(Categoria, categoriaid=categoria_id)
+    nombre_categoria = categoria.nombre  # Captura el nombre de la categoría antes de eliminarla
     if request.method == 'POST':
-        # Aquí puedes manejar los productos asociados antes de eliminar la categoría
+        # Manejar los productos asociados antes de eliminar la categoría
         productos_asociados = Producto.objects.filter(categoria=categoria)
         productos_asociados.update(categoria=None)  # O podrías eliminarlos: productos_asociados.delete()
 
         categoria.delete()
-        messages.success(request, 'La categoría ha sido eliminada exitosamente.')
+        messages.success(request, f'La categoría "{nombre_categoria}" ha sido eliminada exitosamente.')
         return redirect('visualizar_categorias')
     return render(request, 'visualizar_categorias.html', {'categorias': Categoria.objects.all()})
+
 
 def editar_categoria_view(request, categoria_id):
     categoria = get_object_or_404(Categoria, categoriaid=categoria_id)
@@ -133,10 +135,11 @@ def editar_categoria_view(request, categoria_id):
         categoria.nombre = nombre
         categoria.descripcion = descripcion
         categoria.save()
-        messages.success(request, f'Categoría actualizada exitosamente: Nombre={nombre}, Descripción={descripcion}')
+        messages.success(request, f'Categoría actualizada exitosamente a "{nombre}".')
         return redirect('visualizar_categorias')
 
     return render(request, 'editar_categoria.html', {'categoria': categoria})
+
 
 def agregar_producto_view(request):
     if request.method == 'POST':

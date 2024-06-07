@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% extends 'base.html' %}
-{% block title %}Visualizar Categorias{% endblock %}
+{% block title %}Visualizar Categorías{% endblock %}
 {% block content %}
 <html lang="es">
 <head>
@@ -17,6 +17,15 @@
 <body>
     <div class="container">
         <h2>Lista de Categorías</h2>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <table id="categoriasTable" class="display">
             <thead>
                 <tr>
