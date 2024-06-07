@@ -64,20 +64,24 @@ body {
 }
 
 .form-group input[type="submit"] {
-    background-color: #3b5998;
+    background-color: #003366;
     color: #ffffff;
     border: none;
     cursor: pointer;
     padding: 12px;
     text-align: center;
-    width: 100%;
-    margin-top: 40px;
+    width: 35%;
     font-size: 18px;
     transition: background-color 0.3s;
+    border-radius: 5px;
+    margin: 0 auto;
+    display: block;
+    margin-top: 35px;
+    margin-bottom: -20px;
 }
 
 .form-group input[type="submit"]:hover {
-    background-color: #2b467d;
+    background-color: #002244;
 }
 
 .alert {
