@@ -46,7 +46,7 @@ body {
 }
 
 .form-group input[type="text"], .form-group select {
-    width: 101%;
+    width: 92%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -57,17 +57,6 @@ body {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-.form-group input[type="number"] {
-    width: calc(100% - 16px);
-    padding: 10px;
-    border: 1px solid #888;
-    border-radius: 5px;
-    background-color: #e0e8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
 
 .form-group input[type="number"]:hover {
     background-color: #d0d8ff;
