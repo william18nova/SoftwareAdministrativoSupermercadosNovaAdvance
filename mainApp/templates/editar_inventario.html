@@ -37,7 +37,7 @@
                     table.row.add([
                         `${productoNombre}<input type="hidden" name="nuevo_producto[]" value="${productoId}">`,
                         `${cantidad}<input type="hidden" name="nueva_cantidad[]" value="${cantidad}">`,
-                        `<button type="button" class="btn-eliminar" data-id="${productoId}" onclick="eliminarProducto(this)"><i class="fas fa-trash-alt"></i></button>`
+                        `<button type="button" class="btn-eliminar" data-id="${productoId}" onclick="confirmarEliminacionProducto(this)"><i class="fas fa-trash-alt"></i></button>`
                     ]).draw(false);
 
                     productoSelect.find(`option[value="${productoId}"]`).hide();
@@ -47,6 +47,12 @@
                     mostrarMensaje('Por favor, selecciona un producto y completa la cantidad.', 'alert-error');
                 }
             });
+
+            window.confirmarEliminacionProducto = function(button) {
+                if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+                    eliminarProducto(button);
+                }
+            };
 
             window.eliminarProducto = function(button) {
                 const row = $(button).closest('tr');
@@ -108,14 +114,14 @@
                             <tr>
                                 <td>{{ inventario.productoid.nombre }}</td>
                                 <td><input type="number" name="cantidad_{{ inventario.inventarioid }}" value="{{ inventario.cantidad }}"></td>
-                                <td class="text-center"><button type="button" class="btn-eliminar" data-id="{{ inventario.inventarioid }}" onclick="eliminarProducto(this)"><i class="fas fa-trash-alt"></i></button></td>
+                                <td class="text-center"><button type="button" class="btn-eliminar" data-id="{{ inventario.inventarioid }}" onclick="confirmarEliminacionProducto(this)"><i class="fas fa-trash-alt"></i></button></td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
             <div class="form-group">
-                <label class = "texto-producto" for="nuevo-producto">Producto</label>
+                <label class="texto-producto" for="nuevo-producto">Producto</label>
                 <select id="nuevo-producto" name="nuevo-producto">
                     <option value="">Seleccionar producto</option>
                     {% for producto in productos %}
