@@ -123,7 +123,7 @@ body {
     line-height: 1.5;
     font-size: 18px;
     font-family: 'Roboto', Arial, sans-serif;
-    margin-top: 22px;
+    margin-top: 5px;
     margin-bottom: -30px;
 }
 
@@ -188,4 +188,13 @@ body {
     color: #3c763d;
     background-color: #dff0d8;
     border-color: #d6e9c6;
+}
+
+/* Estilo independiente para el input de cantidad debajo de la barra seleccionable de producto */
+#nueva-cantidad {
+    width: 97.5%;
+}
+
+.texto-producto{
+    margin-top: 25px;
 }
