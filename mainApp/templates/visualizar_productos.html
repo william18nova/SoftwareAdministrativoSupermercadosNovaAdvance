@@ -45,9 +45,9 @@
                     <td>{% if producto.categoria %}{{ producto.categoria.nombre }}{% else %}Sin categoría{% endif %}</td>
                     <td class="actions-cell">
                         <a href="{% url 'editar_producto' producto.productoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                        <form action="{% url 'eliminar_producto' producto.productoid %}" method="post" style="display:inline;">
+                        <form class="delete-form" action="{% url 'eliminar_producto' producto.productoid %}" method="post" style="display:inline;">
                             {% csrf_token %}
-                            <button type="submit" class="btn borrar"><i class="fas fa-trash-alt"></i></button>
+                            <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -59,6 +59,12 @@
         $(document).ready(function() {
             $('#productosTable').DataTable();
         });
+
+        function confirmDelete(button) {
+            if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+                $(button).closest('form').submit();
+            }
+        }
     </script>
 </body>
 </html>
