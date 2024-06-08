@@ -26,31 +26,33 @@
                 },
             });
 
-            // AJAX para eliminar producto
+            // AJAX para eliminar producto con confirmación
             $('.btn-eliminar').on('click', function(event) {
                 event.preventDefault();
                 const button = $(this);
                 const inventarioId = button.data('inventario-id');
                 const row = button.closest('tr');
 
-                $.ajax({
-                    url: '{% url "eliminar_producto_inventario" inventario_id=0 %}'.replace('0', inventarioId),
-                    type: 'POST',
-                    data: {
-                        csrfmiddlewaretoken: '{{ csrf_token }}'
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            table.row(row).remove().draw(false);
-                            mostrarMensaje(response.message, 'alert-success');
-                        } else {
-                            mostrarMensaje(response.message, 'alert-error');
+                if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
+                    $.ajax({
+                        url: '{% url "eliminar_producto_inventario" inventario_id=0 %}'.replace('0', inventarioId),
+                        type: 'POST',
+                        data: {
+                            csrfmiddlewaretoken: '{{ csrf_token }}'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                table.row(row).remove().draw(false);
+                                mostrarMensaje(response.message, 'alert-success');
+                            } else {
+                                mostrarMensaje(response.message, 'alert-error');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            mostrarMensaje('Ocurrió un error al eliminar el producto.', 'alert-error');
                         }
-                    },
-                    error: function(xhr, status, error) {
-                        mostrarMensaje('Ocurrió un error al eliminar el producto.', 'alert-error');
-                    }
-                });
+                    });
+                }
             });
 
             function mostrarMensaje(mensaje, clase) {
