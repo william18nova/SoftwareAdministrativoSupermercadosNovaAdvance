@@ -13,6 +13,59 @@
     <link rel="stylesheet" href="{% static 'visualizar_inventarios.css' %}">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const table = $('#inventarios-list').DataTable({
+                paging: false,
+                searching: true,
+                info: false,
+                language: {
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay productos para mostrar",
+                },
+            });
+
+            // AJAX para eliminar producto
+            $('.btn-eliminar').on('click', function(event) {
+                event.preventDefault();
+                const button = $(this);
+                const inventarioId = button.data('inventario-id');
+                const row = button.closest('tr');
+
+                $.ajax({
+                    url: '{% url "eliminar_producto_inventario" inventario_id=0 %}'.replace('0', inventarioId),
+                    type: 'POST',
+                    data: {
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            table.row(row).remove().draw(false);
+                            mostrarMensaje(response.message, 'alert-success');
+                        } else {
+                            mostrarMensaje(response.message, 'alert-error');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        mostrarMensaje('Ocurrió un error al eliminar el producto.', 'alert-error');
+                    }
+                });
+            });
+
+            function mostrarMensaje(mensaje, clase) {
+                // Elimina cualquier mensaje de alerta existente
+                const alertasExistentes = document.querySelectorAll('.alert');
+                alertasExistentes.forEach(alerta => alerta.remove());
+
+                const mensajeDiv = document.createElement('div');
+                mensajeDiv.className = `alert ${clase}`;
+                mensajeDiv.textContent = mensaje;
+                const titulo = document.querySelector('h2');
+                titulo.insertAdjacentElement('afterend', mensajeDiv);
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -71,7 +124,7 @@
                                     <td>{{ inventario.productoid.nombre }}</td>
                                     <td>{{ inventario.cantidad }}</td>
                                     <td class="text-center">
-                                        <a href="{% url 'eliminar_producto_inventario' inventario.inventarioid %}" class="btn-eliminar"><i class="fas fa-trash-alt"></i></a>
+                                        <button type="button" class="btn-eliminar" data-inventario-id="{{ inventario.inventarioid }}"><i class="fas fa-trash-alt"></i></button>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -81,21 +134,6 @@
             </div>
         {% endif %}
     </div>
-
-    <script>
-        $(document).ready(function() {
-            $('#inventarios-list').DataTable({
-                paging: false,
-                searching: true,
-                info: false,
-                language: {
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay productos para mostrar",
-                },
-            });
-        });
-    </script>
 </body>
 </html>
 {% endblock %}

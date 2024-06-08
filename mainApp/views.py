@@ -293,8 +293,9 @@ def editar_inventario_view(request, sucursal_id):
     })
 
 def eliminar_producto_inventario_view(request, inventario_id):
-    inventario = get_object_or_404(Inventario, pk=inventario_id)
-    sucursal_id = inventario.sucursalid.sucursalid
-    inventario.delete()
-    messages.success(request, 'Producto eliminado del inventario')
-    return redirect('visualizar_inventarios')
+    if request.method == 'POST':
+        inventario = get_object_or_404(Inventario, pk=inventario_id)
+        producto_nombre = inventario.productoid.nombre
+        inventario.delete()
+        return JsonResponse({'success': True, 'message': f'Producto "{producto_nombre}" eliminado exitosamente.'})
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
