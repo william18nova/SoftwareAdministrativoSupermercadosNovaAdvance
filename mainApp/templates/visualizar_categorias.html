@@ -41,9 +41,9 @@
                     <td>{{ categoria.descripcion }}</td>
                     <td class="actions-cell">
                         <a href="{% url 'editar_categoria' categoria.categoriaid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                        <form action="{% url 'eliminar_categoria' categoria.categoriaid %}" method="post" style="display:inline;">
+                        <button type="button" class="btn borrar" onclick="confirmarEliminacion('{{ categoria.categoriaid }}', '{{ categoria.nombre }}')"><i class="fas fa-trash-alt"></i></button>
+                        <form id="eliminar-form-{{ categoria.categoriaid }}" action="{% url 'eliminar_categoria' categoria.categoriaid %}" method="post" style="display:none;">
                             {% csrf_token %}
-                            <button type="submit" class="btn borrar"><i class="fas fa-trash-alt"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -55,6 +55,12 @@
         $(document).ready(function() {
             $('#categoriasTable').DataTable();
         });
+
+        function confirmarEliminacion(categoriaId, categoriaNombre) {
+            if (confirm(`¿Estás seguro de que deseas eliminar la categoría "${categoriaNombre}"?`)) {
+                document.getElementById(`eliminar-form-${categoriaId}`).submit();
+            }
+        }
     </script>
 </body>
 </html>
