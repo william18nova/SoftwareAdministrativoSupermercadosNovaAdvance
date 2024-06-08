@@ -56,6 +56,7 @@
             }
 
             function mostrarMensaje(mensaje, clase) {
+                $('.alert').remove(); // Eliminar cualquier alerta existente
                 const mensajeDiv = document.createElement('div');
                 mensajeDiv.className = `alert ${clase}`;
                 mensajeDiv.textContent = mensaje;

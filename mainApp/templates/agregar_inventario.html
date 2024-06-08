@@ -55,9 +55,8 @@
                 }
             }
 
-            function eliminarProducto(button, productId) {
+            window.eliminarProducto = function(button, productId) {
                 const row = $(button).closest('tr');
-                row.remove();
                 $('#producto').find(`option[value="${productId}"]`).show();
                 table.row(row).remove().draw(false);
             }

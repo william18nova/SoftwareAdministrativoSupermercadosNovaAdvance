@@ -211,11 +211,9 @@ def agregar_inventario_view(request):
         sucursal_id = request.POST.get('sucursal')
         sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
 
-        # Obtener los productos y cantidades del formulario
         productos = request.POST.getlist('producto[]')
         cantidades = request.POST.getlist('cantidad[]')
 
-        # Crear inventario para cada producto
         for producto_id, cantidad in zip(productos, cantidades):
             producto = get_object_or_404(Producto, pk=producto_id)
             Inventario.objects.create(
@@ -232,10 +230,10 @@ def agregar_inventario_view(request):
 
     if not sucursales_sin_inventario.exists():
         messages.error(request, 'Todas las sucursales ya tienen inventario. Debe ir a visualizar inventario para modificarlas o ir a agregar sucursales para añadir nuevas sucursales.')
-    
+
     if not productos.exists():
         messages.error(request, 'No hay productos en el sistema. Debe ir a agregar productos para añadir productos al sistema y generar un inventario.')
-    
+
     return render(request, 'agregar_inventario.html', {'sucursales': sucursales_sin_inventario, 'productos': productos})
 
 def visualizar_inventarios_view(request):
