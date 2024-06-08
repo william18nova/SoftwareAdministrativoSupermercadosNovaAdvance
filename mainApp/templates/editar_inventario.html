@@ -37,7 +37,7 @@
                     table.row.add([
                         `${productoNombre}<input type="hidden" name="nuevo_producto[]" value="${productoId}">`,
                         `${cantidad}<input type="hidden" name="nueva_cantidad[]" value="${cantidad}">`,
-                        `<button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '${productoId}')"><i class="fas fa-trash-alt"></i></button>`
+                        `<button type="button" class="btn-eliminar" data-id="${productoId}" onclick="eliminarProducto(this)"><i class="fas fa-trash-alt"></i></button>`
                     ]).draw(false);
 
                     productoSelect.find(`option[value="${productoId}"]`).hide();
@@ -48,12 +48,29 @@
                 }
             });
 
-            function eliminarProducto(button, productId) {
+            window.eliminarProducto = function(button) {
                 const row = $(button).closest('tr');
-                row.remove();
-                $('#nuevo-producto').find(`option[value="${productId}"]`).show();
-                table.row(row).remove().draw(false);
-            }
+                const inventarioId = $(button).data('id');
+                
+                $.ajax({
+                    url: "{% url 'eliminar_producto_inventario' inventario_id=0 %}".replace('0', inventarioId),
+                    type: 'POST',
+                    data: {
+                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            table.row(row).remove().draw(false);
+                            mostrarMensaje(response.message, 'alert-success');
+                        } else {
+                            mostrarMensaje(response.message, 'alert-error');
+                        }
+                    },
+                    error: function() {
+                        mostrarMensaje('Ocurrió un error al eliminar el producto.', 'alert-error');
+                    }
+                });
+            };
 
             function mostrarMensaje(mensaje, clase) {
                 $('.alert').remove(); // Eliminar cualquier alerta existente
@@ -61,7 +78,7 @@
                 mensajeDiv.className = `alert ${clase}`;
                 mensajeDiv.textContent = mensaje;
                 const form = document.getElementById('inventarioForm');
-                form.appendChild(mensajeDiv);
+                form.insertBefore(mensajeDiv, form.firstChild);
             }
         });
     </script>
@@ -91,7 +108,7 @@
                             <tr>
                                 <td>{{ inventario.productoid.nombre }}</td>
                                 <td><input type="number" name="cantidad_{{ inventario.inventarioid }}" value="{{ inventario.cantidad }}"></td>
-                                <td class="text-center"><button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '{{ inventario.inventarioid }}')"><i class="fas fa-trash-alt"></i></button></td>
+                                <td class="text-center"><button type="button" class="btn-eliminar" data-id="{{ inventario.inventarioid }}" onclick="eliminarProducto(this)"><i class="fas fa-trash-alt"></i></button></td>
                             </tr>
                         {% endfor %}
                     </tbody>
