@@ -59,3 +59,17 @@ class Inventario(models.Model):
 
     def __str__(self):
         return f"Inventario de {self.productoid.nombre} en {self.sucursalid.nombre}"
+
+class Proveedor(models.Model):
+    proveedorid = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=100)
+    empresa = models.CharField(max_length=100, null=True, blank=True)
+    telefono = models.CharField(max_length=20, null=True, blank=True)
+    email = models.EmailField(max_length=100, null=True, blank=True)
+    direccion = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'proveedores'
+
+    def __str__(self):
+        return self.nombre

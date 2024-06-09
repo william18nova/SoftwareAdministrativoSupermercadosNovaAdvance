@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor
 from django.db.models import Count, Sum
 from django.http import JsonResponse
 from collections import defaultdict
@@ -299,3 +299,22 @@ def eliminar_producto_inventario_view(request, inventario_id):
         inventario.delete()
         return JsonResponse({'success': True, 'message': f'Producto "{producto_nombre}" eliminado exitosamente.', 'producto_nombre': producto_nombre})
     return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
+
+def agregar_proveedor_view(request):
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        empresa = request.POST.get('empresa')
+        telefono = request.POST.get('telefono')
+        email = request.POST.get('email')
+        direccion = request.POST.get('direccion')
+
+        if Proveedor.objects.filter(nombre=nombre).exists():
+            messages.error(request, 'Ya existe un proveedor con este nombre.')
+            return render(request, 'agregar_proveedor.html')
+
+        proveedor = Proveedor(nombre=nombre, empresa=empresa, telefono=telefono, email=email, direccion=direccion)
+        proveedor.save()
+        messages.success(request, 'Proveedor agregado exitosamente.')
+        return redirect('agregar_proveedor')
+
+    return render(request, 'agregar_proveedor.html')
