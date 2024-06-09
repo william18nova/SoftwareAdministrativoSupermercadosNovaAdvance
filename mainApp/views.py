@@ -318,3 +318,41 @@ def agregar_proveedor_view(request):
         return redirect('agregar_proveedor')
 
     return render(request, 'agregar_proveedor.html')
+
+def visualizar_proveedores_view(request):
+    proveedores = Proveedor.objects.all()
+    return render(request, 'visualizar_proveedores.html', {'proveedores': proveedores})
+
+def eliminar_proveedor(request, proveedor_id):
+    proveedor = get_object_or_404(Proveedor, proveedorid=proveedor_id)
+    if request.method == 'POST':
+        proveedor.delete()
+        messages.success(request, 'El proveedor ha sido eliminado exitosamente.')
+        return redirect('visualizar_proveedores')
+    return render(request, 'visualizar_proveedores.html', {'proveedores': Proveedor.objects.all()})
+
+def editar_proveedor_view(request, proveedor_id):
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        empresa = request.POST.get('empresa')
+        telefono = request.POST.get('telefono')
+        email = request.POST.get('email')
+        direccion = request.POST.get('direccion')
+
+        # Validar campos vacíos
+        if not nombre or not empresa or not telefono or not email or not direccion:
+            messages.error(request, 'Todos los campos son obligatorios.')
+        elif Proveedor.objects.exclude(pk=proveedor_id).filter(nombre=nombre).exists():
+            messages.error(request, 'Ya existe un proveedor con ese nombre.')
+        else:
+            proveedor.nombre = nombre
+            proveedor.empresa = empresa
+            proveedor.telefono = telefono
+            proveedor.email = email
+            proveedor.direccion = direccion
+            proveedor.save()
+            messages.success(request, 'El proveedor ha sido actualizado exitosamente.')
+            return redirect('visualizar_proveedores')
+
+    return render(request, 'editar_proveedor.html', {'proveedor': proveedor})
