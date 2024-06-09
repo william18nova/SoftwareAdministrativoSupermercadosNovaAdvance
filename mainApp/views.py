@@ -297,5 +297,5 @@ def eliminar_producto_inventario_view(request, inventario_id):
         inventario = get_object_or_404(Inventario, pk=inventario_id)
         producto_nombre = inventario.productoid.nombre
         inventario.delete()
-        return JsonResponse({'success': True, 'message': f'Producto "{producto_nombre}" eliminado exitosamente.'})
+        return JsonResponse({'success': True, 'message': f'Producto "{producto_nombre}" eliminado exitosamente.', 'producto_nombre': producto_nombre})
     return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
