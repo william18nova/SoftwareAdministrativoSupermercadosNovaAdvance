@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 {% extends 'base.html' %}
-{% block title %}Agregar Inventario{% endblock %}
+{% block title %}Agregar Precios de Proveedor{% endblock %}
 {% block content %}
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agregar Inventario</title>
+    <title>Agregar Precios de Proveedor</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'agregar_inventario.css' %}">
+    <link rel="stylesheet" href="{% static 'agregar_productos_precios_proveedor.css' %}">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
     <script>
@@ -35,23 +35,23 @@
 
             function agregarProducto() {
                 const productoSelect = $('#producto');
-                const cantidadInput = $('#cantidad');
+                const precioInput = $('#precio');
                 const productoNombre = productoSelect.find('option:selected').text();
                 const productoId = productoSelect.val();
-                const cantidad = cantidadInput.val();
+                const precio = precioInput.val();
 
-                if (productoId && cantidad) {
+                if (productoId && precio) {
                     table.row.add([
                         `${productoNombre}<input type="hidden" name="producto[]" value="${productoId}">`,
-                        `${cantidad}<input type="hidden" name="cantidad[]" value="${cantidad}">`,
+                        `${precio}<input type="hidden" name="precio[]" value="${precio}">`,
                         `<button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '${productoId}')"><i class="fas fa-trash-alt"></i></button>`
                     ]).draw(false);
 
                     productoSelect.find(`option[value="${productoId}"]`).hide();
                     productoSelect.val('');
-                    cantidadInput.val('');
+                    precioInput.val('');
                 } else {
-                    mostrarMensaje('Por favor, selecciona un producto y completa la cantidad.', 'alert-error');
+                    mostrarMensaje('Por favor, selecciona un producto y completa el precio.', 'alert-error');
                 }
             }
 
@@ -69,26 +69,26 @@
                 const mensajeDiv = document.createElement('div');
                 mensajeDiv.className = `alert ${clase}`;
                 mensajeDiv.textContent = mensaje;
-                const form = document.getElementById('inventarioForm');
+                const form = document.getElementById('proveedorForm');
                 form.appendChild(mensajeDiv);
             }
 
-            $('#inventarioForm').on('submit', validarFormulario);
+            $('#proveedorForm').on('submit', validarFormulario);
             $('#agregarProductoBtn').on('click', agregarProducto);
         });
     </script>
 </head>
 <body>
     <div class="container">
-        <i class="fas fa-warehouse icon"></i> <!-- Ícono de inventario -->
-        <h2>Agregar Inventario</h2>
-        <form id="inventarioForm" action="{% url 'agregar_inventario' %}" method="POST">
+        <i class="fas fa-truck icon"></i> <!-- Ícono de proveedor -->
+        <h2>Agregar Precios de Proveedor</h2>
+        <form id="proveedorForm" action="{% url 'agregar_productos_precios_proveedor' %}" method="POST">
             {% csrf_token %}
             <div class="form-group">
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal" name="sucursal" required>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
+                <label for="proveedor">Proveedor</label>
+                <select id="proveedor" name="proveedor" required>
+                    {% for proveedor in proveedores %}
+                        <option value="{{ proveedor.proveedorid }}">{{ proveedor.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -102,8 +102,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="cantidad">Cantidad</label>
-                <input type="number" id="cantidad" name="cantidad">
+                <label for="precio">Precio</label>
+                <input type="number" id="precio" name="precio" step="0.01">
             </div>
             <div class="form-group">
                 <button type="button" class="btn-agregar-producto" id="agregarProductoBtn">Agregar Producto</button>
@@ -113,7 +113,7 @@
                     <thead>
                         <tr>
                             <th>Producto</th>
-                            <th>Cantidad</th>
+                            <th>Precio</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -123,7 +123,7 @@
                 </table>
             </div>
             <div class="form-group">
-                <input type="submit" value="Agregar Inventario" class="btn-agregar-inventario">
+                <input type="submit" value="Agregar Productos y Precios" class="btn-agregar-inventario">
             </div>
             {% if messages %}
                 <div class="messages">

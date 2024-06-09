@@ -73,3 +73,16 @@ class Proveedor(models.Model):
 
     def __str__(self):
         return self.nombre
+
+class PreciosProveedor(models.Model):
+    id = models.AutoField(primary_key=True)
+    productoid = models.ForeignKey(Producto, on_delete=models.CASCADE, db_column='productoid')
+    proveedorid = models.ForeignKey(Proveedor, on_delete=models.CASCADE, db_column='proveedorid')
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = 'preciosproveedor'
+        unique_together = ('productoid', 'proveedorid')
+
+    def __str__(self):
+        return f"Precio del producto {self.productoid.nombre} por el proveedor {self.proveedorid.nombre}"

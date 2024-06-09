@@ -1,8 +1,8 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor
-from django.db.models import Count, Sum
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor
+from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
 
@@ -356,3 +356,29 @@ def editar_proveedor_view(request, proveedor_id):
             return redirect('visualizar_proveedores')
 
     return render(request, 'editar_proveedor.html', {'proveedor': proveedor})
+
+def agregar_productos_precios_proveedor_view(request):
+    if request.method == 'POST':
+        proveedor_id = request.POST.get('proveedor')
+        productos = request.POST.getlist('producto[]')
+        precios = request.POST.getlist('precio[]')
+
+        proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+
+        for producto_id, precio in zip(productos, precios):
+            if producto_id and precio:  # Asegúrate de que producto_id y precio no estén vacíos
+                producto = get_object_or_404(Producto, pk=producto_id)
+                if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
+                    messages.error(request, f'El producto {producto.nombre} ya está registrado para el proveedor {proveedor.nombre}.')
+                    continue
+                PreciosProveedor.objects.create(productoid=producto, proveedorid=proveedor, precio=precio)
+
+        messages.success(request, 'Productos y precios agregados exitosamente al proveedor.')
+        return redirect('agregar_productos_precios_proveedor')
+
+    # Filtrar proveedores que no tienen productos asociados
+    proveedores_con_productos = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
+    proveedores = Proveedor.objects.annotate(tiene_productos=Exists(proveedores_con_productos)).filter(tiene_productos=False)
+    
+    productos = Producto.objects.all()
+    return render(request, 'agregar_productos_precios_proveedor.html', {'proveedores': proveedores, 'productos': productos})
