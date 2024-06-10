@@ -27,15 +27,14 @@
             });
 
             function mostrarMensaje(mensaje, clase) {
-                // Elimina cualquier mensaje de alerta existente
                 const alertasExistentes = document.querySelectorAll('.alert');
                 alertasExistentes.forEach(alerta => alerta.remove());
 
                 const mensajeDiv = document.createElement('div');
                 mensajeDiv.className = `alert ${clase}`;
-                mensajeDiv.textContent = mensaje;
-                const titulo = document.querySelector('h2');
-                titulo.insertAdjacentElement('afterend', mensajeDiv);
+                mensajeDiv.textContent = mensaje || 'Operación exitosa';
+                const form = document.querySelector('#proveedorForm');
+                form.insertAdjacentElement('beforebegin', mensajeDiv);
             }
 
             $('.btn-eliminar').on('click', function(event) {
@@ -77,6 +76,15 @@
     <div class="container">
         <i class="fas fa-truck icon"></i> <!-- Ícono de proveedor -->
         <h2>Visualizar Productos y Precios de Proveedores</h2>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <form id="proveedorForm" method="POST" action="{% url 'visualizar_productos_precios_proveedores' %}">
             {% csrf_token %}
             <div class="form-group">
@@ -117,15 +125,6 @@
                 </tbody>
             </table>
         </div>
-        {% endif %}
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
         {% endif %}
     </div>
 </body>

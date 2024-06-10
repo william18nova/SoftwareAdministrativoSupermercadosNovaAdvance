@@ -404,9 +404,10 @@ def visualizar_productos_precios_proveedores_view(request):
 def eliminar_precio_proveedor_view(request, id):
     if request.method == 'POST':
         precio_proveedor = get_object_or_404(PreciosProveedor, pk=id)
+        nombre_producto = precio_proveedor.productoid.nombre
         precio_proveedor.delete()
-        return JsonResponse({'success': True})
-    return JsonResponse({'success': False}, status=405)
+        return JsonResponse({'success': True, 'message': f'Producto "{nombre_producto}" eliminado correctamente.'})
+    return JsonResponse({'success': False, 'message': 'Error al eliminar el producto.'})
 
 def editar_productos_precios_proveedor_view(request, proveedor_id):
     proveedor = get_object_or_404(Proveedor, pk=proveedor_id)

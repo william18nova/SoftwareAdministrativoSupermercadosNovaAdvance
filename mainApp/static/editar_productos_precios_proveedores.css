@@ -46,7 +46,6 @@ body {
 }
 
 .form-group select, .form-group input[type="number"] {
-    width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -55,6 +54,16 @@ body {
     display: block;
     font-size: 16px;
     transition: background-color 0.3s, border-color 0.3s;
+    margin-top: 10px;  /* Añadido para margen */
+    margin-bottom: 15px;
+}
+
+.form-group select {
+    width: 100%;
+}
+
+.form-group input[type="number"] {
+    width: 97.5%;
 }
 
 .form-group select:hover, .form-group input[type="number"]:hover {
@@ -138,7 +147,7 @@ body {
     cursor: pointer;
     padding: 12px;
     text-align: center;
-    width: 35%;
+    width: 25%;
     font-size: 18px;
     transition: background-color 0.3s;
     border-radius: 5px;
@@ -190,6 +199,12 @@ body {
     border-color: #d6e9c6;
 }
 
-.texto-producto {
+/* Estilo independiente para el input de precio debajo de la barra seleccionable de producto */
+#nuevo-precio {
+    width: 97.1%; /* Ajusta este valor según tus necesidades */
+}
+
+.texto-producto{
     margin-top: 25px;
 }
+

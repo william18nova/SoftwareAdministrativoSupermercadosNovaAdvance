@@ -27,6 +27,12 @@ body {
     margin-bottom: 10px;
 }
 
+.icon {
+    font-size: 90px; /* Ajusta este valor para cambiar el tamaño del icono */
+    margin-bottom: 5px;
+    color: #ffffff;
+}
+
 .form-group {
     margin-bottom: 20px;
     text-align: left;
