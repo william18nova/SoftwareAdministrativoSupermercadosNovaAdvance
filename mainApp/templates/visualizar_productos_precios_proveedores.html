@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Visualizar Productos y Precios de Proveedores{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizar Productos y Precios de Proveedores</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{% static 'visualizar_productos_precios_proveedores.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const table = $('#productos-precios-list').DataTable({
+                paging: false,
+                searching: true,
+                info: false,
+                language: {
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay productos para mostrar",
+                },
+            });
+
+            function mostrarMensaje(mensaje, clase) {
+                // Elimina cualquier mensaje de alerta existente
+                const alertasExistentes = document.querySelectorAll('.alert');
+                alertasExistentes.forEach(alerta => alerta.remove());
+
+                const mensajeDiv = document.createElement('div');
+                mensajeDiv.className = `alert ${clase}`;
+                mensajeDiv.textContent = mensaje;
+                const titulo = document.querySelector('h2');
+                titulo.insertAdjacentElement('afterend', mensajeDiv);
+            }
+
+            $('.btn-eliminar').on('click', function(event) {
+                event.preventDefault();
+                const button = $(this);
+                const id = button.data('id');
+                const row = button.closest('tr');
+
+                if (confirm('¿Estás seguro de que deseas eliminar este precio del proveedor?')) {
+                    $.ajax({
+                        url: '{% url "eliminar_precio_proveedor" 0 %}'.replace('0', id),
+                        type: 'POST',
+                        data: {
+                            csrfmiddlewaretoken: '{{ csrf_token }}'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                table.row(row).remove().draw(false);
+                                mostrarMensaje(response.message, 'alert-success');
+                            } else {
+                                mostrarMensaje(response.message, 'alert-error');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            mostrarMensaje('Ocurrió un error al eliminar el precio del proveedor.', 'alert-error');
+                        }
+                    });
+                }
+            });
+
+            $('#proveedor').on('change', function() {
+                const form = $('#proveedorForm');
+                form.submit();
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <i class="fas fa-truck icon"></i> <!-- Ícono de proveedor -->
+        <h2>Visualizar Productos y Precios de Proveedores</h2>
+        <form id="proveedorForm" method="POST" action="{% url 'visualizar_productos_precios_proveedores' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="proveedor">Proveedor</label>
+                <select id="proveedor" name="proveedor" required>
+                    <option value="">Seleccionar proveedor</option>
+                    {% for proveedor in proveedores %}
+                        <option value="{{ proveedor.proveedorid }}" {% if proveedor_seleccionado and proveedor.proveedorid == proveedor_seleccionado.proveedorid %}selected{% endif %}>{{ proveedor.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if proveedor_seleccionado %}
+                <div class="btn-container">
+                    <a href="{% url 'editar_productos_precios_proveedor' proveedor_seleccionado.proveedorid %}" class="btn-editar-inventario">Editar Precios</a>
+                </div>
+            {% endif %}
+        </form>
+        {% if proveedor_seleccionado %}
+        <div class="table-container">
+            <table id="productos-precios-list" class="table display">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for precio in productos_precios %}
+                    <tr>
+                        <td>{{ precio.productoid.nombre }}</td>
+                        <td>{{ precio.precio }}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn-eliminar" data-id="{{ precio.id }}"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+{% endblock %}

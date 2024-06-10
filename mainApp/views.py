@@ -382,3 +382,63 @@ def agregar_productos_precios_proveedor_view(request):
     
     productos = Producto.objects.all()
     return render(request, 'agregar_productos_precios_proveedor.html', {'proveedores': proveedores, 'productos': productos})
+
+def visualizar_productos_precios_proveedores_view(request):
+    proveedores = Proveedor.objects.annotate(product_count=Count('preciosproveedor')).filter(product_count__gt=0)
+    productos_precios = None
+    proveedor_seleccionado = None
+
+    if request.method == 'POST':
+        proveedor_id = request.POST.get('proveedor')
+        if proveedor_id:
+            proveedor_seleccionado = get_object_or_404(Proveedor, pk=proveedor_id)
+            productos_precios = PreciosProveedor.objects.filter(proveedorid=proveedor_seleccionado)
+
+    return render(request, 'visualizar_productos_precios_proveedores.html', {
+        'proveedores': proveedores,
+        'productos_precios': productos_precios,
+        'proveedor_seleccionado': proveedor_seleccionado,
+    })
+
+
+def eliminar_precio_proveedor_view(request, id):
+    if request.method == 'POST':
+        precio_proveedor = get_object_or_404(PreciosProveedor, pk=id)
+        precio_proveedor.delete()
+        return JsonResponse({'success': True})
+    return JsonResponse({'success': False}, status=405)
+
+def editar_productos_precios_proveedor_view(request, proveedor_id):
+    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+    productos_precios = PreciosProveedor.objects.filter(proveedorid=proveedor)
+    productos_existentes = list(productos_precios.values_list('productoid', flat=True))
+    productos = Producto.objects.all()
+
+    if request.method == 'POST':
+        nuevos_productos_ids = request.POST.getlist('producto[]')
+        nuevos_precios = request.POST.getlist('precio[]')
+
+        # Filtrar los valores vacíos
+        nuevos_productos_ids = [pid for pid in nuevos_productos_ids if pid]
+        nuevos_precios = [precio for precio in nuevos_precios if precio]
+
+        # Eliminar productos no incluidos en la nueva lista
+        PreciosProveedor.objects.filter(proveedorid=proveedor).exclude(productoid__in=nuevos_productos_ids).delete()
+
+        for producto_id, precio in zip(nuevos_productos_ids, nuevos_precios):
+            if producto_id and precio:
+                producto = get_object_or_404(Producto, pk=producto_id)
+                precios_proveedor, created = PreciosProveedor.objects.update_or_create(
+                    productoid=producto, proveedorid=proveedor,
+                    defaults={'precio': precio}
+                )
+
+        messages.success(request, 'Productos y precios actualizados exitosamente para el proveedor.')
+        return redirect('visualizar_productos_precios_proveedores')
+
+    return render(request, 'editar_productos_precios_proveedor.html', {
+        'proveedor': proveedor,
+        'productos_precios': productos_precios,
+        'productos': productos,
+        'productos_existentes': productos_existentes,
+    })
