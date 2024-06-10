@@ -238,27 +238,26 @@ def agregar_inventario_view(request):
 
 def visualizar_inventarios_view(request):
     sucursales_con_inventario = Sucursal.objects.filter(inventario__isnull=False).distinct()
-    inventarios = None
-    sucursal_seleccionada = None
+    sucursal_id = request.POST.get('sucursal')
     inventario_global = False
+    inventarios = []
     inventario_global_data = []
 
-    if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal')
-        if sucursal_id == 'global':
-            inventario_global = True
-            inventario_global_data = Inventario.objects.values('productoid__nombre').annotate(total_cantidad=Sum('cantidad'))
-        else:
-            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
-            inventarios = Inventario.objects.filter(sucursalid=sucursal_seleccionada)
+    if sucursal_id and sucursal_id != "global":
+        sucursal_seleccionada = get_object_or_404(Sucursal, pk=int(sucursal_id))
+        inventarios = Inventario.objects.filter(sucursalid=sucursal_seleccionada)
+    elif sucursal_id == "global":
+        inventario_global = True
+        inventario_global_data = Inventario.objects.values('productoid__nombre').annotate(total_cantidad=Sum('cantidad'))
 
-    return render(request, 'visualizar_inventarios.html', {
+    context = {
         'sucursales': sucursales_con_inventario,
         'inventarios': inventarios,
-        'sucursal_seleccionada': sucursal_seleccionada,
         'inventario_global': inventario_global,
-        'inventario_global_data': inventario_global_data
-    })
+        'inventario_global_data': inventario_global_data,
+        'sucursal_seleccionada': sucursal_seleccionada if sucursal_id and sucursal_id != "global" else None,
+    }
+    return render(request, 'visualizar_inventarios.html', context)
 
 
 def editar_inventario_view(request, sucursal_id):
