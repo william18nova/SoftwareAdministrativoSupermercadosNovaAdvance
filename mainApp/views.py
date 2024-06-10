@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago
 from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
@@ -442,3 +442,35 @@ def editar_productos_precios_proveedor_view(request, proveedor_id):
         'productos': productos,
         'productos_existentes': productos_existentes,
     })
+
+def agregar_punto_pago_view(request):
+    if request.method == 'POST':
+        sucursal_id = request.POST.get('sucursal')
+        nombres = request.POST.getlist('nombre[]')
+        descripciones = request.POST.getlist('descripcion[]')
+
+        if not sucursal_id:
+            messages.error(request, 'La sucursal es obligatoria.')
+            return redirect('agregar_punto_pago')
+
+        if not nombres:
+            messages.error(request, 'Debe agregar al menos un punto de pago.')
+            return redirect('agregar_punto_pago')
+
+        sucursal = Sucursal.objects.get(sucursalid=sucursal_id)
+
+        for nombre, descripcion in zip(nombres, descripciones):
+            if nombre:
+                if PuntosPago.objects.filter(sucursalid=sucursal, nombre=nombre).exists():
+                    messages.error(request, f'La sucursal ya tiene un punto de pago con el nombre {nombre}.')
+                    return redirect('agregar_punto_pago')
+                
+                punto_pago = PuntosPago(sucursalid=sucursal, nombre=nombre, descripcion=descripcion or "")
+                punto_pago.save()
+
+        messages.success(request, 'Puntos de pago agregados exitosamente.')
+        return redirect('agregar_punto_pago')
+
+    # Obtener todas las sucursales que no tienen puntos de pago asociados
+    sucursales_sin_punto_pago = Sucursal.objects.exclude(puntospago__isnull=False)
+    return render(request, 'agregar_punto_pago.html', {'sucursales': sucursales_sin_punto_pago})

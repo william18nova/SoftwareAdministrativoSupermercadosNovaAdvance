@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Agregar Puntos de Pago{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Puntos de Pago</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{% static 'agregar_punto_pago.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const table = $('#puntos-pago-list').DataTable({
+                paging: false,
+                searching: true,
+                info: false,
+                language: {
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay puntos de pago para mostrar",
+                },
+            });
+
+            function validarFormulario(event) {
+                // Solo valida si no hay filas en la tabla
+                if (table.data().count() === 0 && !$('#nombre').val().trim()) {
+                    event.preventDefault();
+                    mostrarMensaje('Por favor, agrega al menos un punto de pago a la lista o completa los campos.', 'alert-error');
+                }
+            }
+
+            function agregarPuntoPago() {
+                const nombreInput = $('#nombre');
+                const descripcionInput = $('#descripcion');
+                const nombre = nombreInput.val().trim();
+                const descripcion = descripcionInput.val().trim();
+
+                if (nombre) {  // Solo agregamos a la tabla si hay un nombre
+                    table.row.add([
+                        `${nombre}<input type="hidden" name="nombre[]" value="${nombre}">`,
+                        `${descripcion}<input type="hidden" name="descripcion[]" value="${descripcion}">`,
+                        `<button type="button" class="btn-eliminar" onclick="confirmarEliminarPuntoPago(this)"><i class="fas fa-trash-alt"></i></button>`
+                    ]).draw(false);
+
+                    nombreInput.val('');
+                    descripcionInput.val('');
+                } else {
+                    mostrarMensaje('Por favor, completa el campo nombre.', 'alert-error');
+                }
+            }
+
+            window.confirmarEliminarPuntoPago = function(button) {
+                if (confirm("¿Está seguro de que desea eliminar este punto de pago?")) {
+                    eliminarPuntoPago(button);
+                }
+            }
+
+            window.eliminarPuntoPago = function(button) {
+                const row = $(button).closest('tr');
+                table.row(row).remove().draw(false);
+            }
+
+            function mostrarMensaje(mensaje, clase) {
+                const alertasExistentes = document.querySelectorAll('.alert');
+                alertasExistentes.forEach(alerta => alerta.remove());
+
+                const mensajeDiv = document.createElement('div');
+                mensajeDiv.className = `alert ${clase}`;
+                mensajeDiv.textContent = mensaje;
+                const form = document.getElementById('puntoPagoForm');
+                form.insertBefore(mensajeDiv, form.firstChild);
+            }
+
+            $('#puntoPagoForm').on('submit', validarFormulario);
+            $('#agregarPuntoPagoBtn').on('click', agregarPuntoPago);
+        });
+    </script>
+</head>
+<body>
+    <div class="container-punto-pago">
+        <i class="fas fa-credit-card icon-punto-pago"></i> <!-- Ícono de punto de pago -->
+        <h2>Agregar Puntos de Pago</h2>
+        <form id="puntoPagoForm" action="{% url 'agregar_punto_pago' %}" method="POST">
+            {% csrf_token %}
+            <div class="form-group-punto-pago">
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal" required>
+                    <option value="" disabled selected>Seleccione una sucursal</option>
+                    {% for sucursal in sucursales %}
+                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group-punto-pago">
+                <label for="nombre">Nombre del Punto de Pago</label>
+                <input type="text" id="nombre" name="nombre" class="input-nombre">
+            </div>
+            <div class="form-group-punto-pago">
+                <label for="descripcion">Descripción (Opcional)</label>
+                <input type="text" id="descripcion" name="descripcion" class="input-descripcion">
+            </div>
+            <div class="form-group-punto-pago">
+                <button type="button" class="btn-agregar-punto-pago" id="agregarPuntoPagoBtn">Agregar Punto de Pago</button>
+            </div>
+            <div class="table-container-punto-pago">
+                <table id="puntos-pago-list" class="table display">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Descripción</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="puntos-pago-body">
+                        <!-- Aquí se agregarán los puntos de pago dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-group-punto-pago">
+                <input type="submit" value="Agregar Puntos de Pago" class="btn-submit-punto-pago">
+            </div>
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </form>
+    </div>
+</body>
+</html>
+{% endblock %}

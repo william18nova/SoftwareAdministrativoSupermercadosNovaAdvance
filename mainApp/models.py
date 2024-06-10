@@ -86,3 +86,15 @@ class PreciosProveedor(models.Model):
 
     def __str__(self):
         return f"Precio del producto {self.productoid.nombre} por el proveedor {self.proveedorid.nombre}"
+    
+class PuntosPago(models.Model):
+    puntopagoid = models.AutoField(primary_key=True)
+    sucursalid = models.ForeignKey('Sucursal', on_delete=models.CASCADE, db_column='sucursalid')
+    nombre = models.CharField(max_length=100)
+    descripcion = models.CharField(max_length=100, blank=True, null=True)  # Actualizado
+
+    class Meta:
+        db_table = 'puntospago'
+
+    def __str__(self):
+        return self.nombre
