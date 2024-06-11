@@ -29,5 +29,8 @@ urlpatterns = [
     path('precios_proveedor/eliminar/<int:id>/', views.eliminar_precio_proveedor_view, name='eliminar_precio_proveedor'),
     path('editar_productos_precios_proveedor/<int:proveedor_id>/', views.editar_productos_precios_proveedor_view, name='editar_productos_precios_proveedor'),
     path('agregar_punto_pago/', views.agregar_punto_pago_view, name='agregar_punto_pago'),
+    path('visualizar-puntos-pago/', views.visualizar_puntos_pago_view, name='visualizar_puntos_pago'),
+    path('editar-puntos-pago/<int:sucursal_id>/', views.editar_puntos_pago_view, name='editar_puntos_pago'),
+    path('eliminar-punto-pago/<int:puntopagoid>/', views.eliminar_punto_pago_view, name='eliminar_punto_pago'),
 
 ]

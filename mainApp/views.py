@@ -474,3 +474,62 @@ def agregar_punto_pago_view(request):
     # Obtener todas las sucursales que no tienen puntos de pago asociados
     sucursales_sin_punto_pago = Sucursal.objects.exclude(puntospago__isnull=False)
     return render(request, 'agregar_punto_pago.html', {'sucursales': sucursales_sin_punto_pago})
+
+def visualizar_puntos_pago_view(request):
+    sucursales = Sucursal.objects.annotate(punto_count=Count('puntospago')).filter(punto_count__gt=0)
+    puntos_pago = None
+    sucursal_seleccionada = None
+
+    if request.method == 'POST':
+        sucursal_id = request.POST.get('sucursal')
+        if sucursal_id:
+            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
+            puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_seleccionada)
+
+    return render(request, 'visualizar_puntos_pago.html', {
+        'sucursales': sucursales,
+        'puntos_pago': puntos_pago,
+        'sucursal_seleccionada': sucursal_seleccionada,
+    })
+
+def eliminar_punto_pago_view(request, puntopagoid):
+    if request.method == 'POST':
+        try:
+            punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
+            nombre_punto = punto_pago.nombre
+            punto_pago.delete()
+            return JsonResponse({'success': True, 'message': f'Punto de pago "{nombre_punto}" eliminado correctamente.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error al eliminar el punto de pago: {str(e)}'})
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+
+
+def editar_puntos_pago_view(request, sucursal_id):
+    sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
+    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id)
+
+    if request.method == 'POST':
+        nuevos_nombres = request.POST.getlist('nombre[]')
+        nuevas_descripciones = request.POST.getlist('descripcion[]')
+
+        # Filtrar los valores vacíos
+        nuevos_nombres = [nombre for nombre in nuevos_nombres if nombre]
+        nuevas_descripciones = [descripcion for descripcion in nuevas_descripciones]
+
+        # Eliminar puntos de pago no incluidos en la nueva lista
+        PuntosPago.objects.filter(sucursalid=sucursal_id).exclude(nombre__in=nuevos_nombres).delete()
+
+        for nombre, descripcion in zip(nuevos_nombres, nuevas_descripciones):
+            if nombre:
+                punto_pago, created = PuntosPago.objects.update_or_create(
+                    nombre=nombre, sucursalid=sucursal,
+                    defaults={'descripcion': descripcion}
+                )
+
+        messages.success(request, f'Puntos de pago de la sucursal {sucursal.nombre} actualizados exitosamente.')
+        return redirect('visualizar_puntos_pago')
+
+    return render(request, 'editar_puntos_pago.html', {
+        'sucursal': sucursal,
+        'puntos_pago': puntos_pago,
+    })
