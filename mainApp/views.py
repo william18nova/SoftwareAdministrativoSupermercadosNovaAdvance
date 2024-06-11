@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol
 from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
@@ -533,3 +533,20 @@ def editar_puntos_pago_view(request, sucursal_id):
         'sucursal': sucursal,
         'puntos_pago': puntos_pago,
     })
+
+def agregar_rol_view(request):
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        descripcion = request.POST.get('descripcion')
+
+        if nombre:
+            if Rol.objects.filter(nombre=nombre).exists():
+                messages.error(request, 'Ya existe un rol con ese nombre.')
+            else:
+                Rol.objects.create(nombre=nombre, descripcion=descripcion)
+                messages.success(request, 'Rol agregado exitosamente.')
+                return redirect('agregar_rol')
+        else:
+            messages.error(request, 'El nombre del rol es obligatorio.')
+
+    return render(request, 'agregar_rol.html')

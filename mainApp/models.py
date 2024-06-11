@@ -98,3 +98,14 @@ class PuntosPago(models.Model):
 
     def __str__(self):
         return self.nombre
+
+class Rol(models.Model):
+    rolid = models.AutoField(primary_key=True)  # Asegúrate de definir rolid como clave primaria
+    nombre = models.CharField(max_length=50)
+    descripcion = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'roles'
+
+    def __str__(self):
+        return self.nombre
