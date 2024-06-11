@@ -605,3 +605,64 @@ def agregar_usuario_view(request):
             messages.success(request, f'Usuario "{nombreusuario}" creado exitosamente.')
 
     return render(request, 'agregar_usuario.html', {'roles': roles})
+
+def visualizar_usuarios_view(request):
+    usuarios = Usuario.objects.all()
+    return render(request, 'visualizar_usuarios.html', {'usuarios': usuarios})
+
+def editar_usuario_view(request, usuarioid):
+    usuario = get_object_or_404(Usuario, pk=usuarioid)
+    roles = Rol.objects.all()
+
+    if request.method == 'POST':
+        usuario.nombreusuario = request.POST['nombreusuario']
+        contraseña = request.POST['contraseña']
+        confirmar_contraseña = request.POST['confirmar_contraseña']
+        usuario.rolid = Rol.objects.get(pk=request.POST['rolid'])
+
+        if contraseña:
+            if contraseña == confirmar_contraseña:
+                usuario.contraseña = contraseña
+            else:
+                messages.error(request, 'Las contraseñas no coinciden.')
+                return redirect('editar_usuario', usuarioid=usuarioid)
+
+        usuario.save()
+        messages.success(request, 'Usuario actualizado exitosamente.')
+        return redirect('visualizar_usuarios')
+
+    return render(request, 'editar_usuario.html', {'usuario': usuario, 'roles': roles})
+
+def eliminar_usuario_view(request, usuarioid):
+    usuario = get_object_or_404(Usuario, pk=usuarioid)
+    nombre_usuario = usuario.nombreusuario
+    usuario.delete()
+    messages.success(request, f'Usuario "{nombre_usuario}" eliminado exitosamente.')
+    return redirect('visualizar_usuarios')
+
+def editar_usuario_view(request, usuarioid):
+    usuario = get_object_or_404(Usuario, pk=usuarioid)
+    roles = Rol.objects.all()
+
+    if request.method == 'POST':
+        nombreusuario = request.POST['nombreusuario']
+        contraseña = request.POST['contraseña']
+        confirmar_contraseña = request.POST['confirmar_contraseña']
+        rol_id = request.POST['rolid']
+
+        # Verificar si el nombre de usuario ya existe para otro usuario
+        if Usuario.objects.filter(nombreusuario=nombreusuario).exclude(pk=usuarioid).exists():
+            messages.error(request, 'El nombre de usuario "{}" ya existe.'.format(nombreusuario))
+        elif contraseña != confirmar_contraseña:
+            messages.error(request, 'Las contraseñas no coinciden.')
+        else:
+            usuario.nombreusuario = nombreusuario
+            if contraseña:
+                usuario.contraseña = contraseña
+            usuario.rolid_id = rol_id
+            usuario.save()
+            messages.success(request, 'Usuario "{}" actualizado exitosamente.'.format(nombreusuario))
+            return redirect('visualizar_usuarios')
+
+    return render(request, 'editar_usuario.html', {'usuario': usuario, 'roles': roles})
+
