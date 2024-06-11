@@ -121,3 +121,20 @@ class Usuario(models.Model):
 
     def __str__(self):
         return self.nombreusuario
+    
+class Empleado(models.Model):
+    empleadoid = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=100)
+    apellido = models.CharField(max_length=100)
+    telefono = models.CharField(max_length=20, unique=True)
+    email = models.CharField(max_length=100, unique=True)
+    direccion = models.TextField()
+    puesto = models.CharField(max_length=50)
+    usuarioid = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuarioid', null=True, blank=True)
+    numerodocumento = models.CharField(max_length=50, unique=True, null=True, blank=True)  # Nueva columna
+
+    class Meta:
+        db_table = 'empleados'
+
+    def __str__(self):
+        return f'{self.nombre} {self.apellido}'

@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to bottom right, #ADD8E6, #005091);
+    font-family: 'Roboto', Arial, sans-serif;
+    text-align: center;
+    color: white;
+    overflow: hidden;
+}
+
+.container-empleado {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 400px;
+    text-align: center;
+    position: relative;
+}
+
+.container-empleado h2 {
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+.icon-empleado {
+    font-size: 90px;
+    margin-bottom: 5px;
+    color: #ffffff;
+}
+
+.form-group-empleado {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group-empleado label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.form-group-empleado input,
+.form-group-empleado select,
+.form-group-empleado textarea {
+    width: calc(100% - 16px);
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f0f8ff;
+    margin: 0 auto;
+    display: block;
+    font-size: 16px;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.form-group-empleado textarea {
+    resize: vertical;
+}
+
+.form-group-empleado input:hover,
+.form-group-empleado select:hover,
+.form-group-empleado textarea:hover {
+    background-color: #e0e8ff;
+    border-color: #aaa;
+}
+
+/* Estilo para el botón de agregar empleado */
+.btn-agregar-empleado {
+    background-color: #3b5998;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+    width: 40%; /* Ajusta el ancho del botón */
+    font-size: 18px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    margin: 20px auto 0; /* Centrando el botón */
+    display: block; /* Asegura que el botón se comporte como un bloque y pueda ser centrado */
+}
+
+.btn-agregar-empleado:hover {
+    background-color: #2b467d;
+}
+
+.alert {
+    padding: 15px;
+    margin-top: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+    margin-bottom: 20px;
+}
+
+.alert-error {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    margin-bottom: 20px;
+}

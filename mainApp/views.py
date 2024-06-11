@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado
 from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
@@ -666,3 +666,36 @@ def editar_usuario_view(request, usuarioid):
 
     return render(request, 'editar_usuario.html', {'usuario': usuario, 'roles': roles})
 
+def agregar_empleado_view(request):
+    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid'))
+    if request.method == 'POST':
+        nombre = request.POST['nombre']
+        apellido = request.POST['apellido']
+        telefono = request.POST['telefono']
+        email = request.POST['email']
+        direccion = request.POST['direccion']
+        puesto = request.POST['puesto']
+        numerodocumento = request.POST['numerodocumento']
+        usuarioid = request.POST['usuarioid']
+
+        if Empleado.objects.filter(telefono=telefono).exists():
+            messages.error(request, 'El teléfono ya está en uso.')
+        elif Empleado.objects.filter(email=email).exists():
+            messages.error(request, 'El correo ya está en uso.')
+        elif Empleado.objects.filter(numerodocumento=numerodocumento).exists():
+            messages.error(request, 'El número de documento ya está en uso.')
+        else:
+            usuario = Usuario.objects.get(pk=usuarioid)
+            Empleado.objects.create(
+                nombre=nombre,
+                apellido=apellido,
+                telefono=telefono,
+                email=email,
+                direccion=direccion,
+                puesto=puesto,
+                numerodocumento=numerodocumento,
+                usuarioid=usuario
+            )
+            messages.success(request, f'Empleado "{nombre} {apellido}" creado exitosamente.')
+
+    return render(request, 'agregar_empleado.html', {'usuarios': usuarios})
