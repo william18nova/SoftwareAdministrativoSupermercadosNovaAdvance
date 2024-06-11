@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario
 from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
@@ -585,3 +585,23 @@ def eliminar_rol_view(request, rol_id):
         messages.success(request, f'Se eliminó el rol "{nombre_rol}" correctamente.')
         return redirect('visualizar_roles')
     return JsonResponse({'success': False, 'message': 'Error al eliminar el rol.'})
+
+def agregar_usuario_view(request):
+    roles = Rol.objects.all()
+
+    if request.method == 'POST':
+        nombreusuario = request.POST['nombreusuario']
+        contraseña = request.POST['contraseña']
+        confirmar_contraseña = request.POST['confirmar_contraseña']
+        rol_id = request.POST['rolid']
+
+        if contraseña != confirmar_contraseña:
+            messages.error(request, 'Las contraseñas no coinciden.')
+        elif Usuario.objects.filter(nombreusuario=nombreusuario).exists():
+            messages.error(request, f'El nombre de usuario "{nombreusuario}" ya existe.')
+        else:
+            rol = Rol.objects.get(pk=rol_id)
+            Usuario.objects.create(nombreusuario=nombreusuario, contraseña=contraseña, rolid=rol)
+            messages.success(request, f'Usuario "{nombreusuario}" creado exitosamente.')
+
+    return render(request, 'agregar_usuario.html', {'roles': roles})

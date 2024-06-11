@@ -109,3 +109,15 @@ class Rol(models.Model):
 
     def __str__(self):
         return self.nombre
+    
+class Usuario(models.Model):
+    usuarioid = models.AutoField(primary_key=True)
+    nombreusuario = models.CharField(max_length=100, unique=True)
+    contraseña = models.CharField(max_length=255)
+    rolid = models.ForeignKey(Rol, on_delete=models.CASCADE, db_column='rolid')
+
+    class Meta:
+        db_table = 'usuarios'
+
+    def __str__(self):
+        return self.nombreusuario

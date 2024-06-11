@@ -36,5 +36,5 @@ urlpatterns = [
     path('visualizar_roles/', views.visualizar_roles_view, name='visualizar_roles'),
     path('editar_rol/<int:rol_id>/', views.editar_rol_view, name='editar_rol'),
     path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
-
+    path('agregar_usuario/', views.agregar_usuario_view, name='agregar_usuario'),
 ]
