@@ -550,3 +550,38 @@ def agregar_rol_view(request):
             messages.error(request, 'El nombre del rol es obligatorio.')
 
     return render(request, 'agregar_rol.html')
+
+def visualizar_roles_view(request):
+    roles = Rol.objects.all()
+    return render(request, 'visualizar_roles.html', {'roles': roles})
+
+def editar_rol_view(request, rol_id):
+    rol = get_object_or_404(Rol, pk=rol_id)
+    
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        descripcion = request.POST.get('descripcion')
+        
+        if nombre and nombre != rol.nombre:
+            # Verifica si el nombre ya existe
+            if Rol.objects.filter(nombre=nombre).exclude(pk=rol_id).exists():
+                messages.error(request, 'Ya existe un rol con ese nombre.')
+                return redirect('editar_rol', rol_id=rol_id)
+        
+        rol.nombre = nombre
+        rol.descripcion = descripcion
+        rol.save()
+        
+        messages.success(request, f'Rol "{rol.nombre}" actualizado correctamente.')
+        return redirect('visualizar_roles')
+    
+    return render(request, 'editar_rol.html', {'rol': rol})
+
+def eliminar_rol_view(request, rol_id):
+    if request.method == 'POST':
+        rol = get_object_or_404(Rol, pk=rol_id)
+        nombre_rol = rol.nombre
+        rol.delete()
+        messages.success(request, f'Se eliminó el rol "{nombre_rol}" correctamente.')
+        return redirect('visualizar_roles')
+    return JsonResponse({'success': False, 'message': 'Error al eliminar el rol.'})

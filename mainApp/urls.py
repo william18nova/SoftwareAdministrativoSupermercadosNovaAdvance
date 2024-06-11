@@ -33,5 +33,8 @@ urlpatterns = [
     path('editar-puntos-pago/<int:sucursal_id>/', views.editar_puntos_pago_view, name='editar_puntos_pago'),
     path('eliminar-punto-pago/<int:puntopagoid>/', views.eliminar_punto_pago_view, name='eliminar_punto_pago'),
     path('agregar_rol/', views.agregar_rol_view, name='agregar_rol'),
-    
+    path('visualizar_roles/', views.visualizar_roles_view, name='visualizar_roles'),
+    path('editar_rol/<int:rol_id>/', views.editar_rol_view, name='editar_rol'),
+    path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
+
 ]
