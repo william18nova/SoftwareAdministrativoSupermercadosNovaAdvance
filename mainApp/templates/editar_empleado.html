@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Editar Empleado{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Empleado</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'editar_empleados.css' %}">
+</head>
+<body>
+    <div class="container-empleado">
+        <i class="fas fa-user-edit icon-empleado"></i> <!-- Ícono de editar empleado -->
+        <h2>Editar Empleado</h2>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <form method="POST" action="{% url 'editar_empleado' empleado.empleadoid %}">
+            {% csrf_token %}
+            <div class="form-group-empleado">
+                <label for="numerodocumento">Número de Documento</label>
+                <input type="text" id="numerodocumento" name="numerodocumento" placeholder="{{ empleado.numerodocumento }}">
+            </div>
+            <div class="form-group-empleado">
+                <label for="nombre">Nombre</label>
+                <input type="text" id="nombre" name="nombre" value="{{ empleado.nombre }}" required>
+            </div>
+            <div class="form-group-empleado">
+                <label for="apellido">Apellido</label>
+                <input type="text" id="apellido" name="apellido" value="{{ empleado.apellido }}" required>
+            </div>
+            <div class="form-group-empleado">
+                <label for="telefono">Teléfono</label>
+                <input type="text" id="telefono" name="telefono" value="{{ empleado.telefono }}">
+            </div>
+            <div class="form-group-empleado">
+                <label for="email">Correo Electrónico</label>
+                <input type="email" id="email" name="email" value="{{ empleado.email }}">
+            </div>
+            <div class="form-group-empleado">
+                <label for="direccion">Dirección</label>
+                <input type="text" id="direccion" name="direccion" value="{{ empleado.direccion }}">
+            </div>
+            <div class="form-group-empleado">
+                <label for="puesto">Puesto</label>
+                <input type="text" id="puesto" name="puesto" value="{{ empleado.puesto }}">
+            </div>
+            <div class="form-group-empleado">
+                <label for="usuario">Usuario</label>
+                <select id="usuario" name="usuario">
+                    <option value="">Seleccionar usuario</option>
+                    {% for usuario in usuarios %}
+                        <option value="{{ usuario.usuarioid }}" {% if empleado.usuarioid_id == usuario.usuarioid %}selected{% endif %}>{{ usuario.nombreusuario }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group-empleado">
+                <button type="submit" class="btn-guardar-empleado">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+{% endblock %}

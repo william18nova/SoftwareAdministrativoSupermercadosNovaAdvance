@@ -699,3 +699,52 @@ def agregar_empleado_view(request):
             messages.success(request, f'Empleado "{nombre} {apellido}" creado exitosamente.')
 
     return render(request, 'agregar_empleado.html', {'usuarios': usuarios})
+
+def visualizar_empleados_view(request):
+    empleados = Empleado.objects.all()
+    return render(request, 'visualizar_empleados.html', {'empleados': empleados})
+
+def editar_empleado_view(request, empleadoid):
+    empleado = get_object_or_404(Empleado, pk=empleadoid)
+    roles = Rol.objects.all()
+    if request.method == 'POST':
+        nombre = request.POST['nombre']
+        apellido = request.POST['apellido']
+        telefono = request.POST['telefono']
+        email = request.POST['email']
+        direccion = request.POST['direccion']
+        puesto = request.POST['puesto']
+        usuario_id = request.POST['usuario']
+        numerodocumento = request.POST['numerodocumento']
+
+        if Empleado.objects.filter(telefono=telefono).exclude(pk=empleadoid).exists():
+            messages.error(request, 'El teléfono ya está en uso por otro empleado.')
+        elif Empleado.objects.filter(email=email).exclude(pk=empleadoid).exists():
+            messages.error(request, 'El correo electrónico ya está en uso por otro empleado.')
+        elif numerodocumento and Empleado.objects.filter(numerodocumento=numerodocumento).exclude(pk=empleadoid).exists():
+            messages.error(request, 'El número de documento ya está en uso por otro empleado.')
+        else:
+            empleado.nombre = nombre
+            empleado.apellido = apellido
+            empleado.telefono = telefono
+            empleado.email = email
+            empleado.direccion = direccion
+            empleado.puesto = puesto
+            if usuario_id:
+                empleado.usuarioid_id = usuario_id
+            if numerodocumento:
+                empleado.numerodocumento = numerodocumento
+            empleado.save()
+            messages.success(request, f'Empleado "{empleado.nombre} {empleado.apellido}" actualizado exitosamente.')
+            return redirect('visualizar_empleados')
+
+    usuarios_disponibles = Usuario.objects.filter(empleado__isnull=True) | Usuario.objects.filter(empleado=empleado)
+    return render(request, 'editar_empleado.html', {'empleado': empleado, 'roles': roles, 'usuarios': usuarios_disponibles})
+
+
+def eliminar_empleado_view(request, empleadoid):
+    empleado = get_object_or_404(Empleado, empleadoid=empleadoid)
+    nombre_completo = f"{empleado.nombre} {empleado.apellido}"
+    empleado.delete()
+    messages.success(request, f'Empleado "{nombre_completo}" eliminado exitosamente.')
+    return redirect('visualizar_empleados')

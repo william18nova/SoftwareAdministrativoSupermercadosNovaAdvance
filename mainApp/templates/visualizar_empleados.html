@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Visualizar Empleados{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Empleados</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'visualizar_empleados.css' %}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Lista de Empleados</h2>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <table id="empleadosTable" class="display">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>Dirección</th>
+                    <th>Puesto</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for empleado in empleados %}
+                <tr>
+                    <td>{{ empleado.nombre }}</td>
+                    <td>{{ empleado.apellido }}</td>
+                    <td>{{ empleado.telefono }}</td>
+                    <td>{{ empleado.email }}</td>
+                    <td>{{ empleado.direccion }}</td>
+                    <td>{{ empleado.puesto }}</td>
+                    <td class="actions-cell">
+                        <a href="{% url 'editar_empleado' empleado.empleadoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
+                        <form class="delete-form" action="{% url 'eliminar_empleado' empleado.empleadoid %}" method="post" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        $(document).ready(function() {
+            $('#empleadosTable').DataTable();
+        });
+
+        function confirmDelete(button) {
+            if (confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
+                $(button).closest('form').submit();
+            }
+        }
+    </script>
+</body>
+</html>
+{% endblock %}
