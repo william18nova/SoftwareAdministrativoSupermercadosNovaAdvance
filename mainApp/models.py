@@ -128,10 +128,11 @@ class Empleado(models.Model):
     apellido = models.CharField(max_length=100)
     telefono = models.CharField(max_length=20, unique=True)
     email = models.CharField(max_length=100, unique=True)
-    direccion = models.TextField()
-    puesto = models.CharField(max_length=50)
-    usuarioid = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuarioid', null=True, blank=True)
-    numerodocumento = models.CharField(max_length=50, unique=True, null=True, blank=True)  # Nueva columna
+    direccion = models.TextField(null=True, blank=True)
+    puesto = models.CharField(max_length=50, null=True, blank=True)
+    numerodocumento = models.CharField(max_length=50, unique=True)
+    usuarioid = models.OneToOneField(Usuario, on_delete=models.CASCADE, db_column='usuarioid', null=True, blank=True)
+    sucursalid = models.ForeignKey(Sucursal, on_delete=models.SET_NULL, db_column='sucursalid', null=True, blank=True)
 
     class Meta:
         db_table = 'empleados'

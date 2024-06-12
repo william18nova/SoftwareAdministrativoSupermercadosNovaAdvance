@@ -35,6 +35,7 @@
                     <th>Email</th>
                     <th>Dirección</th>
                     <th>Puesto</th>
+                    <th>Número de Documento</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -47,6 +48,7 @@
                     <td>{{ empleado.email }}</td>
                     <td>{{ empleado.direccion }}</td>
                     <td>{{ empleado.puesto }}</td>
+                    <td>{{ empleado.numerodocumento }}</td>
                     <td class="actions-cell">
                         <a href="{% url 'editar_empleado' empleado.empleadoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
                         <form class="delete-form" action="{% url 'eliminar_empleado' empleado.empleadoid %}" method="post" style="display:inline;">

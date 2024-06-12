@@ -28,7 +28,7 @@
             {% csrf_token %}
             <div class="form-group-empleado">
                 <label for="numerodocumento">Número de Documento</label>
-                <input type="text" id="numerodocumento" name="numerodocumento" placeholder="{{ empleado.numerodocumento }}">
+                <input type="text" id="numerodocumento" name="numerodocumento" placeholder="Dejar en blanco para mantener la actual" value="{{ empleado.numerodocumento }}">
             </div>
             <div class="form-group-empleado">
                 <label for="nombre">Nombre</label>
@@ -43,7 +43,7 @@
                 <input type="text" id="telefono" name="telefono" value="{{ empleado.telefono }}">
             </div>
             <div class="form-group-empleado">
-                <label for="email">Correo Electrónico</label>
+                <label for="email">Email</label>
                 <input type="email" id="email" name="email" value="{{ empleado.email }}">
             </div>
             <div class="form-group-empleado">
@@ -56,10 +56,19 @@
             </div>
             <div class="form-group-empleado">
                 <label for="usuario">Usuario</label>
-                <select id="usuario" name="usuario">
+                <select id="usuario" name="usuarioid">
                     <option value="">Seleccionar usuario</option>
                     {% for usuario in usuarios %}
                         <option value="{{ usuario.usuarioid }}" {% if empleado.usuarioid_id == usuario.usuarioid %}selected{% endif %}>{{ usuario.nombreusuario }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group-empleado">
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal">
+                    <option value="">Seleccionar sucursal</option>
+                    {% for sucursal in sucursales %}
+                        <option value="{{ sucursal.sucursalid }}" {% if empleado.sucursalid_id == sucursal.sucursalid %}selected{% endif %}>{{ sucursal.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>

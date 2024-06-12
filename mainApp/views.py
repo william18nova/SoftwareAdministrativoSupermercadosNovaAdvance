@@ -668,6 +668,8 @@ def editar_usuario_view(request, usuarioid):
 
 def agregar_empleado_view(request):
     usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid'))
+    sucursales = Sucursal.objects.all()
+
     if request.method == 'POST':
         nombre = request.POST['nombre']
         apellido = request.POST['apellido']
@@ -676,7 +678,8 @@ def agregar_empleado_view(request):
         direccion = request.POST['direccion']
         puesto = request.POST['puesto']
         numerodocumento = request.POST['numerodocumento']
-        usuarioid = request.POST['usuarioid']
+        usuarioid = request.POST.get('usuario')
+        sucursalid = request.POST.get('sucursal')
 
         if Empleado.objects.filter(telefono=telefono).exists():
             messages.error(request, 'El teléfono ya está en uso.')
@@ -685,7 +688,8 @@ def agregar_empleado_view(request):
         elif Empleado.objects.filter(numerodocumento=numerodocumento).exists():
             messages.error(request, 'El número de documento ya está en uso.')
         else:
-            usuario = Usuario.objects.get(pk=usuarioid)
+            usuario = Usuario.objects.get(pk=usuarioid) if usuarioid else None
+            sucursal = Sucursal.objects.get(pk=sucursalid) if sucursalid else None
             Empleado.objects.create(
                 nombre=nombre,
                 apellido=apellido,
@@ -694,11 +698,14 @@ def agregar_empleado_view(request):
                 direccion=direccion,
                 puesto=puesto,
                 numerodocumento=numerodocumento,
-                usuarioid=usuario
+                usuarioid=usuario,
+                sucursalid=sucursal
             )
             messages.success(request, f'Empleado "{nombre} {apellido}" creado exitosamente.')
 
-    return render(request, 'agregar_empleado.html', {'usuarios': usuarios})
+    return render(request, 'agregar_empleado.html', {'usuarios': usuarios, 'sucursales': sucursales})
+
+
 
 def visualizar_empleados_view(request):
     empleados = Empleado.objects.all()
@@ -706,7 +713,9 @@ def visualizar_empleados_view(request):
 
 def editar_empleado_view(request, empleadoid):
     empleado = get_object_or_404(Empleado, pk=empleadoid)
-    roles = Rol.objects.all()
+    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid')).union(Usuario.objects.filter(pk=empleado.usuarioid_id))
+    sucursales = Sucursal.objects.all()
+
     if request.method == 'POST':
         nombre = request.POST['nombre']
         apellido = request.POST['apellido']
@@ -714,37 +723,34 @@ def editar_empleado_view(request, empleadoid):
         email = request.POST['email']
         direccion = request.POST['direccion']
         puesto = request.POST['puesto']
-        usuario_id = request.POST['usuario']
         numerodocumento = request.POST['numerodocumento']
+        sucursal_id = request.POST['sucursal']
 
         if Empleado.objects.filter(telefono=telefono).exclude(pk=empleadoid).exists():
-            messages.error(request, 'El teléfono ya está en uso por otro empleado.')
+            messages.error(request, 'El teléfono ya está en uso.')
         elif Empleado.objects.filter(email=email).exclude(pk=empleadoid).exists():
-            messages.error(request, 'El correo electrónico ya está en uso por otro empleado.')
+            messages.error(request, 'El correo ya está en uso.')
         elif numerodocumento and Empleado.objects.filter(numerodocumento=numerodocumento).exclude(pk=empleadoid).exists():
-            messages.error(request, 'El número de documento ya está en uso por otro empleado.')
+            messages.error(request, 'El número de documento ya está en uso.')
         else:
+            if numerodocumento:
+                empleado.numerodocumento = numerodocumento
             empleado.nombre = nombre
             empleado.apellido = apellido
             empleado.telefono = telefono
             empleado.email = email
             empleado.direccion = direccion
             empleado.puesto = puesto
-            if usuario_id:
-                empleado.usuarioid_id = usuario_id
-            if numerodocumento:
-                empleado.numerodocumento = numerodocumento
+            empleado.sucursalid_id = sucursal_id
             empleado.save()
-            messages.success(request, f'Empleado "{empleado.nombre} {empleado.apellido}" actualizado exitosamente.')
+            messages.success(request, f'Empleado "{nombre} {apellido}" editado exitosamente.')
             return redirect('visualizar_empleados')
 
-    usuarios_disponibles = Usuario.objects.filter(empleado__isnull=True) | Usuario.objects.filter(empleado=empleado)
-    return render(request, 'editar_empleado.html', {'empleado': empleado, 'roles': roles, 'usuarios': usuarios_disponibles})
+    return render(request, 'editar_empleado.html', {'empleado': empleado, 'usuarios': usuarios, 'sucursales': sucursales})
 
-
-def eliminar_empleado_view(request, empleadoid):
-    empleado = get_object_or_404(Empleado, empleadoid=empleadoid)
+def eliminar_empleado_view(request, empleado_id):
+    empleado = get_object_or_404(Empleado, pk=empleado_id)
     nombre_completo = f"{empleado.nombre} {empleado.apellido}"
     empleado.delete()
-    messages.success(request, f'Empleado "{nombre_completo}" eliminado exitosamente.')
+    messages.success(request, f'Empleado "{nombre_completo}" ha sido eliminado exitosamente.')
     return redirect('visualizar_empleados')
