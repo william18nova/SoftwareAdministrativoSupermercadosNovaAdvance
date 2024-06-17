@@ -24,6 +24,7 @@
                 {% endfor %}
             </div>
         {% endif %}
+        <div id="js-alert" class="alert alert-error" style="display: none;">Por favor, complete todos los campos.</div>
         <form method="POST" action="{% url 'agregar_horario' %}" id="horario-form">
             {% csrf_token %}
             <div class="form-group">
@@ -79,6 +80,7 @@
             const buttons = document.querySelectorAll('.day-button');
             const diaSemanaInput = document.getElementById('dia_semana');
             const horariosTempBody = document.getElementById('horarios-temp-body');
+            const alertBox = document.getElementById('js-alert');
             let horariosTemp = [];
 
             buttons.forEach(button => {
@@ -102,6 +104,14 @@
                 const diaSemana = diaSemanaInput.value;
                 const horaApertura = document.getElementById('horaapertura').value;
                 const horaCierre = document.getElementById('horacierre').value;
+
+                if (!diaSemana || !horaApertura || !horaCierre) {
+                    alertBox.style.display = 'block';
+                    setTimeout(() => {
+                        alertBox.style.display = 'none';
+                    }, 3000);
+                    return;
+                }
 
                 if (diaSemana && horaApertura && horaCierre) {
                     diaSemana.split(',').forEach(day => {
