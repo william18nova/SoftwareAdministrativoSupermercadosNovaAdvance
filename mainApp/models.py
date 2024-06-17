@@ -139,3 +139,16 @@ class Empleado(models.Model):
 
     def __str__(self):
         return f'{self.nombre} {self.apellido}'
+    
+class HorariosNegocio(models.Model):
+    horarioid = models.AutoField(primary_key=True)
+    dia_semana = models.CharField(max_length=10)
+    horaapertura = models.TimeField()
+    horacierre = models.TimeField()
+    sucursalid = models.ForeignKey(Sucursal, on_delete=models.CASCADE, db_column='sucursalid')
+
+    class Meta:
+        db_table = 'horariosnegocio'
+
+    def __str__(self):
+        return f"{self.dia_semana} - {self.sucursalid.nombre}"

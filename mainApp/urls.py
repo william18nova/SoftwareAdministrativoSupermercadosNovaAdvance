@@ -44,5 +44,5 @@ urlpatterns = [
     path('visualizar_empleados/', views.visualizar_empleados_view, name='visualizar_empleados'),
     path('editar_empleado/<int:empleadoid>/', views.editar_empleado_view, name='editar_empleado'),
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
-
+    path('agregar_horario/', views.agregar_horario_view, name='agregar_horario'),
 ]

@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio
 from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
@@ -754,3 +754,26 @@ def eliminar_empleado_view(request, empleado_id):
     empleado.delete()
     messages.success(request, f'Empleado "{nombre_completo}" ha sido eliminado exitosamente.')
     return redirect('visualizar_empleados')
+
+def agregar_horario_view(request):
+    sucursales = Sucursal.objects.all()
+    if request.method == 'POST':
+        sucursalid = request.POST['sucursalid']
+        dias_semana = request.POST['dia_semana'].split(',')
+        horaapertura = request.POST['horaapertura']
+        horacierre = request.POST['horacierre']
+        
+        sucursal = Sucursal.objects.get(pk=sucursalid)
+        
+        for dia in dias_semana:
+            HorariosNegocio.objects.create(
+                dia_semana=dia,
+                horaapertura=horaapertura,
+                horacierre=horacierre,
+                sucursalid=sucursal
+            )
+        
+        messages.success(request, 'Horario agregado exitosamente.')
+        return redirect('agregar_horario')
+    
+    return render(request, 'agregar_horario.html', {'sucursales': sucursales})
