@@ -5,6 +5,7 @@ from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedo
 from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
+import json
 
 def login(request):
     if request.method == 'POST':
@@ -756,24 +757,26 @@ def eliminar_empleado_view(request, empleado_id):
     return redirect('visualizar_empleados')
 
 def agregar_horario_view(request):
-    sucursales = Sucursal.objects.all()
+    sucursales = Sucursal.objects.exclude(horariosnegocio__isnull=False)
+
     if request.method == 'POST':
-        sucursalid = request.POST['sucursalid']
-        dias_semana = request.POST['dia_semana'].split(',')
-        horaapertura = request.POST['horaapertura']
-        horacierre = request.POST['horacierre']
-        
-        sucursal = Sucursal.objects.get(pk=sucursalid)
-        
-        for dia in dias_semana:
-            HorariosNegocio.objects.create(
-                dia_semana=dia,
-                horaapertura=horaapertura,
-                horacierre=horacierre,
-                sucursalid=sucursal
-            )
-        
-        messages.success(request, 'Horario agregado exitosamente.')
-        return redirect('agregar_horario')
-    
+        sucursalid = request.POST.get('sucursalid')
+        horarios_temp = request.POST.get('horarios_temp')
+
+        if horarios_temp:
+            horarios = json.loads(horarios_temp)
+            for horario in horarios:
+                dia, hora_apertura, hora_cierre = horario['dia'], horario['apertura'], horario['cierre']
+                HorariosNegocio.objects.create(
+                    sucursalid=Sucursal.objects.get(pk=sucursalid),
+                    dia_semana=dia,
+                    horaapertura=hora_apertura,
+                    horacierre=hora_cierre
+                )
+
+            messages.success(request, 'Horarios agregados exitosamente.')
+            return redirect('agregar_horario')
+        else:
+            messages.error(request, 'Debe agregar al menos un horario.')
+
     return render(request, 'agregar_horario.html', {'sucursales': sucursales})
