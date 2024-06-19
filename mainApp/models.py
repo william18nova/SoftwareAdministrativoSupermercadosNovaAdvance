@@ -152,3 +152,13 @@ class HorariosNegocio(models.Model):
 
     def __str__(self):
         return f"{self.dia_semana} - {self.sucursalid.nombre}"
+    
+class HorarioCaja(models.Model):
+    horarioid = models.AutoField(primary_key=True)
+    puntopagoid = models.IntegerField()
+    dia_semana = models.CharField(max_length=3)
+    horaapertura = models.TimeField()
+    horacierre = models.TimeField()
+
+    class Meta:
+        db_table = 'horarioscajas'

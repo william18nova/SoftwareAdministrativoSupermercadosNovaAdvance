@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Agregar Horario de Caja{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Horario de Caja</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'agregar_horario_caja.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+</head>
+<body>
+    <div class="container">
+        <i class="fas fa-clock icon"></i>
+        <h2>Agregar Horario de Caja</h2>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div id="js-alert" class="alert alert-error" style="display: none;">Por favor, complete todos los campos.</div>
+        <form id="horarioForm" method="POST" action="{% url 'agregar_horario_caja' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal" required>
+                    <option value="">Seleccionar sucursal</option>
+                    {% for sucursal in sucursales %}
+                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="punto_pago">Punto de Pago</label>
+                <select id="punto_pago" name="punto_pago" required>
+                    <option value="">Seleccionar punto de pago</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Días</label>
+                <div class="days-container">
+                    <button type="button" class="day-button" data-day="Lun">Lun</button>
+                    <button type="button" class="day-button" data-day="Mar">Mar</button>
+                    <button type="button" class="day-button" data-day="Mir">Mir</button>
+                    <button type="button" class="day-button" data-day="Jue">Jue</button>
+                    <button type="button" class="day-button" data-day="Vie">Vie</button>
+                    <button type="button" class="day-button" data-day="Sab">Sab</button>
+                    <button type="button" class="day-button" data-day="Dom">Dom</button>
+                </div>
+                <input type="hidden" id="dia_semana" name="dia_semana" value="">
+            </div>
+            <div class="form-group">
+                <label for="horaapertura">Hora de Apertura</label>
+                <input type="time" id="horaapertura" name="horaapertura">
+            </div>
+            <div class="form-group">
+                <label for="horacierre">Hora de Cierre</label>
+                <input type="time" id="horacierre" name="horacierre">
+            </div>
+            <button type="button" class="btn-agregar-temporal">Listar Horario</button>
+            <div class="horarios-temp-container">
+                <table class="horarios-temp">
+                    <thead>
+                        <tr>
+                            <th>Día</th>
+                            <th>Hora de Apertura</th>
+                            <th>Hora de Cierre</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="horarios-temp-body"></tbody>
+                </table>
+            </div>
+            <button type="submit" class="btn-guardar">Guardar</button>
+        </form>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sucursalSelect = document.getElementById('sucursal');
+            const puntoPagoSelect = document.getElementById('punto_pago');
+            const buttons = document.querySelectorAll('.day-button');
+            const diaSemanaInput = document.getElementById('dia_semana');
+            const horariosTempBody = document.getElementById('horarios-temp-body');
+            const alertBox = document.getElementById('js-alert');
+            let horariosTemp = [];
+
+            sucursalSelect.addEventListener('change', function() {
+                const sucursalId = this.value;
+
+                // Limpiar las opciones actuales de punto de pago
+                puntoPagoSelect.innerHTML = '<option value="">Seleccionar punto de pago</option>';
+
+                // Realizar una petición AJAX para obtener los puntos de pago asociados a la sucursal seleccionada
+                if (sucursalId) {
+                    $.ajax({
+                        url: '{% url "obtener_puntos_pago" %}',
+                        type: 'GET',
+                        data: {
+                            sucursal_id: sucursalId
+                        },
+                        success: function(response) {
+                            response.puntos_pago.forEach(punto => {
+                                const newOption = document.createElement('option');
+                                newOption.value = punto.puntopagoid;
+                                newOption.textContent = punto.nombre;
+                                puntoPagoSelect.appendChild(newOption);
+                            });
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error al obtener los puntos de pago:', error);
+                        }
+                    });
+                }
+            });
+
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const day = this.getAttribute('data-day');
+                    let diasSeleccionados = diaSemanaInput.value.split(',').filter(d => d);
+
+                    if (diasSeleccionados.includes(day)) {
+                        diasSeleccionados = diasSeleccionados.filter(d => d !== day);
+                        this.classList.remove('active');
+                    } else {
+                        diasSeleccionados.push(day);
+                        this.classList.add('active');
+                    }
+
+                    diaSemanaInput.value = diasSeleccionados.join(',');
+                });
+            });
+
+            document.querySelector('.btn-agregar-temporal').addEventListener('click', function() {
+                const diaSemana = diaSemanaInput.value;
+                const horaApertura = document.getElementById('horaapertura').value;
+                const horaCierre = document.getElementById('horacierre').value;
+
+                if (!diaSemana || !horaApertura || !horaCierre) {
+                    alertBox.style.display = 'block';
+                    setTimeout(() => {
+                        alertBox.style.display = 'none';
+                    }, 3000);
+                    return;
+                }
+
+                if (diaSemana && horaApertura && horaCierre) {
+                    diaSemana.split(',').forEach(day => {
+                        horariosTemp.push({ dia: day, apertura: horaApertura, cierre: horaCierre });
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${day}</td>
+                            <td><input type="time" name="horaapertura" value="${horaApertura}"></td>
+                            <td><input type="time" name="horacierre" value="${horaCierre}"></td>
+                            <td><button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button></td>
+                        `;
+                        horariosTempBody.appendChild(row);
+
+                        buttons.forEach(button => {
+                            if (button.getAttribute('data-day') === day) {
+                                button.disabled = true;
+                                button.classList.remove('active');
+                            }
+                        });
+                    });
+
+                    diaSemanaInput.value = '';
+                    document.getElementById('horaapertura').value = '';
+                    document.getElementById('horacierre').value = '';
+                }
+            });
+
+            horariosTempBody.addEventListener('click', function(event) {
+                if (event.target.closest('.btn-eliminar')) {
+                    const row = event.target.closest('tr');
+                    const day = row.cells[0].textContent;
+
+                    horariosTemp = horariosTemp.filter(horario => horario.dia !== day);
+                    row.remove();
+
+                    buttons.forEach(button => {
+                        if (button.getAttribute('data-day') === day) {
+                            button.disabled = false;
+                        }
+                    });
+                }
+            });
+
+            document.querySelector('.btn-guardar').addEventListener('click', function(event) {
+                const form = document.getElementById('horarioForm');
+                const rows = horariosTempBody.querySelectorAll('tr');
+                const horarios = [];
+
+                rows.forEach(row => {
+                    const dia = row.cells[0].textContent;
+                    const horaapertura = row.querySelector('input[name="horaapertura"]').value;
+                    const horacierre = row.querySelector('input[name="horacierre"]').value;
+                    horarios.push({ dia, horaapertura, horacierre });
+                });
+
+                const horariosInput = document.createElement('input');
+                horariosInput.type = 'hidden';
+                horariosInput.name = 'horarios';
+                horariosInput.value = JSON.stringify(horarios);
+                form.appendChild(horariosInput);
+            });
+        });
+    </script>
+</body>
+</html>
+{% endblock %}

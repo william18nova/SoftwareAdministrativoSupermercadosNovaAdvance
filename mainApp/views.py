@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio, HorarioCaja
 from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
@@ -840,3 +840,36 @@ def eliminar_horario_view(request, horario_id):
         horario.delete()
         return JsonResponse({'success': True, 'message': 'Horario eliminado exitosamente.'})
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+
+def agregar_horario_caja_view(request):
+    # Filtrar solo las sucursales que tienen puntos de pago asignados
+    sucursales = Sucursal.objects.filter(puntospago__isnull=False).distinct()
+
+    if request.method == 'POST':
+        sucursal_id = request.POST.get('sucursal')
+        puntopago_id = request.POST.get('punto_pago')
+        dia_semana = request.POST.get('dia_semana')
+        horaapertura = request.POST.get('horaapertura')
+        horacierre = request.POST.get('horacierre')
+
+        if not (sucursal_id and puntopago_id and dia_semana and horaapertura and horacierre):
+            messages.error(request, 'Todos los campos son requeridos.')
+            return redirect('agregar_horario_caja')
+
+        HorarioCaja.objects.create(
+            puntopagoid=puntopago_id,
+            dia_semana=dia_semana,
+            horaapertura=horaapertura,
+            horacierre=horacierre
+        )
+        messages.success(request, 'Horario de caja agregado exitosamente.')
+        return redirect('agregar_horario_caja')
+
+    return render(request, 'agregar_horario_caja.html', {
+        'sucursales': sucursales,
+    })
+
+def obtener_puntos_pago_view(request):
+    sucursal_id = request.GET.get('sucursal_id')
+    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).values('puntopagoid', 'nombre')
+    return JsonResponse({'puntos_pago': list(puntos_pago)})
