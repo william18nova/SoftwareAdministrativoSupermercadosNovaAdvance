@@ -780,3 +780,63 @@ def agregar_horario_view(request):
             messages.error(request, 'Debe agregar al menos un horario.')
 
     return render(request, 'agregar_horario.html', {'sucursales': sucursales})
+
+def visualizar_horarios_view(request):
+    # Filtrar solo las sucursales que tienen horarios asignados
+    sucursales = Sucursal.objects.filter(horariosnegocio__isnull=False).distinct()
+    sucursal_seleccionada = None
+    horarios = []
+
+    if request.method == 'POST':
+        sucursal_id = request.POST.get('sucursal')
+        if sucursal_id:
+            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
+            horarios = HorariosNegocio.objects.filter(sucursalid=sucursal_seleccionada)
+
+    return render(request, 'visualizar_horarios.html', {
+        'sucursales': sucursales,
+        'sucursal_seleccionada': sucursal_seleccionada,
+        'horarios': horarios,
+    })
+
+def editar_horarios_view(request, sucursal_id):
+    sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
+    horarios = HorariosNegocio.objects.filter(sucursalid=sucursal)
+
+    if request.method == 'POST':
+        dia_semana = request.POST.get('dia_semana')
+        horaapertura = request.POST.get('horaapertura')
+        horacierre = request.POST.get('horacierre')
+        horarios_json = request.POST.get('horarios')
+
+        if horarios_json:
+            horarios_data = json.loads(horarios_json)
+            for horario_data in horarios_data:
+                HorariosNegocio.objects.update_or_create(
+                    horarioid=horario_data.get('id'),
+                    defaults={
+                        'dia_semana': horario_data['dia'],
+                        'horaapertura': horario_data['horaapertura'],
+                        'horacierre': horario_data['horacierre'],
+                        'sucursalid': sucursal,
+                    }
+                )
+
+        deleted_horarios_list = request.POST.getlist('deleted_horarios')
+        if deleted_horarios_list:
+            # Filtrar IDs válidos (números) en la lista
+            valid_deleted_ids = [int(id) for id in deleted_horarios_list if id.isdigit()]
+            if valid_deleted_ids:
+                HorariosNegocio.objects.filter(horarioid__in=valid_deleted_ids).delete()
+
+        messages.success(request, f'Horarios de la sucursal {sucursal.nombre} actualizados correctamente.')
+        return redirect('visualizar_horarios')
+
+    return render(request, 'editar_horario.html', {'sucursal': sucursal, 'horarios': horarios})
+
+def eliminar_horario_view(request, horario_id):
+    if request.method == 'POST':
+        horario = get_object_or_404(HorariosNegocio, pk=horario_id)
+        horario.delete()
+        return JsonResponse({'success': True, 'message': 'Horario eliminado exitosamente.'})
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'})

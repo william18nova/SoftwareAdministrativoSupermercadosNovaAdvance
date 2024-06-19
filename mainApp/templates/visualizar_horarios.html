@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Visualizar Horarios{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizar Horarios</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{% static 'visualizar_horario.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const table = $('#horarios-list').DataTable({
+                paging: false,
+                searching: true,
+                info: false,
+                language: {
+                    search: "Buscar:",
+                    zeroRecords: "No se encontraron resultados",
+                    emptyTable: "No hay horarios para mostrar",
+                },
+            });
+
+            function mostrarMensaje(mensaje, clase) {
+                const alertasExistentes = document.querySelectorAll('.alert');
+                alertasExistentes.forEach(alerta => alerta.remove());
+
+                const mensajeDiv = document.createElement('div');
+                mensajeDiv.className = `alert ${clase}`;
+                mensajeDiv.textContent = mensaje;
+                const container = document.querySelector('.messages-container');
+                container.insertAdjacentElement('afterbegin', mensajeDiv);
+            }
+
+            $('#horarios-list').on('click', '.btn-eliminar', function(event) {
+                event.preventDefault();
+                const button = $(this);
+                const id = button.data('id');
+                const row = button.closest('tr');
+
+                if (confirm('¿Estás seguro de que deseas eliminar este horario?')) {
+                    $.ajax({
+                        url: '{% url "eliminar_horario" 0 %}'.replace('0', id),
+                        type: 'POST',
+                        data: {
+                            csrfmiddlewaretoken: '{{ csrf_token }}'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                table.row(row).remove().draw(false);
+                                mostrarMensaje(response.message, 'alert-success');
+                            } else {
+                                mostrarMensaje(response.message, 'alert-error');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            mostrarMensaje('Ocurrió un error al eliminar el horario.', 'alert-error');
+                        }
+                    });
+                }
+            });
+
+            $('#sucursal').on('change', function() {
+                const form = $('#sucursalForm');
+                form.submit();
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <i class="fas fa-clock icon"></i>
+        <h2>Visualizar Horarios</h2>
+        <div class="messages-container">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        <form id="sucursalForm" method="POST" action="{% url 'visualizar_horarios' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal" required>
+                    <option value="">Seleccionar sucursal</option>
+                    {% for sucursal in sucursales %}
+                        <option value="{{ sucursal.sucursalid }}" {% if sucursal_seleccionada and sucursal.sucursalid == sucursal_seleccionada.sucursalid %}selected{% endif %}>{{ sucursal.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if sucursal_seleccionada %}
+                <div class="btn-container">
+                    <a href="{% url 'editar_horarios' sucursal_seleccionada.sucursalid %}" class="btn-editar-horarios">Editar Horarios</a>
+                </div>
+            {% endif %}
+        </form>
+        {% if sucursal_seleccionada %}
+        <div class="table-container">
+            <table id="horarios-list" class="table display">
+                <thead>
+                    <tr>
+                        <th>Día</th>
+                        <th>Hora de Apertura</th>
+                        <th>Hora de Cierre</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for horario in horarios %}
+                    <tr>
+                        <td>{{ horario.dia_semana }}</td>
+                        <td>{{ horario.horaapertura }}</td>
+                        <td>{{ horario.horacierre }}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn-eliminar" data-id="{{ horario.horarioid }}"><i class="fas fa-trash-alt"></i></button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+{% endblock %}

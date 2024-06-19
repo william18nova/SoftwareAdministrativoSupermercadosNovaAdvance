@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 {% extends 'base.html' %}
-{% block title %}Agregar Horarios{% endblock %}
+{% block title %}Editar Horario{% endblock %}
 {% block content %}
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agregar Horarios</title>
+    <title>Editar Horario</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'agregar_horarios.css' %}">
+    <link rel="stylesheet" href="{% static 'editar_horario.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 </head>
 <body>
     <div class="container-usuario">
         <i class="fas fa-clock icono-reloj"></i>
-        <h2>Agregar Horarios</h2>
+        <h2>Editar Horarios</h2>
         {% if messages %}
             <div class="messages">
                 {% for message in messages %}
@@ -25,17 +26,8 @@
             </div>
         {% endif %}
         <div id="js-alert" class="alert alert-error" style="display: none;">Por favor, complete todos los campos.</div>
-        <form method="POST" action="{% url 'agregar_horario' %}" id="horario-form">
+        <form id="horarioForm" method="POST" action="{% url 'editar_horarios' sucursal.sucursalid %}">
             {% csrf_token %}
-            <div class="form-group">
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal" name="sucursalid" required>
-                    <option value="">Seleccionar sucursal</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
             <div class="form-group">
                 <label>Días</label>
                 <div class="days-container">
@@ -69,10 +61,20 @@
                         </tr>
                     </thead>
                     <tbody id="horarios-temp-body">
+                        {% for horario in horarios %}
+                        <tr>
+                            <td>{{ horario.dia_semana }}</td>
+                            <td><input type="time" name="horaapertura" value="{{ horario.horaapertura|date:'H:i' }}"></td>
+                            <td><input type="time" name="horacierre" value="{{ horario.horacierre|date:'H:i' }}"></td>
+                            <td class="text-center">
+                                <button type="button" class="btn-eliminar" data-id="{{ horario.horarioid }}"><i class="fas fa-trash-alt"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <button type="submit" class="btn-agregar-horario">Agregar Horarios</button>
+            <button type="submit" class="btn-guardar">Guardar</button>
         </form>
     </div>
     <script>
@@ -82,6 +84,7 @@
             const horariosTempBody = document.getElementById('horarios-temp-body');
             const alertBox = document.getElementById('js-alert');
             let horariosTemp = [];
+            let deletedHorarios = [];
 
             buttons.forEach(button => {
                 button.addEventListener('click', function() {
@@ -119,13 +122,12 @@
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${day}</td>
-                            <td>${horaApertura}</td>
-                            <td>${horaCierre}</td>
+                            <td><input type="time" name="horaapertura" value="${horaApertura}"></td>
+                            <td><input type="time" name="horacierre" value="${horaCierre}"></td>
                             <td><button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button></td>
                         `;
                         horariosTempBody.appendChild(row);
 
-                        // Bloquear los botones de los días ya seleccionados
                         buttons.forEach(button => {
                             if (button.getAttribute('data-day') === day) {
                                 button.disabled = true;
@@ -134,7 +136,6 @@
                         });
                     });
 
-                    // Resetear campos
                     diaSemanaInput.value = '';
                     document.getElementById('horaapertura').value = '';
                     document.getElementById('horacierre').value = '';
@@ -145,11 +146,15 @@
                 if (event.target.closest('.btn-eliminar')) {
                     const row = event.target.closest('tr');
                     const day = row.cells[0].textContent;
+                    const id = event.target.closest('.btn-eliminar').dataset.id;
+
+                    if (id) {
+                        deletedHorarios.push(id);
+                    }
 
                     horariosTemp = horariosTemp.filter(horario => horario.dia !== day);
                     row.remove();
 
-                    // Desbloquear el botón del día eliminado
                     buttons.forEach(button => {
                         if (button.getAttribute('data-day') === day) {
                             button.disabled = false;
@@ -158,22 +163,37 @@
                 }
             });
 
-            document.querySelector('.btn-agregar-horario').addEventListener('click', function(event) {
-                if (horariosTemp.length > 0) {
-                    const sucursalid = document.getElementById('sucursal').value;
-                    if (sucursalid) {
-                        const horariosTempInput = document.createElement('input');
-                        horariosTempInput.type = 'hidden';
-                        horariosTempInput.name = 'horarios_temp';
-                        horariosTempInput.value = JSON.stringify(horariosTemp);
-                        document.getElementById('horario-form').appendChild(horariosTempInput);
-                    } else {
-                        event.preventDefault();
-                        alert('Debe seleccionar una sucursal.');
-                    }
-                } else {
-                    event.preventDefault();
-                    alert('No hay horarios definidos para agregar.');
+            document.querySelector('.btn-guardar').addEventListener('click', function(event) {
+                const form = document.getElementById('horarioForm');
+                const rows = horariosTempBody.querySelectorAll('tr');
+                const horarios = [];
+
+                rows.forEach(row => {
+                    const dia = row.cells[0].textContent;
+                    const horaapertura = row.querySelector('input[name="horaapertura"]').value;
+                    const horacierre = row.querySelector('input[name="horacierre"]').value;
+                    const id = row.querySelector('.btn-eliminar').dataset.id || null;
+                    horarios.push({ dia, horaapertura, horacierre, id });
+                });
+
+                const horariosInput = document.createElement('input');
+                horariosInput.type = 'hidden';
+                horariosInput.name = 'horarios';
+                horariosInput.value = JSON.stringify(horarios);
+                form.appendChild(horariosInput);
+
+                const deletedHorariosInput = document.createElement('input');
+                deletedHorariosInput.type = 'hidden';
+                deletedHorariosInput.name = 'deleted_horarios';
+                deletedHorariosInput.value = deletedHorarios.join(',');
+                form.appendChild(deletedHorariosInput);
+            });
+
+            const preselectedDays = Array.from(document.querySelectorAll('#horarios-temp-body tr')).map(row => row.cells[0].textContent);
+            buttons.forEach(button => {
+                if (preselectedDays.includes(button.getAttribute('data-day'))) {
+                    button.disabled = true;
+                    button.classList.remove('active');
                 }
             });
         });
