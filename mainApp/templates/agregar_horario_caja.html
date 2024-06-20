@@ -93,30 +93,15 @@
 
             sucursalSelect.addEventListener('change', function() {
                 const sucursalId = this.value;
-
-                // Limpiar las opciones actuales de punto de pago
                 puntoPagoSelect.innerHTML = '<option value="">Seleccionar punto de pago</option>';
-
-                // Realizar una petición AJAX para obtener los puntos de pago asociados a la sucursal seleccionada
                 if (sucursalId) {
-                    $.ajax({
-                        url: '{% url "obtener_puntos_pago" %}',
-                        type: 'GET',
-                        data: {
-                            sucursal_id: sucursalId
-                        },
-                        success: function(response) {
-                            response.puntos_pago.forEach(punto => {
-                                const newOption = document.createElement('option');
-                                newOption.value = punto.puntopagoid;
-                                newOption.textContent = punto.nombre;
-                                puntoPagoSelect.appendChild(newOption);
+                    fetch(`/obtener_puntos_pago/?sucursal_id=${sucursalId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(opcion => {
+                                puntoPagoSelect.innerHTML += opcion;
                             });
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Error al obtener los puntos de pago:', error);
-                        }
-                    });
+                        });
                 }
             });
 
@@ -203,6 +188,16 @@
                     const horacierre = row.querySelector('input[name="horacierre"]').value;
                     horarios.push({ dia, horaapertura, horacierre });
                 });
+
+                if (horarios.length === 0) {
+                    alertBox.textContent = 'Por favor, complete todos los campos.';
+                    alertBox.style.display = 'block';
+                    setTimeout(() => {
+                        alertBox.style.display = 'none';
+                    }, 3000);
+                    event.preventDefault();
+                    return;
+                }
 
                 const horariosInput = document.createElement('input');
                 horariosInput.type = 'hidden';

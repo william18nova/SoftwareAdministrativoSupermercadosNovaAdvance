@@ -842,26 +842,25 @@ def eliminar_horario_view(request, horario_id):
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
 
 def agregar_horario_caja_view(request):
-    # Filtrar solo las sucursales que tienen puntos de pago asignados
     sucursales = Sucursal.objects.filter(puntospago__isnull=False).distinct()
 
     if request.method == 'POST':
         sucursal_id = request.POST.get('sucursal')
         puntopago_id = request.POST.get('punto_pago')
-        dia_semana = request.POST.get('dia_semana')
-        horaapertura = request.POST.get('horaapertura')
-        horacierre = request.POST.get('horacierre')
+        horarios = request.POST.get('horarios')
 
-        if not (sucursal_id and puntopago_id and dia_semana and horaapertura and horacierre):
+        if not (sucursal_id and puntopago_id and horarios):
             messages.error(request, 'Todos los campos son requeridos.')
             return redirect('agregar_horario_caja')
 
-        HorarioCaja.objects.create(
-            puntopagoid=puntopago_id,
-            dia_semana=dia_semana,
-            horaapertura=horaapertura,
-            horacierre=horacierre
-        )
+        horarios = json.loads(horarios)
+        for horario in horarios:
+            HorarioCaja.objects.create(
+                puntopagoid=puntopago_id,
+                dia_semana=horario['dia'],
+                horaapertura=horario['horaapertura'],
+                horacierre=horario['horacierre']
+            )
         messages.success(request, 'Horario de caja agregado exitosamente.')
         return redirect('agregar_horario_caja')
 
@@ -869,7 +868,12 @@ def agregar_horario_caja_view(request):
         'sucursales': sucursales,
     })
 
-def obtener_puntos_pago_view(request):
+def obtener_puntos_pago(request):
     sucursal_id = request.GET.get('sucursal_id')
-    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).values('puntopagoid', 'nombre')
-    return JsonResponse({'puntos_pago': list(puntos_pago)})
+    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).exclude(
+        puntopagoid__in=HorarioCaja.objects.values_list('puntopagoid', flat=True)
+    )
+    opciones = []
+    for punto_pago in puntos_pago:
+        opciones.append(f'<option value="{punto_pago.puntopagoid}">{punto_pago.nombre}</option>')
+    return JsonResponse(opciones, safe=False)

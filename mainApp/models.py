@@ -154,7 +154,7 @@ class HorariosNegocio(models.Model):
         return f"{self.dia_semana} - {self.sucursalid.nombre}"
     
 class HorarioCaja(models.Model):
-    horarioid = models.AutoField(primary_key=True)
+    horariocajaid = models.AutoField(primary_key=True)  # Corrige el nombre del campo aquí
     puntopagoid = models.IntegerField()
     dia_semana = models.CharField(max_length=3)
     horaapertura = models.TimeField()
