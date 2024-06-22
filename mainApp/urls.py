@@ -50,4 +50,7 @@ urlpatterns = [
     path('eliminar_horario/<int:horario_id>/', views.eliminar_horario_view, name='eliminar_horario'),
     path('agregar_horario_caja/', views.agregar_horario_caja_view, name='agregar_horario_caja'),
     path('obtener_puntos_pago/', views.obtener_puntos_pago, name='obtener_puntos_pago'),
+    path('visualizar_horarios_cajas/', views.visualizar_horarios_cajas_view, name='visualizar_horarios_cajas'),
+    path('eliminar_horario_caja/<int:horario_id>/', views.eliminar_horario_caja_view, name='eliminar_horario_caja'),
+    path('obtener_puntos_pago_con_horarios/', views.obtener_puntos_pago_con_horarios, name='obtener_puntos_pago_con_horarios'),
 ]

@@ -2,7 +2,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio, HorarioCaja
-from django.db.models import Count, Sum, Exists, OuterRef, Subquery, Exists, OuterRef
+from django.db.models import Count, Sum, Exists, OuterRef, Exists, OuterRef
 from django.http import JsonResponse
 from collections import defaultdict
 import json
@@ -841,8 +841,20 @@ def eliminar_horario_view(request, horario_id):
         return JsonResponse({'success': True, 'message': 'Horario eliminado exitosamente.'})
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
 
+from django.db.models import OuterRef, Subquery
+
 def agregar_horario_caja_view(request):
-    sucursales = Sucursal.objects.filter(puntospago__isnull=False).distinct()
+    # Subconsulta para obtener puntos de pago con horarios asignados
+    puntos_con_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
+
+    # Filtrar las sucursales que tienen al menos un punto de pago sin horario asignado
+    sucursales = Sucursal.objects.annotate(
+        tiene_puntos_sin_horario=Exists(
+            PuntosPago.objects.filter(
+                sucursalid=OuterRef('pk')
+            ).exclude(Exists(puntos_con_horario))
+        )
+    ).filter(tiene_puntos_sin_horario=True).distinct()
 
     if request.method == 'POST':
         sucursal_id = request.POST.get('sucursal')
@@ -874,6 +886,56 @@ def obtener_puntos_pago(request):
         puntopagoid__in=HorarioCaja.objects.values_list('puntopagoid', flat=True)
     )
     opciones = []
+    for punto_pago in puntos_pago:
+        opciones.append(f'<option value="{punto_pago.puntopagoid}">{punto_pago.nombre}</option>')
+    return JsonResponse(opciones, safe=False)
+
+def visualizar_horarios_cajas_view(request):
+    # Filtrar sucursales que tienen puntos de pago con horarios definidos
+    puntos_con_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef('pk')).values('puntopagoid')
+    sucursales = Sucursal.objects.filter(
+        Exists(
+            PuntosPago.objects.filter(
+                sucursalid=OuterRef('pk')
+            ).filter(Exists(puntos_con_horario))
+        )
+    ).distinct()
+
+    sucursal_seleccionada = None
+    punto_pago_seleccionado = None
+    puntos_pago = []
+    horarios = []
+
+    if request.method == 'POST':
+        sucursal_id = request.POST.get('sucursal')
+        punto_pago_id = request.POST.get('punto_pago')
+        if sucursal_id:
+            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
+            puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_seleccionada).filter(Exists(puntos_con_horario))
+        if punto_pago_id:
+            punto_pago_seleccionado = get_object_or_404(PuntosPago, pk=punto_pago_id)
+            horarios = HorarioCaja.objects.filter(puntopagoid=punto_pago_seleccionado)
+
+    return render(request, 'visualizar_horarios_cajas.html', {
+        'sucursales': sucursales,
+        'sucursal_seleccionada': sucursal_seleccionada,
+        'puntos_pago': puntos_pago,
+        'punto_pago_seleccionado': punto_pago_seleccionado,
+        'horarios': horarios
+    })
+
+def eliminar_horario_caja_view(request, horario_id):
+    if request.method == 'POST':
+        horario = get_object_or_404(HorarioCaja, pk=horario_id)
+        horario.delete()
+        return JsonResponse({'success': True, 'message': 'Horario eliminado exitosamente.'})
+    return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+
+def obtener_puntos_pago_con_horarios(request):
+    sucursal_id = request.GET.get('sucursal_id')
+    puntos_con_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef('pk')).values('puntopagoid')
+    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).filter(Exists(puntos_con_horario))
+    opciones = ['<option value="">Seleccionar punto de pago</option>']
     for punto_pago in puntos_pago:
         opciones.append(f'<option value="{punto_pago.puntopagoid}">{punto_pago.nombre}</option>')
     return JsonResponse(opciones, safe=False)
