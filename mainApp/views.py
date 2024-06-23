@@ -4,7 +4,6 @@ from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio, HorarioCaja
 from django.db.models import Count, Sum, Exists, OuterRef, Exists, OuterRef
 from django.http import JsonResponse
-from collections import defaultdict
 import json
 
 def login(request):
@@ -914,7 +913,7 @@ def visualizar_horarios_cajas_view(request):
             puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_seleccionada).filter(Exists(puntos_con_horario))
         if punto_pago_id:
             punto_pago_seleccionado = get_object_or_404(PuntosPago, pk=punto_pago_id)
-            horarios = HorarioCaja.objects.filter(puntopagoid=punto_pago_seleccionado)
+            horarios = HorarioCaja.objects.filter(puntopagoid=punto_pago_seleccionado.puntopagoid)
 
     return render(request, 'visualizar_horarios_cajas.html', {
         'sucursales': sucursales,
@@ -925,11 +924,12 @@ def visualizar_horarios_cajas_view(request):
     })
 
 def eliminar_horario_caja_view(request, horario_id):
-    if request.method == 'POST':
+    try:
         horario = get_object_or_404(HorarioCaja, pk=horario_id)
         horario.delete()
         return JsonResponse({'success': True, 'message': 'Horario eliminado exitosamente.'})
-    return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': 'Ocurrió un error al eliminar el horario.'})
 
 def obtener_puntos_pago_con_horarios(request):
     sucursal_id = request.GET.get('sucursal_id')
@@ -939,3 +939,8 @@ def obtener_puntos_pago_con_horarios(request):
     for punto_pago in puntos_pago:
         opciones.append(f'<option value="{punto_pago.puntopagoid}">{punto_pago.nombre}</option>')
     return JsonResponse(opciones, safe=False)
+
+def editar_horarios_cajas_view(request, puntopagoid):
+    return render(request, 'editar_horarios_cajas.html', {
+        'mensaje': 'Esta es la vista para editar los horarios de la caja con ID: {}'.format(puntopagoid)
+    })
