@@ -162,3 +162,17 @@ class HorarioCaja(models.Model):
 
     class Meta:
         db_table = 'horarioscajas'
+
+class Cliente(models.Model):
+    clienteid = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=100)
+    apellido = models.CharField(max_length=100)
+    telefono = models.CharField(max_length=20, blank=True, null=True)
+    email = models.CharField(max_length=100, blank=True, null=True)
+    numerodocumento = models.CharField(max_length=50)
+
+    class Meta:
+        db_table = 'clientes'
+
+    def __str__(self):
+        return f'{self.nombre} {self.apellido}'

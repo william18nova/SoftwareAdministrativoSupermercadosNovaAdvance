@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Agregar Cliente{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Cliente</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'agregar_cliente.css' %}">
+</head>
+<body>
+    <div class="container-empleado">
+        <i class="fas fa-user-plus icon-empleado"></i>
+        <h2>Agregar Cliente</h2>
+        <div id="error-message" class="alert alert-error" style="display: none;"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+        <form id="form-agregar-cliente" method="POST" action="{% url 'agregar_cliente' %}">
+            {% csrf_token %}
+            <div class="form-group-empleado">
+                <label for="numerodocumento">Número de Documento</label>
+                <input type="text" id="numerodocumento" name="numerodocumento" required>
+            </div>
+            <div class="form-group-empleado">
+                <label for="nombre">Nombre</label>
+                <input type="text" id="nombre" name="nombre" required>
+            </div>
+            <div class="form-group-empleado">
+                <label for="apellido">Apellido</label>
+                <input type="text" id="apellido" name="apellido" required>
+            </div>
+            <div class="form-group-empleado">
+                <label for="telefono">Teléfono</label>
+                <input type="text" id="telefono" name="telefono" required>
+            </div>
+            <div class="form-group-empleado">
+                <label for="email">Correo Electrónico</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group-empleado">
+                <button type="submit" class="btn-agregar-empleado">Agregar Cliente</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('form-agregar-cliente');
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                const formData = new FormData(form);
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                })
+                .then(response => {
+                    return response.json();
+                })
+                .then(data => {
+                    // Ocultar todas las alertas antes de mostrar la nueva
+                    document.getElementById('error-message').style.display = 'none';
+                    document.getElementById('success-message').style.display = 'none';
+
+                    if (data.success) {
+                        const successMessage = document.getElementById('success-message');
+                        successMessage.textContent = 'El cliente fue agregado exitosamente.';
+                        successMessage.style.display = 'block';
+
+                        // Limpiar los campos de entrada
+                        form.reset();
+                    } else {
+                        const errorMessage = document.getElementById('error-message');
+                        errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + data.error;
+                        errorMessage.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    const errorMessage = document.getElementById('error-message');
+                    errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + error;
+                    errorMessage.style.display = 'block';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+{% endblock %}

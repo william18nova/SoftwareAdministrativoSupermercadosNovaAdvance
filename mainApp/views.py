@@ -1,11 +1,12 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio, HorarioCaja
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio, HorarioCaja, Cliente
 from django.db.models import Count, Sum, Exists, OuterRef, Exists, OuterRef
 from django.http import JsonResponse
 import json
 from django.urls import reverse
+from django.db import IntegrityError
 
 def login(request):
     if request.method == 'POST':
@@ -966,3 +967,25 @@ def editar_horarios_cajas_view(request, puntopagoid):
         horarios = HorarioCaja.objects.filter(puntopagoid=puntopagoid)
 
         return render(request, 'editar_horarios_cajas.html', {'punto_pago': punto_pago, 'horarios': horarios, 'sucursal': sucursal})
+
+def agregar_cliente(request):
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre')
+        apellido = request.POST.get('apellido')
+        telefono = request.POST.get('telefono')
+        email = request.POST.get('email')
+        numerodocumento = request.POST.get('numerodocumento')
+
+        if Cliente.objects.filter(numerodocumento=numerodocumento).exists():
+            return JsonResponse({'success': False, 'error': 'El número de documento ya está registrado.'})
+        if Cliente.objects.filter(email=email).exists():
+            return JsonResponse({'success': False, 'error': 'El correo electrónico ya está registrado.'})
+        if Cliente.objects.filter(telefono=telefono).exists():
+            return JsonResponse({'success': False, 'error': 'El teléfono ya está registrado.'})
+
+        cliente = Cliente(nombre=nombre, apellido=apellido, telefono=telefono, email=email, numerodocumento=numerodocumento)
+        cliente.save()
+
+        return JsonResponse({'success': True})
+
+    return render(request, 'agregar_cliente.html')
