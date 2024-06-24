@@ -37,6 +37,14 @@
                 container.insertAdjacentElement('afterbegin', mensajeDiv);
             }
 
+            // Mostrar mensaje de alerta si existe en la URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const mensaje = urlParams.get('mensaje');
+            const clase = urlParams.get('clase');
+            if (mensaje && clase) {
+                mostrarMensaje(mensaje, clase);
+            }
+
             $('#horarios-list').on('click', '.btn-eliminar', function(event) {
                 event.preventDefault();
                 const button = $(this);

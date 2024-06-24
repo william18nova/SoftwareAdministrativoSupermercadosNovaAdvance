@@ -5,6 +5,7 @@ from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedo
 from django.db.models import Count, Sum, Exists, OuterRef, Exists, OuterRef
 from django.http import JsonResponse
 import json
+from django.urls import reverse
 
 def login(request):
     if request.method == 'POST':
@@ -941,6 +942,27 @@ def obtener_puntos_pago_con_horarios(request):
     return JsonResponse(opciones, safe=False)
 
 def editar_horarios_cajas_view(request, puntopagoid):
-    return render(request, 'editar_horarios_cajas.html', {
-        'mensaje': 'Esta es la vista para editar los horarios de la caja con ID: {}'.format(puntopagoid)
-    })
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            horarios = data.get('horarios', [])
+
+            punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
+            HorarioCaja.objects.filter(puntopagoid=puntopagoid).delete()
+            for horario in horarios:
+                dia = horario['dia']
+                hora_apertura = horario['hora_apertura']
+                hora_cierre = horario['hora_cierre']
+                HorarioCaja.objects.create(puntopagoid=puntopagoid, dia_semana=dia, horaapertura=hora_apertura, horacierre=hora_cierre)
+
+            messages.success(request, f'Se ha editado correctamente la caja del punto de pago {punto_pago.nombre} de la sucursal {punto_pago.sucursalid.nombre}')
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+    else:
+        punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
+        sucursal = punto_pago.sucursalid
+        horarios = HorarioCaja.objects.filter(puntopagoid=puntopagoid)
+
+        return render(request, 'editar_horarios_cajas.html', {'punto_pago': punto_pago, 'horarios': horarios, 'sucursal': sucursal})

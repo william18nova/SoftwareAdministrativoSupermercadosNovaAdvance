@@ -1,20 +1,209 @@
 <!DOCTYPE html>
 {% extends 'base.html' %}
-{% block title %}Editar Horarios de Cajas{% endblock %}
+{% block title %}Editar Horarios de Caja{% endblock %}
 {% block content %}
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Horarios de Cajas</title>
+    <title>Editar Horarios de Caja</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <link rel="stylesheet" href="{% static 'editar_horarios_cajas.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
     <div class="container">
+        <div class="icon">
+            <i class="fa fa-clock-o"></i>
+        </div>
         <h2>Editar Horarios de Caja</h2>
-        <p>{{ mensaje }}</p>
+        <div class="alert alert-error" id="error-message" style="display: none;">
+            Ocurrió un error al guardar los cambios.
+        </div>
+        <div class="alert alert-success" id="success-message" style="display: none;">
+            Los cambios se guardaron correctamente.
+        </div>
+
+        <form id="form-editar-horarios" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="sucursal">Sucursal</label>
+                <select id="sucursal" name="sucursal" disabled>
+                    <option value="{{ sucursal.sucursalid }}" selected>{{ sucursal.nombre }}</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="punto_pago">Punto de Pago</label>
+                <select id="punto_pago" name="punto_pago" disabled>
+                    <option>{{ punto_pago.nombre }}</option>
+                </select>
+            </div>
+
+            <div class="days-container">
+                <button type="button" class="day-button" data-dia="Lun">Lun</button>
+                <button type="button" class="day-button" data-dia="Mar">Mar</button>
+                <button type="button" class="day-button" data-dia="Mie">Mie</button>
+                <button type="button" class="day-button" data-dia="Jue">Jue</button>
+                <button type="button" class="day-button" data-dia="Vie">Vie</button>
+                <button type="button" class="day-button" data-dia="Sab">Sab</button>
+                <button type="button" class="day-button" data-dia="Dom">Dom</button>
+            </div>
+
+            <div class="form-group">
+                <label for="hora_apertura">Hora de Apertura</label>
+                <input type="time" id="hora_apertura" name="hora_apertura">
+            </div>
+
+            <div class="form-group">
+                <label for="hora_cierre">Hora de Cierre</label>
+                <input type="time" id="hora_cierre" name="hora_cierre">
+            </div>
+
+            <button type="button" id="agregar-horario" class="btn-agregar-temporal">Agregar Horario</button>
+
+            <div class="horarios-temp-container">
+                <table class="horarios-temp">
+                    <thead>
+                        <tr>
+                            <th>Día</th>
+                            <th>Hora de Apertura</th>
+                            <th>Hora de Cierre</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-horarios">
+                        {% for horario in horarios %}
+                        <tr data-dia="{{ horario.dia_semana }}">
+                            <td>{{ horario.dia_semana }}</td>
+                            <td><input type="time" name="horarios[{{ forloop.counter0 }}][hora_apertura]" value="{{ horario.horaapertura|time:'H:i' }}"></td>
+                            <td><input type="time" name="horarios[{{ forloop.counter0 }}][hora_cierre]" value="{{ horario.horacierre|time:'H:i' }}"></td>
+                            <td><button type="button" class="btn-eliminar-horario"><i class="fa fa-trash"></i></button></td>
+                            <input type="hidden" name="horarios[{{ forloop.counter0 }}][dia]" value="{{ horario.dia_semana }}">
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="submit" class="btn-guardar">Guardar Cambios</button>
+        </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('form-editar-horarios');
+            const tablaHorarios = document.getElementById('tabla-horarios');
+
+            // Marcar los días ya seleccionados como inactivos
+            const diasSeleccionados = Array.from(document.querySelectorAll('#tabla-horarios tr')).map(row => row.getAttribute('data-dia'));
+            diasSeleccionados.forEach(dia => {
+                const button = document.querySelector(`.day-button[data-dia="${dia}"]`);
+                if (button) {
+                    button.disabled = true;
+                    button.classList.add('inactive');
+                }
+            });
+
+            // Evento para agregar horarios
+            document.getElementById('agregar-horario').addEventListener('click', function () {
+                const selectedButtons = document.querySelectorAll('.day-button.active');
+                const horaApertura = document.getElementById('hora_apertura').value;
+                const horaCierre = document.getElementById('hora_cierre').value;
+
+                if (selectedButtons.length === 0 || !horaApertura || !horaCierre) {
+                    alert('Debe llenar todos los campos.');
+                    return;
+                }
+
+                selectedButtons.forEach(button => {
+                    const dia = button.getAttribute('data-dia');
+                    const rowCount = tablaHorarios.rows.length;
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-dia', dia);
+                    row.innerHTML = `
+                        <td>${dia}</td>
+                        <td><input type="time" name="horarios[${rowCount}][hora_apertura]" value="${horaApertura}"></td>
+                        <td><input type="time" name="horarios[${rowCount}][hora_cierre]" value="${horaCierre}"></td>
+                        <td><button type="button" class="btn-eliminar-horario"><i class="fa fa-trash"></i></button></td>
+                        <input type="hidden" name="horarios[${rowCount}][dia]" value="${dia}">
+                    `;
+                    tablaHorarios.appendChild(row);
+
+                    // Desactivar el botón del día seleccionado
+                    button.disabled = true;
+                    button.classList.add('inactive');
+                    button.classList.remove('active');
+                });
+            });
+
+            // Evento para eliminar horarios
+            tablaHorarios.addEventListener('click', function (event) {
+                if (event.target.closest('.btn-eliminar-horario')) {
+                    if (confirm("¿Está seguro que desea eliminar este horario?")) {
+                        const row = event.target.closest('tr');
+                        const dia = row.getAttribute('data-dia');
+                        row.remove();
+
+                        // Reactivar el botón del día eliminado
+                        const button = document.querySelector(`.day-button[data-dia="${dia}"]`);
+                        if (button) {
+                            button.disabled = false;
+                            button.classList.remove('inactive');
+                        }
+                    }
+                }
+            });
+
+            // Evento para marcar los botones de días como activos
+            const dayButtons = document.querySelectorAll('.day-button');
+            dayButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    button.classList.toggle('active');
+                });
+            });
+
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                const horarios = Array.from(tablaHorarios.querySelectorAll('tr')).map(row => {
+                    return {
+                        dia: row.querySelector('input[name*="[dia]"]').value,
+                        hora_apertura: row.querySelector('input[name*="[hora_apertura]"]').value,
+                        hora_cierre: row.querySelector('input[name*="[hora_cierre]"]').value,
+                    };
+                });
+
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({ horarios: horarios }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('success-message').style.display = 'block';
+                        setTimeout(() => {
+                            window.location.href = "{% url 'visualizar_horarios_cajas' %}";
+                        }, 50);
+                    } else {
+                        const errorMessage = document.getElementById('error-message');
+                        errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + data.error;
+                        errorMessage.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    const errorMessage = document.getElementById('error-message');
+                    errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + error;
+                    errorMessage.style.display = 'block';
+                });
+            });
+        });
+    </script>
 </body>
 </html>
 {% endblock %}
