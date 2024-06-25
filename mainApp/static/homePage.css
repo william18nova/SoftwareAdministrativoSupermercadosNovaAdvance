@@ -9,7 +9,7 @@ body {
     text-align: center;
     color: white;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto; /* Permitir desplazamiento vertical */
 }
 
 body::before {
@@ -28,7 +28,8 @@ body::before {
     text-align: center;
     position: relative;
     z-index: 1;
-    padding: 20px; /* Added padding for better spacing on smaller screens */
+    padding: 20px; /* Agregado padding para mejor espaciado en pantallas pequeñas */
+    max-width: 100%; /* Asegurar que el contenedor no exceda el ancho de la pantalla */
 }
 
 img {
@@ -54,7 +55,7 @@ img {
     font-weight: 400;
 }
 
-/* Responsive Design */
+/* Diseño Responsive */
 @media (max-width: 768px) {
     .title {
         font-size: 36px;
