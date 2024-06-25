@@ -5,10 +5,11 @@ body {
     background: linear-gradient(to bottom right, #ADD8E6, #005091);
     margin: 0;
     padding: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: auto; /* Permitir el desplazamiento */
 }
 
 .container {
@@ -19,6 +20,7 @@ body {
     background-color: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
 }
 
 h2 {
@@ -97,4 +99,44 @@ table tbody td {
 .alert-success {
     background-color: #d4edda;
     color: #155724;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    table thead {
+        display: none;
+    }
+
+    table, table tbody, table tr, table td {
+        display: block;
+        width: 100%;
+    }
+
+    table tr {
+        margin-bottom: 15px;
+    }
+
+    table td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+    }
+
+    table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: calc(50% - 20px);
+        padding-right: 10px;
+        text-align: left;
+        font-weight: bold;
+    }
+
+    .actions-cell {
+        text-align: center;
+    }
 }
