@@ -1,8 +1,10 @@
+/* agregar_producto.css */
+
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,7 +12,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
-    overflow: hidden;
+    overflow-y: auto; /* Permitir desplazamiento vertical */
 }
 
 .container {
@@ -18,7 +20,8 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 400px;
+    width: 90%;
+    max-width: 400px;
     text-align: center;
     position: relative;
 }
@@ -59,15 +62,7 @@ body {
 }
 
 .form-group select {
-    width: calc(105.2% - 16px);
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
+    width: 100%;
 }
 
 .form-group input:hover, .form-group select:hover {
@@ -86,6 +81,7 @@ body {
     margin-top: 40px;
     font-size: 18px;
     transition: background-color 0.3s;
+    border-radius: 5px;
 }
 
 .form-group input[type="submit"]:hover {
@@ -104,4 +100,36 @@ body {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+}
+
+/* Media Queries para diseño responsivo */
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+        padding: 20px;
+    }
+
+    .icon {
+        font-size: 60px;
+    }
+
+    .container h2 {
+        font-size: 24px;
+    }
+
+    .form-group input, .form-group select {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .form-group input[type="submit"] {
+        font-size: 16px;
+        padding: 10px;
+    }
 }
