@@ -9,6 +9,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: auto;
 }
 
 .container {
@@ -19,6 +20,7 @@ body {
     background-color: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
 }
 
 h2 {
@@ -97,4 +99,26 @@ table tbody td {
     background-color: #dc3545;
     color: white;
     font-size: 15px;
+}
+
+/* Ajustes para dispositivos móviles */
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+        padding: 10px;
+        margin-top: 20px;
+    }
+
+    table thead th, table tbody td {
+        padding: 8px;
+    }
+
+    .btn {
+        padding: 3px 8px;
+        font-size: 12px;
+    }
+
+    body {
+        height: auto; /* Ajuste para permitir el scroll vertical en móviles */
+    }
 }
