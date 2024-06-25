@@ -5,10 +5,11 @@ body {
     background: linear-gradient(to bottom right, #ADD8E6, #005091);
     margin: 0;
     padding: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: auto; /* Permitir el desplazamiento */
 }
 
 .container {
@@ -19,6 +20,7 @@ body {
     background-color: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
 }
 
 h2 {
@@ -53,10 +55,15 @@ table tbody tr:nth-child(even) {
 table tbody td {
     padding: 10px;
     text-align: left;
+    word-wrap: break-word; /* Permitir el ajuste de línea en las celdas */
+}
+
+table tbody td[data-label="Descripción"] {
+    min-height: 50px; /* Altura mínima para la celda de descripción */
 }
 
 .actions-cell {
-    text-align: center;
+    text-align: right; /* Alinear a la derecha */
 }
 
 .actions-cell form,
@@ -85,28 +92,65 @@ table tbody td {
 }
 
 .messages {
-    text-align: center;
     margin-bottom: 20px;
 }
 
 .alert {
-    padding: 15px;
-    margin-top: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-    display: inline-block;
-    width: 95%;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
 }
 
 .alert-success {
-    color: #3c763d;
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
+    background-color: #d4edda;
+    color: #155724;
 }
 
-.alert-error {
-    color: #a94442;
-    background-color: #f2dede;
-    border-color: #ebccd1;
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    table {
+        border: 0;
+    }
+
+    table thead {
+        display: none; /* Ocultar encabezados en dispositivos móviles */
+    }
+
+    table tbody tr {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ddd; /* Añadir borde alrededor de cada fila */
+        border-radius: 5px; /* Añadir bordes redondeados */
+    }
+
+    table tbody td {
+        display: block;
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+        border-bottom: 1px solid #ddd;
+    }
+
+    table tbody td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: calc(50% - 20px);
+        padding-right: 10px;
+        text-align: left;
+        font-weight: bold;
+        white-space: nowrap; /* Evitar el ajuste de línea en las etiquetas */
+    }
+
+    table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    .actions-cell {
+        text-align: right; /* Alinear a la derecha en dispositivos móviles también */
+    }
 }
