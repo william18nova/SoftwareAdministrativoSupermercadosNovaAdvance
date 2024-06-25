@@ -55,4 +55,7 @@ urlpatterns = [
     path('obtener_puntos_pago_con_horarios/', views.obtener_puntos_pago_con_horarios, name='obtener_puntos_pago_con_horarios'),
     path('editar_horarios_cajas/<int:puntopagoid>/', views.editar_horarios_cajas_view, name='editar_horarios_cajas'),
     path('agregar_cliente/', views.agregar_cliente, name='agregar_cliente'),
+    path('visualizar_clientes/', views.visualizar_clientes, name='visualizar_clientes'),
+    path('editar_cliente/<int:clienteid>/', views.editar_cliente, name='editar_cliente'),
+    path('eliminar_cliente/<int:clienteid>/', views.eliminar_cliente, name='eliminar_cliente'),
 ]

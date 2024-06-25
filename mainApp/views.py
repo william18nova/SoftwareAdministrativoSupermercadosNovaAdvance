@@ -989,3 +989,31 @@ def agregar_cliente(request):
         return JsonResponse({'success': True})
 
     return render(request, 'agregar_cliente.html')
+
+def visualizar_clientes(request):
+    clientes = Cliente.objects.all()
+    return render(request, 'visualizar_clientes.html', {'clientes': clientes})
+
+def eliminar_cliente(request, clienteid):
+    cliente = get_object_or_404(Cliente, clienteid=clienteid)
+    cliente.delete()
+    messages.success(request, 'Cliente eliminado exitosamente.')
+    return redirect('visualizar_clientes')
+
+def editar_cliente(request, clienteid):
+    cliente = get_object_or_404(Cliente, clienteid=clienteid)
+    if request.method == 'POST':
+        cliente.numerodocumento = request.POST.get('numerodocumento')
+        cliente.nombre = request.POST.get('nombre')
+        cliente.apellido = request.POST.get('apellido')
+        cliente.telefono = request.POST.get('telefono')
+        cliente.email = request.POST.get('email')
+        
+        try:
+            cliente.save()
+            messages.success(request, f'Cliente con número de documento {cliente.numerodocumento} editado exitosamente.')
+            return redirect('visualizar_clientes')
+        except Exception as e:
+            messages.error(request, f'Ocurrió un error al guardar los cambios: {str(e)}')
+
+    return render(request, 'editar_cliente.html', {'cliente': cliente})
