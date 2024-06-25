@@ -5,7 +5,7 @@ body {
     background: linear-gradient(to bottom right, #ADD8E6, #005091);
     margin: 0;
     padding: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -27,21 +27,6 @@ h2 {
     text-align: center;
     margin-bottom: 20px;
     color: #333;
-}
-
-.messages {
-    margin-bottom: 20px;
-}
-
-.alert {
-    padding: 15px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-    color: #3c763d;
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-    margin-bottom: 20px;
 }
 
 table {
@@ -69,11 +54,21 @@ table tbody tr:nth-child(even) {
 
 table tbody td {
     padding: 10px;
+    min-height: 50px;
+    position: relative;
+    word-wrap: break-word;
     text-align: left;
+    vertical-align: middle;
+    white-space: normal;
 }
 
 .actions-cell {
-    text-align: center;
+    text-align: left; /* Alinear a la izquierda */
+    display: flex;
+    gap: 10px; /* Espacio entre botones */
+    justify-content: center; /* Centrar en la vista de escritorio */
+    align-items: left; /* Centrar verticalmente */
+    width: 100px; /* Ajustar el ancho para que sea un poco más que el de los dos botones */
 }
 
 .actions-cell form,
@@ -101,24 +96,90 @@ table tbody td {
     font-size: 15px;
 }
 
-/* Ajustes para dispositivos móviles */
+.messages {
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+/* Ajuste del ancho de las columnas para la vista de escritorio */
+@media (min-width: 769px) {
+    table tbody td:nth-child(1) {
+        width: 35%; /* Ancho aumentado para la columna de nombre */
+    }
+    table tbody td:nth-child(2) {
+        width: 55%; /* Ancho aumentado para la columna de descripción */
+    }
+    table tbody td:nth-child(3) {
+        width: 100px; /* Ancho ajustado para la columna de acciones */
+    }
+
+    .actions-cell {
+        display: flex;
+        gap: 10px;
+        justify-content: center; /* Centrar horizontalmente */
+        align-items: center; /* Centrar verticalmente */
+        flex-direction: row; /* Asegurar que los botones estén en una fila */
+    }
+}
+
+/* Responsiveness */
 @media (max-width: 768px) {
     .container {
-        width: 90%;
         padding: 10px;
-        margin-top: 20px;
     }
 
-    table thead th, table tbody td {
-        padding: 8px;
+    table {
+        border: 0;
     }
 
-    .btn {
-        padding: 3px 8px;
-        font-size: 12px;
+    table thead {
+        display: none;
     }
 
-    body {
-        height: auto; /* Ajuste para permitir el scroll vertical en móviles */
+    table tbody tr {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    table tbody td {
+        display: block;
+        text-align: left;
+        padding-left: 10px;
+        position: relative;
+        border-bottom: 1px solid #ddd;
+        word-break: break-word;
+    }
+
+    table tbody td::before {
+        content: attr(data-label);
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    .actions-cell {
+        justify-content: flex-start;
+        flex-direction: column; /* Colocar botones en columna en dispositivos móviles */
+    }
+
+    .btn-container {
+        display: flex;
+        gap: 10px;
     }
 }

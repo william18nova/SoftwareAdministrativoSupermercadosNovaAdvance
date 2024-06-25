@@ -52,11 +52,13 @@
             <tbody>
                 {% for categoria in categorias %}
                 <tr>
-                    <td>{{ categoria.nombre }}</td>
-                    <td>{{ categoria.descripcion }}</td>
-                    <td class="actions-cell">
-                        <a href="{% url 'editar_categoria' categoria.categoriaid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                        <button type="button" class="btn borrar" onclick="confirmarEliminacion('{{ categoria.categoriaid }}', '{{ categoria.nombre }}')"><i class="fas fa-trash-alt"></i></button>
+                    <td data-label="Nombre">{{ categoria.nombre }}</td>
+                    <td data-label="Descripción">{{ categoria.descripcion }}</td>
+                    <td data-label="Acciones" class="actions-cell">
+                        <div class="btn-container">
+                            <a href="{% url 'editar_categoria' categoria.categoriaid %}" class="btn editar"><i class="fas fa-edit"></i></a>
+                            <button type="button" class="btn borrar" onclick="confirmarEliminacion('{{ categoria.categoriaid }}', '{{ categoria.nombre }}')"><i class="fas fa-trash-alt"></i></button>
+                        </div>
                         <form id="eliminar-form-{{ categoria.categoriaid }}" action="{% url 'eliminar_categoria' categoria.categoriaid %}" method="post" style="display:none;">
                             {% csrf_token %}
                         </form>
@@ -76,4 +78,3 @@
 </body>
 </html>
 {% endblock %}
-
