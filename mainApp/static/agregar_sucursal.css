@@ -18,7 +18,8 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 400px;
+    width: 90%;
+    max-width: 400px;
     text-align: center;
     position: relative;
 }
@@ -70,7 +71,8 @@ body {
     cursor: pointer;
     padding: 12px;
     text-align: center;
-    width: 35%;
+    width: 100%;
+    max-width: 150px;
     font-size: 18px;
     transition: background-color 0.3s;
     border-radius: 5px;
@@ -108,4 +110,30 @@ body {
     justify-content: center;
     font-size: 16px;
     margin-top: 50px;
+}
+
+/* Media queries para dispositivos móviles */
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+        padding: 20px;
+    }
+
+    .icon {
+        font-size: 60px;
+    }
+
+    .container h2 {
+        font-size: 24px;
+    }
+
+    .form-group input {
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    .form-group input[type="submit"] {
+        padding: 10px;
+        font-size: 16px;
+    }
 }
