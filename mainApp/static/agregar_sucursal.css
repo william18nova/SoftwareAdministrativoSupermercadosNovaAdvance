@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,7 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
-    overflow: hidden;
+    overflow: auto; /* Permitir desplazamiento */
 }
 
 .container {
@@ -22,6 +22,7 @@ body {
     max-width: 400px;
     text-align: center;
     position: relative;
+    margin: 20px auto; /* Añadir margen para asegurar espacio para scroll */
 }
 
 .container h2 {
