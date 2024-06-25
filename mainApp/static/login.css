@@ -8,6 +8,7 @@ body {
     margin: 0;
     background: #6699CC; /* Fondo azul */
     font-family: Arial, sans-serif;
+    overflow-y: auto; /* Permitir desplazamiento vertical */
 }
 
 .login-container {
