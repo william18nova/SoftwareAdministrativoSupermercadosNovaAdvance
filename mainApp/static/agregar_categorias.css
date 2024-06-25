@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,6 +10,20 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none; /* Ensure no interaction with this element */
 }
 
 .container {
@@ -17,9 +31,11 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 500px;
+    width: 90%;
+    max-width: 400px;
     text-align: center;
     position: relative;
+    overflow: hidden;
 }
 
 .container h2 {
@@ -46,7 +62,7 @@ body {
 }
 
 .form-group input[type="text"], .form-group select {
-    width: 92%;
+    width: calc(100% - 16px);
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -57,74 +73,31 @@ body {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-
-.form-group input[type="number"]:hover {
-    background-color: #d0d8ff;
-    border-color: #777;
+.form-group input[type="text"]:hover, .form-group select:hover {
+    background-color: #e0e8ff;
+    border-color: #aaa;
 }
 
-.btn-agregar-producto, .btn-agregar-categoria {
+.btn-agregar-categoria {
     background-color: #003366;
     color: #ffffff;
     border: none;
     cursor: pointer;
     padding: 12px;
     text-align: center;
-    width: 35%;
+    width: 100%;
+    max-width: 150px;
     font-size: 18px;
     transition: background-color 0.3s;
     border-radius: 5px;
     margin: 0 auto;
-    display: block; /* Centering the button */
+    display: block;
     margin-top: 35px;
     margin-bottom: -20px;
 }
 
-.btn-agregar-producto:hover, .btn-agregar-categoria:hover {
+.btn-agregar-categoria:hover {
     background-color: #002244;
-}
-
-.btn-agregar-inventario:hover {
-    background-color: #002244;
-}
-
-.table {
-    width: 100%;
-    margin-top: 20px;
-    border-collapse: collapse;
-    text-align: left;
-}
-
-.table th, .table td {
-    padding: 10px;
-    border: 1px solid #ddd;
-}
-
-.table th {
-    background-color: #003366;
-    color: #fff;
-}
-
-.table td {
-    background-color: #f9f9f9;
-    color: #333;
-}
-
-.table td.text-center {
-    text-align: center;
-}
-
-.btn-eliminar {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    cursor: pointer;
-    border-radius: 5px;
-}
-
-.btn-eliminar:hover {
-    background-color: #c0392b;
 }
 
 .alert {
@@ -139,14 +112,42 @@ body {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
-    margin-top: 45px;
-    margin-bottom: -10px;
+    margin-top: 50px;
 }
 
 .alert-success {
     color: #3c763d;
     background-color: #dff0d8;
     border-color: #d6e9c6;
-    margin-top: 45px;
-    margin-bottom: -10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    margin-top: 50px;
+}
+
+/* Media queries para dispositivos móviles */
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+        padding: 20px;
+    }
+
+    .icon {
+        font-size: 60px;
+    }
+
+    .container h2 {
+        font-size: 24px;
+    }
+
+    .form-group input {
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    .form-group input[type="submit"] {
+        padding: 10px;
+        font-size: 16px;
+    }
 }
