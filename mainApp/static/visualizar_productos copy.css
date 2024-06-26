@@ -9,7 +9,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: auto; /* Permitir el desplazamiento */
+    overflow: auto;
 }
 
 .container {
@@ -54,21 +54,32 @@ table tbody tr:nth-child(even) {
 
 table tbody td {
     padding: 10px;
+    min-height: 50px;
+    position: relative;
+    word-wrap: break-word;
     text-align: left;
-    word-wrap: break-word; /* Permitir el ajuste de línea en las celdas */
-}
-
-table tbody td[data-label="Descripción"] {
-    min-height: 50px; /* Altura mínima para la celda de descripción */
+    vertical-align: middle;
+    white-space: normal;
 }
 
 .actions-cell {
-    text-align: right; /* Alinear a la derecha */
+    text-align: left; /* Alinear a la izquierda */
+    display: flex;
+    gap: 10px; /* Espacio entre botones */
+    justify-content: flex-start; /* Alinear a la izquierda */
+    align-items: left; /* Centrar verticalmente */
+    width: 100%; /* Ajustar el ancho para que sea un poco más que el de los dos botones */
 }
 
 .actions-cell form,
 .actions-cell a {
     display: inline-block;
+}
+
+.btn-container {
+    display: flex;
+    gap: 10px; /* Espacio entre botones */
+    flex-direction: row; /* Asegurar que los botones estén en una fila */
 }
 
 .btn {
@@ -83,12 +94,14 @@ table tbody td[data-label="Descripción"] {
     background-color: #ffc107;
     color: white;
     font-size: 15px;
+    height: 25px;
 }
 
 .btn.borrar {
     background-color: #dc3545;
     color: white;
     font-size: 15px;
+    height: 35px;
 }
 
 .messages {
@@ -106,6 +119,34 @@ table tbody td[data-label="Descripción"] {
     color: #155724;
 }
 
+/* Ajuste del ancho de las columnas para la vista de escritorio */
+@media (min-width: 769px) {
+    table tbody td:nth-child(1) {
+        width: 20%; /* Ancho aumentado para la columna de nombre */
+    }
+    table tbody td:nth-child(2) {
+        width: 40%; /* Ancho aumentado para la columna de descripción */
+    }
+    table tbody td:nth-child(3) {
+        width: 15%; /* Ancho ajustado para la columna de precio */
+    }
+    table tbody td:nth-child(4) {
+        width: 15%; /* Ancho ajustado para la columna de categoría */
+    }
+    table tbody td:nth-child(5) {
+        width: 10%; /* Ancho ajustado para la columna de acciones */
+    }
+
+    .actions-cell {
+        justify-content: flex-start; /* Alinear a la izquierda */
+        flex-direction: row; /* Asegurar que los botones estén en una fila */
+    }
+
+    .btn-container {
+        flex-direction: row; /* Asegurar que los botones estén en una fila */
+    }
+}
+
 /* Responsiveness */
 @media (max-width: 768px) {
     .container {
@@ -117,33 +158,30 @@ table tbody td[data-label="Descripción"] {
     }
 
     table thead {
-        display: none; /* Ocultar encabezados en dispositivos móviles */
+        display: none;
     }
 
     table tbody tr {
         display: block;
         margin-bottom: 10px;
-        border: 1px solid #ddd; /* Añadir borde alrededor de cada fila */
-        border-radius: 5px; /* Añadir bordes redondeados */
+        border: 1px solid #ddd;
+        border-radius: 5px;
     }
 
     table tbody td {
         display: block;
-        text-align: right;
-        padding-left: 50%;
+        text-align: left;
+        padding-left: 10px;
         position: relative;
         border-bottom: 1px solid #ddd;
+        word-break: break-word;
     }
 
     table tbody td::before {
         content: attr(data-label);
-        position: absolute;
-        left: 10px;
-        width: calc(50% - 20px);
-        padding-right: 10px;
-        text-align: left;
+        display: block;
         font-weight: bold;
-        white-space: nowrap; /* Evitar el ajuste de línea en las etiquetas */
+        margin-bottom: 5px;
     }
 
     table tbody td:last-child {
@@ -151,6 +189,13 @@ table tbody td[data-label="Descripción"] {
     }
 
     .actions-cell {
-        text-align: right; /* Alinear a la derecha en dispositivos móviles también */
+        justify-content: flex-start;
+        flex-direction: column; /* Colocar botones en columna en dispositivos móviles */
+    }
+
+    .btn-container {
+        display: flex;
+        gap: 10px;
+        flex-direction: row; /* Asegurar que los botones estén en una fila */
     }
 }

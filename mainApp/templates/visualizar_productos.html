@@ -9,7 +9,7 @@
     <title>Lista de Productos</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_productos.css' %}">
+    <link rel="stylesheet" href="{% static 'visualizar_productos copy.css' %}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -55,10 +55,12 @@
                     <td data-label="Precio">{{ producto.precio }}</td>
                     <td data-label="Categoría">{% if producto.categoria %}{{ producto.categoria.nombre }}{% else %}Sin categoría{% endif %}</td>
                     <td data-label="Acciones" class="actions-cell">
-                        <a href="{% url 'editar_producto' producto.productoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                        <form class="delete-form" action="{% url 'eliminar_producto' producto.productoid %}" method="post" style="display:inline;">
-                            {% csrf_token %}
+                        <div class="btn-container">
+                            <a href="{% url 'editar_producto' producto.productoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
                             <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                        <form class="delete-form" action="{% url 'eliminar_producto' producto.productoid %}" method="post" style="display:none;">
+                            {% csrf_token %}
                         </form>
                     </td>
                 </tr>
