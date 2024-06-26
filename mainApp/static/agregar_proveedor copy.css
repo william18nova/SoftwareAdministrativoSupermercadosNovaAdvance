@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,7 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
-    overflow: hidden; /* Ocultar el desplazamiento automático */
+    overflow: auto; /* Permitir desplazamiento en dispositivos móviles */
 }
 
 .container {
@@ -23,9 +23,6 @@ body {
     text-align: center;
     position: relative;
     box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
-    overflow-y: auto; /* Permitir desplazamiento vertical */
-    max-height: 100vh; /* Limitar la altura máxima al 100% de la ventana */
-    overflow-x: hidden; /* Evitar desplazamiento horizontal */
 }
 
 .container h2 {
