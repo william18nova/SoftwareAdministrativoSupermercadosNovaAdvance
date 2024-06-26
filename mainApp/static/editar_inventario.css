@@ -10,6 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: hidden; /* Evitar scroll en body */
 }
 
 .container {
@@ -17,9 +18,13 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 800px;
+    width: 100%;
+    max-width: 600px;
     text-align: center;
     position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
+    overflow-y: auto; /* Permitir scroll vertical dentro del contenedor */
+    max-height: 100vh; /* Limitar la altura máxima del contenedor */
 }
 
 .container h2 {
@@ -55,6 +60,7 @@ body {
     display: block;
     font-size: 16px;
     transition: background-color 0.3s, border-color 0.3s;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
 .form-group select:hover, .form-group input[type="number"]:hover {
@@ -76,17 +82,21 @@ body {
     border-radius: 10px;
     margin-top: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: hidden; /* Evitar desplazamiento horizontal en dispositivos móviles */
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
 .table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    table-layout: fixed; /* Fijar el layout de la tabla para un mejor ajuste */
 }
 
 .table th, .table td {
     padding: 10px;
     border: 1px solid #ddd;
+    word-wrap: break-word; /* Ajustar el texto automáticamente */
 }
 
 .table th {
@@ -101,6 +111,10 @@ body {
 
 .table td.text-center {
     text-align: center;
+}
+
+.table td input[type="number"] {
+    width: 70%; /* Reducir el ancho del input de cantidad */
 }
 
 .btn-container {
@@ -192,9 +206,56 @@ body {
 
 /* Estilo independiente para el input de cantidad debajo de la barra seleccionable de producto */
 #nueva-cantidad {
-    width: 97.5%;
+    width: 100%;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
-.texto-producto{
+.texto-producto {
     margin-top: 25px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+        overflow-y: auto; /* Permitir scroll vertical dentro del contenedor en móvil */
+    }
+
+    .form-group select, .form-group input[type="number"] {
+        width: 100%;
+    }
+
+    .btn-agregar-producto, .btn-editar-inventario {
+        width: 100%;
+        max-width: none; /* Quitar el ancho máximo en vista móvil */
+    }
+    
+    .table-container {
+        padding: 5px;
+        margin-top: 10px;
+        overflow-x: hidden; /* Evitar desplazamiento horizontal en dispositivos móviles */
+    }
+
+    .table th, .table td {
+        padding: 8px;
+        word-wrap: break-word; /* Ajustar el texto automáticamente */
+    }
+
+    .table td input[type="number"] {
+        width: 70%; /* Reducir aún más el ancho del input de cantidad */
+    }
+    
+    .btn-eliminar {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .alert {
+        padding: 10px;
+    }
+    
+    #nueva-cantidad {
+        width: 100%;
+        box-sizing: border-box; /* Ajustar el tamaño del input dentro de su contenedor */
+    }
 }

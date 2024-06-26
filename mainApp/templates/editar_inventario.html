@@ -107,6 +107,22 @@
                 <span id="sucursal">{{ sucursal.nombre }}</span>
                 <input type="hidden" name="sucursal" value="{{ sucursal.sucursalid }}">
             </div>
+            <div class="form-group">
+                <label class="texto-producto" for="nuevo-producto">Producto</label>
+                <select id="nuevo-producto" name="nuevo-producto">
+                    <option value="">Seleccionar producto</option>
+                    {% for producto in productos %}
+                        <option value="{{ producto.productoid }}">{{ producto.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="nueva-cantidad">Cantidad</label>
+                <input type="number" id="nueva-cantidad" name="nueva-cantidad">
+            </div>
+            <div class="form-group btn-container">
+                <button type="button" class="btn-agregar-producto" id="agregarProductoBtn">Agregar Producto</button>
+            </div>
             <div class="table-container">
                 <table id="productos-list" class="table display">
                     <thead>
@@ -126,22 +142,6 @@
                         {% endfor %}
                     </tbody>
                 </table>
-            </div>
-            <div class="form-group">
-                <label class="texto-producto" for="nuevo-producto">Producto</label>
-                <select id="nuevo-producto" name="nuevo-producto">
-                    <option value="">Seleccionar producto</option>
-                    {% for producto in productos %}
-                        <option value="{{ producto.productoid }}">{{ producto.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="nueva-cantidad">Cantidad</label>
-                <input type="number" id="nueva-cantidad" name="nueva-cantidad">
-            </div>
-            <div class="form-group btn-container">
-                <button type="button" class="btn-agregar-producto" id="agregarProductoBtn">Agregar Producto</button>
             </div>
             <div class="form-group btn-container">
                 <input type="submit" value="Actualizar Inventario" class="btn-editar-inventario">
