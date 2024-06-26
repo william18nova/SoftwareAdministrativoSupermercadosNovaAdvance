@@ -9,7 +9,7 @@
     <title>Lista de Sucursales</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_sucursales.css' %}">
+    <link rel="stylesheet" href="{% static 'visualizar_sucursales copy.css' %}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -53,14 +53,16 @@
             <tbody>
                 {% for sucursal in sucursales %}
                 <tr>
-                    <td>{{ sucursal.nombre }}</td>
-                    <td>{{ sucursal.direccion }}</td>
-                    <td>{{ sucursal.telefono }}</td>
-                    <td class="actions-cell">
-                        <a href="{% url 'editar_sucursal' sucursal.sucursalid %}" class="btn editar"><i class="fas fa-pencil-alt"></i></a>
-                        <form action="{% url 'eliminar_sucursal' sucursal.sucursalid %}" method="post" style="display:inline;">
+                    <td data-label="Nombre">{{ sucursal.nombre }}</td>
+                    <td data-label="Dirección">{{ sucursal.direccion }}</td>
+                    <td data-label="Teléfono">{{ sucursal.telefono }}</td>
+                    <td data-label="Acciones" class="actions-cell">
+                        <div class="btn-container">
+                            <a href="{% url 'editar_sucursal' sucursal.sucursalid %}" class="btn editar"><i class="fas fa-edit"></i></a>
+                            <button type="button" class="btn borrar" onclick="confirmarEliminacion('{{ sucursal.sucursalid }}', '{{ sucursal.nombre }}')"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                        <form id="eliminar-form-{{ sucursal.sucursalid }}" action="{% url 'eliminar_sucursal' sucursal.sucursalid %}" method="post" style="display:none;">
                             {% csrf_token %}
-                            <button type="submit" class="btn borrar btn-borrar"><i class="fas fa-trash-alt"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -68,6 +70,13 @@
             </tbody>
         </table>
     </div>
+    <script>
+        function confirmarEliminacion(sucursalId, sucursalNombre) {
+            if (confirm(`¿Está seguro de que desea eliminar la sucursal "${sucursalNombre}"?`)) {
+                document.getElementById(`eliminar-form-${sucursalId}`).submit();
+            }
+        }
+    </script>
 </body>
 </html>
 {% endblock %}
