@@ -2,14 +2,15 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh; /* Ensure the body takes at least full viewport height */
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start; /* Align items at the top */
     background: linear-gradient(to bottom right, #ADD8E6, #005091);
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto; /* Allow vertical scrolling */
 }
 
 .container {
@@ -17,9 +18,11 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 600px;
+    width: 100%;
+    max-width: 600px;
     text-align: center;
     position: relative;
+    margin: 20px 0; /* Add margin for spacing at the top and bottom */
 }
 
 .container h2 {
@@ -46,7 +49,7 @@ body {
 }
 
 .form-group input[type="text"], .form-group select {
-    width: 101%;
+    width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -58,7 +61,6 @@ body {
 }
 
 .form-group input[type="number"] {
-    width: 96.7%;
     padding: 10px;
     border: 1px solid #888;
     border-radius: 5px;
@@ -76,9 +78,9 @@ body {
 
 .btn-agregar-producto, .btn-agregar-inventario {
     display: block;
-    margin: 0 auto 10px auto; /* Centramos el botón y agregamos margen inferior */
+    margin: 0 auto 10px auto; /* Center the button and add bottom margin */
     padding: 12px;
-    width: 35%; /* Ajustamos el ancho al 50% */
+    width: 35%; /* Set the width to 35% */
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s;
@@ -116,7 +118,7 @@ body {
 }
 
 .table {
-    width: 100%; /* Ajustamos el ancho */
+    width: 100%; /* Set the table width to 100% */
     border-collapse: collapse;
     text-align: left;
 }
@@ -181,4 +183,28 @@ body {
     background-color: #dff0d8;
     border-color: #d6e9c6;
     margin-top: 25px;
+}
+
+/* Custom width for the quantity input field */
+.ancho-personalizado {
+    width: 96.3%; /* Adjust this value as needed */
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    .form-group input[type="text"], .form-group select, .form-group input[type="number"] {
+        width: 100%;
+    }
+
+    .form-group input[type="number"].ancho-personalizado {
+        width: calc(96.5% - 10px); /* Adjust this value as needed for mobile view */
+    }
+
+    .btn-agregar-producto, .btn-agregar-inventario {
+        width: 100%;
+    }
 }
