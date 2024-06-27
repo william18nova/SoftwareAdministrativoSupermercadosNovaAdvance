@@ -119,6 +119,6 @@ body {
     }
 
     .form-group input[type="submit"] {
-        width: 100%;
+        width: 60%;
     }
 }
