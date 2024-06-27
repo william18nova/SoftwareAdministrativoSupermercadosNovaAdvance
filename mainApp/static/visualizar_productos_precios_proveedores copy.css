@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,6 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto; /* Permitir desplazamiento en dispositivos móviles */
 }
 
 .container {
@@ -17,7 +18,8 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 800px;
+    width: 100%;
+    max-width: 600px;
     text-align: center;
     position: relative;
 }
@@ -46,7 +48,7 @@ body {
 }
 
 .form-group select {
-    width: 100%;
+    width: calc(100% - 20px);
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -68,6 +70,7 @@ body {
     border-radius: 10px;
     margin-top: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
 }
 
 .table {
@@ -133,7 +136,6 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto;
 }
 
 .btn-eliminar i {
@@ -164,4 +166,84 @@ body {
     background-color: #dff0d8;
     border-color: #d6e9c6;
     margin-bottom: 25px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    .form-group select {
+        width: calc(100% - 20px); /* Ajustar ancho para incluir padding */
+    }
+
+    .btn-editar-inventario {
+        width: 50%;
+    }
+
+    .table-container {
+        padding: 5px;
+        margin-top: 10px;
+    }
+
+    .table th, .table td {
+        padding: 8px;
+        word-break: break-word; /* Ajustar el texto automáticamente */
+    }
+
+    .table thead {
+        display: none;
+    }
+
+    .table tbody tr {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .table tbody td {
+        display: block;
+        text-align: left;
+        padding-left: 10px;
+        position: relative;
+        border-bottom: 1px solid #ddd;
+        word-break: break-word;
+    }
+
+    .table tbody td::before {
+        content: attr(data-label);
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    .table tbody td.text-center {
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .btn-eliminar {
+        width: 30px;
+        height: 30px;
+        margin-left: 0; /* Alinear a la izquierda */
+    }
+
+    .alert {
+        padding: 10px;
+    }
+}
+
+/* Alineación centrada para pantallas grandes */
+@media (min-width: 769px) {
+    .btn-eliminar {
+        margin: 0 auto; /* Centrar el botón */
+    }
 }
