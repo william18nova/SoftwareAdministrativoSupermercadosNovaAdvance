@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,6 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto; /* Permitir scroll en todo el body */
 }
 
 .container {
@@ -17,9 +18,10 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 800px;
+    width: 100%;
+    max-width: 800px;
     text-align: center;
-    position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
 .container h2 {
@@ -46,7 +48,7 @@ body {
 }
 
 .form-group select {
-    width: 100%;
+    width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -68,6 +70,7 @@ body {
     border-radius: 10px;
     margin-top: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto; /* Permitir desplazamiento horizontal en dispositivos móviles */
 }
 
 .table {
@@ -110,12 +113,12 @@ body {
     transition: background-color 0.3s;
     text-decoration: none;
     display: inline-block;
-    width: 200px;
+    width: 30%;
     text-align: center;
     line-height: 1.5;
     font-size: 18px;
     font-family: 'Roboto', Arial, sans-serif;
-    margin-top: 5px;
+    margin-top: -5px;
 }
 
 .btn-editar-puntos-pago:hover {
@@ -164,4 +167,38 @@ body {
     background-color: #dff0d8;
     border-color: #d6e9c6;
     margin-bottom: 25px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    .form-group select {
+        width: calc(100% - 20px); /* Ajustar ancho para incluir padding */
+    }
+
+    .btn-editar-puntos-pago {
+        width: 60%;
+        max-width: none; /* Quitar el ancho máximo en vista móvil */
+    }
+
+    .table-container {
+        padding: 5px;
+        margin-top: 10px;
+    }
+
+    .table th, .table td {
+        padding: 8px;
+    }
+
+    .btn-eliminar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .alert {
+        padding: 10px;
+    }
 }
