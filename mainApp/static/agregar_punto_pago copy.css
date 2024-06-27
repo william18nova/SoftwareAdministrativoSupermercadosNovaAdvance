@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,6 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto; /* Permitir scroll en todo el body */
 }
 
 .container-punto-pago {
@@ -17,9 +18,10 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 600px;
+    width: 100%;
+    max-width: 600px;
     text-align: center;
-    position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
 .container-punto-pago h2 {
@@ -46,7 +48,7 @@ body {
 }
 
 .form-group-punto-pago select {
-    width: 101%;
+    width: calc(100% + 0px); /* Ajusta este valor para incluir padding */
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -57,36 +59,13 @@ body {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-.input-nombre {
-    width: 97.5%; /* Ajusta este valor según sea necesario */
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
+.input-nombre,
 .input-descripcion {
-    width: 97.5%; /* Ajusta este valor según sea necesario */
+    width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.form-group-punto-pago input[type="number"] {
-    width: 96.7%;
-    padding: 10px;
-    border: 1px solid #888;
-    border-radius: 5px;
-    background-color: #e0e8ff;
     margin: 0 auto;
     display: block;
     font-size: 16px;
@@ -98,19 +77,22 @@ body {
     border-color: #777;
 }
 
-.btn-agregar-punto-pago {
+.btn-agregar-punto-pago,
+.btn-submit-punto-pago {
     display: block;
     margin: 0 auto 10px auto; /* Centramos el botón y agregamos margen inferior */
     padding: 12px;
-    width: 35%; /* Ajustamos el ancho al 35% */
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s;
     cursor: pointer;
+    width: 50%; /* Ajustar el ancho en móvil */
+}
+
+.btn-agregar-punto-pago {
     background-color: #ffffff;
     color: #000000;
     border: none;
-    width: 37%;
 }
 
 .btn-agregar-punto-pago:hover {
@@ -118,20 +100,11 @@ body {
 }
 
 .btn-submit-punto-pago {
-    display: block;
-    margin: 0 auto 10px auto; /* Centramos el botón y agregamos margen inferior */
-    padding: 12px;
-    width: 35%; /* Ajustamos el ancho al 35% */
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-    cursor: pointer;
     background-color: #003366;
     color: #ffffff;
     border: none;
     margin-top: 22px;
     margin-bottom: -30px;
-    width: 37%;
 }
 
 .btn-submit-punto-pago:hover {
@@ -144,6 +117,7 @@ body {
     border-radius: 10px;
     margin-top: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto; /* Permitir desplazamiento horizontal en dispositivos móviles */
 }
 
 .table {
@@ -152,7 +126,8 @@ body {
     text-align: left;
 }
 
-.table th, .table td {
+.table th,
+.table td {
     padding: 10px;
     border: 1px solid #ddd;
 }
@@ -213,4 +188,41 @@ body {
     background-color: #dff0d8;
     border-color: #d6e9c6;
     margin-top: 50px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container-punto-pago {
+        padding: 20px;
+    }
+
+    .form-group-punto-pago select,
+    .form-group-punto-pago input[type="text"],
+    .form-group-punto-pago input[type="number"] {
+        width: calc(100% - 20px); /* Ajustar ancho para incluir padding */
+    }
+
+    .btn-agregar-punto-pago,
+    .btn-submit-punto-pago {
+        width: 100%;
+    }
+
+    .table-container-punto-pago {
+        padding: 5px;
+        margin-top: 10px;
+    }
+
+    .table th,
+    .table td {
+        padding: 8px;
+    }
+
+    .btn-eliminar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .alert {
+        padding: 10px;
+    }
 }

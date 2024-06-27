@@ -10,7 +10,7 @@
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'agregar_punto_pago.css' %}">
+    <link rel="stylesheet" href="{% static 'agregar_punto_pago copy.css' %}">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
     <script>
@@ -27,7 +27,6 @@
             });
 
             function validarFormulario(event) {
-                // Solo valida si no hay filas en la tabla
                 if (table.data().count() === 0 && !$('#nombre').val().trim()) {
                     event.preventDefault();
                     mostrarMensaje('Por favor, agrega al menos un punto de pago a la lista o completa los campos.', 'alert-error');
@@ -40,7 +39,7 @@
                 const nombre = nombreInput.val().trim();
                 const descripcion = descripcionInput.val().trim();
 
-                if (nombre) {  // Solo agregamos a la tabla si hay un nombre
+                if (nombre) {
                     table.row.add([
                         `${nombre}<input type="hidden" name="nombre[]" value="${nombre}">`,
                         `${descripcion}<input type="hidden" name="descripcion[]" value="${descripcion}">`,
