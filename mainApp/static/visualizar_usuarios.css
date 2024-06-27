@@ -1,0 +1,178 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    background: linear-gradient(to bottom right, #ADD8E6, #005091);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+}
+
+.container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 20px;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table thead {
+    background-color: #007bff;
+    color: white;
+}
+
+table thead th {
+    padding: 10px;
+    text-align: left;
+}
+
+table tbody tr {
+    border-bottom: 1px solid #ddd;
+}
+
+table tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table tbody td {
+    padding: 10px;
+    min-height: 50px;
+    position: relative;
+    word-wrap: break-word;
+    text-align: left;
+    vertical-align: middle;
+    white-space: normal;
+}
+
+.sorting{
+    width: 45%;
+}
+
+.actions-cell {
+    text-align: left;
+    display: flex;
+    gap: 10px;
+    justify-content: center; /* Alinear al centro en vista de escritorio */
+    align-items: center;
+    width: 50%;
+}
+
+.actions-cell .btn-container {
+    display: flex;
+    gap: 10px;
+    flex-direction: row;
+    justify-content: left; /* Alinear al centro en vista de escritorio */
+    align-items: left;
+    width: 100%;
+}
+
+.btn {
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.btn.editar {
+    background-color: #ffc107;
+    color: white;
+    font-size: 15px;
+    height: auto;
+}
+
+.btn.borrar {
+    background-color: #dc3545;
+    color: white;
+    font-size: 15px;
+    height: auto;
+}
+
+/* Ajuste del ancho de la columna de acciones para la vista de escritorio */
+@media (min-width: 769px) {
+    .actions-cell {
+        width: 80px; /* Establecer un ancho fijo para la columna de acciones */
+    }
+
+    .actions-cell .btn-container {
+        justify-content: center; /* Centrar los botones dentro de la columna */
+    }
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    table {
+        border: 0;
+    }
+
+    table thead {
+        display: none;
+    }
+
+    table tbody tr {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    table tbody td {
+        display: block;
+        text-align: left;
+        padding-left: 10px;
+        position: relative;
+        border-bottom: 1px solid #ddd;
+        word-break: break-word;
+    }
+
+    table tbody td::before {
+        content: attr(data-label);
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    .actions-cell {
+        flex-direction: column;
+        align-items: flex-start; /* Alinear a la izquierda en móviles */
+    }
+
+    .btn-container {
+        flex-direction: row;
+        justify-content: flex-start; /* Alinear a la izquierda en móviles */
+        align-items: center;
+        width: 100%;
+        margin-top: 5px;
+    }
+
+    .btn {
+        width: auto;
+        height: auto;
+    }
+}

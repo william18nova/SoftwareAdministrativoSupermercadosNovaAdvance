@@ -13,10 +13,20 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#usuariosTable').DataTable();
+        });
+
+        function confirmDelete(button) {
+            if (confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
+                $(button).closest('form').submit();
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="container">
-        <i class="fas fa-user icon"></i>
         <h2>Visualizar Usuarios</h2>
         {% if messages %}
             <div class="messages">
@@ -38,13 +48,15 @@
             <tbody>
                 {% for usuario in usuarios %}
                 <tr>
-                    <td>{{ usuario.nombreusuario }}</td>
-                    <td>{{ usuario.rolid.nombre }}</td>
-                    <td class="actions-cell">
-                        <a href="{% url 'editar_usuario' usuario.usuarioid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                        <form class="delete-form" action="{% url 'eliminar_usuario' usuario.usuarioid %}" method="post" style="display:inline;">
-                            {% csrf_token %}
+                    <td data-label="Nombre de Usuario">{{ usuario.nombreusuario }}</td>
+                    <td data-label="Rol">{{ usuario.rolid.nombre }}</td>
+                    <td data-label="Acciones" class="actions-cell">
+                        <div class="btn-container">
+                            <a href="{% url 'editar_usuario' usuario.usuarioid %}" class="btn editar"><i class="fas fa-edit"></i></a>
                             <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                        <form class="delete-form" action="{% url 'eliminar_usuario' usuario.usuarioid %}" method="post" style="display:none;">
+                            {% csrf_token %}
                         </form>
                     </td>
                 </tr>
@@ -52,17 +64,6 @@
             </tbody>
         </table>
     </div>
-    <script>
-        $(document).ready(function() {
-            $('#usuariosTable').DataTable();
-        });
-
-        function confirmDelete(button) {
-            if (confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
-                $(button).closest('form').submit();
-            }
-        }
-    </script>
 </body>
 </html>
 {% endblock %}
