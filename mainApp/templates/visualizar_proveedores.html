@@ -9,10 +9,23 @@
     <title>Lista de Proveedores</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_proveedores.css' %}">
+    <link rel="stylesheet" href="{% static 'visualizar_proveedores copy.css' %}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#proveedoresTable').DataTable();
+
+            $('.delete-form').on('submit', function(event) {
+                event.preventDefault();
+                const form = $(this);
+                if (confirm('¿Estás seguro de que deseas eliminar este proveedor?')) {
+                    form.off('submit').submit();
+                }
+            });
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -40,36 +53,25 @@
             <tbody>
                 {% for proveedor in proveedores %}
                 <tr>
-                    <td>{{ proveedor.nombre }}</td>
-                    <td>{{ proveedor.empresa }}</td>
-                    <td>{{ proveedor.telefono }}</td>
-                    <td>{{ proveedor.email }}</td>
-                    <td>{{ proveedor.direccion }}</td>
-                    <td class="actions-cell">
-                        <a href="{% url 'editar_proveedor' proveedor.proveedorid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                        <form action="{% url 'eliminar_proveedor' proveedor.proveedorid %}" method="post" style="display:inline;" class="delete-form">
-                            {% csrf_token %}
-                            <button type="submit" class="btn borrar"><i class="fas fa-trash-alt"></i></button>
-                        </form>
+                    <td data-label="Nombre">{{ proveedor.nombre }}</td>
+                    <td data-label="Empresa">{{ proveedor.empresa }}</td>
+                    <td data-label="Teléfono">{{ proveedor.telefono }}</td>
+                    <td data-label="Email">{{ proveedor.email }}</td>
+                    <td data-label="Dirección">{{ proveedor.direccion }}</td>
+                    <td data-label="Acciones" class="actions-cell">
+                        <div class="btn-container">
+                            <a href="{% url 'editar_proveedor' proveedor.proveedorid %}" class="btn editar"><i class="fas fa-edit"></i></a>
+                            <form action="{% url 'eliminar_proveedor' proveedor.proveedorid %}" method="post" style="display:inline;" class="delete-form">
+                                {% csrf_token %}
+                                <button type="submit" class="btn borrar"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <script>
-        $(document).ready(function() {
-            $('#proveedoresTable').DataTable();
-
-            $('.delete-form').on('submit', function(event) {
-                event.preventDefault();
-                const form = $(this);
-                if (confirm('¿Estás seguro de que deseas eliminar este proveedor?')) {
-                    form.off('submit').submit();
-                }
-            });
-        });
-    </script>
 </body>
 </html>
 {% endblock %}
