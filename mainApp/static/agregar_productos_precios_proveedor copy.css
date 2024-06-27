@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,6 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto; /* Permitir desplazamiento en dispositivos móviles */
 }
 
 .container {
@@ -17,9 +18,11 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 600px;
+    width: 100%;
+    max-width: 600px;
     text-align: center;
-    position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
+    overflow: hidden;
 }
 
 .container h2 {
@@ -46,7 +49,7 @@ body {
 }
 
 .form-group input[type="text"], .form-group select {
-    width: 101%;
+    width: calc(100% - 20px);
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -55,10 +58,11 @@ body {
     display: block;
     font-size: 16px;
     transition: background-color 0.3s, border-color 0.3s;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
 .form-group input[type="number"] {
-    width: 96.7%;
+    width: calc(100% - 20px);
     padding: 10px;
     border: 1px solid #888;
     border-radius: 5px;
@@ -67,6 +71,7 @@ body {
     display: block;
     font-size: 16px;
     transition: background-color 0.3s, border-color 0.3s;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
 .form-group input[type="number"]:hover {
@@ -113,6 +118,7 @@ body {
     border-radius: 10px;
     margin-top: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto; /* Permitir desplazamiento horizontal en dispositivos móviles */
 }
 
 .table {
@@ -181,4 +187,37 @@ body {
     background-color: #dff0d8;
     border-color: #d6e9c6;
     margin-top: 50px;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    .form-group input[type="text"], .form-group select, .form-group input[type="number"] {
+        width: calc(100% - 12px); /* Ajustar ancho para incluir padding */
+    }
+
+    .btn-agregar-producto, .btn-agregar-inventario {
+        width: 100%;
+    }
+
+    .table-container {
+        padding: 5px;
+        margin-top: 10px;
+    }
+
+    .table th, .table td {
+        padding: 8px;
+    }
+    
+    .btn-eliminar {
+        width: 30px;
+        height: 30px;
+    }
+
+    .alert {
+        padding: 10px;
+    }
 }
