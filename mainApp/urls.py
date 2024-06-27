@@ -29,18 +29,14 @@ urlpatterns = [
     path('precios_proveedor/eliminar/<int:id>/', views.eliminar_precio_proveedor_view, name='eliminar_precio_proveedor'),
     path('editar_productos_precios_proveedor/<int:proveedor_id>/', views.editar_productos_precios_proveedor_view, name='editar_productos_precios_proveedor'),
     path('agregar_punto_pago/', views.agregar_punto_pago_view, name='agregar_punto_pago'),
-    path('visualizar_puntos_pago/', views.visualizar_puntos_pago_view, name='visualizar_puntos_pago'),
+    path('visualizar_puntos_pago/', views.visualizar_puntos_pago_view, name='visualizar_puntos_pago'), 
     path('editar-puntos-pago/<int:sucursal_id>/', views.editar_puntos_pago_view, name='editar_puntos_pago'),
     path('eliminar-punto-pago/<int:puntopagoid>/', views.eliminar_punto_pago_view, name='eliminar_punto_pago'),
-    
-    
-    
-    
     path('agregar_rol/', views.agregar_rol_view, name='agregar_rol'),
     path('visualizar_roles/', views.visualizar_roles_view, name='visualizar_roles'),
     path('editar_rol/<int:rol_id>/', views.editar_rol_view, name='editar_rol'),
     path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
-    path('agregar_usuario/', views.agregar_usuario_view, name='agregar_usuario'),
+    path('agregar_usuario/', views.agregar_usuario_view, name='agregar_usuario'), #vamos por aqui
     path('visualizar_usuarios/', views.visualizar_usuarios_view, name='visualizar_usuarios'),
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
     path('editar_usuario/<int:usuarioid>/', views.editar_usuario_view, name='editar_usuario'),
