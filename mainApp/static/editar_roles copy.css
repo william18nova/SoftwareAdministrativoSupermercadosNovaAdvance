@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,6 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto; /* Permitir scroll en todo el body */
 }
 
 .container {
@@ -17,9 +18,12 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 800px;
+    width: 100%;
+    max-width: 800px;
     text-align: center;
     position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
+    overflow: hidden; /* Evita desbordamiento del contenido */
 }
 
 .container h2 {
@@ -46,7 +50,7 @@ body {
 }
 
 .form-group input[type="text"], .form-group textarea {
-    width: 100%;
+    width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -109,6 +113,22 @@ body {
     margin-top: 45px;
 }
 
-.texto-producto {
-    margin-top: 25px;
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    .form-group input[type="text"], .form-group textarea {
+        width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
+    }
+
+    .btn-editar-rol {
+        width: 100%;
+        max-width: none; /* Quitar el ancho máximo en vista móvil */
+    }
+
+    .alert {
+        padding: 10px;
+    }
 }
