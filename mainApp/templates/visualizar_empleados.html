@@ -9,10 +9,21 @@
     <title>Lista de Empleados</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_empleados.css' %}">
+    <link rel="stylesheet" href="{% static 'visualizar_empleados copy.css' %}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#empleadosTable').DataTable();
+        });
+
+        function confirmDelete(button) {
+            if (confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
+                $(button).closest('form').submit();
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -42,36 +53,27 @@
             <tbody>
                 {% for empleado in empleados %}
                 <tr>
-                    <td>{{ empleado.nombre }}</td>
-                    <td>{{ empleado.apellido }}</td>
-                    <td>{{ empleado.telefono }}</td>
-                    <td>{{ empleado.email }}</td>
-                    <td>{{ empleado.direccion }}</td>
-                    <td>{{ empleado.puesto }}</td>
-                    <td>{{ empleado.numerodocumento }}</td>
-                    <td class="actions-cell">
-                        <a href="{% url 'editar_empleado' empleado.empleadoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                        <form class="delete-form" action="{% url 'eliminar_empleado' empleado.empleadoid %}" method="post" style="display:inline;">
-                            {% csrf_token %}
-                            <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
-                        </form>
+                    <td data-label="Nombre">{{ empleado.nombre }}</td>
+                    <td data-label="Apellido">{{ empleado.apellido }}</td>
+                    <td data-label="Teléfono">{{ empleado.telefono }}</td>
+                    <td data-label="Email">{{ empleado.email }}</td>
+                    <td data-label="Dirección">{{ empleado.direccion }}</td>
+                    <td data-label="Puesto">{{ empleado.puesto }}</td>
+                    <td data-label="Número de Documento">{{ empleado.numerodocumento }}</td>
+                    <td data-label="Acciones" class="actions-cell">
+                        <div class="btn-container">
+                            <a href="{% url 'editar_empleado' empleado.empleadoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
+                            <form class="delete-form" action="{% url 'eliminar_empleado' empleado.empleadoid %}" method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    <script>
-        $(document).ready(function() {
-            $('#empleadosTable').DataTable();
-        });
-
-        function confirmDelete(button) {
-            if (confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
-                $(button).closest('form').submit();
-            }
-        }
-    </script>
 </body>
 </html>
 {% endblock %}
