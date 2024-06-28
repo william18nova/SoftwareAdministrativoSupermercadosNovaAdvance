@@ -9,7 +9,7 @@
     <title>Editar Horario</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'editar_horario.css' %}">
+    <link rel="stylesheet" href="{% static 'editar_horario copy.css' %}">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 </head>
 <body>
@@ -63,10 +63,10 @@
                     <tbody id="horarios-temp-body">
                         {% for horario in horarios %}
                         <tr>
-                            <td>{{ horario.dia_semana }}</td>
-                            <td><input type="time" name="horaapertura" value="{{ horario.horaapertura|date:'H:i' }}"></td>
-                            <td><input type="time" name="horacierre" value="{{ horario.horacierre|date:'H:i' }}"></td>
-                            <td class="text-center">
+                            <td data-label="Día">{{ horario.dia_semana }}</td>
+                            <td data-label="Hora de Apertura"><input type="time" name="horaapertura" value="{{ horario.horaapertura|date:'H:i' }}"></td>
+                            <td data-label="Hora de Cierre"><input type="time" name="horacierre" value="{{ horario.horacierre|date:'H:i' }}"></td>
+                            <td data-label="Acciones" class="text-center">
                                 <button type="button" class="btn-eliminar" data-id="{{ horario.horarioid }}"><i class="fas fa-trash-alt"></i></button>
                             </td>
                         </tr>
@@ -121,10 +121,10 @@
                         horariosTemp.push({ dia: day, apertura: horaApertura, cierre: horaCierre });
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                            <td>${day}</td>
-                            <td><input type="time" name="horaapertura" value="${horaApertura}"></td>
-                            <td><input type="time" name="horacierre" value="${horaCierre}"></td>
-                            <td><button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button></td>
+                            <td data-label="Día">${day}</td>
+                            <td data-label="Hora de Apertura"><input type="time" name="horaapertura" value="${horaApertura}"></td>
+                            <td data-label="Hora de Cierre"><input type="time" name="horacierre" value="${horaCierre}"></td>
+                            <td data-label="Acciones"><button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button></td>
                         `;
                         horariosTempBody.appendChild(row);
 

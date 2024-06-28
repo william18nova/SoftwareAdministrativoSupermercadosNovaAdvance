@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,6 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
+    overflow: auto; /* Permitir scroll en todo el body */
 }
 
 .container-usuario {
@@ -17,9 +18,11 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 400px;
+    width: 100%;
+    max-width: 500px; /* Ajusta el ancho máximo del contenedor */
     text-align: center;
     position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
 .container-usuario h2 {
@@ -112,7 +115,7 @@ body {
 .day-button:hover,
 .day-button.active {
     background-color: #73a0fa;
-    transform: scale(1.1);
+    transform: scale(1.1); /* Agranda el botón cuando está activo */
 }
 
 .day-button:disabled {
@@ -128,7 +131,7 @@ body {
     cursor: pointer;
     padding: 12px;
     text-align: center;
-    width: 45%;
+    width: 100%; /* Ajusta el ancho del botón */
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s;
@@ -146,6 +149,7 @@ body {
 .horarios-temp {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed; /* Asegura que la tabla ocupe todo el ancho disponible */
 }
 
 .horarios-temp th, .horarios-temp td {
@@ -153,6 +157,7 @@ body {
     padding: 8px;
     text-align: center;
     color: #ffffff;
+    word-wrap: break-word; /* Permitir el ajuste de palabras largas */
 }
 
 .horarios-temp th {
@@ -175,4 +180,101 @@ body {
 
 .btn-eliminar:hover {
     background-color: #e60000;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container-usuario {
+        padding: 20px;
+    }
+
+    .days-container {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .day-button {
+        margin: 5px;
+    }
+
+    .btn-agregar-temporal,
+    .btn-guardar {
+        width: 100%;
+        max-width: none; /* Quitar el ancho máximo en vista móvil */
+    }
+
+    .horarios-temp thead {
+        display: none; /* Ocultar el encabezado en móviles */
+    }
+
+    .horarios-temp th, .horarios-temp td {
+        padding: 10px;
+    }
+
+    .horarios-temp tr {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+        color: #333;
+    }
+
+    .horarios-temp td {
+        display: block;
+        text-align: left;
+        padding-left: 10px;
+        position: relative;
+    }
+
+    .horarios-temp td::before {
+        content: attr(data-label);
+        position: absolute;
+        top: 0;
+        left: 10px;
+        white-space: nowrap;
+        font-weight: bold;
+        color: #000000; /* Cambiar el color del título de las columnas a negro */
+        display: block;
+        margin-bottom: 5px; /* Agrega margen entre el título y el texto del día */
+        margin-top: 5px;
+    }
+
+    .horarios-temp td[data-label="Día"] {
+        color: #000;
+        padding-top: 27px; /* Espacio adicional para el texto del día */
+    }
+
+    .horarios-temp td {
+        text-align: left;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid #ddd; /* Añadir una línea separadora entre filas */
+    }
+
+    .horarios-temp td.text-center {
+        text-align: center;
+    }
+
+    .btn-eliminar {
+        display: block;
+        width: 10%;
+        box-sizing: border-box;
+        margin-top: 17px;
+        margin-bottom: -3px;
+    }
+
+    .horarios-temp input[type="time"] {
+        margin-top: 20px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+@media (min-width: 769px) {
+    .horarios-temp input[type="time"] {
+        margin: 0; /* Elimina los márgenes en la vista de escritorio */
+        width: 100%; /* Ajuste de ancho para las cajas de hora */
+        box-sizing: border-box;
+    }
 }
