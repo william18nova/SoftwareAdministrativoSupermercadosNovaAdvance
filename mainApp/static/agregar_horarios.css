@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,7 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
-    overflow: hidden;
+    overflow: auto; /* Permitir scroll en todo el body */
 }
 
 .container-usuario {
@@ -18,9 +18,12 @@ body {
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 400px;
+    width: 100%;
+    max-width: 400px;
     text-align: center;
     position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
+    overflow: hidden; /* Evitar el desbordamiento horizontal */
 }
 
 .container-usuario h2 {
@@ -129,19 +132,18 @@ body {
     cursor: pointer;
     padding: 12px;
     text-align: center;
-    width: 45%;
+    width: 100%;
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s;
-    margin-top: 20px;
-    margin-left: auto;
-    margin-right: auto;
-    display: block;
+    margin: 20px auto 0; /* Centrando el botón */
+    display: block; /* Asegura que el botón se comporte como un bloque y pueda ser centrado */
 }
 
 .horarios-temp-container {
     margin-top: 20px;
     margin-bottom: 20px;
+    overflow-x: auto; /* Permitir scroll horizontal si es necesario */
 }
 
 .horarios-temp {
@@ -176,4 +178,39 @@ body {
 
 .btn-eliminar:hover {
     background-color: #e60000;
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container-usuario {
+        padding: 20px;
+    }
+
+    .form-group select,
+    .form-group input[type="time"],
+    .btn-agregar-temporal,
+    .btn-agregar-horario {
+        width: 100%;
+    }
+
+    .btn-agregar-temporal,
+    .btn-agregar-horario {
+        width: 100%;
+        max-width: none; /* Quitar el ancho máximo en vista móvil */
+    }
+
+    .alert {
+        padding: 10px;
+    }
+
+    .days-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .day-button {
+        margin: 5px;
+        width: 30px;
+        height: 30px;
+    }
 }
