@@ -10,7 +10,7 @@
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_horarios_cajas.css' %}">
+    <link rel="stylesheet" href="{% static 'visualizar_horarios_cajas copy.css' %}">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
     <script>
@@ -37,7 +37,6 @@
                 container.insertAdjacentElement('afterbegin', mensajeDiv);
             }
 
-            // Mostrar mensaje de alerta si existe en la URL
             const urlParams = new URLSearchParams(window.location.search);
             const mensaje = urlParams.get('mensaje');
             const clase = urlParams.get('clase');
@@ -78,7 +77,7 @@
             $('#sucursal').on('change', function() {
                 const sucursalId = $(this).val();
                 $('#punto_pago').prop('disabled', true);
-                $('#horarios-list').closest('.table-container').hide(); // Oculta la tabla
+                $('#horarios-list').closest('.table-container').hide();
                 $.ajax({
                     url: '{% url "obtener_puntos_pago_con_horarios" %}',
                     data: {
