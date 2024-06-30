@@ -1,0 +1,267 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to bottom right, #ADD8E6, #005091);
+    font-family: 'Roboto', Arial, sans-serif;
+    text-align: center;
+    color: white;
+    overflow: auto; /* Permitir scroll en todo el body */
+}
+
+.container-usuario {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+    position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
+    overflow: hidden; /* Evitar el desbordamiento horizontal */
+}
+
+.container-usuario h2 {
+    color: #ffffff;
+    margin-bottom: 20px;
+}
+
+.icono-reloj {
+    font-size: 50px;
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+}
+
+.alert-error {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: left;
+}
+
+.form-group select,
+.form-group input[type="time"],
+.btn-agregar-temporal,
+.btn-guardar {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f0f8ff;
+    display: block;
+    font-size: 16px;
+    transition: background-color 0.3s, border-color 0.3s;
+    color: #333;
+    box-sizing: border-box;
+}
+
+.form-group select:hover,
+.form-group input[type="time"]:hover,
+.btn-agregar-temporal:hover,
+.btn-guardar:hover {
+    background-color: #e0e8ff;
+    border-color: #aaa;
+}
+
+.days-container {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+}
+
+.day-button {
+    background-color: #3b5998;
+    color: #ffffff;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Estilos para el estado activo (seleccionado) */
+.day-button.active {
+    background-color: #73a0fa;
+    transform: scale(1.1);
+}
+
+.day-button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+}
+
+.btn-agregar-temporal,
+.btn-guardar {
+    background-color: #3b5998;
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+    width: 100%;
+    font-size: 18px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+}
+
+.horarios-temp-container {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.horarios-temp {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.horarios-temp th, .horarios-temp td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: center;
+    color: #ffffff;
+    word-wrap: break-word; /* Permitir ajuste de texto dentro de celdas */
+    white-space: normal; /* Permitir ajuste de texto dentro de celdas */
+}
+
+.horarios-temp th {
+    background-color: #3b5998;
+}
+
+.horarios-temp td {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-eliminar-horario {
+    background-color: #ff4c4c;
+    border: none;
+    color: white;
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-eliminar-horario i {
+    margin-right: 0;
+}
+
+.btn-eliminar-horario:hover {
+    background-color: #e60000;
+}
+
+/* Ajustar el tamaño de las celdas de tiempo en pantallas grandes */
+@media (min-width: 769px) {
+    .horarios-temp input[type="time"] {
+        width: 90px; /* Ajustar ancho para pantallas grandes */
+        box-sizing: border-box;
+    }
+}
+
+/* Responsiveness */
+@media (max-width: 768px) {
+    .container-usuario {
+        padding: 20px;
+    }
+
+    .form-group select,
+    .form-group input[type="time"],
+    .btn-agregar-temporal,
+    .btn-guardar {
+        width: 100%;
+    }
+
+    .btn-agregar-temporal,
+    .btn-guardar {
+        width: 100%;
+        max-width: none; /* Quitar el ancho máximo en vista móvil */
+    }
+
+    .alert {
+        padding: 10px;
+    }
+
+    .days-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .day-button {
+        margin: 5px;
+        width: 30px;
+        height: 30px;
+    }
+
+    .day-button.active {
+        transform: scale(1.1); /* Asegura el cambio de tamaño en vista móvil */
+    }
+
+    .horarios-temp th, .horarios-temp td {
+        font-size: 14px; /* Ajustar el tamaño de la fuente para pantallas más pequeñas */
+    }
+
+    .horarios-temp input[type="time"] {
+        width: 90px; /* Ajustar el ancho para pantallas más pequeñas */
+    }
+}
+
+/* Estilo para pantallas más grandes */
+@media (min-width: 769px) {
+    .horarios-temp {
+        table-layout: fixed; /* Ajuste fijo de la tabla para distribuir uniformemente */
+    }
+
+    .horarios-temp th:nth-child(1),
+    .horarios-temp td:nth-child(1) {
+        width: 14%; /* Ancho específico para la columna "Día" */
+    }
+
+    .horarios-temp th:nth-child(2),
+    .horarios-temp td:nth-child(2),
+    .horarios-temp th:nth-child(3),
+    .horarios-temp td:nth-child(3) {
+        width: 30%; /* Ancho específico para las columnas de "Hora de Apertura" y "Hora de Cierre" */
+    }
+
+    .horarios-temp th:nth-child(4),
+    .horarios-temp td:nth-child(4) {
+        width: 26.8%; /* Ancho específico para la columna "Acciones" */
+    }
+}

@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 {% extends 'base.html' %}
-{% block title %}Editar Horario{% endblock %}
+{% block title %}Editar Horarios{% endblock %}
 {% block content %}
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Horario</title>
+    <title>Editar Horarios</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'editar_horario copy.css' %}">
+    <link rel="stylesheet" href="{% static 'editar_horario.css' %}">
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 </head>
 <body>
@@ -26,20 +26,19 @@
             </div>
         {% endif %}
         <div id="js-alert" class="alert alert-error" style="display: none;">Por favor, complete todos los campos.</div>
-        <form id="horarioForm" method="POST" action="{% url 'editar_horarios' sucursal.sucursalid %}">
+        <form id="form-editar-horarios" method="post" action="{% url 'editar_horarios' sucursal.sucursalid %}">
             {% csrf_token %}
             <div class="form-group">
-                <label>Días</label>
+                <label>Días</label> <!-- Título agregado -->
                 <div class="days-container">
-                    <button type="button" class="day-button" data-day="Lun">Lun</button>
-                    <button type="button" class="day-button" data-day="Mar">Mar</button>
-                    <button type="button" class="day-button" data-day="Mir">Mir</button>
-                    <button type="button" class="day-button" data-day="Jue">Jue</button>
-                    <button type="button" class="day-button" data-day="Vie">Vie</button>
-                    <button type="button" class="day-button" data-day="Sab">Sab</button>
-                    <button type="button" class="day-button" data-day="Dom">Dom</button>
+                    <button type="button" class="day-button" data-dia="Lun">Lun</button>
+                    <button type="button" class="day-button" data-dia="Mar">Mar</button>
+                    <button type="button" class="day-button" data-dia="Mie">Mie</button>
+                    <button type="button" class="day-button" data-dia="Jue">Jue</button>
+                    <button type="button" class="day-button" data-dia="Vie">Vie</button>
+                    <button type="button" class="day-button" data-dia="Sab">Sab</button>
+                    <button type="button" class="day-button" data-dia="Dom">Dom</button>
                 </div>
-                <input type="hidden" id="dia_semana" name="dia_semana" value="">
             </div>
             <div class="form-group">
                 <label for="horaapertura">Hora de Apertura</label>
@@ -49,7 +48,7 @@
                 <label for="horacierre">Hora de Cierre</label>
                 <input type="time" id="horacierre" name="horacierre">
             </div>
-            <button type="button" class="btn-agregar-temporal">Listar Horario</button>
+            <button type="button" id="agregar-horario" class="btn-agregar-temporal">Agregar Horario</button>
             <div class="horarios-temp-container">
                 <table class="horarios-temp">
                     <thead>
@@ -60,141 +59,135 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="horarios-temp-body">
+                    <tbody id="tabla-horarios">
                         {% for horario in horarios %}
-                        <tr>
-                            <td data-label="Día">{{ horario.dia_semana }}</td>
-                            <td data-label="Hora de Apertura"><input type="time" name="horaapertura" value="{{ horario.horaapertura|date:'H:i' }}"></td>
-                            <td data-label="Hora de Cierre"><input type="time" name="horacierre" value="{{ horario.horacierre|date:'H:i' }}"></td>
-                            <td data-label="Acciones" class="text-center">
-                                <button type="button" class="btn-eliminar" data-id="{{ horario.horarioid }}"><i class="fas fa-trash-alt"></i></button>
-                            </td>
+                        <tr data-dia="{{ horario.dia_semana }}">
+                            <td>{{ horario.dia_semana }}</td>
+                            <td><input type="time" name="horarios[{{ forloop.counter0 }}][hora_apertura]" value="{{ horario.horaapertura|time:'H:i' }}"></td>
+                            <td><input type="time" name="horarios[{{ forloop.counter0 }}][hora_cierre]" value="{{ horario.horacierre|time:'H:i' }}"></td>
+                            <td><button type="button" class="btn-eliminar-horario"><i class="fa fa-trash"></i></button></td>
+                            <input type="hidden" name="horarios[{{ forloop.counter0 }}][dia]" value="{{ horario.dia_semana }}">
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <button type="submit" class="btn-guardar">Guardar</button>
+            <button type="submit" class="btn-guardar">Guardar Cambios</button>
         </form>
     </div>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const buttons = document.querySelectorAll('.day-button');
-            const diaSemanaInput = document.getElementById('dia_semana');
-            const horariosTempBody = document.getElementById('horarios-temp-body');
-            const alertBox = document.getElementById('js-alert');
-            let horariosTemp = [];
-            let deletedHorarios = [];
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('form-editar-horarios');
+            const tablaHorarios = document.getElementById('tabla-horarios');
 
-            buttons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const day = this.getAttribute('data-day');
-                    let diasSeleccionados = diaSemanaInput.value.split(',').filter(d => d);
-
-                    if (diasSeleccionados.includes(day)) {
-                        diasSeleccionados = diasSeleccionados.filter(d => d !== day);
-                        this.classList.remove('active');
-                    } else {
-                        diasSeleccionados.push(day);
-                        this.classList.add('active');
-                    }
-
-                    diaSemanaInput.value = diasSeleccionados.join(',');
-                });
+            // Marcar los días ya seleccionados como inactivos
+            const diasSeleccionados = Array.from(document.querySelectorAll('#tabla-horarios tr')).map(row => row.getAttribute('data-dia'));
+            diasSeleccionados.forEach(dia => {
+                const button = document.querySelector(`.day-button[data-dia="${dia}"]`);
+                if (button) {
+                    button.disabled = true;
+                    button.classList.add('inactive');
+                }
             });
 
-            document.querySelector('.btn-agregar-temporal').addEventListener('click', function() {
-                const diaSemana = diaSemanaInput.value;
+            // Evento para agregar horarios
+            document.getElementById('agregar-horario').addEventListener('click', function () {
+                const selectedButtons = document.querySelectorAll('.day-button.active');
                 const horaApertura = document.getElementById('horaapertura').value;
                 const horaCierre = document.getElementById('horacierre').value;
 
-                if (!diaSemana || !horaApertura || !horaCierre) {
-                    alertBox.style.display = 'block';
-                    setTimeout(() => {
-                        alertBox.style.display = 'none';
-                    }, 3000);
+                if (selectedButtons.length === 0 || !horaApertura || !horaCierre) {
+                    alert('Debe llenar todos los campos.');
                     return;
                 }
 
-                if (diaSemana && horaApertura && horaCierre) {
-                    diaSemana.split(',').forEach(day => {
-                        horariosTemp.push({ dia: day, apertura: horaApertura, cierre: horaCierre });
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td data-label="Día">${day}</td>
-                            <td data-label="Hora de Apertura"><input type="time" name="horaapertura" value="${horaApertura}"></td>
-                            <td data-label="Hora de Cierre"><input type="time" name="horacierre" value="${horaCierre}"></td>
-                            <td data-label="Acciones"><button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button></td>
-                        `;
-                        horariosTempBody.appendChild(row);
+                selectedButtons.forEach(button => {
+                    const dia = button.getAttribute('data-dia');
+                    const rowCount = tablaHorarios.rows.length;
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-dia', dia);
+                    row.innerHTML = `
+                        <td>${dia}</td>
+                        <td><input type="time" name="horarios[${rowCount}][hora_apertura]" value="${horaApertura}"></td>
+                        <td><input type="time" name="horarios[${rowCount}][hora_cierre]" value="${horaCierre}"></td>
+                        <td><button type="button" class="btn-eliminar-horario"><i class="fa fa-trash"></i></button></td>
+                        <input type="hidden" name="horarios[${rowCount}][dia]" value="${dia}">
+                    `;
+                    tablaHorarios.appendChild(row);
 
-                        buttons.forEach(button => {
-                            if (button.getAttribute('data-day') === day) {
-                                button.disabled = true;
-                                button.classList.remove('active');
-                            }
-                        });
-                    });
-
-                    diaSemanaInput.value = '';
-                    document.getElementById('horaapertura').value = '';
-                    document.getElementById('horacierre').value = '';
-                }
+                    // Desactivar el botón del día seleccionado
+                    button.disabled = true;
+                    button.classList.add('inactive');
+                    button.classList.remove('active');
+                });
             });
 
-            horariosTempBody.addEventListener('click', function(event) {
-                if (event.target.closest('.btn-eliminar')) {
-                    const row = event.target.closest('tr');
-                    const day = row.cells[0].textContent;
-                    const id = event.target.closest('.btn-eliminar').dataset.id;
+            // Evento para eliminar horarios
+            tablaHorarios.addEventListener('click', function (event) {
+                if (event.target.closest('.btn-eliminar-horario')) {
+                    if (confirm("¿Está seguro que desea eliminar este horario?")) {
+                        const row = event.target.closest('tr');
+                        const dia = row.getAttribute('data-dia');
+                        row.remove();
 
-                    if (id) {
-                        deletedHorarios.push(id);
-                    }
-
-                    horariosTemp = horariosTemp.filter(horario => horario.dia !== day);
-                    row.remove();
-
-                    buttons.forEach(button => {
-                        if (button.getAttribute('data-day') === day) {
+                        // Reactivar el botón del día eliminado
+                        const button = document.querySelector(`.day-button[data-dia="${dia}"]`);
+                        if (button) {
                             button.disabled = false;
+                            button.classList.remove('inactive');
                         }
-                    });
+                    }
                 }
             });
 
-            document.querySelector('.btn-guardar').addEventListener('click', function(event) {
-                const form = document.getElementById('horarioForm');
-                const rows = horariosTempBody.querySelectorAll('tr');
-                const horarios = [];
+            // Evento para marcar los botones de días como activos
+            const dayButtons = document.querySelectorAll('.day-button');
+            dayButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    button.classList.toggle('active');
+                });
+            });
 
-                rows.forEach(row => {
-                    const dia = row.cells[0].textContent;
-                    const horaapertura = row.querySelector('input[name="horaapertura"]').value;
-                    const horacierre = row.querySelector('input[name="horacierre"]').value;
-                    const id = row.querySelector('.btn-eliminar').dataset.id || null;
-                    horarios.push({ dia, horaapertura, horacierre, id });
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                const horarios = Array.from(tablaHorarios.querySelectorAll('tr')).map(row => {
+                    return {
+                        dia: row.querySelector('input[name*="[dia]"]').value,
+                        hora_apertura: row.querySelector('input[name*="[hora_apertura]"]').value,
+                        hora_cierre: row.querySelector('input[name*="[hora_cierre]"]').value,
+                    };
                 });
 
-                const horariosInput = document.createElement('input');
-                horariosInput.type = 'hidden';
-                horariosInput.name = 'horarios';
-                horariosInput.value = JSON.stringify(horarios);
-                form.appendChild(horariosInput);
-
-                const deletedHorariosInput = document.createElement('input');
-                deletedHorariosInput.type = 'hidden';
-                deletedHorariosInput.name = 'deleted_horarios';
-                deletedHorariosInput.value = deletedHorarios.join(',');
-                form.appendChild(deletedHorariosInput);
-            });
-
-            const preselectedDays = Array.from(document.querySelectorAll('#horarios-temp-body tr')).map(row => row.cells[0].textContent);
-            buttons.forEach(button => {
-                if (preselectedDays.includes(button.getAttribute('data-day'))) {
-                    button.disabled = true;
-                    button.classList.remove('active');
-                }
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify({ horarios: horarios }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('success-message').style.display = 'block';
+                        setTimeout(() => {
+                            window.location.href = "{% url 'visualizar_horarios' %}";
+                        }, 50);
+                    } else {
+                        const errorMessage = document.getElementById('error-message');
+                       
+                        errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + data.error;
+                        errorMessage.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    const errorMessage = document.getElementById('error-message');
+                    errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + error;
+                    errorMessage.style.display = 'block';
+                });
             });
         });
     </script>
