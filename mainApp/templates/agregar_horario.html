@@ -9,7 +9,8 @@
     <title>Agregar Horarios</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'agregar_horarios.css' %}">
+    <link rel="stylesheet" href="{% static 'agregar_horarios copy.css' %}">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
 </head>
 <body>
     <div class="container-usuario">
@@ -68,11 +69,10 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="horarios-temp-body">
-                    </tbody>
+                    <tbody id="horarios-temp-body"></tbody>
                 </table>
             </div>
-            <button type="submit" class="btn-agregar-horario">Agregar Horarios</button>
+            <button type="submit" class="btn-guardar">Guardar</button>
         </form>
     </div>
     <script>
@@ -119,8 +119,8 @@
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${day}</td>
-                            <td>${horaApertura}</td>
-                            <td>${horaCierre}</td>
+                            <td><input type="time" name="horaapertura" value="${horaApertura}"></td>
+                            <td><input type="time" name="horacierre" value="${horaCierre}"></td>
                             <td><button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button></td>
                         `;
                         horariosTempBody.appendChild(row);
@@ -158,23 +158,33 @@
                 }
             });
 
-            document.querySelector('.btn-agregar-horario').addEventListener('click', function(event) {
-                if (horariosTemp.length > 0) {
-                    const sucursalid = document.getElementById('sucursal').value;
-                    if (sucursalid) {
-                        const horariosTempInput = document.createElement('input');
-                        horariosTempInput.type = 'hidden';
-                        horariosTempInput.name = 'horarios_temp';
-                        horariosTempInput.value = JSON.stringify(horariosTemp);
-                        document.getElementById('horario-form').appendChild(horariosTempInput);
-                    } else {
-                        event.preventDefault();
-                        alert('Debe seleccionar una sucursal.');
-                    }
-                } else {
+            document.querySelector('.btn-guardar').addEventListener('click', function(event) {
+                const form = document.getElementById('horario-form');
+                const rows = horariosTempBody.querySelectorAll('tr');
+                const horarios = [];
+
+                rows.forEach(row => {
+                    const dia = row.cells[0].textContent;
+                    const horaapertura = row.querySelector('input[name="horaapertura"]').value;
+                    const horacierre = row.querySelector('input[name="horacierre"]').value;
+                    horarios.push({ dia, horaapertura, horacierre });
+                });
+
+                if (horarios.length === 0) {
+                    alertBox.textContent = 'Por favor, complete todos los campos.';
+                    alertBox.style.display = 'block';
+                    setTimeout(() => {
+                        alertBox.style.display = 'none';
+                    }, 3000);
                     event.preventDefault();
-                    alert('No hay horarios definidos para agregar.');
+                    return;
                 }
+
+                const horariosInput = document.createElement('input');
+                horariosInput.type = 'hidden';
+                horariosInput.name = 'horarios';
+                horariosInput.value = JSON.stringify(horarios);
+                form.appendChild(horariosInput);
             });
         });
     </script>

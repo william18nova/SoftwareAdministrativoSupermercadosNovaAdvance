@@ -19,7 +19,7 @@ body {
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
     text-align: center;
     position: relative;
     box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
@@ -72,7 +72,7 @@ body {
 .form-group select,
 .form-group input[type="time"],
 .btn-agregar-temporal,
-.btn-agregar-horario {
+.btn-guardar {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -88,7 +88,7 @@ body {
 .form-group select:hover,
 .form-group input[type="time"]:hover,
 .btn-agregar-temporal:hover,
-.btn-agregar-horario:hover {
+.btn-guardar:hover {
     background-color: #e0e8ff;
     border-color: #aaa;
 }
@@ -113,10 +113,10 @@ body {
     align-items: center;
 }
 
-.day-button:hover,
+/* Estilos para el estado activo (seleccionado) */
 .day-button.active {
     background-color: #73a0fa;
-    transform: scale(1.1); /* Agranda el botón cuando está activo */
+    transform: scale(1.1);
 }
 
 .day-button:disabled {
@@ -125,7 +125,7 @@ body {
 }
 
 .btn-agregar-temporal,
-.btn-agregar-horario {
+.btn-guardar {
     background-color: #3b5998;
     color: #ffffff;
     border: none;
@@ -136,14 +136,15 @@ body {
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s;
-    margin: 20px auto 0; /* Centrando el botón */
-    display: block; /* Asegura que el botón se comporte como un bloque y pueda ser centrado */
+    margin-top: 20px;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
 }
 
 .horarios-temp-container {
     margin-top: 20px;
     margin-bottom: 20px;
-    overflow-x: auto; /* Permitir scroll horizontal si es necesario */
 }
 
 .horarios-temp {
@@ -156,6 +157,8 @@ body {
     padding: 8px;
     text-align: center;
     color: #ffffff;
+    word-wrap: break-word; /* Permitir ajuste de texto dentro de celdas */
+    white-space: normal; /* Permitir ajuste de texto dentro de celdas */
 }
 
 .horarios-temp th {
@@ -176,8 +179,20 @@ body {
     transition: background-color 0.3s;
 }
 
+.btn-eliminar i {
+    margin-right: 0;
+}
+
 .btn-eliminar:hover {
     background-color: #e60000;
+}
+
+/* Ajustar el tamaño de las celdas de tiempo en pantallas grandes */
+@media (min-width: 769px) {
+    .horarios-temp input[type="time"] {
+        width: 90px; /* Ajustar ancho para pantallas grandes */
+        box-sizing: border-box;
+    }
 }
 
 /* Responsiveness */
@@ -189,12 +204,12 @@ body {
     .form-group select,
     .form-group input[type="time"],
     .btn-agregar-temporal,
-    .btn-agregar-horario {
+    .btn-guardar {
         width: 100%;
     }
 
     .btn-agregar-temporal,
-    .btn-agregar-horario {
+    .btn-guardar {
         width: 100%;
         max-width: none; /* Quitar el ancho máximo en vista móvil */
     }
@@ -212,5 +227,41 @@ body {
         margin: 5px;
         width: 30px;
         height: 30px;
+    }
+
+    .day-button.active {
+        transform: scale(1.1); /* Asegura el cambio de tamaño en vista móvil */
+    }
+
+    .horarios-temp th, .horarios-temp td {
+        font-size: 14px; /* Ajustar el tamaño de la fuente para pantallas más pequeñas */
+    }
+
+    .horarios-temp input[type="time"] {
+        width: 90px; /* Ajustar el ancho para pantallas más pequeñas */
+    }
+}
+
+/* Estilo para pantallas más grandes */
+@media (min-width: 769px) {
+    .horarios-temp {
+        table-layout: fixed; /* Ajuste fijo de la tabla para distribuir uniformemente */
+    }
+
+    .horarios-temp th:nth-child(1),
+    .horarios-temp td:nth-child(1) {
+        width: 14%; /* Ancho específico para la columna "Día" */
+    }
+
+    .horarios-temp th:nth-child(2),
+    .horarios-temp td:nth-child(2),
+    .horarios-temp th:nth-child(3),
+    .horarios-temp td:nth-child(3) {
+        width: 30%; /* Ancho específico para las columnas de "Hora de Apertura" y "Hora de Cierre" */
+    }
+
+    .horarios-temp th:nth-child(4),
+    .horarios-temp td:nth-child(4) {
+        width: 26.8%; /* Ancho específico para la columna "Acciones" */
     }
 }
