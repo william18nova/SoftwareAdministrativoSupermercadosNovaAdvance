@@ -179,6 +179,10 @@ body {
     transition: background-color 0.3s;
 }
 
+.btn-eliminar i {
+    margin-right: 0;
+}
+
 .btn-eliminar:hover {
     background-color: #e60000;
 }
