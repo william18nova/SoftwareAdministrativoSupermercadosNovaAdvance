@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}Generar Venta{% endblock %}
+{% block content %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Venta</title>
+    {% load static %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'generar_venta copy.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Generar Venta</h1>
+        <form id="venta-form" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="cliente_busqueda">Cliente:</label>
+                <input type="text" id="cliente_busqueda" name="cliente_busqueda" placeholder="Buscar por nombre o cédula">
+                <input type="hidden" id="cliente_id" name="cliente_id">
+            </div>
+            <div class="form-group">
+                <label for="sucursal_id">Sucursal:</label>
+                <select id="sucursal_id" name="sucursal_id" required>
+                    <option value="">Seleccione una sucursal</option>
+                    {% for sucursal in sucursales %}
+                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="puntopago_id">Punto de Pago:</label>
+                <select id="puntopago_id" name="puntopago_id" required>
+                    <option value="">Seleccione una sucursal primero</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="producto_id">Producto:</label>
+                <input type="text" id="producto_id" name="producto_id" required disabled>
+            </div>
+            <div class="form-group">
+                <label for="cantidad">Cantidad:</label>
+                <input type="number" id="cantidad" name="cantidad" value="1" min="1" required disabled>
+            </div>
+            <button type="button" id="agregar-producto" class="btn btn-success" disabled>Agregar Producto</button>
+        </form>
+
+        <h2>Detalles de la Venta</h2>
+        <h3>Total: <span id="total" class="total-color">{{ total }}</span></h3>
+        <button type="button" class="btn btn-primary" id="generar-venta">Generar Venta</button>
+        <input type="text" id="buscar-detalles" placeholder="Buscar en el carrito...">
+        <table class="table" id="detalle-productos">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Precio Unitario</th>
+                    <th>Subtotal</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if detalles %}
+                    {% for detalle in detalles %}
+                        <tr>
+                            <td>{{ detalle.producto }}</td>
+                            <td>{{ detalle.cantidad }}</td>
+                            <td>{{ detalle.precio_unitario }}</td>
+                            <td>{{ detalle.subtotal }}</td>
+                            <td class="text-center"><button class="btn btn-danger btn-sm eliminar-producto"><i class="fas fa-trash-alt"></i></button></td>
+                        </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            var productos = [];
+            var sucursalSeleccionada = null;
+
+            // Cargar puntos de pago según la sucursal seleccionada
+            $("#sucursal_id").change(function() {
+                sucursalSeleccionada = $(this).val();
+                if (sucursalSeleccionada) {
+                    $.ajax({
+                        url: "{% url 'obtener_puntos_pago' %}",
+                        method: "GET",
+                        data: {
+                            'sucursal_id': sucursalSeleccionada
+                        },
+                        success: function(response) {
+                            $("#puntopago_id").empty();
+                            $("#puntopago_id").append(new Option("Seleccione un punto de pago", ""));
+                            response.puntos_pago.forEach(function(punto) {
+                                $("#puntopago_id").append(new Option(punto.nombre, punto.puntopagoid));
+                            });
+                            habilitarCampos();
+                        }
+                    });
+                } else {
+                    $("#puntopago_id").empty();
+                    $("#puntopago_id").append(new Option("Seleccione una sucursal primero", ""));
+                    $("#producto_id").prop("disabled", true);
+                    $("#cantidad").prop("disabled", true);
+                    $("#agregar-producto").prop("disabled", true);
+                }
+            });
+
+            // Habilitar campos de producto y cantidad
+            function habilitarCampos() {
+                if ($("#sucursal_id").val() && $("#puntopago_id").val()) {
+                    $("#producto_id").prop("disabled", false);
+                    $("#cantidad").prop("disabled", false);
+                    $("#agregar-producto").prop("disabled", false);
+                } else {
+                    $("#producto_id").prop("disabled", true);
+                    $("#cantidad").prop("disabled", true);
+                    $("#agregar-producto").prop("disabled", true);
+                }
+            }
+
+            $("#puntopago_id").change(habilitarCampos);
+
+            // Autocompletar productos según la sucursal seleccionada
+            $("#producto_id").autocomplete({
+                source: function(request, response) {
+                    $.ajax({
+                        url: "{% url 'buscar_productos' %}",
+                        method: "GET",
+                        data: {
+                            'term': request.term,
+                            'sucursal_id': sucursalSeleccionada
+                        },
+                        success: function(data) {
+                            response(data.productos);
+                        }
+                    });
+                }
+            });
+
+            $("#agregar-producto").click(function(e) {
+                e.preventDefault();
+                var producto_nombre = $("#producto_id").val();
+                var cantidad = $("#cantidad").val();
+                $.ajax({
+                    url: "{% url 'verificar_producto' %}",
+                    method: "POST",
+                    data: {
+                        'producto_nombre': producto_nombre,
+                        'cantidad': cantidad,
+                        'sucursal_id': sucursalSeleccionada,
+                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.exists) {
+                            if (response.cantidad_disponible >= cantidad) {
+                                var subtotal = response.precio_unitario * cantidad;
+                                $("#detalle-productos tbody").prepend(
+                                    "<tr>" +
+                                    "<td>" + producto_nombre + "</td>" +
+                                    "<td>" + cantidad + "</td>" +
+                                    "<td>" + response.precio_unitario_formatted + "</td>" +
+                                    "<td>" + response.subtotal_formatted + "</td>" +
+                                    "<td class='text-center'><button class='btn btn-danger btn-sm eliminar-producto'><i class='fas fa-trash-alt'></i></button></td>" +
+                                    "</tr>"
+                                );
+                                actualizarTotal();
+                                $("#producto_id").val('');
+                                $("#cantidad").val(1);
+                            } else {
+                                alert("Cantidad no disponible. Disponible: " + response.cantidad_disponible);
+                            }
+                        } else {
+                            alert("Producto no encontrado.");
+                        }
+                    }
+                });
+            });
+
+            // Eliminar producto del detalle
+            $("#detalle-productos").on("click", ".eliminar-producto", function() {
+                $(this).closest("tr").remove();
+                actualizarTotal();
+            });
+
+            // Actualizar total
+            function actualizarTotal() {
+                var total = 0;
+                $("#detalle-productos tbody tr").each(function() {
+                    var subtotal = parseFloat($(this).find("td").eq(3).text().replace(/[^\d.-]/g, ''));
+                    total += subtotal;
+                });
+                $("#total").text(new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP'
+                }).format(total));
+            }
+
+            // Generar venta
+            $("#generar-venta").click(function() {
+                $("#venta-form").submit();
+            });
+
+            // Autocompletar clientes
+            $("#cliente_busqueda").autocomplete({
+                source: function(request, response) {
+                    $.ajax({
+                        url: "{% url 'buscar_clientes' %}",
+                        method: "GET",
+                        data: {
+                            'term': request.term
+                        },
+                        success: function(data) {
+                            response(data.clientes);
+                        }
+                    });
+                },
+                select: function(event, ui) {
+                    $("#cliente_id").val(ui.item.id);
+                }
+            });
+
+            // Buscar en la tabla de detalles de la venta
+            $("#buscar-detalles").on("keyup", function() {
+                var value = $(this).val().toLowerCase();
+                $("#detalle-productos tbody tr").filter(function() {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+{% endblock %}

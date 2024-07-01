@@ -58,4 +58,9 @@ urlpatterns = [
     path('visualizar_clientes/', views.visualizar_clientes, name='visualizar_clientes'),
     path('editar_cliente/<int:clienteid>/', views.editar_cliente, name='editar_cliente'),
     path('eliminar_cliente/<int:clienteid>/', views.eliminar_cliente, name='eliminar_cliente'),
+    path('generar_venta/', views.generar_venta, name='generar_venta'),
+    path('verificar_producto/', views.verificar_producto, name='verificar_producto'),
+    path('obtener_puntos_pago/', views.obtener_puntos_pago, name='obtener_puntos_pago'),
+    path('buscar_productos/', views.buscar_productos, name='buscar_productos'),
+    path('buscar_clientes/', views.buscar_clientes, name='buscar_clientes'),
 ]

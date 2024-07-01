@@ -41,6 +41,7 @@ class Producto(models.Model):
     descripcion = models.TextField(null=True, blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE, null=True, blank=True)
+    codigo_de_barras = models.CharField(max_length=100, null=True, blank=True)  # Nuevo campo
 
     class Meta:
         db_table = 'productos'
@@ -176,3 +177,25 @@ class Cliente(models.Model):
 
     def __str__(self):
         return f'{self.nombre} {self.apellido}'
+
+class Venta(models.Model):
+    ventaid = models.AutoField(primary_key=True)
+    fecha = models.DateField()
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
+    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    puntospago = models.ForeignKey(PuntosPago, on_delete=models.CASCADE)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = 'ventas'
+
+class DetalleVenta(models.Model):
+    detalleventaid = models.AutoField(primary_key=True)
+    venta = models.ForeignKey(Venta, on_delete=models.CASCADE)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.IntegerField()
+    preciounitario = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = 'detallesventas'

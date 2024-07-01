@@ -1,12 +1,15 @@
 # views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio, HorarioCaja, Cliente
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Usuario, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta
 from django.db.models import Count, Sum, Exists, OuterRef, Exists, OuterRef
 from django.http import JsonResponse
 import json
 from django.urls import reverse
 from django.db import IntegrityError
+from django.db import transaction
+import datetime
+from django.db.models import Q
 
 def login(request):
     if request.method == 'POST':
@@ -149,6 +152,7 @@ def agregar_producto_view(request):
         descripcion = request.POST.get('descripcion')
         precio = request.POST.get('precio')
         categoria_id = request.POST.get('categoria')
+        codigo_de_barras = request.POST.get('codigo_de_barras')  # Nuevo campo
 
         if not nombre:
             messages.error(request, 'El Nombre es un campo obligatorio.')
@@ -159,7 +163,7 @@ def agregar_producto_view(request):
             return redirect('agregar_producto')
 
         categoria = Categoria.objects.get(pk=categoria_id) if categoria_id else None
-        producto = Producto(nombre=nombre, descripcion=descripcion, precio=precio, categoria=categoria)
+        producto = Producto(nombre=nombre, descripcion=descripcion, precio=precio, categoria=categoria, codigo_de_barras=codigo_de_barras)
         producto.save()
         messages.success(request, f'Producto agregado exitosamente: Nombre={nombre}, Descripción={descripcion}, Precio={precio}, Categoría={categoria.nombre if categoria else "Sin categoría"}')
         return redirect('agregar_producto')
@@ -1017,3 +1021,100 @@ def editar_cliente(request, clienteid):
             messages.error(request, f'Ocurrió un error al guardar los cambios: {str(e)}')
 
     return render(request, 'editar_cliente.html', {'cliente': cliente})
+
+def generar_venta(request):
+    if request.method == 'POST':
+        # Obtener datos del formulario
+        cliente_id = request.POST.get('cliente_id')
+        sucursal_id = request.POST.get('sucursal_id')
+        puntopago_id = request.POST.get('puntopago_id')
+        productos = request.POST.getlist('productos[]')
+        cantidades = request.POST.getlist('cantidades[]')
+
+        # Calcular total
+        total = 0
+        detalles = []
+        for i in range(len(productos)):
+            producto = Producto.objects.get(productoid=productos[i])
+            inventario = Inventario.objects.get(productoid=producto, sucursalid=sucursal_id)
+            cantidad = int(cantidades[i])
+            if cantidad > inventario.cantidad:
+                return render(request, 'generar_venta.html', {
+                    'clientes': Cliente.objects.all(),
+                    'sucursales': Sucursal.objects.all(),
+                    'puntos_pago': PuntosPago.objects.all(),
+                    'productos': Producto.objects.all(),
+                    'detalles': detalles,
+                    'total': total,
+                    'error': f'No hay suficiente stock de {producto.nombre} en la sucursal seleccionada.'
+                })
+            subtotal = producto.precio * cantidad
+            total += subtotal
+            detalles.append({
+                'producto': producto.nombre,
+                'cantidad': cantidad,
+                'precio_unitario': f'{producto.precio:,.2f}',
+                'subtotal': f'{subtotal:,.2f}'
+            })
+
+        return render(request, 'generar_venta.html', {
+            'clientes': Cliente.objects.all(),
+            'sucursales': Sucursal.objects.all(),
+            'puntos_pago': PuntosPago.objects.all(),
+            'productos': Producto.objects.all(),
+            'detalles': detalles,
+            'total': f'{total:,.2f}'
+        })
+
+    return render(request, 'generar_venta.html', {
+        'clientes': Cliente.objects.all(),
+        'sucursales': Sucursal.objects.all(),
+        'puntos_pago': PuntosPago.objects.all(),
+        'productos': Producto.objects.all()
+    })
+
+def verificar_producto(request):
+    if request.method == 'POST':
+        producto_nombre = request.POST.get('producto_nombre')
+        cantidad = int(request.POST.get('cantidad'))
+        sucursal_id = request.POST.get('sucursal_id')
+
+        try:
+            producto = Producto.objects.get(nombre=producto_nombre)
+            inventario = Inventario.objects.get(productoid=producto, sucursalid=sucursal_id)
+
+            if inventario.cantidad >= cantidad:
+                precio_unitario = producto.precio
+                subtotal = precio_unitario * cantidad
+                return JsonResponse({
+                    'exists': True,
+                    'precio_unitario': precio_unitario,
+                    'subtotal': subtotal,
+                    'precio_unitario_formatted': "${:,.2f}".format(precio_unitario),
+                    'subtotal_formatted': "${:,.2f}".format(subtotal),
+                    'cantidad_disponible': inventario.cantidad
+                })
+            else:
+                return JsonResponse({'exists': True, 'cantidad_disponible': inventario.cantidad})
+        except Producto.DoesNotExist:
+            return JsonResponse({'exists': False})
+    return JsonResponse({'exists': False})
+
+def obtener_puntos_pago(request):
+    sucursal_id = request.GET.get('sucursal_id')
+    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).values('puntopagoid', 'nombre')
+    return JsonResponse({'puntos_pago': list(puntos_pago)})
+
+def buscar_productos(request):
+    term = request.GET.get('term', '')
+    sucursal_id = request.GET.get('sucursal_id')
+    productos = Producto.objects.filter(nombre__icontains=term, inventario__sucursalid=sucursal_id).values_list('nombre', flat=True).distinct()
+    return JsonResponse({'productos': list(productos)})
+
+def buscar_clientes(request):
+    term = request.GET.get('term', '')
+    clientes = Cliente.objects.filter(
+        Q(nombre__icontains=term) | Q(apellido__icontains=term) | Q(numerodocumento__icontains=term)
+    )
+    clientes_list = list(clientes.values('clienteid', 'nombre', 'apellido'))
+    return JsonResponse({'clientes': clientes_list})

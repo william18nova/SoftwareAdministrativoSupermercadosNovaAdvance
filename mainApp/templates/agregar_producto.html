@@ -10,6 +10,7 @@
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{% static 'agregar_producto.css' %}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script> <!-- QuaggaJS -->
 </head>
 <body>
     <div class="container">
@@ -39,6 +40,12 @@
                 </select>
             </div>
             <div class="form-group">
+                <label for="codigo_de_barras">Código de Barras</label>
+                <input type="text" id="codigo_de_barras" name="codigo_de_barras">
+                <button type="button" id="btnEscanear" class="btn-escanear">Escanear Código de Barras</button>
+            </div>
+            <div id="interactive" class="viewport"></div> <!-- Contenedor para el escáner -->
+            <div class="form-group">
                 <input type="submit" value="Agregar">
             </div>
             {% if messages %}
@@ -52,6 +59,49 @@
             {% endif %}
         </form>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Poner el foco en el campo de código de barras al cargar la página
+            document.getElementById('codigo_de_barras').focus();
+
+            // Inicializar el escáner de Quagga cuando se haga clic en el botón
+            document.getElementById('btnEscanear').addEventListener('click', function() {
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: document.querySelector('#interactive'),    // Pasar el ID del elemento
+                        constraints: {
+                            width: 640,
+                            height: 480,
+                            facingMode: "environment" // Utilizar la cámara trasera del celular
+                        }
+                    },
+                    decoder: {
+                        readers: ["ean_reader"] // Usar específicamente el lector EAN
+                    },
+                    locate: true, // Detectar el código de barras en toda la imagen
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    }
+                }, function(err) {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    Quagga.start();
+                });
+
+                Quagga.onDetected(function(data) {
+                    var codigo = data.codeResult.code;
+                    console.log("Código detectado: ", codigo);
+                    document.getElementById('codigo_de_barras').value = codigo;
+                    Quagga.stop(); // Detener el escáner después de detectar un código
+                });
+            });
+        });
+    </script>
 </body>
 </html>
 {% endblock %}
