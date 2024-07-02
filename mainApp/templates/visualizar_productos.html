@@ -45,6 +45,7 @@
                     <th>Precio</th>
                     <th>Categoría</th>
                     <th>Código de Barras</th>
+                    <th>IVA</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -56,6 +57,7 @@
                     <td data-label="Precio">{{ producto.precio }}</td>
                     <td data-label="Categoría">{% if producto.categoria %}{{ producto.categoria.nombre }}{% else %}Sin categoría{% endif %}</td>
                     <td data-label="Código de Barras">{{ producto.codigo_de_barras }}</td>
+                    <td data-label="IVA">{{ producto.iva }}</td>
                     <td data-label="Acciones" class="actions-cell">
                         <div class="btn-container">
                             <a href="{% url 'editar_producto' producto.productoid %}" class="btn editar"><i class="fas fa-edit"></i></a>
