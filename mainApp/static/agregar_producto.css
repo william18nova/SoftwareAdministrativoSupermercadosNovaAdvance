@@ -122,7 +122,7 @@ body {
     display: block;
     width: 100%;
     padding: 10px;
-    margin-top: 200px;
+    margin-top: 20px;
     background-color: #3b5998;
     color: white;
     border: none;
@@ -156,6 +156,6 @@ body {
 
     .form-group input[type="submit"] {
         font-size: 16px;
-        padding: 20px;
+        padding: 10px;
     }
 }

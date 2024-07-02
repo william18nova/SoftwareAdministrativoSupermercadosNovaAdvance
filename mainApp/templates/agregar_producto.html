@@ -44,6 +44,10 @@
                 <input type="text" id="codigo_de_barras" name="codigo_de_barras">
                 <button type="button" id="btnEscanear" class="btn-escanear">Escanear Código de Barras</button>
             </div>
+            <div class="form-group">
+                <label for="iva">IVA (Por ejemplo, para 19% ingrese 0.19)</label>
+                <input type="number" id="iva" name="iva" step="0.01" min="0" max="1" required>
+            </div>
             <div id="interactive" class="viewport"></div> <!-- Contenedor para el escáner -->
             <div class="form-group">
                 <input type="submit" value="Agregar">
@@ -61,11 +65,9 @@
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Poner el foco en el campo de código de barras al cargar la página
-            document.getElementById('codigo_de_barras').focus();
-
             // Inicializar el escáner de Quagga cuando se haga clic en el botón
             document.getElementById('btnEscanear').addEventListener('click', function() {
+                document.getElementById('interactive').style.display = 'block'; // Mostrar el contenedor de la cámara
                 Quagga.init({
                     inputStream: {
                         name: "Live",
@@ -98,6 +100,7 @@
                     console.log("Código detectado: ", codigo);
                     document.getElementById('codigo_de_barras').value = codigo;
                     Quagga.stop(); // Detener el escáner después de detectar un código
+                    document.getElementById('interactive').style.display = 'none'; // Ocultar el contenedor de la cámara
                 });
             });
         });
