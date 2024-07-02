@@ -40,6 +40,7 @@
         <table id="productosTable" class="display">
             <thead>
                 <tr>
+                    <th>Código</th>
                     <th>Nombre</th>
                     <th>Descripción</th>
                     <th>Precio</th>
@@ -52,6 +53,7 @@
             <tbody>
                 {% for producto in productos %}
                 <tr>
+                    <td data-label="Código">{{ producto.productoid }}</td>
                     <td data-label="Nombre">{{ producto.nombre }}</td>
                     <td data-label="Descripción">{{ producto.descripcion }}</td>
                     <td data-label="Precio">{{ producto.precio }}</td>
