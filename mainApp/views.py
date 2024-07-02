@@ -153,6 +153,7 @@ def agregar_producto_view(request):
         precio = request.POST.get('precio')
         categoria_id = request.POST.get('categoria')
         codigo_de_barras = request.POST.get('codigo_de_barras')  # Nuevo campo
+        iva = request.POST.get('iva')  # Nuevo campo
 
         if not nombre:
             messages.error(request, 'El Nombre es un campo obligatorio.')
@@ -163,7 +164,7 @@ def agregar_producto_view(request):
             return redirect('agregar_producto')
 
         categoria = Categoria.objects.get(pk=categoria_id) if categoria_id else None
-        producto = Producto(nombre=nombre, descripcion=descripcion, precio=precio, categoria=categoria, codigo_de_barras=codigo_de_barras)
+        producto = Producto(nombre=nombre, descripcion=descripcion, precio=precio, categoria=categoria, codigo_de_barras=codigo_de_barras, iva=iva)
         producto.save()
         messages.success(request, f'Producto agregado exitosamente: Nombre={nombre}, Descripción={descripcion}, Precio={precio}, Categoría={categoria.nombre if categoria else "Sin categoría"}')
         return redirect('agregar_producto')
@@ -193,6 +194,8 @@ def editar_producto_view(request, producto_id):
         descripcion = request.POST.get('descripcion')
         precio = request.POST.get('precio')
         categoria_id = request.POST.get('categoria')
+        codigo_de_barras = request.POST.get('codigo_de_barras')
+        iva = request.POST.get('iva')
 
         if not nombre:
             messages.error(request, 'El Nombre es un campo obligatorio.')
@@ -206,11 +209,14 @@ def editar_producto_view(request, producto_id):
         producto.descripcion = descripcion
         producto.precio = precio
         producto.categoria_id = categoria_id if categoria_id else None
+        producto.codigo_de_barras = codigo_de_barras
+        producto.iva = iva
         producto.save()
         messages.success(request, f'Producto actualizado exitosamente: Nombre={nombre}, Descripción={descripcion}, Precio={precio}, Categoría={producto.categoria.nombre if producto.categoria else "Sin categoría"}')
         return redirect('visualizar_productos')
 
     return render(request, 'editar_producto.html', {'producto': producto, 'categorias': Categoria.objects.all()})
+
 
 def agregar_inventario_view(request):
     if request.method == 'POST':
