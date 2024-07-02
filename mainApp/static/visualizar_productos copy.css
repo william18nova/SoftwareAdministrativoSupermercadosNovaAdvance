@@ -122,19 +122,22 @@ table tbody td {
 /* Ajuste del ancho de las columnas para la vista de escritorio */
 @media (min-width: 769px) {
     table tbody td:nth-child(1) {
-        width: 20%; /* Ancho aumentado para la columna de nombre */
+        width: 15%; /* Ajustar ancho para la columna de nombre */
     }
     table tbody td:nth-child(2) {
-        width: 40%; /* Ancho aumentado para la columna de descripción */
+        width: 30%; /* Ajustar ancho para la columna de descripción */
     }
     table tbody td:nth-child(3) {
-        width: 15%; /* Ancho ajustado para la columna de precio */
+        width: 10%; /* Ajustar ancho para la columna de precio */
     }
     table tbody td:nth-child(4) {
-        width: 15%; /* Ancho ajustado para la columna de categoría */
+        width: 15%; /* Ajustar ancho para la columna de categoría */
     }
     table tbody td:nth-child(5) {
-        width: 10%; /* Ancho ajustado para la columna de acciones */
+        width: 20%; /* Ajustar ancho para la columna de código de barras */
+    }
+    table tbody td:nth-child(6) {
+        width: 10%; /* Ajustar ancho para la columna de acciones */
     }
 
     .actions-cell {
