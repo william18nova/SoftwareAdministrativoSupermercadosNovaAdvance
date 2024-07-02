@@ -42,12 +42,14 @@ class Producto(models.Model):
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE, null=True, blank=True)
     codigo_de_barras = models.CharField(max_length=100, null=True, blank=True)  # Nuevo campo
+    iva = models.FloatField(default=0.0)  # Campo para el porcentaje de IVA
 
     class Meta:
         db_table = 'productos'
 
     def __str__(self):
         return self.nombre
+
 
 class Inventario(models.Model):
     inventarioid = models.AutoField(primary_key=True)
