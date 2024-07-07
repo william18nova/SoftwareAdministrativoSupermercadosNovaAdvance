@@ -154,6 +154,32 @@ form {
     background-color: #0069d9;
 }
 
+.btn-escanear {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    background-color: #3b5998;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.btn-escanear:hover {
+    background-color: #2b467d;
+}
+
+#interactive.viewport {
+    position: relative;
+    width: 100%;
+    height: 320px;
+    overflow: hidden;
+    background: #f0f8ff;
+    margin-top: 20px;
+    display: none; /* Ocultar inicialmente */
+}
+
 h3 {
     text-align: center;
     margin-top: 20px;

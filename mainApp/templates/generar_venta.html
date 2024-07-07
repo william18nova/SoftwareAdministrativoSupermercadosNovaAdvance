@@ -10,9 +10,11 @@
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{% static 'generar_venta copy.css' %}">
+    <link rel="stylesheet" href="{% static 'modal_venta.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -29,7 +31,7 @@
                 <select id="sucursal_id" name="sucursal_id" required>
                     <option value="">Seleccione una sucursal</option>
                     {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
+                        <option value="{{ sucursal.sucursalid }}" {% if selected_sucursal == sucursal.sucursalid %}selected{% endif %}>{{ sucursal.nombre }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -37,12 +39,28 @@
                 <label for="puntopago_id">Punto de Pago:</label>
                 <select id="puntopago_id" name="puntopago_id" required>
                     <option value="">Seleccione una sucursal primero</option>
+                    {% for punto in puntos_pago %}
+                        <option value="{{ punto.puntopagoid }}" {% if selected_puntopago == punto.puntopagoid %}selected{% endif %}>{{ punto.nombre }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="form-group">
-                <label for="producto_id">Producto:</label>
-                <input type="text" id="producto_id" name="producto_id" required disabled>
+                <label for="producto_busqueda_nombre">Nombre del Producto:</label>
+                <input type="text" id="producto_busqueda_nombre" name="producto_busqueda_nombre" placeholder="Buscar por nombre">
             </div>
+            <div class="form-group">
+                <label for="producto_busqueda_codigo">Código del Producto:</label>
+                <input type="text" id="producto_busqueda_codigo" name="producto_busqueda_codigo" placeholder="Buscar por código">
+            </div>
+            <div class="form-group">
+                <label for="producto_busqueda_codigo_barras">Código de Barras del Producto:</label>
+                <input type="text" id="producto_busqueda_codigo_barras" name="producto_busqueda_codigo_barras" placeholder="Buscar por código de barras">
+                <button type="button" id="btnEscanear" class="btn-escanear">Escanear Código de Barras</button>
+            </div>
+            <div id="interactive" class="viewport" style="display: none; width: 100%; max-width: 640px; height: 480px;"></div>
+            <input type="hidden" id="producto_id" name="producto_id">
+            <input type="hidden" id="productos" name="productos">
+            <input type="hidden" id="cantidades" name="cantidades">
             <div class="form-group">
                 <label for="cantidad">Cantidad:</label>
                 <input type="number" id="cantidad" name="cantidad" value="1" min="1" required disabled>
@@ -68,7 +86,7 @@
                 {% if detalles %}
                     {% for detalle in detalles %}
                         <tr>
-                            <td>{{ detalle.producto }}</td>
+                            <td data-id="{{ detalle.productoid }}">{{ detalle.producto }}</td>
                             <td>{{ detalle.cantidad }}</td>
                             <td>{{ detalle.precio_unitario }}</td>
                             <td>{{ detalle.subtotal }}</td>
@@ -78,13 +96,72 @@
                 {% endif %}
             </tbody>
         </table>
+    </div>
 
+    <!-- Modal -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Seleccione el medio de pago</h2>
+            <div class="payment-method">
+                <input type="radio" id="nequi" name="payment_method" value="nequi">
+                <label for="nequi">Nequi</label>
+            </div>
+            <div class="payment-method">
+                <input type="radio" id="daviplata" name="payment_method" value="daviplata">
+                <label for="daviplata">Daviplata</label>
+            </div>
+            <div class="payment-method">
+                <input type="radio" id="efectivo" name="payment_method" value="efectivo">
+                <label for="efectivo">Efectivo</label>
+            </div>
+            <div id="efectivo-options">
+                <label for="monto-recibido">Monto recibido:</label>
+                <input type="number" id="monto-recibido" min="0" step="100">
+                <p id="cambio"></p>
+            </div>
+            <div class="payment-method">
+                <input type="radio" id="tarjeta" name="payment_method" value="tarjeta">
+                <label for="tarjeta">Tarjeta</label>
+            </div>
+            <button id="confirmar-pago">Confirmar</button>
+        </div>
     </div>
 
     <script>
         $(document).ready(function() {
             var productos = [];
-            var sucursalSeleccionada = null;
+            var cantidades = [];
+            var sucursalSeleccionada = '{{ selected_sucursal }}';
+
+            function actualizarCampos(producto) {
+                $("#producto_busqueda_nombre").val(producto.nombre);
+                $("#producto_busqueda_codigo").val(producto.id);
+                $("#producto_busqueda_codigo_barras").val(producto.codigo_de_barras);
+                $("#producto_id").val(producto.id);
+            }
+
+            function mostrarError(mensaje) {
+                alert(mensaje);
+            }
+
+            function buscarProductoPorCampo(campo, valor) {
+                $.ajax({
+                    url: "{% url 'buscar_productos' %}",
+                    method: "GET",
+                    data: {
+                        term: valor,
+                        sucursal_id: sucursalSeleccionada
+                    },
+                    success: function(data) {
+                        if (data.productos.length > 0) {
+                            actualizarCampos(data.productos[0]);
+                        } else {
+                            mostrarError("Producto no encontrado.");
+                        }
+                    }
+                });
+            }
 
             // Cargar puntos de pago según la sucursal seleccionada
             $("#sucursal_id").change(function() {
@@ -108,7 +185,9 @@
                 } else {
                     $("#puntopago_id").empty();
                     $("#puntopago_id").append(new Option("Seleccione una sucursal primero", ""));
-                    $("#producto_id").prop("disabled", true);
+                    $("#producto_busqueda_nombre").prop("disabled", true);
+                    $("#producto_busqueda_codigo").prop("disabled", true);
+                    $("#producto_busqueda_codigo_barras").prop("disabled", true);
                     $("#cantidad").prop("disabled", true);
                     $("#agregar-producto").prop("disabled", true);
                 }
@@ -117,11 +196,15 @@
             // Habilitar campos de producto y cantidad
             function habilitarCampos() {
                 if ($("#sucursal_id").val() && $("#puntopago_id").val()) {
-                    $("#producto_id").prop("disabled", false);
+                    $("#producto_busqueda_nombre").prop("disabled", false);
+                    $("#producto_busqueda_codigo").prop("disabled", false);
+                    $("#producto_busqueda_codigo_barras").prop("disabled", false);
                     $("#cantidad").prop("disabled", false);
                     $("#agregar-producto").prop("disabled", false);
                 } else {
-                    $("#producto_id").prop("disabled", true);
+                    $("#producto_busqueda_nombre").prop("disabled", true);
+                    $("#producto_busqueda_codigo").prop("disabled", true);
+                    $("#producto_busqueda_codigo_barras").prop("disabled", true);
                     $("#cantidad").prop("disabled", true);
                     $("#agregar-producto").prop("disabled", true);
                 }
@@ -130,31 +213,131 @@
             $("#puntopago_id").change(habilitarCampos);
 
             // Autocompletar productos según la sucursal seleccionada
-            $("#producto_id").autocomplete({
-                source: function(request, response) {
-                    $.ajax({
-                        url: "{% url 'buscar_productos' %}",
-                        method: "GET",
-                        data: {
-                            'term': request.term,
-                            'sucursal_id': sucursalSeleccionada
-                        },
-                        success: function(data) {
-                            response(data.productos);
+            function configurarAutocompletar(idCampo, campoBusqueda, labelBusqueda) {
+                $(idCampo).autocomplete({
+                    delay: 0,
+                    source: function(request, response) {
+                        $.ajax({
+                            url: "{% url 'buscar_productos' %}",
+                            method: "GET",
+                            data: {
+                                'term': request.term,
+                                'sucursal_id': sucursalSeleccionada
+                            },
+                            success: function(data) {
+                                response(data.productos.map(function(producto) {
+                                    return {
+                                        label: producto[labelBusqueda],
+                                        value: producto[campoBusqueda],
+                                        id: producto.productoid,
+                                        nombre: producto.nombre,
+                                        codigo_de_barras: producto.codigo_de_barras
+                                    };
+                                }));
+                            }
+                        });
+                    },
+                    select: function(event, ui) {
+                        actualizarCampos(ui.item);
+                    }
+                });
+            }
+
+            configurarAutocompletar("#producto_busqueda_nombre", 'nombre', 'nombre');
+            configurarAutocompletar("#producto_busqueda_codigo", 'productoid', 'productoid');
+            configurarAutocompletar("#producto_busqueda_codigo_barras", 'codigo_de_barras', 'codigo_de_barras');
+
+            // Manejar la búsqueda al presionar Enter
+            function manejarEnter(idCampo) {
+                $(idCampo).on("keypress", function(e) {
+                    if (e.which === 13) {
+                        e.preventDefault();
+                        var autoComplete = $(this).autocomplete("instance");
+                        if (autoComplete && autoComplete.menu.active) {
+                            autoComplete.menu.element.children().first().trigger("click");
+                        } else {
+                            buscarProductoPorCampo(idCampo.substring(1), $(this).val());
                         }
-                    });
-                }
+                    }
+                });
+            }
+
+            manejarEnter("#producto_busqueda_nombre");
+            manejarEnter("#producto_busqueda_codigo");
+            manejarEnter("#producto_busqueda_codigo_barras");
+
+            // Escanear código de barras
+            document.getElementById('btnEscanear').addEventListener('click', function() {
+                document.getElementById('interactive').style.display = 'block';
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: document.querySelector('#interactive'),
+                        constraints: {
+                            width: 640,
+                            height: 480,
+                            facingMode: "environment"
+                        }
+                    },
+                    decoder: {
+                        readers: ["ean_reader"]
+                    },
+                    locate: true,
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    }
+                }, function(err) {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    Quagga.start();
+                });
+
+                Quagga.onDetected(function(data) {
+                    var codigo = data.codeResult.code;
+                    console.log("Código detectado: ", codigo);
+                    buscarProductoPorCodigo(codigo);
+                    Quagga.stop();
+                    document.getElementById('interactive').style.display = 'none';
+                });
             });
 
+            function buscarProductoPorCodigo(codigo_de_barras) {
+                $.ajax({
+                    url: "{% url 'buscar_producto_por_codigo' %}",
+                    method: "GET",
+                    data: {
+                        'codigo_de_barras': codigo_de_barras,
+                        'sucursal_id': sucursalSeleccionada
+                    },
+                    success: function(response) {
+                        if (response.exists) {
+                            actualizarCampos(response.producto);
+                        } else {
+                            mostrarError("Producto no encontrado.");
+                        }
+                    }
+                });
+            }
+
+            // Agregar producto a la lista de detalles de la venta
             $("#agregar-producto").click(function(e) {
                 e.preventDefault();
-                var producto_nombre = $("#producto_id").val();
+                var producto_id = $("#producto_id").val();
                 var cantidad = $("#cantidad").val();
+                productos.push(producto_id);
+                cantidades.push(cantidad);
+                $("#productos").val(JSON.stringify(productos));
+                $("#cantidades").val(JSON.stringify(cantidades));
+
                 $.ajax({
                     url: "{% url 'verificar_producto' %}",
                     method: "POST",
                     data: {
-                        'producto_nombre': producto_nombre,
+                        'producto_id': producto_id,
                         'cantidad': cantidad,
                         'sucursal_id': sucursalSeleccionada,
                         'csrfmiddlewaretoken': '{{ csrf_token }}'
@@ -165,7 +348,7 @@
                                 var subtotal = response.precio_unitario * cantidad;
                                 $("#detalle-productos tbody").prepend(
                                     "<tr>" +
-                                    "<td>" + producto_nombre + "</td>" +
+                                    "<td data-id='" + producto_id + "'>" + $("#producto_busqueda_nombre").val() + "</td>" +
                                     "<td>" + cantidad + "</td>" +
                                     "<td>" + response.precio_unitario_formatted + "</td>" +
                                     "<td>" + response.subtotal_formatted + "</td>" +
@@ -173,13 +356,16 @@
                                     "</tr>"
                                 );
                                 actualizarTotal();
+                                $("#producto_busqueda_nombre").val('');
+                                $("#producto_busqueda_codigo").val('');
+                                $("#producto_busqueda_codigo_barras").val('');
                                 $("#producto_id").val('');
                                 $("#cantidad").val(1);
                             } else {
-                                alert("Cantidad no disponible. Disponible: " + response.cantidad_disponible);
+                                mostrarError("Cantidad no disponible. Disponible: " + response.cantidad_disponible);
                             }
                         } else {
-                            alert("Producto no encontrado.");
+                            mostrarError("Producto no encontrado.");
                         }
                     }
                 });
@@ -187,7 +373,16 @@
 
             // Eliminar producto del detalle
             $("#detalle-productos").on("click", ".eliminar-producto", function() {
-                $(this).closest("tr").remove();
+                var row = $(this).closest("tr");
+                var producto_id = row.find("td:eq(0)").data("id");
+                var index = productos.indexOf(producto_id.toString());
+                if (index > -1) {
+                    productos.splice(index, 1);
+                    cantidades.splice(index, 1);
+                }
+                $("#productos").val(JSON.stringify(productos));
+                $("#cantidades").val(JSON.stringify(cantidades));
+                row.remove();
                 actualizarTotal();
             });
 
@@ -204,22 +399,88 @@
                 }).format(total));
             }
 
-            // Generar venta
-            $("#generar-venta").click(function() {
-                $("#venta-form").submit();
+            // Mostrar modal
+            var modal = document.getElementById("myModal");
+            var btnGenerarVenta = document.getElementById("generar-venta");
+            var span = document.getElementsByClassName("close")[0];
+            var confirmarPagoBtn = document.getElementById("confirmar-pago");
+
+            btnGenerarVenta.onclick = function() {
+                if (productos.length > 0) {
+                    modal.style.display = "block";
+                } else {
+                    mostrarError("Debe agregar al menos un producto para generar una venta.");
+                }
+            }
+
+            span.onclick = function() {
+                modal.style.display = "none";
+            }
+
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+
+            $("input[name='payment_method']").change(function() {
+                if (this.value === 'efectivo') {
+                    $("#efectivo-options").show();
+                } else {
+                    $("#efectivo-options").hide();
+                    $("#monto-recibido").val('');
+                    $("#cambio").text('');
+                }
             });
+
+            $("#monto-recibido").on('input', function() {
+                var montoRecibido = parseFloat($(this).val());
+                var total = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
+                var cambio = montoRecibido - total;
+                if (!isNaN(cambio) && cambio >= 0) {
+                    $("#cambio").text("Cambio: " + new Intl.NumberFormat('es-CO', {
+                        style: 'currency',
+                        currency: 'COP'
+                    }).format(cambio));
+                } else {
+                    $("#cambio").text('');
+                }
+            });
+
+            confirmarPagoBtn.onclick = function() {
+                var selectedMethod = $("input[name='payment_method']:checked").val();
+                if (selectedMethod === 'efectivo') {
+                    var montoRecibido = parseFloat($("#monto-recibido").val());
+                    var total = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
+                    if (montoRecibido < total) {
+                        mostrarError("El monto recibido es menor al total de la venta.");
+                    } else {
+                        $("#venta-form").append('<input type="hidden" name="payment_method" value="' + selectedMethod + '">');
+                        $("#venta-form").submit();
+                    }
+                } else {
+                    $("#venta-form").append('<input type="hidden" name="payment_method" value="' + selectedMethod + '">');
+                    $("#venta-form").submit();
+                }
+            }
 
             // Autocompletar clientes
             $("#cliente_busqueda").autocomplete({
                 source: function(request, response) {
                     $.ajax({
-                        url: "{% url 'buscar_clientes' %}",
+                        url: "{% url 'buscar_cliente' %}",
                         method: "GET",
                         data: {
                             'term': request.term
                         },
                         success: function(data) {
-                            response(data.clientes);
+                            response(data.clientes.map(function(cliente) {
+                                return {
+                                    label: cliente.nombre + " " + cliente.apellido,
+                                    value: cliente.nombre + " " + cliente.apellido,
+                                    id: cliente.clienteid
+                                };
+                            }));
                         }
                     });
                 },
@@ -235,6 +496,29 @@
                     $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
                 });
             });
+
+            // Seleccionar el punto de pago si ya está seleccionado
+            if (sucursalSeleccionada) {
+                $.ajax({
+                    url: "{% url 'obtener_puntos_pago' %}",
+                    method: "GET",
+                    data: {
+                        'sucursal_id': sucursalSeleccionada
+                    },
+                    success: function(response) {
+                        $("#puntopago_id").empty();
+                        $("#puntopago_id").append(new Option("Seleccione un punto de pago", ""));
+                        response.puntos_pago.forEach(function(punto) {
+                            var selected = '';
+                            if ('{{ selected_puntopago }}' == punto.puntopagoid) {
+                                selected = 'selected';
+                            }
+                            $("#puntopago_id").append(new Option(punto.nombre, punto.puntopagoid, false, selected));
+                        });
+                        habilitarCampos();
+                    }
+                });
+            }
         });
     </script>
 </body>

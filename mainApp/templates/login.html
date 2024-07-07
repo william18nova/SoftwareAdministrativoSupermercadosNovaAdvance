@@ -2,7 +2,6 @@
 {% extends 'base.html' %}
 {% block title %}Login{% endblock %}
 {% block content %}
-<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -16,7 +15,7 @@
     <div class="login-container">
         <i class="fas fa-store icon"></i>
         <h2>Inicio de sesión</h2>
-        <form method="post">
+        <form method="post" action="{% url 'login' %}">
             {% csrf_token %}
             <input type="text" name="nombreusuario" placeholder="Usuario" required>
             <input type="password" name="contraseña" placeholder="Contraseña" required>

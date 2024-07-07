@@ -1,16 +1,5 @@
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
-
-class Usuario(models.Model):
-    usuarioid = models.AutoField(primary_key=True)
-    nombreusuario = models.CharField(max_length=100, unique=True)
-    contraseña = models.CharField(max_length=255)
-    rol = models.CharField(max_length=50, choices=[('Trabajador', 'Trabajador'), ('Administrador', 'Administrador')])
-
-    class Meta:
-        db_table = 'usuarios'
-
-    def __str__(self):
-        return self.nombreusuario
 
 class Sucursal(models.Model):
     sucursalid = models.AutoField(primary_key=True)
@@ -112,15 +101,40 @@ class Rol(models.Model):
 
     def __str__(self):
         return self.nombre
+
+class UsuarioManager(BaseUserManager):
+    def create_user(self, nombreusuario, password=None, **extra_fields):
+        if not nombreusuario:
+            raise ValueError('El nombre de usuario es obligatorio')
+        user = self.model(nombreusuario=nombreusuario, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, nombreusuario, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        
+        return self.create_user(nombreusuario, password, **extra_fields)
+
+class Usuario(AbstractBaseUser, PermissionsMixin):
+    usuarioid = models.AutoField(db_column='usuarioid', primary_key=True)  # Nombre de la columna en PostgreSQL
+    nombreusuario = models.CharField(db_column='nombreusuario', max_length=100, unique=True)
+    password = models.CharField(db_column='contraseña', max_length=255)  # Nombre de la columna en PostgreSQL
+    rolid = models.IntegerField(db_column='rolid', blank=True, null=True)  # Nombre de la columna en PostgreSQL
     
-class Usuario(models.Model):
-    usuarioid = models.AutoField(primary_key=True)
-    nombreusuario = models.CharField(max_length=100, unique=True)
-    contraseña = models.CharField(max_length=255)
-    rolid = models.ForeignKey(Rol, on_delete=models.CASCADE, db_column='rolid')
+    # Campos adicionales requeridos por AbstractBaseUser y PermissionsMixin
+    last_login = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+
+    objects = UsuarioManager()
+
+    USERNAME_FIELD = 'nombreusuario'
+    REQUIRED_FIELDS = []
 
     class Meta:
-        db_table = 'usuarios'
+        db_table = 'usuarios'  # Nombre de la tabla en la base de datos
 
     def __str__(self):
         return self.nombreusuario
@@ -183,10 +197,11 @@ class Cliente(models.Model):
 class Venta(models.Model):
     ventaid = models.AutoField(primary_key=True)
     fecha = models.DateField()
-    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
-    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    puntospago = models.ForeignKey(PuntosPago, on_delete=models.CASCADE)
+    hora = models.TimeField()  # Nuevo campo
+    clienteid = models.ForeignKey(Cliente, on_delete=models.CASCADE, null=True, blank=True, db_column='clienteid')
+    empleadoid = models.ForeignKey(Empleado, on_delete=models.CASCADE, db_column='empleadoid')
+    sucursalid = models.ForeignKey(Sucursal, on_delete=models.CASCADE, db_column='sucursalid')
+    puntopagoid = models.ForeignKey(PuntosPago, on_delete=models.CASCADE, db_column='puntopagoid')
     total = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
@@ -194,8 +209,8 @@ class Venta(models.Model):
 
 class DetalleVenta(models.Model):
     detalleventaid = models.AutoField(primary_key=True)
-    venta = models.ForeignKey(Venta, on_delete=models.CASCADE)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    ventaid = models.ForeignKey(Venta, on_delete=models.CASCADE, db_column='ventaid')
+    productoid = models.ForeignKey(Producto, on_delete=models.CASCADE, db_column='productoid')
     cantidad = models.IntegerField()
     preciounitario = models.DecimalField(max_digits=10, decimal_places=2)
 

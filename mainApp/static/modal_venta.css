@@ -1,0 +1,84 @@
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 400px;
+    border-radius: 8px;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #000; /* Color del texto */
+}
+
+.payment-method {
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+}
+
+.payment-method input {
+    margin-right: 10px;
+}
+
+.payment-method label {
+    color: #000; /* Color del texto */
+}
+
+#efectivo-options {
+    display: none;
+    margin-top: 10px;
+    color: #000; /* Color del texto */
+}
+
+#confirmar-pago {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+}
+
+#confirmar-pago:hover {
+    background-color: #218838;
+}
+
+label {
+    font-weight: bold;
+    color: #000; /* Color del texto */
+}

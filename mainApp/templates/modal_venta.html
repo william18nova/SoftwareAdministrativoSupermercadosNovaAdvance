@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Venta</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'generar_venta copy.css' %}">
+    <link rel="stylesheet" href="{% static 'modal_venta.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Generar Venta</h1>
+        <!-- Formulario de venta aquí -->
+        <button type="button" class="btn btn-primary" id="generar-venta">Generar Venta</button>
+    </div>
+
+    <!-- Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Seleccione el medio de pago</h2>
+            <form id="paymentForm">
+                <div class="payment-option">
+                    <input type="radio" id="nequi" name="paymentMethod" value="nequi" required>
+                    <label for="nequi">Nequi</label>
+                </div>
+                <div class="payment-option">
+                    <input type="radio" id="daviplata" name="paymentMethod" value="daviplata">
+                    <label for="daviplata">Daviplata</label>
+                </div>
+                <div class="payment-option">
+                    <input type="radio" id="efectivo" name="paymentMethod" value="efectivo">
+                    <label for="efectivo">Efectivo</label>
+                </div>
+                <div class="payment-option">
+                    <input type="radio" id="tarjeta" name="paymentMethod" value="tarjeta">
+                    <label for="tarjeta">Tarjeta</label>
+                </div>
+                <button type="submit" class="btn btn-success">Confirmar</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Get the modal
+        var modal = document.getElementById("paymentModal");
+
+        // Get the button that opens the modal
+        var btn = document.getElementById("generar-venta");
+
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks the button, open the modal
+        btn.onclick = function() {
+            modal.style.display = "block";
+        }
+
+        // When the user clicks on <span> (x), close the modal
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Handle form submission
+        document.getElementById("paymentForm").onsubmit = function(event) {
+            event.preventDefault();
+            var selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+            alert("Método de pago seleccionado: " + selectedPaymentMethod);
+            modal.style.display = "none";
+            // Aquí puedes enviar el formulario principal
+            // document.getElementById("venta-form").submit();
+        }
+    </script>
+</body>
+</html>
