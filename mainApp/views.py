@@ -478,6 +478,7 @@ def agregar_punto_pago_view(request):
         sucursal_id = request.POST.get('sucursal')
         nombres = request.POST.getlist('nombre[]')
         descripciones = request.POST.getlist('descripcion[]')
+        dinero_caja_list = request.POST.getlist('dineroCaja[]')
 
         if not sucursal_id:
             messages.error(request, 'La sucursal es obligatoria.')
@@ -489,13 +490,18 @@ def agregar_punto_pago_view(request):
 
         sucursal = Sucursal.objects.get(sucursalid=sucursal_id)
 
-        for nombre, descripcion in zip(nombres, descripciones):
+        for nombre, descripcion, dinero_caja in zip(nombres, descripciones, dinero_caja_list):
             if nombre:
                 if PuntosPago.objects.filter(sucursalid=sucursal, nombre=nombre).exists():
                     messages.error(request, f'La sucursal ya tiene un punto de pago con el nombre {nombre}.')
                     return redirect('agregar_punto_pago')
                 
-                punto_pago = PuntosPago(sucursalid=sucursal, nombre=nombre, descripcion=descripcion or "")
+                punto_pago = PuntosPago(
+                    sucursalid=sucursal,
+                    nombre=nombre,
+                    descripcion=descripcion or "",
+                    dineroCaja=dinero_caja or 0.00
+                )
                 punto_pago.save()
 
         messages.success(request, 'Puntos de pago agregados exitosamente.')

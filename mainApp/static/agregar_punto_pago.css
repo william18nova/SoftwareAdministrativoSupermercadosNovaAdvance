@@ -48,19 +48,6 @@ body {
 }
 
 .form-group-punto-pago select {
-    width: calc(100% + 0px); /* Ajusta este valor para incluir padding */
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.input-nombre,
-.input-descripcion {
     width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
     padding: 10px;
     border: 1px solid #ccc;
@@ -72,7 +59,21 @@ body {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-.form-group-punto-pago input[type="number"]:hover {
+.input-nombre,
+.input-descripcion,
+.input-dinero-caja {
+    width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f0f8ff;
+    margin: 0 auto;
+    display: block;
+    font-size: 16px;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.input-dinero-caja:hover {
     background-color: #d0d8ff;
     border-color: #777;
 }
@@ -190,6 +191,10 @@ body {
     margin-top: 50px;
 }
 
+.column-title {
+    display: none;
+}
+
 /* Responsiveness */
 @media (max-width: 768px) {
     .container-punto-pago {
@@ -212,17 +217,61 @@ body {
         margin-top: 10px;
     }
 
-    .table th,
-    .table td {
-        padding: 8px;
+    .table {
+        border: 0;
+    }
+
+    .table thead {
+        display: none;
+    }
+
+    .table tbody tr {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .table tbody td {
+        display: block;
+        text-align: left;
+        padding-left: 10px;
+        position: relative;
+        border-bottom: 1px solid #ddd;
+        word-break: break-word;
+    }
+
+    .table tbody td::before {
+        content: attr(data-label);
+        display: block;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .table tbody td:last-child {
+        border-bottom: 0;
+    }
+
+    .actions-cell {
+        justify-content: flex-start;
+        flex-direction: column; /* Colocar botones en columna en dispositivos móviles */
+        align-items: flex-start; /* Alinear a la izquierda */
+    }
+
+    .btn-container {
+        display: flex;
+        gap: 10px;
+        flex-direction: row; /* Asegurar que los botones estén en una fila */
     }
 
     .btn-eliminar {
-        width: 30px;
-        height: 30px;
+        justify-content: flex-start;
+        align-items: flex-start;
+        margin: 0; /* Alinear a la izquierda */
     }
 
-    .alert {
-        padding: 10px;
+    .column-title {
+        display: block;
+        font-weight: bold;
     }
 }
