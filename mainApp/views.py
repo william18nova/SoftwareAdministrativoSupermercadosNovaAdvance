@@ -10,6 +10,12 @@ from datetime import datetime
 from django.utils import timezone
 from django.contrib.auth import authenticate, login
 import logging
+from django.db import transaction
+import re
+import subprocess
+import os
+from .nequi_websocket import verificacionPago
+from django.views.decorators.csrf import csrf_exempt
 
 def login(request):
     if request.method == 'POST':
@@ -1040,27 +1046,21 @@ def generar_venta(request):
         puntopago_id = request.POST.get('puntopago_id')
         productos = json.loads(request.POST.get('productos', '[]'))
         cantidades = json.loads(request.POST.get('cantidades', '[]'))
+        medio_pago = request.POST.get('medio_pago')
 
         total = 0
         detalles = []
 
         try:
-            for i in range(len(productos)):
-                producto = Producto.objects.get(productoid=productos[i])
-                inventario = Inventario.objects.get(productoid=producto, sucursalid=sucursal_id)
+            productos_obj = Producto.objects.filter(productoid__in=productos)
+            inventarios = Inventario.objects.filter(productoid__in=productos_obj, sucursalid=sucursal_id)
+
+            for i, producto in enumerate(productos_obj):
+                inventario = inventarios.get(productoid=producto)
                 cantidad = int(cantidades[i])
                 if cantidad > inventario.cantidad:
-                    messages.error(request, f'No hay suficiente stock de {producto.nombre} en la sucursal seleccionada.')
-                    return render(request, 'generar_venta.html', {
-                        'clientes': Cliente.objects.all(),
-                        'sucursales': Sucursal.objects.all(),
-                        'puntos_pago': PuntosPago.objects.all(),
-                        'productos': Producto.objects.all(),
-                        'detalles': detalles,
-                        'total': total,
-                        'selected_sucursal': sucursal_id,
-                        'selected_puntopago': puntopago_id,
-                    })
+                    return JsonResponse({'success': False, 'error': f'No hay suficiente stock de {producto.nombre} en la sucursal seleccionada.'})
+
                 subtotal = producto.precio * cantidad
                 total += subtotal
                 detalles.append({
@@ -1070,96 +1070,77 @@ def generar_venta(request):
                     'subtotal': subtotal,
                     'productoid': producto.productoid
                 })
-        except Exception as e:
-            messages.error(request, 'Error al procesar los productos.')
-            return render(request, 'generar_venta.html', {
-                'clientes': Cliente.objects.all(),
-                'sucursales': Sucursal.objects.all(),
-                'puntos_pago': PuntosPago.objects.all(),
-                'productos': Producto.objects.all(),
-                'detalles': detalles,
-                'total': total,
-                'selected_sucursal': sucursal_id,
-                'selected_puntopago': puntopago_id,
-            })
 
-        try:
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': 'Error al procesar los productos.'})
+
+        if medio_pago == 'nequi' and not request.POST.get('confirmar_nequi'):
+            try:
+                script_path = os.path.join(os.path.dirname(__file__), 'nequi_websocket.py')
+                result = subprocess.run(['python', script_path], capture_output=True, text=True, timeout=60)
+                if 'se pago' not in result.stdout:
+                    return JsonResponse({'success': False, 'error': 'El pago no fue confirmado.'})
+            except subprocess.TimeoutExpired:
+                return JsonResponse({'success': False, 'error': 'El tiempo de espera para la confirmación del pago ha expirado.'})
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': f'Error en la conexión de WebSocket: {str(e)}'})
+
+        return procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, cantidades, medio_pago, detalles, total)
+
+    sucursal_id = request.GET.get('sucursal_id')
+    puntopago_id = request.GET.get('puntopago_id')
+    return render(request, 'generar_venta.html', obtener_contexto(sucursal_id, puntopago_id))
+
+def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, cantidades, medio_pago, detalles, total):
+    try:
+        with transaction.atomic():
             empleado = getattr(request.user, 'empleado', None)
             if empleado is None:
                 messages.error(request, 'El usuario autenticado no tiene un empleado asociado.')
-                return render(request, 'generar_venta.html', {
-                    'clientes': Cliente.objects.all(),
-                    'sucursales': Sucursal.objects.all(),
-                    'puntos_pago': PuntosPago.objects.all(),
-                    'productos': Producto.objects.all(),
-                    'detalles': detalles,
-                    'total': total,
-                    'selected_sucursal': sucursal_id,
-                    'selected_puntopago': puntopago_id,
-                })
+                return JsonResponse({'success': False, 'message': 'El usuario autenticado no tiene un empleado asociado.'})
 
             cliente = Cliente.objects.get(pk=cliente_id) if cliente_id else None
             sucursal = Sucursal.objects.get(pk=sucursal_id)
             puntopago = PuntosPago.objects.get(pk=puntopago_id)
 
             venta = Venta.objects.create(
-                fecha=datetime.now().date(),
-                hora=datetime.now().time(),
+                fecha=timezone.now().date(),
+                hora=timezone.now().time(),
                 clienteid=cliente,
                 empleadoid=empleado,
                 sucursalid=sucursal,
                 puntopagoid=puntopago,
-                total=total
+                total=total,
+                mediopago=medio_pago
             )
-        except Exception as e:
-            messages.error(request, 'Error al crear la venta.')
-            return render(request, 'generar_venta.html', {
-                'clientes': Cliente.objects.all(),
-                'sucursales': Sucursal.objects.all(),
-                'puntos_pago': PuntosPago.objects.all(),
-                'productos': Producto.objects.all(),
-                'detalles': detalles,
-                'total': total,
-                'selected_sucursal': sucursal_id,
-                'selected_puntopago': puntopago_id,
-            })
 
-        try:
             for detalle in detalles:
-                producto = Producto.objects.get(productoid=detalle['productoid'])
                 DetalleVenta.objects.create(
                     ventaid=venta,
-                    productoid=producto,
+                    productoid_id=detalle['productoid'],
                     cantidad=detalle['cantidad'],
-                    preciounitario=producto.precio
+                    preciounitario=detalle['precio_unitario']
                 )
-                inventario = Inventario.objects.get(productoid=producto, sucursalid=sucursal_id)
+                inventario = Inventario.objects.get(productoid_id=detalle['productoid'], sucursalid=sucursal_id)
                 inventario.cantidad -= detalle['cantidad']
                 inventario.save()
 
-            messages.success(request, 'La venta ha sido generada exitosamente.')
-            return redirect('generar_venta')  # Recargar la página actual
-        except Exception as e:
-            messages.error(request, 'Error al crear los detalles de la venta.')
-            return render(request, 'generar_venta.html', {
-                'clientes': Cliente.objects.all(),
-                'sucursales': Sucursal.objects.all(),
-                'puntos_pago': PuntosPago.objects.all(),
-                'productos': Producto.objects.all(),
-                'detalles': detalles,
-                'total': total,
-                'selected_sucursal': sucursal_id,
-                'selected_puntopago': puntopago_id,
-            })
+        return JsonResponse({'success': True, 'sucursal_id': sucursal_id, 'puntopago_id': puntopago_id})
 
-    return render(request, 'generar_venta.html', {
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': 'Error al crear la venta.'})
+
+def obtener_contexto(sucursal_id=None, puntopago_id=None, detalles=[], total=0):
+    return {
         'clientes': Cliente.objects.all(),
         'sucursales': Sucursal.objects.all(),
-        'puntos_pago': PuntosPago.objects.all(),
+        'puntos_pago': PuntosPago.objects.filter(sucursalid=sucursal_id) if sucursal_id else PuntosPago.objects.none(),
         'productos': Producto.objects.all(),
-        'detalles': [],
-        'total': 0
-    })
+        'detalles': detalles,
+        'total': total,
+        'selected_sucursal': sucursal_id,
+        'selected_puntopago': puntopago_id
+    }
 
 @login_required
 def verificar_producto(request):
@@ -1232,7 +1213,7 @@ def buscar_producto_por_codigo(request):
     codigo_de_barras = request.GET.get('codigo_de_barras')
     sucursal_id = request.GET.get('sucursal_id')
     producto = Producto.objects.filter(codigo_de_barras=codigo_de_barras, inventario__sucursalid=sucursal_id).first()
-    if producto:
+    if (producto):
         return JsonResponse({
             'exists': True,
             'producto': {
@@ -1242,3 +1223,15 @@ def buscar_producto_por_codigo(request):
             }
         })
     return JsonResponse({'exists': False})
+
+@csrf_exempt
+@login_required
+def verificar_pago_nequi(request):
+    if request.method == 'POST':
+        total = float(request.POST.get('total'))
+        flag = verificacionPago(total)  # Deberías ajustar verificacionPago para que tome el total y espere la confirmación
+        if flag:
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'success': False})
+    return JsonResponse({'success': False})

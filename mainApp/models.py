@@ -26,15 +26,20 @@ class Categoria(models.Model):
 
 class Producto(models.Model):
     productoid = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=100, unique=True)
+    nombre = models.CharField(max_length=100, unique=True, db_index=True)  # Agregar índice aquí
     descripcion = models.TextField(null=True, blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE, null=True, blank=True)
-    codigo_de_barras = models.CharField(max_length=100, null=True, blank=True)  # Nuevo campo
-    iva = models.FloatField(default=0.0)  # Campo para el porcentaje de IVA
+    codigo_de_barras = models.CharField(max_length=100, null=True, blank=True, db_index=True)  # Agregar índice aquí
+    iva = models.FloatField(default=0.0)
 
     class Meta:
         db_table = 'productos'
+        indexes = [
+            models.Index(fields=['nombre']),
+            models.Index(fields=['productoid']),
+            models.Index(fields=['codigo_de_barras']),
+        ]
 
     def __str__(self):
         return self.nombre
@@ -194,15 +199,17 @@ class Cliente(models.Model):
     def __str__(self):
         return f'{self.nombre} {self.apellido}'
 
+
 class Venta(models.Model):
     ventaid = models.AutoField(primary_key=True)
     fecha = models.DateField()
     hora = models.TimeField()  # Nuevo campo
-    clienteid = models.ForeignKey(Cliente, on_delete=models.CASCADE, null=True, blank=True, db_column='clienteid')
-    empleadoid = models.ForeignKey(Empleado, on_delete=models.CASCADE, db_column='empleadoid')
-    sucursalid = models.ForeignKey(Sucursal, on_delete=models.CASCADE, db_column='sucursalid')
-    puntopagoid = models.ForeignKey(PuntosPago, on_delete=models.CASCADE, db_column='puntopagoid')
+    clienteid = models.ForeignKey('Cliente', on_delete=models.CASCADE, null=True, blank=True, db_column='clienteid')
+    empleadoid = models.ForeignKey('Empleado', on_delete=models.CASCADE, db_column='empleadoid')
+    sucursalid = models.ForeignKey('Sucursal', on_delete=models.CASCADE, db_column='sucursalid')
+    puntopagoid = models.ForeignKey('PuntosPago', on_delete=models.CASCADE, db_column='puntopagoid')
     total = models.DecimalField(max_digits=10, decimal_places=2)
+    mediopago = models.CharField(max_length=50)  # Asegúrate de usar minúsculas aquí
 
     class Meta:
         db_table = 'ventas'
