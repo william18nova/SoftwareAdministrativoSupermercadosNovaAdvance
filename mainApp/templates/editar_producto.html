@@ -9,13 +9,22 @@
     <title>Editar Producto</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'editar_producto.css' %}">
+    <link rel="stylesheet" href="{% static 'editar_producto copy.css' %}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script> <!-- QuaggaJS -->
 </head>
 <body>
     <div class="container">
         <i class="fas fa-pencil-alt icon"></i> <!-- Ícono de edición -->
         <h2>Editar Producto</h2>
+        {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+        {% endif %}
         <form id="productoForm" action="{% url 'editar_producto' producto.productoid %}" method="POST">
             {% csrf_token %}
             <div class="form-group">
@@ -52,15 +61,6 @@
             <div class="form-group">
                 <input type="submit" value="Editar">
             </div>
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
         </form>
     </div>
     <script>
