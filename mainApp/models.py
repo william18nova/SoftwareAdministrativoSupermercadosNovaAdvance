@@ -120,7 +120,7 @@ class UsuarioManager(BaseUserManager):
     def create_superuser(self, nombreusuario, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        
+
         return self.create_user(nombreusuario, password, **extra_fields)
 
 class Usuario(AbstractBaseUser, PermissionsMixin):

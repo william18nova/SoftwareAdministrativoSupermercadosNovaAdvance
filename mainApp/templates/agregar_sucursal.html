@@ -10,12 +10,21 @@
     <!-- Font Awesome CDN -->
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static '/agregar_sucursal.css' %}">
+    <link rel="stylesheet" href="{% static '/agregar_sucursal copy.css' %}">
 </head>
 <body>
     <div class="container">
         <i class="fas fa-store icon"></i> <!-- Ícono de tienda -->
         <h2>Agregar Sucursal</h2>
+        {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+        {% endif %}
         <form id="sucursalForm" action="{% url 'agregar_sucursal' %}" method="POST">
             {% csrf_token %}
             <div class="form-group">
@@ -33,15 +42,6 @@
             <div class="form-group">
                 <input type="submit" value="Agregar">
             </div>
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
         </form>
     </div>
 </body>

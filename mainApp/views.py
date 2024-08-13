@@ -11,7 +11,6 @@ from django.utils import timezone
 from django.contrib.auth import authenticate, login
 import logging
 from django.db import transaction
-import re
 import subprocess
 import os
 from .nequi_websocket import verificacionPago
@@ -19,14 +18,17 @@ from django.views.decorators.csrf import csrf_exempt
 
 def login(request):
     if request.method == 'POST':
-        nombreusuario = request.POST['nombreusuario']
-        contraseña = request.POST['contraseña']
+        nombreusuario = request.POST.get('nombreusuario')
+        contraseña = request.POST.get('contraseña')
+
         usuario = authenticate(request, username=nombreusuario, password=contraseña)
+        
         if usuario is not None:
             auth_login(request, usuario)
-            return redirect('home')
+            return redirect('home')  # Asegúrate de que 'home' está correctamente definido en tus URLs
         else:
             messages.error(request, 'Nombre de usuario o contraseña incorrectos')
+
     return render(request, 'login.html')
 
 @login_required
@@ -636,14 +638,18 @@ def agregar_usuario_view(request):
 
         if contraseña != confirmar_contraseña:
             messages.error(request, 'Las contraseñas no coinciden.')
+
         elif Usuario.objects.filter(nombreusuario=nombreusuario).exists():
             messages.error(request, f'El nombre de usuario "{nombreusuario}" ya existe.')
+
         else:
-            rol = Rol.objects.get(pk=rol_id)
-            Usuario.objects.create(nombreusuario=nombreusuario, contraseña=contraseña, rolid=rol)
+            nuevo_usuario = Usuario(nombreusuario=nombreusuario, rolid=rol_id)  # Pasa el ID del rol como un entero
+            nuevo_usuario.set_password(contraseña)  # Encripta la contraseña antes de guardar
+            nuevo_usuario.save()
             messages.success(request, f'Usuario "{nombreusuario}" creado exitosamente.')
 
     return render(request, 'agregar_usuario.html', {'roles': roles})
+
 
 @login_required
 def visualizar_usuarios_view(request):
