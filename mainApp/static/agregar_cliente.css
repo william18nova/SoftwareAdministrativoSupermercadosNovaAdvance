@@ -1,141 +1,181 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+/* Variables CSS para facilitar cambios de color y mantenimiento */
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-rojo: #ff0000;
+    --color-gris-claro: #f0f8ff;
+    --color-gris: #ccc;
+    --color-gris-hover: #aaa;
+    --color-boton: #3b5998;
+    --color-boton-hover: #2b467d;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+    --fuente-secundaria: 'Arial', sans-serif;
+    --transicion: 0.3s;
+    --bordes-radio: 5px;
+    --sombra: 0 4px 8px rgba(0, 0, 0, 0.2);
+    --padding-contenedor: 40px;
+    --padding-contenedor-movil: 30px 20px;
+    --padding-input: 10px;
+    --padding-input-movil: 8px;
+    --tamanio-icono: 90px;
+    --tamanio-icono-movil: 60px;
+    --tamanio-titulo: 24px;
+    --tamanio-titulo-movil: 22px;
+    --tamanio-texto: 16px;
+    --tamanio-texto-movil: 14px;
+    --tamanio-texto-obligatorio: 14px;
+    --tamanio-texto-obligatorio-movil: 12px;
+}
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Estilos del cuerpo */
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(to bottom right, #ADD8E6, #005091);
-    font-family: 'Roboto', Arial, sans-serif;
-    text-align: center;
-    color: white;
-    overflow: hidden;
-}
-
-html, body {
-    height: 100%;
+    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+    font-family: var(--fuente-principal);
+    color: var(--color-blanco);
     overflow: auto; /* Permitir el desplazamiento en la página */
+    position: relative; /* Para posicionar elementos absolutos dentro del body */
 }
 
+/* Pseudo-elemento para el fondo difuminado */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none; /* Asegura que no haya interacción con este elemento */
+}
+
+/* Contenedor principal */
 .container-empleado {
     background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 400px;
+    padding: var(--padding-contenedor);
+    border-radius: var(--bordes-radio);
+    box-shadow: var(--sombra);
+    width: 90%;
+    max-width: 400px;
     text-align: center;
     position: relative;
     overflow: hidden; /* Evitar el desbordamiento horizontal */
 }
 
+/* Título del contenedor */
 .container-empleado h2 {
-    color: #ffffff;
-    margin-bottom: 10px;
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: var(--tamanio-titulo);
 }
 
+/* Icono */
 .icon-empleado {
-    font-size: 90px;
-    margin-bottom: 5px;
-    color: #ffffff;
+    font-size: var(--tamanio-icono);
+    margin-bottom: 15px;
+    color: var(--color-blanco);
 }
 
+/* Grupo de formulario */
 .form-group-empleado {
     margin-bottom: 20px;
     text-align: left;
 }
 
+/* Etiquetas de los campos */
 .form-group-empleado label {
     display: block;
     margin-bottom: 5px;
-    color: #ffffff;
+    color: var(--color-blanco);
     font-weight: bold;
+    font-size: var(--tamanio-texto);
 }
 
+/* Asterisco para campos obligatorios */
+.form-group-empleado .required {
+    color: var(--color-blanco);
+    margin-left: 5px;
+    font-size: 18px; /* Tamaño del asterisco */
+}
+
+/* Texto informativo sobre campos obligatorios */
+.obligatorio-texto {
+    font-style: italic;
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: var(--tamanio-texto-obligatorio);
+}
+
+/* Campos de entrada y select */
 .form-group-empleado input,
 .form-group-empleado select {
-    width: calc(100% - 16px);
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
+    width: 100%;
+    padding: var(--padding-input);
+    border: 1px solid var(--color-gris);
+    border-radius: var(--bordes-radio);
+    background-color: var(--color-gris-claro);
+    font-size: var(--tamanio-texto);
+    transition: background-color var(--transicion), border-color var(--transicion);
 }
 
-.input-container {
-    position: relative;
-}
-
-.input-container input {
-    width: calc(98.5% - 40px); /* Ajustar el ancho para dejar espacio para el ícono */
-    padding-right: 40px; /* Espacio para el ícono */
-}
-
-.input-container .toggle-password {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: pointer;
-    color: #3b5998; /* Cambiar color del icono */
-}
-
-.form-group-empleado select {
-    width: 101.4%; /* Ajustar el ancho del select */
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
+/* Hover sobre campos de entrada y select */
 .form-group-empleado input:hover,
 .form-group-empleado select:hover {
     background-color: #e0e8ff;
-    border-color: #aaa;
+    border-color: var(--color-gris-hover);
 }
 
-/* Estilo para el botón de agregar empleado */
+/* Enfoque sobre campos de entrada y select */
+.form-group-empleado input:focus,
+.form-group-empleado select:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
+}
+
+/* Botón de agregar empleado */
 .btn-agregar-empleado {
-    background-color: #3b5998;
-    color: #ffffff;
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
     border: none;
     cursor: pointer;
     padding: 12px;
     text-align: center;
-    width: 45%; /* Ajusta el ancho del botón */
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-    margin: 20px auto 0; /* Centrando el botón */
-    display: block; /* Asegura que el botón se comporte como un bloque y pueda ser centrado */
-    margin-top: 35px;
-    margin-bottom: -20px;
+    width: 100%;
+    font-size: var(--tamanio-texto);
+    border-radius: var(--bordes-radio);
+    transition: background-color var(--transicion);
+    margin-top: 20px;
 }
 
 .btn-agregar-empleado:hover {
-    background-color: #2b467d;
+    background-color: var(--color-boton-hover);
 }
 
+/* Estilos de alertas */
 .alert {
     padding: 15px;
     margin-top: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
-}
-
-.alert-success {
-    color: #3c763d;
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-    margin-bottom: 20px;
+    font-size: var(--tamanio-texto);
 }
 
 .alert-error {
@@ -143,4 +183,78 @@ html, body {
     background-color: #f2dede;
     border-color: #ebccd1;
     margin-bottom: 20px;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+/* Responsividad para dispositivos móviles */
+@media (max-width: 768px) {
+    .container-empleado {
+        padding: var(--padding-contenedor-movil);
+    }
+
+    .icon-empleado {
+        font-size: var(--tamanio-icono-movil);
+        margin-bottom: 10px;
+    }
+
+    .container-empleado h2 {
+        font-size: var(--tamanio-titulo-movil);
+        margin-bottom: 15px;
+    }
+
+    .form-group-empleado input,
+    .form-group-empleado select {
+        padding: var(--padding-input-movil);
+        font-size: 14px;
+    }
+
+    .btn-agregar-empleado {
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .obligatorio-texto {
+        font-size: var(--tamanio-texto-obligatorio-movil);
+    }
+}
+
+/* Responsividad para dispositivos muy pequeños */
+@media (max-width: 480px) {
+    .container-empleado {
+        padding: 20px 15px;
+    }
+
+    .icon-empleado {
+        font-size: 50px;
+        margin-bottom: 8px;
+    }
+
+    .container-empleado h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .form-group-empleado input,
+    .form-group-empleado select {
+        font-size: 14px;
+        padding: 6px;
+    }
+
+    .btn-agregar-empleado {
+        font-size: 16px;
+        padding: 8px;
+    }
+
+    .obligatorio-texto {
+        font-size: 10px;
+    }
 }

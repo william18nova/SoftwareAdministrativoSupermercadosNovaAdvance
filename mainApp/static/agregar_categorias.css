@@ -1,19 +1,42 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+/* Variables CSS para facilitar cambios de color y mantenimiento */
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-rojo: #ff0000;
+    --color-gris-claro: #f0f8ff;
+    --color-gris: #ccc;
+    --color-gris-hover: #aaa;
+    --color-boton: #003366;
+    --color-boton-hover: #002244;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+    --fuente-secundaria: 'Arial', sans-serif;
+}
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Estilos del cuerpo */
 body {
     margin: 0;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(to bottom right, #ADD8E6, #005091);
-    font-family: 'Roboto', Arial, sans-serif;
-    text-align: center;
-    color: white;
-    overflow: auto;
+    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+    font-family: var(--fuente-principal);
+    color: var(--color-blanco);
+    overflow: auto; /* Permitir el desplazamiento en la página */
     position: relative; /* Para posicionar elementos absolutos dentro del body */
 }
 
+/* Pseudo-elemento para el fondo difuminado */
 body::before {
     content: '';
     position: absolute;
@@ -27,6 +50,7 @@ body::before {
     pointer-events: none; /* Asegura que no haya interacción con este elemento */
 }
 
+/* Contenedor principal */
 .container {
     background: rgba(255, 255, 255, 0.1);
     padding: 40px;
@@ -36,102 +60,117 @@ body::before {
     max-width: 400px;
     text-align: center;
     position: relative;
-    overflow: hidden;
+    overflow: hidden; /* Evitar el desbordamiento horizontal */
 }
 
+/* Título del contenedor */
 .container h2 {
-    color: #ffffff;
-    margin-bottom: 10px;
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: 24px;
 }
 
+/* Icono */
 .icon {
     font-size: 90px;
-    margin-bottom: 5px;
-    color: #ffffff;
+    margin-bottom: 15px;
+    color: var(--color-blanco);
 }
 
+/* Grupo de formulario */
 .form-group {
     margin-bottom: 20px;
     text-align: left;
 }
 
+/* Etiquetas de los campos */
 .form-group label {
     display: block;
     margin-bottom: 5px;
-    color: #ffffff;
+    color: var(--color-blanco);
     font-weight: bold;
+    font-size: 16px;
 }
 
-.form-group label .required {
-    color: red;
+/* Asterisco para campos obligatorios */
+.form-group .required {
+    color: var(--color-blanco);
     margin-left: 5px;
     font-size: 18px; /* Tamaño del asterisco */
 }
 
+/* Texto informativo sobre campos obligatorios */
 .obligatorio-texto {
     font-style: italic;
-    color: #ffffff;
-    margin-bottom: 15px;
+    color: var(--color-blanco);
+    margin-bottom: 20px;
     font-size: 14px;
 }
 
+/* Campos de entrada y select */
 .form-group input[type="text"],
 .form-group input[type="email"],
 .form-group select {
-    width: calc(100% - 16px);
+    width: 100%;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-gris);
     border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
+    background-color: var(--color-gris-claro);
     font-size: 16px;
     transition: background-color 0.3s, border-color 0.3s;
 }
 
+/* Hover sobre campos de entrada y select */
 .form-group input[type="text"]:hover,
 .form-group input[type="email"]:hover,
 .form-group select:hover {
     background-color: #e0e8ff;
-    border-color: #aaa;
+    border-color: var(--color-gris-hover);
 }
 
+/* Enfoque sobre campos de entrada y select */
+.form-group input[type="text"]:focus,
+.form-group input[type="email"]:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
+}
+
+/* Botón de agregar categoría */
 .btn-agregar-categoria {
-    background-color: #003366;
-    color: #ffffff;
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
     border: none;
     cursor: pointer;
     padding: 12px;
     text-align: center;
     width: 100%;
-    max-width: 150px;
     font-size: 18px;
-    transition: background-color 0.3s;
     border-radius: 5px;
-    margin: 0 auto;
-    display: block;
-    margin-top: 35px;
-    margin-bottom: -20px;
+    transition: background-color 0.3s;
+    margin-top: 20px;
 }
 
 .btn-agregar-categoria:hover {
-    background-color: #002244;
+    background-color: var(--color-boton-hover);
 }
 
+/* Estilos de alertas */
 .alert {
     padding: 15px;
     margin-top: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
+    font-size: 16px;
 }
 
 .alert-error {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
-    margin-top: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .alert-success {
@@ -141,27 +180,27 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    margin-top: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
-/* Media queries para dispositivos móviles */
+/* Responsividad para dispositivos móviles */
 @media (max-width: 768px) {
     .container {
-        width: 90%;
-        padding: 20px;
+        padding: 30px 20px;
     }
 
     .icon {
         font-size: 60px;
+        margin-bottom: 10px;
     }
 
     .container h2 {
-        font-size: 24px;
+        font-size: 22px;
+        margin-bottom: 15px;
     }
 
-    .form-group input,
+    .form-group input[type="text"],
+    .form-group input[type="email"],
     .form-group select {
         padding: 8px;
         font-size: 14px;
@@ -174,5 +213,38 @@ body::before {
 
     .obligatorio-texto {
         font-size: 12px;
+    }
+}
+
+/* Responsividad para dispositivos muy pequeños */
+@media (max-width: 480px) {
+    .container {
+        padding: 20px 15px;
+    }
+
+    .icon {
+        font-size: 50px;
+        margin-bottom: 8px;
+    }
+
+    .container h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group select {
+        font-size: 14px;
+        padding: 6px;
+    }
+
+    .btn-agregar-categoria {
+        font-size: 16px;
+        padding: 8px;
+    }
+
+    .obligatorio-texto {
+        font-size: 10px;
     }
 }
