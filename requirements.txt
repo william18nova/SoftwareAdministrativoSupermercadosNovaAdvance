@@ -1,0 +1,4 @@
+Django==5.1.1
+psycopg2-binary==2.9.10
+python-decouple==3.8
+websocket-client==1.8.0

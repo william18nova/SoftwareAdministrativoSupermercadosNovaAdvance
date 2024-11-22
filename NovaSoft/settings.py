@@ -78,13 +78,19 @@ WSGI_APPLICATION = 'NovaSoft.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'databaseTest',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'databasetest.cb4goiuiyfvf.us-east-2.rds.amazonaws.com',
-        'PORT': '5432',  # el puerto predeterminado para PostgreSQL
+        'NAME': 'defaultdb',
+        'USER': 'avnadmin',
+        'PASSWORD': 'AVNS_OAicR-UdHRwwt0oC4Pu',
+        'HOST': 'nova-advance-dessarrolo-william84859-1d6e.i.aivencloud.com',
+        'PORT': '16802',  # Puerto personalizado para PostgreSQL
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
+
+
+
 
 
 # Password validation

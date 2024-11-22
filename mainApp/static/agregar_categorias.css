@@ -11,6 +11,7 @@ body {
     text-align: center;
     color: white;
     overflow: auto;
+    position: relative; /* Para posicionar elementos absolutos dentro del body */
 }
 
 body::before {
@@ -23,7 +24,7 @@ body::before {
     background: inherit;
     filter: blur(20px);
     z-index: -1;
-    pointer-events: none; /* Ensure no interaction with this element */
+    pointer-events: none; /* Asegura que no haya interacción con este elemento */
 }
 
 .container {
@@ -61,7 +62,22 @@ body::before {
     font-weight: bold;
 }
 
-.form-group input[type="text"], .form-group select {
+.form-group label .required {
+    color: red;
+    margin-left: 5px;
+    font-size: 18px; /* Tamaño del asterisco */
+}
+
+.obligatorio-texto {
+    font-style: italic;
+    color: #ffffff;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group select {
     width: calc(100% - 16px);
     padding: 10px;
     border: 1px solid #ccc;
@@ -73,7 +89,9 @@ body::before {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-.form-group input[type="text"]:hover, .form-group select:hover {
+.form-group input[type="text"]:hover,
+.form-group input[type="email"]:hover,
+.form-group select:hover {
     background-color: #e0e8ff;
     border-color: #aaa;
 }
@@ -143,13 +161,18 @@ body::before {
         font-size: 24px;
     }
 
-    .form-group input {
+    .form-group input,
+    .form-group select {
         padding: 8px;
         font-size: 14px;
     }
 
-    .form-group input[type="submit"] {
+    .btn-agregar-categoria {
         padding: 10px;
         font-size: 16px;
+    }
+
+    .obligatorio-texto {
+        font-size: 12px;
     }
 }

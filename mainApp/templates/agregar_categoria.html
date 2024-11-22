@@ -16,6 +16,7 @@
     <div class="container">
         <i class="fas fa-folder-plus icon"></i> <!-- Ícono de carpeta con signo de más -->
         <h2>Agregar Categoría</h2>
+        <p class="obligatorio-texto">Todos los campos con <span style="color: red;">*</span> son obligatorios.</p>
         {% if messages %}
                 <div class="messages">
                     {% for message in messages %}
@@ -28,7 +29,7 @@
         <form id="categoriaForm" action="{% url 'agregar_categoria' %}" method="POST">
             {% csrf_token %}
             <div class="form-group">
-                <label for="nombre">Nombre</label>
+                <label for="nombre">Nombre <span style="color: red;">*</span></label>
                 <input type="text" id="nombre" name="nombre" required>
             </div>
             <div class="form-group">
@@ -41,16 +42,10 @@
         </form>
     </div>
 
-    <script>
-        document.getElementById('categoriaForm').addEventListener('submit', function(event) {
-            let nombre = document.getElementById('nombre').value;
-
-            if (!nombre) {
-                alert('El campo Nombre es obligatorio.');
-                event.preventDefault(); // Evita el envío del formulario
-            }
-        });
-    </script>
+    <script>{% static 'javascript/agregar_categorias.js' %}</script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
 {% endblock %}
+
+
