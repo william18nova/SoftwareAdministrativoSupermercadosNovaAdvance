@@ -15,6 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
+from .forms import CategoriaForm
 
 def login(request):
     if request.method == 'POST':
@@ -99,23 +100,17 @@ def editar_sucursal_view(request, sucursal_id):
 @login_required
 def agregar_categoria_view(request):
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion', '')
-
-        if not nombre:
-            messages.error(request, 'El Nombre es un campo obligatorio.')
-            return render(request, 'agregar_categoria.html')
-
-        if Categoria.objects.filter(nombre=nombre).exists():
-            messages.error(request, 'El Nombre de la categoría ya está registrado.')
-            return render(request, 'agregar_categoria.html')
-
-        categoria = Categoria(nombre=nombre, descripcion=descripcion)
-        categoria.save()
-        messages.success(request, f'Categoría agregada exitosamente: Nombre={nombre}, Descripción={descripcion}')
-        return redirect('agregar_categoria')
-
-    return render(request, 'agregar_categoria.html')
+        form = CategoriaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Categoría agregada exitosamente.')
+            return redirect('agregar_categoria')
+        else:
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
+    else:
+        form = CategoriaForm()
+    
+    return render(request, 'agregar_categoria.html', {'form': form})
 
 @login_required
 def visualizar_categorias_view(request):
@@ -996,56 +991,23 @@ def editar_horarios_cajas_view(request, puntopagoid):
 @login_required
 def agregar_cliente(request):
     if request.method == 'POST':
-        try:
-            # Obtener datos del formulario
-            nombre = request.POST.get('nombre')
-            apellido = request.POST.get('apellido')
-            telefono = request.POST.get('telefono')
-            email = request.POST.get('email')
-            numerodocumento = request.POST.get('numerodocumento')
+        nombre = request.POST.get('nombre')
+        apellido = request.POST.get('apellido')
+        telefono = request.POST.get('telefono')
+        email = request.POST.get('email')
+        numerodocumento = request.POST.get('numerodocumento')
 
-            # Validación básica
-            if not all([nombre, apellido, telefono, email, numerodocumento]):
-                return JsonResponse({'success': False, 'error': 'Todos los campos son obligatorios.'}, status=400)
+        if Cliente.objects.filter(numerodocumento=numerodocumento).exists():
+            return JsonResponse({'success': False, 'error': 'El número de documento ya está registrado.'})
+        if Cliente.objects.filter(email=email).exists():
+            return JsonResponse({'success': False, 'error': 'El correo electrónico ya está registrado.'})
+        if Cliente.objects.filter(telefono=telefono).exists():
+            return JsonResponse({'success': False, 'error': 'El teléfono ya está registrado.'})
 
-            # Validar formato de teléfono
-            if not telefono.isdigit() or len(telefono) != 10:
-                return JsonResponse({'success': False, 'error': 'El número de teléfono debe tener 10 dígitos numéricos.'}, status=400)
+        cliente = Cliente(nombre=nombre, apellido=apellido, telefono=telefono, email=email, numerodocumento=numerodocumento)
+        cliente.save()
 
-            # Validar formato de email
-            from django.core.validators import validate_email
-            from django.core.exceptions import ValidationError
-            try:
-                validate_email(email)
-            except ValidationError:
-                return JsonResponse({'success': False, 'error': 'El correo electrónico no es válido.'}, status=400)
-
-            # Verificar unicidad
-            if Cliente.objects.filter(numerodocumento=numerodocumento).exists():
-                return JsonResponse({'success': False, 'error': 'El número de documento ya está registrado.'}, status=400)
-            if Cliente.objects.filter(email=email).exists():
-                return JsonResponse({'success': False, 'error': 'El correo electrónico ya está registrado.'}, status=400)
-            if Cliente.objects.filter(telefono=telefono).exists():
-                return JsonResponse({'success': False, 'error': 'El teléfono ya está registrado.'}, status=400)
-
-            # Crear y guardar el cliente
-            cliente = Cliente(
-                nombre=nombre,
-                apellido=apellido,
-                telefono=telefono,
-                email=email,
-                numerodocumento=numerodocumento
-            )
-            cliente.save()
-
-            return JsonResponse({'success': True})
-
-        except Exception as e:
-            # Registrar el error para depuración
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error al agregar cliente: {e}")
-            return JsonResponse({'success': False, 'error': 'Ocurrió un error al agregar el cliente.'}, status=500)
+        return JsonResponse({'success': True})
 
     return render(request, 'agregar_cliente.html')
 

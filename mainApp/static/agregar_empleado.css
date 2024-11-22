@@ -1,0 +1,227 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+/* Variables CSS para facilitar cambios de color y mantenimiento */
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-rojo: #ff0000;
+    --color-gris-claro: #f0f8ff;
+    --color-gris: #ccc;
+    --color-gris-hover: #aaa;
+    --color-boton: #3b5998;
+    --color-boton-hover: #2b467d;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+}
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Estilos del cuerpo */
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+    font-family: var(--fuente-principal);
+    text-align: center;
+    color: var(--color-blanco);
+    overflow: auto; /* Permitir scroll en todo el body */
+}
+
+/* Contenedor principal */
+.container-empleado {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
+}
+
+/* Título del contenedor */
+.container-empleado h2 {
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+/* Icono */
+.icon-empleado {
+    font-size: 90px;
+    margin-bottom: 15px;
+    color: var(--color-blanco);
+}
+
+/* Grupo de formulario */
+.form-group-empleado {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+/* Etiquetas de los campos */
+.form-group-empleado label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--color-blanco);
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Asterisco para campos obligatorios */
+.form-group-empleado .required {
+    color: var(--color-rojo);
+    margin-left: 5px;
+    font-size: 18px; /* Tamaño del asterisco */
+}
+
+/* Texto informativo sobre campos obligatorios */
+.obligatorio-texto {
+    font-style: italic;
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+/* Campos de entrada y select */
+.form-group-empleado input,
+.form-group-empleado select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--color-gris);
+    border-radius: 5px;
+    background-color: var(--color-gris-claro);
+    font-size: 16px;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+/* Hover sobre campos de entrada y select */
+.form-group-empleado input:hover,
+.form-group-empleado select:hover {
+    background-color: #e0e8ff;
+    border-color: var(--color-gris-hover);
+}
+
+/* Enfoque sobre campos de entrada y select */
+.form-group-empleado input:focus,
+.form-group-empleado select:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
+}
+
+/* Botón de agregar empleado */
+.btn-agregar-empleado {
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+    width: 100%; /* Ajusta el ancho del botón */
+    font-size: 18px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    margin: 20px auto 0; /* Centrando el botón */
+    display: block; /* Asegura que el botón se comporte como un bloque y pueda ser centrado */
+}
+
+.btn-agregar-empleado:hover {
+    background-color: var(--color-boton-hover);
+}
+
+/* Estilos de alertas */
+.alert {
+    padding: 15px;
+    margin-top: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+    margin-top: -15px;
+}
+
+.alert-error {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    margin-top: -15px;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+    .container-empleado {
+        padding: 30px 20px;
+    }
+
+    .icon-empleado {
+        font-size: 60px;
+        margin-bottom: 10px;
+    }
+
+    .container-empleado h2 {
+        font-size: 22px;
+        margin-bottom: 15px;
+    }
+
+    .form-group-empleado input,
+    .form-group-empleado select {
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    .btn-agregar-empleado {
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .obligatorio-texto {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container-empleado {
+        padding: 20px 15px;
+    }
+
+    .icon-empleado {
+        font-size: 50px;
+        margin-bottom: 8px;
+    }
+
+    .container-empleado h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .form-group-empleado input,
+    .form-group-empleado select {
+        font-size: 14px;
+        padding: 6px;
+    }
+
+    .btn-agregar-empleado {
+        font-size: 16px;
+        padding: 8px;
+    }
+
+    .obligatorio-texto {
+        font-size: 10px;
+    }
+}

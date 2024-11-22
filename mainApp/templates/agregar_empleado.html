@@ -9,12 +9,18 @@
     <title>Agregar Empleado</title>
     {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'agregar_empleado copy.css' %}">
+    <link rel="stylesheet" href="{% static 'agregar_empleado.css' %}">
 </head>
 <body>
     <div class="container-empleado">
         <i class="fas fa-user-plus icon-empleado"></i>
         <h2>Agregar Empleado</h2>
+        <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
+        
+        <!-- Elementos para mensajes de error y éxito -->
+        <div id="error-message" class="alert alert-error" style="display: none;"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+        
         {% if messages %}
             <div class="messages">
                 {% for message in messages %}
@@ -24,26 +30,27 @@
                 {% endfor %}
             </div>
         {% endif %}
-        <form method="POST" action="{% url 'agregar_empleado' %}">
+        
+        <form id="form-agregar-empleado" method="POST" action="{% url 'agregar_empleado' %}">
             {% csrf_token %}
             <div class="form-group-empleado">
-                <label for="numerodocumento">Número de Documento</label>
+                <label for="numerodocumento">Número de Documento <span class="required">*</span></label>
                 <input type="text" id="numerodocumento" name="numerodocumento" required>
             </div>
             <div class="form-group-empleado">
-                <label for="nombre">Nombre</label>
+                <label for="nombre">Nombre <span class="required">*</span></label>
                 <input type="text" id="nombre" name="nombre" required>
             </div>
             <div class="form-group-empleado">
-                <label for="apellido">Apellido</label>
+                <label for="apellido">Apellido <span class="required">*</span></label>
                 <input type="text" id="apellido" name="apellido" required>
             </div>
             <div class="form-group-empleado">
-                <label for="telefono">Teléfono</label>
+                <label for="telefono">Teléfono <span class="required">*</span></label>
                 <input type="text" id="telefono" name="telefono" required>
             </div>
             <div class="form-group-empleado">
-                <label for="email">Correo Electrónico</label>
+                <label for="email">Correo Electrónico <span class="required">*</span></label>
                 <input type="email" id="email" name="email" required>
             </div>
             <div class="form-group-empleado">

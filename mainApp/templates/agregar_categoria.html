@@ -1,40 +1,73 @@
-<!DOCTYPE html>
+<!-- mainApp/templates/agregar_categoria.html -->
+
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Agregar Categoría{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agregar Categoría</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static '/agregar_categorias.css' %}">
+    <link rel="stylesheet" href="{% static 'agregar_categorias.css' %}">
 </head>
 <body>
     <div class="container">
         <i class="fas fa-folder-plus icon"></i> <!-- Ícono de carpeta con signo de más -->
         <h2>Agregar Categoría</h2>
         <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
+        
+        <!-- Mensajes de Django -->
         {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
         {% endif %}
+        
+        <!-- Formulario de Categoría -->
         <form id="categoriaForm" action="{% url 'agregar_categoria' %}" method="POST">
             {% csrf_token %}
+            
+            <!-- Renderizar errores no relacionados con un campo específico -->
+            {% if form.non_field_errors %}
+                <div class="alert alert-error">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+            
+            <!-- Campo Nombre -->
             <div class="form-group">
-                <label for="nombre">Nombre <span class="required">*</span></label>
-                <input type="text" id="nombre" name="nombre" required>
+                <label for="id_nombre">
+                    {{ form.nombre.label }} <span class="required">*</span>
+                </label>
+                {{ form.nombre }} <!-- Campo de entrada -->
+                {% if form.nombre.errors %}
+                    <div class="alert alert-error">
+                        {{ form.nombre.errors }}
+                    </div>
+                {% endif %}
             </div>
+            
+            <!-- Campo Descripción -->
             <div class="form-group">
-                <label for="descripcion">Descripción</label>
-                <input type="text" id="descripcion" name="descripcion">
+                <label for="id_descripcion">
+                    {{ form.descripcion.label }}
+                </label>
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}
+                    <div class="alert alert-error">
+                        {{ form.descripcion.errors }}
+                    </div>
+                {% endif %}
             </div>
+            
+            <!-- Botón de Envío -->
             <div class="form-group">
                 <input type="submit" value="Agregar" class="btn-agregar-categoria">
             </div>
