@@ -1,3 +1,5 @@
+/* agregar_empleado.css */
+
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
 /* Variables CSS para facilitar cambios de color y mantenimiento */
@@ -12,6 +14,7 @@
     --color-boton: #3b5998;
     --color-boton-hover: #2b467d;
     --fuente-principal: 'Roboto', Arial, sans-serif;
+    --fuente-secundaria: 'Arial', sans-serif;
 }
 
 /* Reset básico */
@@ -33,6 +36,21 @@ body {
     text-align: center;
     color: var(--color-blanco);
     overflow: auto; /* Permitir scroll en todo el body */
+    position: relative; /* Para posicionar elementos absolutos dentro del body */
+}
+
+/* Pseudo-elemento para el fondo difuminado */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none; /* Asegura que no haya interacción con este elemento */
 }
 
 /* Contenedor principal */
@@ -79,7 +97,7 @@ body {
 
 /* Asterisco para campos obligatorios */
 .form-group-empleado .required {
-    color: var(--color-rojo);
+    color: var(--color-blanco);
     margin-left: 5px;
     font-size: 18px; /* Tamaño del asterisco */
 }
@@ -153,17 +171,27 @@ body {
     color: #3c763d;
     background-color: #dff0d8;
     border-color: #d6e9c6;
-    margin-top: -15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
 }
 
 .alert-error {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
-    margin-top: -15px;
+    margin-bottom: 20px;
 }
 
-/* Responsividad */
+/* Estilos para mensajes de error de campo */
+.field-error {
+    color: #a94442;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* Responsividad para dispositivos móviles */
 @media (max-width: 768px) {
     .container-empleado {
         padding: 30px 20px;
@@ -186,8 +214,8 @@ body {
     }
 
     .btn-agregar-empleado {
-        font-size: 16px;
         padding: 10px;
+        font-size: 16px;
     }
 
     .obligatorio-texto {
@@ -195,6 +223,7 @@ body {
     }
 }
 
+/* Responsividad para dispositivos muy pequeños */
 @media (max-width: 480px) {
     .container-empleado {
         padding: 20px 15px;

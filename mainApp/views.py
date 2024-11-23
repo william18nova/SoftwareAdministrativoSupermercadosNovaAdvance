@@ -15,7 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm
+from .forms import CategoriaForm, ClienteForm, EmpleadoForm
 
 def login(request):
     if request.method == 'POST':
@@ -685,43 +685,21 @@ def eliminar_usuario_view(request, usuarioid):
 
 @login_required
 def agregar_empleado_view(request):
+    if request.method == 'POST':
+        form = EmpleadoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({'success': True})
+        else:
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        form = EmpleadoForm()
+    
     usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid'))
     sucursales = Sucursal.objects.all()
-
-    if request.method == 'POST':
-        nombre = request.POST['nombre']
-        apellido = request.POST['apellido']
-        telefono = request.POST['telefono']
-        email = request.POST['email']
-        direccion = request.POST['direccion']
-        puesto = request.POST['puesto']
-        numerodocumento = request.POST['numerodocumento']
-        usuarioid = request.POST.get('usuario')
-        sucursalid = request.POST.get('sucursal')
-
-        if Empleado.objects.filter(telefono=telefono).exists():
-            messages.error(request, 'El teléfono ya está en uso.')
-        elif Empleado.objects.filter(email=email).exists():
-            messages.error(request, 'El correo ya está en uso.')
-        elif Empleado.objects.filter(numerodocumento=numerodocumento).exists():
-            messages.error(request, 'El número de documento ya está en uso.')
-        else:
-            usuario = Usuario.objects.get(pk=usuarioid) if usuarioid else None
-            sucursal = Sucursal.objects.get(pk=sucursalid) if sucursalid else None
-            Empleado.objects.create(
-                nombre=nombre,
-                apellido=apellido,
-                telefono=telefono,
-                email=email,
-                direccion=direccion,
-                puesto=puesto,
-                numerodocumento=numerodocumento,
-                usuarioid=usuario,
-                sucursalid=sucursal
-            )
-            messages.success(request, f'Empleado "{nombre} {apellido}" creado exitosamente.')
-
-    return render(request, 'agregar_empleado.html', {'usuarios': usuarios, 'sucursales': sucursales})
+    
+    return render(request, 'agregar_empleado.html', {'form': form, 'usuarios': usuarios, 'sucursales': sucursales})
 
 @login_required
 def visualizar_empleados_view(request):
