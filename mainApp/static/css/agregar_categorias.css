@@ -1,6 +1,8 @@
+/* agregar_categorias.css */
+
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* Variables CSS para facilitar cambios de color y mantenimiento */
+/* Variables CSS */
 :root {
     --color-principal: #005091;
     --color-secundario: #ADD8E6;
@@ -32,11 +34,10 @@ body {
     background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
     font-family: var(--fuente-principal);
     color: var(--color-blanco);
-    overflow: auto; /* Permitir el desplazamiento en la página */
-    position: relative; /* Para posicionar elementos absolutos dentro del body */
+    overflow: auto;
+    position: relative;
 }
 
-/* Pseudo-elemento para el fondo difuminado */
 body::before {
     content: '';
     position: absolute;
@@ -47,7 +48,7 @@ body::before {
     background: inherit;
     filter: blur(20px);
     z-index: -1;
-    pointer-events: none; /* Asegura que no haya interacción con este elemento */
+    pointer-events: none;
 }
 
 /* Contenedor principal */
@@ -60,7 +61,7 @@ body::before {
     max-width: 400px;
     text-align: center;
     position: relative;
-    overflow: hidden; /* Evitar el desbordamiento horizontal */
+    overflow: hidden;
 }
 
 /* Título del contenedor */
@@ -96,7 +97,7 @@ body::before {
 .form-group .required {
     color: var(--color-blanco);
     margin-left: 5px;
-    font-size: 18px; /* Tamaño del asterisco */
+    font-size: 18px;
 }
 
 /* Texto informativo sobre campos obligatorios */
@@ -107,10 +108,8 @@ body::before {
     font-size: 14px;
 }
 
-/* Campos de entrada y select */
-.form-group input[type="text"],
-.form-group input[type="email"],
-.form-group select {
+/* Campos de entrada */
+.form-group input[type="text"] {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--color-gris);
@@ -120,24 +119,20 @@ body::before {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-/* Hover sobre campos de entrada y select */
+/* Hover y enfoque en campos */
 .form-group input[type="text"]:hover,
-.form-group input[type="email"]:hover,
-.form-group select:hover {
+.form-group input[type="text"]:focus {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
 }
 
-/* Enfoque sobre campos de entrada y select */
-.form-group input[type="text"]:focus,
-.form-group input[type="email"]:focus,
-.form-group select:focus {
+.form-group input[type="text"]:focus {
     outline: none;
     border-color: var(--color-principal);
     box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
 }
 
-/* Botón de agregar categoría */
+/* Botón de envío */
 .btn-agregar-categoria {
     background-color: var(--color-boton);
     color: var(--color-blanco);
@@ -183,67 +178,59 @@ body::before {
     margin-bottom: 20px;
 }
 
-/* Responsividad para dispositivos móviles */
+/* Estilos para mensajes de error de campo */
+.field-error {
+    color: #a94442;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* Responsividad */
 @media (max-width: 768px) {
     .container {
         padding: 30px 20px;
     }
-
     .icon {
         font-size: 60px;
         margin-bottom: 10px;
     }
-
     .container h2 {
         font-size: 22px;
         margin-bottom: 15px;
     }
-
-    .form-group input[type="text"],
-    .form-group input[type="email"],
-    .form-group select {
+    .form-group input[type="text"] {
         padding: 8px;
         font-size: 14px;
     }
-
     .btn-agregar-categoria {
         padding: 10px;
         font-size: 16px;
     }
-
     .obligatorio-texto {
         font-size: 12px;
     }
 }
 
-/* Responsividad para dispositivos muy pequeños */
 @media (max-width: 480px) {
     .container {
         padding: 20px 15px;
     }
-
     .icon {
         font-size: 50px;
         margin-bottom: 8px;
     }
-
     .container h2 {
         font-size: 20px;
         margin-bottom: 10px;
     }
-
-    .form-group input[type="text"],
-    .form-group input[type="email"],
-    .form-group select {
+    .form-group input[type="text"] {
         font-size: 14px;
         padding: 6px;
     }
-
     .btn-agregar-categoria {
         font-size: 16px;
         padding: 8px;
     }
-
     .obligatorio-texto {
         font-size: 10px;
     }

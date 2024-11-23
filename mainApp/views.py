@@ -103,12 +103,13 @@ def agregar_categoria_view(request):
         form = CategoriaForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Categoría agregada exitosamente.')
-            return redirect('agregar_categoria')
-        # Eliminamos el mensaje general de error
+            return JsonResponse({'success': True})
+        else:
+            # Obtenemos los errores del formulario y los enviamos en la respuesta JSON
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
     else:
         form = CategoriaForm()
-    
     return render(request, 'agregar_categoria.html', {'form': form})
 
 @login_required
