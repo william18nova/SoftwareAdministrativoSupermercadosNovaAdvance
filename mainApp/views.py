@@ -15,7 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm
+from .forms import CategoriaForm, ClienteForm
 
 def login(request):
     if request.method == 'POST':
@@ -990,25 +990,17 @@ def editar_horarios_cajas_view(request, puntopagoid):
 @login_required
 def agregar_cliente(request):
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        apellido = request.POST.get('apellido')
-        telefono = request.POST.get('telefono')
-        email = request.POST.get('email')
-        numerodocumento = request.POST.get('numerodocumento')
-
-        if Cliente.objects.filter(numerodocumento=numerodocumento).exists():
-            return JsonResponse({'success': False, 'error': 'El número de documento ya está registrado.'})
-        if Cliente.objects.filter(email=email).exists():
-            return JsonResponse({'success': False, 'error': 'El correo electrónico ya está registrado.'})
-        if Cliente.objects.filter(telefono=telefono).exists():
-            return JsonResponse({'success': False, 'error': 'El teléfono ya está registrado.'})
-
-        cliente = Cliente(nombre=nombre, apellido=apellido, telefono=telefono, email=email, numerodocumento=numerodocumento)
-        cliente.save()
-
-        return JsonResponse({'success': True})
-
-    return render(request, 'agregar_cliente.html')
+        form = ClienteForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({'success': True})
+        else:
+            # Obtenemos los errores del formulario y los enviamos en la respuesta JSON
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        form = ClienteForm()
+    return render(request, 'agregar_cliente.html', {'form': form})
 
 @login_required
 def visualizar_clientes(request):

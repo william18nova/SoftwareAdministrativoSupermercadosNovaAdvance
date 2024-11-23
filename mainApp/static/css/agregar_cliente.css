@@ -195,6 +195,14 @@ body::before {
     margin-bottom: 20px;
 }
 
+/* CSS para mensajes de error de campo */
+.field-error {
+    color: #a94442;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+
 /* Responsividad para dispositivos móviles */
 @media (max-width: 768px) {
     .container-empleado {
