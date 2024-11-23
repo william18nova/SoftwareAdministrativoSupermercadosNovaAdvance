@@ -10,9 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const autocompletePuntopagoResults = document.getElementById('puntopago-autocomplete-results');
     const diaSemanaInput = document.getElementById('id_dia_semana');
     const horariosTempBody = document.getElementById('horarios-temp-body');
-    const alertBox = document.getElementById('error-message');
-    const successBox = document.getElementById('success-message');
-    const form = document.getElementById('horarioForm');
+    const errorMessageDiv = document.getElementById('error-message');
+    const successMessageDiv = document.getElementById('success-message');
+    const form = document.getElementById('form-agregar-horario');
     const buttons = document.querySelectorAll('.day-button');
     let horariosTemp = [];
     let debounceTimeoutSucursal = null;
@@ -135,14 +135,15 @@ document.addEventListener('DOMContentLoaded', function() {
             isLoadingPuntopago = false;
         });
     }
-    
 
     /**
      * Función para limpiar mensajes de error.
      */
     function clearErrors() {
-        alertBox.style.display = 'none';
-        alertBox.innerHTML = '';
+        errorMessageDiv.style.display = 'none';
+        errorMessageDiv.innerHTML = '';
+        successMessageDiv.style.display = 'none';
+        successMessageDiv.textContent = '';
 
         const errorFields = document.querySelectorAll('.field-error');
         errorFields.forEach(function(errorField) {
@@ -159,8 +160,8 @@ document.addEventListener('DOMContentLoaded', function() {
         clearErrors();
 
         if (errors.__all__) {
-            alertBox.innerHTML = errors.__all__.map(e => e.message).join('<br>');
-            alertBox.style.display = 'block';
+            errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
+            errorMessageDiv.style.display = 'block';
         }
 
         for (let field in errors) {
@@ -341,14 +342,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Validaciones al agregar horario a la lista temporal
         if (!diaSemana || !horaApertura || !horaCierre || !puntopagoid) {
-            alertBox.innerHTML = 'Por favor, complete todos los campos para agregar un horario.';
-            alertBox.style.display = 'block';
+            errorMessageDiv.innerHTML = 'Por favor, complete todos los campos para agregar un horario.';
+            errorMessageDiv.style.display = 'block';
             return;
         }
 
         if (horaApertura >= horaCierre) {
-            alertBox.innerHTML = 'La hora de apertura debe ser menor que la hora de cierre.';
-            alertBox.style.display = 'block';
+            errorMessageDiv.innerHTML = 'La hora de apertura debe ser menor que la hora de cierre.';
+            errorMessageDiv.style.display = 'block';
             return;
         }
 
@@ -397,6 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
             buttons.forEach(button => {
                 if (button.getAttribute('data-day') === day) {
                     button.disabled = false;
+                    button.classList.remove('active');
                 }
             });
         }
@@ -413,14 +415,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const puntopagoid = puntopagoIdInput.value;
 
         if (!sucursalid || !puntopagoid) {
-            alertBox.innerHTML = 'Por favor, seleccione una sucursal y un punto de pago.';
-            alertBox.style.display = 'block';
+            errorMessageDiv.innerHTML = 'Por favor, seleccione una sucursal y un punto de pago.';
+            errorMessageDiv.style.display = 'block';
             return;
         }
 
         if (horariosTemp.length === 0) {
-            alertBox.innerHTML = 'Debe agregar al menos un horario antes de guardar.';
-            alertBox.style.display = 'block';
+            errorMessageDiv.innerHTML = 'Debe agregar al menos un horario antes de guardar.';
+            errorMessageDiv.style.display = 'block';
             return;
         }
 
@@ -443,8 +445,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                successBox.textContent = 'Horario de caja agregado exitosamente.';
-                successBox.style.display = 'block';
+                successMessageDiv.textContent = 'Horario de caja agregado exitosamente.';
+                successMessageDiv.style.display = 'block';
                 form.reset();
                 horariosTemp = [];
                 horariosTempBody.innerHTML = '';
@@ -467,8 +469,8 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alertBox.innerHTML = 'Ocurrió un error inesperado.';
-            alertBox.style.display = 'block';
+            errorMessageDiv.innerHTML = 'Ocurrió un error inesperado.';
+            errorMessageDiv.style.display = 'block';
         });
     });
 
@@ -483,7 +485,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const cookies = document.cookie.split(';');
             for (let cookie of cookies) {
                 cookie = cookie.trim();
-                // Verificar si la cookie empieza con el nombre buscado
                 if (cookie.startsWith(name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;

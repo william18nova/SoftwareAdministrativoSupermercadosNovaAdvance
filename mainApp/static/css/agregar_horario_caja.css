@@ -8,19 +8,19 @@
     --color-principal: #005091;
     --color-secundario: #ADD8E6;
     --color-blanco: #ffffff;
-    --color-negro: #000000; /* Añadido */
+    --color-negro: #000000;
     --color-rojo: #ff0000;
     --color-gris-claro: #f0f8ff;
     --color-gris: #ccc;
     --color-gris-hover: #aaa;
     --color-boton: #3b5998;
     --color-boton-hover: #2b467d;
-    --color-boton-activo: #73a0fa; /* Añadido */
-    --color-boton-deshabilitado: #555; /* Añadido */
-    --color-alerta-exito: #dff0d8; /* Añadido */
-    --color-alerta-exito-borde: #d6e9c6; /* Añadido */
-    --color-alerta-error: #f2dede; /* Añadido */
-    --color-alerta-error-borde: #ebccd1; /* Añadido */
+    --color-boton-activo: #73a0fa;
+    --color-boton-deshabilitado: #555;
+    --color-alerta-exito: #dff0d8;
+    --color-alerta-exito-borde: #d6e9c6;
+    --color-alerta-error: #f2dede;
+    --color-alerta-error-borde: #ebccd1;
     --fuente-principal: 'Roboto', Arial, sans-serif;
     --fuente-secundaria: 'Arial', sans-serif;
 }
@@ -62,13 +62,13 @@ body::before {
 }
 
 /* Contenedor principal */
-.container-usuario {
+.container-horario {
     background: rgba(255, 255, 255, 0.1);
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 100%;
-    max-width: 450px;
+    max-width: 500px;
     text-align: center;
     position: relative;
     box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
@@ -76,26 +76,35 @@ body::before {
 }
 
 /* Título del contenedor */
-.container-usuario h2 {
+.container-horario h2 {
     color: var(--color-blanco);
     margin-bottom: 20px;
     font-size: 24px;
 }
 
 /* Icono */
-.icono-reloj {
+.icon-horario {
     font-size: 50px;
     color: var(--color-blanco);
     margin-bottom: 10px;
 }
 
-/* Estilos de alertas */
+/* Texto informativo sobre campos obligatorios */
+.obligatorio-texto {
+    font-style: italic;
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+/* Estilos de alertas generales */
 .alert {
     padding: 15px;
-    margin-bottom: 20px;
+    margin-top: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
+    font-size: 16px;
 }
 
 .alert-success {
@@ -112,22 +121,22 @@ body::before {
 
 /* Estilos para mensajes de error de campo */
 .field-error {
-    color: #a94442;
+    color: #a94442; /* Color rojo para errores */
     font-size: 14px;
     margin-top: 5px;
-    display: none; /* Inicialmente oculto */
+    display: none; /* Ocultar por defecto */
     text-align: left;
 }
 
 /* Grupo de formulario */
-.form-group {
+.form-group-horario {
     margin-bottom: 20px;
     text-align: left;
     position: relative; /* Para posicionar el autocompletar */
 }
 
 /* Etiquetas de los campos */
-.form-group label {
+.form-group-horario label {
     display: block;
     margin-bottom: 5px;
     color: var(--color-blanco);
@@ -136,9 +145,9 @@ body::before {
 }
 
 /* Campos de entrada y select */
-.form-group select,
-.form-group input[type="time"],
-.form-group input[type="text"] {
+.form-group-horario select,
+.form-group-horario input[type="time"],
+.form-group-horario input[type="text"] {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--color-gris);
@@ -151,17 +160,17 @@ body::before {
 }
 
 /* Hover sobre campos de entrada y select */
-.form-group select:hover,
-.form-group input[type="time"]:hover,
-.form-group input[type="text"]:hover {
+.form-group-horario select:hover,
+.form-group-horario input[type="time"]:hover,
+.form-group-horario input[type="text"]:hover {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
 }
 
 /* Enfoque sobre campos de entrada y select */
-.form-group select:focus,
-.form-group input[type="time"]:focus,
-.form-group input[type="text"]:focus {
+.form-group-horario select:focus,
+.form-group-horario input[type="time"]:focus,
+.form-group-horario input[type="text"]:focus {
     outline: none;
     border-color: var(--color-principal);
     box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
@@ -190,9 +199,10 @@ body::before {
 }
 
 /* Estilo para el asterisco de campo obligatorio */
-.campo-obligatorio {
+.required {
     color: var(--color-blanco); /* Corregido para usar la variable */
     margin-left: 2px;
+    font-size: 18px; /* Tamaño del asterisco */
 }
 
 /* Estilos para el autocompletar */
@@ -316,16 +326,16 @@ body::before {
 
 /* Responsividad */
 @media (max-width: 768px) {
-    .container-usuario {
-        padding: 20px;
+    .container-horario {
+        padding: 30px 20px;
     }
 
-    .form-group select,
-    .form-group input[type="time"],
-    .form-group input[type="text"],
+    .form-group-horario input,
+    .form-group-horario select,
     .btn-agregar-temporal,
     .btn-guardar {
-        width: 100%;
+        padding: 8px;
+        font-size: 14px;
     }
 
     .alert {
@@ -341,10 +351,6 @@ body::before {
         margin: 5px;
         width: 30px;
         height: 30px;
-    }
-
-    .day-button.active {
-        transform: scale(1.1);
     }
 
     .horarios-temp th,
