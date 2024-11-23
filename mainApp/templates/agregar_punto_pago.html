@@ -36,22 +36,22 @@
             function agregarPuntoPago() {
                 const nombreInput = $('#nombre');
                 const descripcionInput = $('#descripcion');
-                const dineroCajaInput = $('#dineroCaja');
+                const dineroCajaInput = $('#dinerocaja');
                 const nombre = nombreInput.val().trim();
                 const descripcion = descripcionInput.val().trim();
-                const dineroCaja = dineroCajaInput.val().trim();
+                const dinerocaja = dinerocajaInput.val().trim();
 
                 if (nombre) {
                     table.row.add([
                         `<div class="column-title">Nombre:</div><div>${nombre}</div><input type="hidden" name="nombre[]" value="${nombre}">`,
                         `<div class="column-title">Descripción:</div><div>${descripcion}</div><input type="hidden" name="descripcion[]" value="${descripcion}">`,
-                        `<div class="column-title">Dinero en Caja:</div><div>${dineroCaja}</div><input type="hidden" name="dineroCaja[]" value="${dineroCaja}">`,
+                        `<div class="column-title">Dinero en Caja:</div><div>${dinerocaja}</div><input type="hidden" name="dinerocaja[]" value="${dinerocaja}">`,
                         `<div class="column-title">Acciones:</div><button type="button" class="btn-eliminar" onclick="confirmarEliminarPuntoPago(this)"><i class="fas fa-trash-alt"></i></button>`
                     ]).draw(false);
 
                     nombreInput.val('');
                     descripcionInput.val('');
-                    dineroCajaInput.val('');
+                    dinerocajaInput.val('');
                 } else {
                     mostrarMensaje('Por favor, completa el campo nombre.', 'alert-error');
                 }
@@ -108,8 +108,8 @@
                 <input type="text" id="descripcion" name="descripcion" class="input-descripcion">
             </div>
             <div class="form-group-punto-pago">
-                <label for="dineroCaja">Dinero en Caja</label>
-                <input type="number" id="dineroCaja" name="dineroCaja" class="input-dinero-caja">
+                <label for="dinerocaja">Dinero en Caja</label>
+                <input type="number" id="dinerocaja" name="dinerocaja" class="input-dinero-caja">
             </div>
             <div class="form-group-punto-pago">
                 <button type="button" class="btn-agregar-punto-pago" id="agregarPuntoPagoBtn">Agregar Punto de Pago</button>

@@ -329,7 +329,11 @@ class HorarioCajaForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Filtrar los Puntos de Pago que no tienen horario asignado
-        self.fields['puntopagoid'].queryset = PuntosPago.objects.exclude(horarios_caja__isnull=False)
+        self.fields['puntopagoid'].queryset = PuntosPago.objects.filter(
+            sucursalid__isnull=False
+        ).exclude(
+            horarios_caja__isnull=False
+        )
 
     def clean(self):
         cleaned_data = super().clean()

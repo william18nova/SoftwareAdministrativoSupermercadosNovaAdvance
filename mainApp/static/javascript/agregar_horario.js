@@ -1,24 +1,34 @@
-// agregar_horario.js
+// agregar_horario_caja.js
 
 document.addEventListener('DOMContentLoaded', function() {
     // Variables generales
     const sucursalInput = document.getElementById('id_sucursal_autocomplete');
     const sucursalIdInput = document.getElementById('id_sucursalid');
-    const autocompleteResults = document.getElementById('sucursal-autocomplete-results');
+    const puntopagoInput = document.getElementById('id_puntopago_autocomplete');
+    const puntopagoIdInput = document.getElementById('id_puntopagoid');
+    const autocompleteSucursalResults = document.getElementById('sucursal-autocomplete-results');
+    const autocompletePuntopagoResults = document.getElementById('puntopago-autocomplete-results');
     const diaSemanaInput = document.getElementById('id_dia_semana');
     const horariosTempBody = document.getElementById('horarios-temp-body');
     const alertBox = document.getElementById('error-message');
     const successBox = document.getElementById('success-message');
-    const form = document.getElementById('horario-form');
+    const form = document.getElementById('horarioForm');
     const buttons = document.querySelectorAll('.day-button');
     let horariosTemp = [];
-    let debounceTimeout = null;
+    let debounceTimeoutSucursal = null;
+    let debounceTimeoutPuntopago = null;
 
-    // Variables para la paginación
-    let currentPage = 1;
-    let isLoading = false;
-    let hasMore = true;
-    let currentTerm = '';
+    // Variables para la paginación de sucursales
+    let currentPageSucursal = 1;
+    let isLoadingSucursal = false;
+    let hasMoreSucursal = true;
+    let currentTermSucursal = '';
+
+    // Variables para la paginación de puntos de pago
+    let currentPagePuntopago = 1;
+    let isLoadingPuntopago = false;
+    let hasMorePuntopago = true;
+    let currentTermPuntopago = '';
 
     /**
      * Función para mostrar sugerencias de sucursales.
@@ -26,8 +36,8 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {number} page - Número de página para la paginación.
      */
     function fetchSucursales(term, page = 1) {
-        if (isLoading || !hasMore) return;
-        isLoading = true;
+        if (isLoadingSucursal || !hasMoreSucursal) return;
+        isLoadingSucursal = true;
 
         const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
         fetch(url)
@@ -40,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (page === 1) {
                 // Si es la primera página, limpiar resultados anteriores
-                autocompleteResults.innerHTML = '';
+                autocompleteSucursalResults.innerHTML = '';
             }
 
             if (data.results.length > 0) {
@@ -49,24 +59,84 @@ document.addEventListener('DOMContentLoaded', function() {
                     option.classList.add('autocomplete-option');
                     option.textContent = item.text;
                     option.dataset.id = item.id;
-                    autocompleteResults.appendChild(option);
+                    autocompleteSucursalResults.appendChild(option);
                 });
-                hasMore = data.has_more;
+                hasMoreSucursal = data.has_more;
             } else if (page === 1) {
                 // Si no hay resultados en la primera página
                 const noResult = document.createElement('div');
                 noResult.classList.add('autocomplete-no-result');
                 noResult.textContent = 'No se encontraron resultados';
-                autocompleteResults.appendChild(noResult);
-                hasMore = false;
+                autocompleteSucursalResults.appendChild(noResult);
+                hasMoreSucursal = false;
             }
 
-            autocompleteResults.style.display = 'block';
-            isLoading = false;
+            autocompleteSucursalResults.style.display = 'block';
+            isLoadingSucursal = false;
         })
         .catch(error => {
-            console.error('Error en la solicitud de autocompletar:', error);
-            isLoading = false;
+            console.error('Error en la solicitud de autocompletar sucursales:', error);
+            isLoadingSucursal = false;
+        });
+    }
+
+    /**
+     * Función para mostrar sugerencias de puntos de pago.
+     * @param {string} term - Término de búsqueda.
+     * @param {number} page - Número de página para la paginación.
+     */
+    function fetchPuntosPago(term, page = 1) {
+        if (isLoadingPuntopago || !hasMorePuntopago) return;
+        isLoadingPuntopago = true;
+
+        const sucursalId = sucursalIdInput.value;
+        if (!sucursalId) {
+            isLoadingPuntopago = false;
+            // Mostrar un mensaje al usuario indicando que debe seleccionar una Sucursal primero
+            alertBox.innerHTML = 'Por favor, seleccione una sucursal antes de buscar puntos de pago.';
+            alertBox.style.display = 'block';
+            return;
+        }
+
+        const url = `${puntopagoAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}&sucursal_id=${sucursalId}`;
+        fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Datos recibidos de puntopago_autocomplete:', data);  // Depuración
+            if (page === 1) {
+                // Si es la primera página, limpiar resultados anteriores
+                autocompletePuntopagoResults.innerHTML = '';
+            }
+
+            if (data.results.length > 0) {
+                data.results.forEach(item => {
+                    const option = document.createElement('div');
+                    option.classList.add('autocomplete-option');
+                    option.textContent = item.text;
+                    option.dataset.id = item.id;
+                    autocompletePuntopagoResults.appendChild(option);
+                });
+                hasMorePuntopago = data.has_more;
+            } else if (page === 1) {
+                // Si no hay resultados en la primera página
+                const noResult = document.createElement('div');
+                noResult.classList.add('autocomplete-no-result');
+                noResult.textContent = 'No se encontraron resultados';
+                autocompletePuntopagoResults.appendChild(noResult);
+                hasMorePuntopago = false;
+            }
+
+            autocompletePuntopagoResults.style.display = 'block';
+            isLoadingPuntopago = false;
+        })
+        .catch(error => {
+            console.error('Error en la solicitud de autocompletar puntos de pago:', error);
+            isLoadingPuntopago = false;
         });
     }
 
@@ -111,17 +181,17 @@ document.addEventListener('DOMContentLoaded', function() {
      * Evento 'input' en el campo de sucursal para filtrar resultados.
      */
     sucursalInput.addEventListener('input', function() {
-        currentTerm = sucursalInput.value.trim();
+        currentTermSucursal = sucursalInput.value.trim();
         sucursalIdInput.value = ''; // Limpiar el campo oculto
-        hasMore = true;
-        currentPage = 1;
+        hasMoreSucursal = true;
+        currentPageSucursal = 1;
 
-        if (debounceTimeout) {
-            clearTimeout(debounceTimeout);
+        if (debounceTimeoutSucursal) {
+            clearTimeout(debounceTimeoutSucursal);
         }
 
-        debounceTimeout = setTimeout(function() {
-            fetchSucursales(currentTerm, currentPage);
+        debounceTimeoutSucursal = setTimeout(function() {
+            fetchSucursales(currentTermSucursal, currentPageSucursal);
         }, 300); // Retraso para debounce
     });
 
@@ -129,47 +199,115 @@ document.addEventListener('DOMContentLoaded', function() {
      * Evento 'focus' en el campo de sucursal para cargar todas las sucursales si está vacío.
      */
     sucursalInput.addEventListener('focus', function() {
-        currentTerm = sucursalInput.value.trim();
-        hasMore = true;
-        currentPage = 1;
-        fetchSucursales(currentTerm, currentPage);
+        currentTermSucursal = sucursalInput.value.trim();
+        hasMoreSucursal = true;
+        currentPageSucursal = 1;
+        fetchSucursales(currentTermSucursal, currentPageSucursal);
     });
 
     /**
-     * Evento 'scroll' en el contenedor de resultados para implementar scroll infinito.
+     * Evento 'scroll' en el contenedor de resultados de sucursales para implementar scroll infinito.
      */
-    autocompleteResults.addEventListener('scroll', function() {
-        if (autocompleteResults.scrollTop + autocompleteResults.clientHeight >= autocompleteResults.scrollHeight - 5) {
-            if (hasMore && !isLoading) {
-                currentPage += 1;
-                fetchSucursales(currentTerm, currentPage);
+    autocompleteSucursalResults.addEventListener('scroll', function() {
+        if (autocompleteSucursalResults.scrollTop + autocompleteSucursalResults.clientHeight >= autocompleteSucursalResults.scrollHeight - 5) {
+            if (hasMoreSucursal && !isLoadingSucursal) {
+                currentPageSucursal += 1;
+                fetchSucursales(currentTermSucursal, currentPageSucursal);
             }
         }
     });
 
     /**
-     * Evento 'click' en las opciones de autocompletar para seleccionar una sucursal.
+     * Evento 'click' en las opciones de autocompletar sucursales para seleccionar una sucursal.
      */
-    autocompleteResults.addEventListener('click', function(event) {
+    autocompleteSucursalResults.addEventListener('click', function(event) {
         if (event.target && event.target.classList.contains('autocomplete-option')) {
             const selectedText = event.target.textContent;
             const selectedId = event.target.dataset.id;
             sucursalInput.value = selectedText;
             sucursalIdInput.value = selectedId;
-            autocompleteResults.innerHTML = '';
-            autocompleteResults.style.display = 'none';
-            hasMore = false;
+            autocompleteSucursalResults.innerHTML = '';
+            autocompleteSucursalResults.style.display = 'none';
+            hasMoreSucursal = false;
+
+            // Resetear el campo de punto de pago al cambiar la sucursal
+            puntopagoInput.value = '';
+            puntopagoIdInput.value = '';
+            autocompletePuntopagoResults.innerHTML = '';
+            autocompletePuntopagoResults.style.display = 'none';
+            hasMorePuntopago = true;
+            currentPagePuntopago = 1;
         }
     });
 
     /**
-     * Evento 'click' en el documento para cerrar el autocompletar al hacer clic fuera.
+     * Evento 'input' en el campo de punto de pago para filtrar resultados.
+     */
+    puntopagoInput.addEventListener('input', function() {
+        currentTermPuntopago = puntopagoInput.value.trim();
+        puntopagoIdInput.value = ''; // Limpiar el campo oculto
+        hasMorePuntopago = true;
+        currentPagePuntopago = 1;
+
+        if (debounceTimeoutPuntopago) {
+            clearTimeout(debounceTimeoutPuntopago);
+        }
+
+        debounceTimeoutPuntopago = setTimeout(function() {
+            fetchPuntosPago(currentTermPuntopago, currentPagePuntopago);
+        }, 300); // Retraso para debounce
+    });
+
+    /**
+     * Evento 'focus' en el campo de punto de pago para cargar todas las opciones si está vacío.
+     */
+    puntopagoInput.addEventListener('focus', function() {
+        currentTermPuntopago = puntopagoInput.value.trim();
+        hasMorePuntopago = true;
+        currentPagePuntopago = 1;
+        fetchPuntosPago(currentTermPuntopago, currentPagePuntopago);
+    });
+
+    /**
+     * Evento 'scroll' en el contenedor de resultados de puntos de pago para implementar scroll infinito.
+     */
+    autocompletePuntopagoResults.addEventListener('scroll', function() {
+        if (autocompletePuntopagoResults.scrollTop + autocompletePuntopagoResults.clientHeight >= autocompletePuntopagoResults.scrollHeight - 5) {
+            if (hasMorePuntopago && !isLoadingPuntopago) {
+                currentPagePuntopago += 1;
+                fetchPuntosPago(currentTermPuntopago, currentPagePuntopago);
+            }
+        }
+    });
+
+    /**
+     * Evento 'click' en las opciones de autocompletar puntos de pago para seleccionar un punto de pago.
+     */
+    autocompletePuntopagoResults.addEventListener('click', function(event) {
+        if (event.target && event.target.classList.contains('autocomplete-option')) {
+            const selectedText = event.target.textContent;
+            const selectedId = event.target.dataset.id;
+            puntopagoInput.value = selectedText;
+            puntopagoIdInput.value = selectedId;
+            autocompletePuntopagoResults.innerHTML = '';
+            autocompletePuntopagoResults.style.display = 'none';
+            hasMorePuntopago = false;
+        }
+    });
+
+    /**
+     * Evento 'click' en el documento para cerrar los autocompletados al hacer clic fuera.
      */
     document.addEventListener('click', function(event) {
-        if (!sucursalInput.contains(event.target) && !autocompleteResults.contains(event.target)) {
-            autocompleteResults.innerHTML = '';
-            autocompleteResults.style.display = 'none';
-            hasMore = false;
+        if (!sucursalInput.contains(event.target) && !autocompleteSucursalResults.contains(event.target)) {
+            autocompleteSucursalResults.innerHTML = '';
+            autocompleteSucursalResults.style.display = 'none';
+            hasMoreSucursal = false;
+        }
+        if (!puntopagoInput.contains(event.target) && !autocompletePuntopagoResults.contains(event.target)) {
+            autocompletePuntopagoResults.innerHTML = '';
+            autocompletePuntopagoResults.style.display = 'none';
+            hasMorePuntopago = false;
         }
     });
 
@@ -194,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     /**
-     * Evento 'click' en el botón para agregar horarios a la tabla temporal.
+     * Agregar horario a la tabla temporal
      */
     document.querySelector('.btn-agregar-temporal').addEventListener('click', function() {
         clearErrors();
@@ -202,9 +340,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const diaSemana = diaSemanaInput.value;
         const horaApertura = document.getElementById('id_horaapertura').value;
         const horaCierre = document.getElementById('id_horacierre').value;
+        const puntopagoid = puntopagoIdInput.value;
 
         // Validaciones al agregar horario a la lista temporal
-        if (!diaSemana || !horaApertura || !horaCierre) {
+        if (!diaSemana || !horaApertura || !horaCierre || !puntopagoid) {
             alertBox.innerHTML = 'Por favor, complete todos los campos para agregar un horario.';
             alertBox.style.display = 'block';
             return;
@@ -217,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         diaSemana.split(',').forEach(day => {
-            // Verificar si el día ya está agregado
+            // Verificar si el horario ya existe en la tabla temporal
             const existe = horariosTemp.some(horario => horario.dia === day && horario.horaapertura === horaApertura && horario.horacierre === horaCierre);
             if (!existe) {
                 horariosTemp.push({ dia: day, horaapertura: horaApertura, horacierre: horaCierre });
@@ -246,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     /**
-     * Evento 'click' en la tabla de horarios temporales para eliminar un horario.
+     * Eliminar horario de la tabla temporal
      */
     horariosTempBody.addEventListener('click', function(event) {
         if (event.target.closest('.btn-eliminar')) {
@@ -261,22 +400,24 @@ document.addEventListener('DOMContentLoaded', function() {
             buttons.forEach(button => {
                 if (button.getAttribute('data-day') === day) {
                     button.disabled = false;
+                    button.classList.remove('active');
                 }
             });
         }
     });
 
     /**
-     * Evento 'submit' en el formulario para enviar los horarios.
+     * Enviar el formulario
      */
     form.addEventListener('submit', function(event) {
         event.preventDefault();
         clearErrors();
 
         const sucursalid = sucursalIdInput.value;
+        const puntopagoid = puntopagoIdInput.value;
 
-        if (!sucursalid) {
-            alertBox.innerHTML = 'Por favor, seleccione una sucursal.';
+        if (!sucursalid || !puntopagoid) {
+            alertBox.innerHTML = 'Por favor, seleccione una sucursal y un punto de pago.';
             alertBox.style.display = 'block';
             return;
         }
@@ -306,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                successBox.textContent = 'Horarios agregados exitosamente.';
+                successBox.textContent = 'Horario de caja agregado exitosamente.';
                 successBox.style.display = 'block';
                 form.reset();
                 horariosTemp = [];
@@ -316,9 +457,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     button.classList.remove('active');
                 });
                 sucursalIdInput.value = '';
-                autocompleteResults.innerHTML = '';
-                autocompleteResults.style.display = 'none';
-                hasMore = false;
+                puntopagoIdInput.value = '';
+                autocompleteSucursalResults.innerHTML = '';
+                autocompleteSucursalResults.style.display = 'none';
+                autocompletePuntopagoResults.innerHTML = '';
+                autocompletePuntopagoResults.style.display = 'none';
+                hasMoreSucursal = false;
+                hasMorePuntopago = false;
             } else {
                 const errors = JSON.parse(data.errors);
                 showErrors(errors);

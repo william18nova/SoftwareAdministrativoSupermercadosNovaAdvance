@@ -476,7 +476,7 @@ def agregar_punto_pago_view(request):
         sucursal_id = request.POST.get('sucursal')
         nombres = request.POST.getlist('nombre[]')
         descripciones = request.POST.getlist('descripcion[]')
-        dinero_caja_list = request.POST.getlist('dineroCaja[]')
+        dinero_caja_list = request.POST.getlist('dinerocaja[]')
 
         if not sucursal_id:
             messages.error(request, 'La sucursal es obligatoria.')
@@ -788,7 +788,7 @@ def sucursal_autocomplete(request):
     start = (page - 1) * per_page
     end = start + per_page
 
-    sucursales = Sucursal.objects.exclude(horariosnegocio__isnull=False)
+    sucursales = Sucursal.objects.all()
 
     if term:
         sucursales = sucursales.filter(nombre__icontains=term)
@@ -877,7 +877,9 @@ def agregar_horario_caja_view(request):
         tiene_puntos_sin_horario=Exists(
             PuntosPago.objects.filter(
                 sucursalid=OuterRef('pk')
-            ).exclude(Exists(puntos_con_horario))
+            ).exclude(
+                Exists(puntos_con_horario)
+            )
         )
     ).filter(tiene_puntos_sin_horario=True).distinct()
 
@@ -912,40 +914,95 @@ def agregar_horario_caja_view(request):
 
 @login_required
 def puntopago_autocomplete(request):
-    term = request.GET.get('term', '').strip()
-    page = int(request.GET.get('page', '1'))
-    per_page = 50  # Número de resultados por página
-    start = (page - 1) * per_page
-    end = start + per_page
+    try:
+        term = request.GET.get('term', '').strip()
+        page = request.GET.get('page', '1').strip()
+        per_page = 50  # Número de resultados por página
 
-    puntos_pago = PuntosPago.objects.filter(
-        sucursalid=request.GET.get('sucursal_id', None)
-    ).annotate(
-        tiene_horario=Exists(
-            HorarioCaja.objects.filter(
-                puntopagoid=OuterRef('pk')
+        try:
+            page = int(page)
+            if page < 1:
+                page = 1
+        except ValueError:
+            logger.warning(f"Valor de 'page' no válido: {page}. Estableciendo a 1.")
+            page = 1
+
+        start = (page - 1) * per_page
+        end = start + per_page
+
+        sucursal_id = request.GET.get('sucursal_id', None)
+        logger.debug(f"Received sucursal_id: {sucursal_id}")
+
+        if not sucursal_id:
+            logger.warning("No se proporcionó un ID de sucursal.")
+            return JsonResponse({
+                'results': [],
+                'has_more': False,
+                'error': 'No se proporcionó un ID de sucursal.'
+            })
+
+        try:
+            sucursal_id = int(sucursal_id)
+        except ValueError:
+            logger.error(f"sucursal_id no es un entero válido: {sucursal_id}")
+            return JsonResponse({
+                'results': [],
+                'has_more': False,
+                'error': 'ID de sucursal inválido.'
+            })
+
+        # Verificar si la Sucursal existe
+        try:
+            sucursal = Sucursal.objects.get(pk=sucursal_id)
+        except Sucursal.DoesNotExist:
+            logger.error(f"Sucursal con ID {sucursal_id} no existe.")
+            return JsonResponse({
+                'results': [],
+                'has_more': False,
+                'error': 'Sucursal no encontrada.'
+            })
+
+        puntos_pago = PuntosPago.objects.filter(
+            sucursalid=sucursal
+        ).annotate(
+            tiene_horario=Exists(
+                HorarioCaja.objects.filter(
+                    puntopagoid=OuterRef('pk')
+                )
             )
-        )
-    ).exclude(tiene_horario=True)
+        ).exclude(tiene_horario=True)
 
-    if term:
-        puntos_pago = puntos_pago.filter(nombre__icontains=term)
+        logger.debug(f"Cantidad de Puntos de Pago filtrados: {puntos_pago.count()}")
 
-    total_results = puntos_pago.count()
-    puntos_pago = puntos_pago[start:end]
+        if term:
+            puntos_pago = puntos_pago.filter(nombre__icontains=term)
+            logger.debug(f"Cantidad de Puntos de Pago después del filtro por término '{term}': {puntos_pago.count()}")
 
-    results = []
-    for punto in puntos_pago:
-        results.append({
-            'id': punto.pk,
-            'text': punto.nombre,
+        total_results = puntos_pago.count()
+        puntos_pago = puntos_pago[start:end]
+
+        results = []
+        for punto in puntos_pago:
+            results.append({
+                'id': punto.pk,
+                'text': punto.nombre,
+            })
+
+        logger.debug(f"Cantidad de resultados enviados: {len(results)}")
+        logger.debug(f"¿Hay más resultados? {end < total_results}")
+
+        return JsonResponse({
+            'results': results,
+            'has_more': end < total_results,
         })
 
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
-
+    except Exception as e:
+        logger.exception("Error inesperado en puntopago_autocomplete")
+        return JsonResponse({
+            'results': [],
+            'has_more': False,
+            'error': 'Ocurrió un error interno del servidor.'
+        }, status=500)
 
 @login_required
 def visualizar_horarios_cajas_view(request):

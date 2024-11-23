@@ -89,7 +89,7 @@ class PuntosPago(models.Model):
     sucursalid = models.ForeignKey('Sucursal', on_delete=models.CASCADE, db_column='sucursalid')
     nombre = models.CharField(max_length=100)
     descripcion = models.CharField(max_length=100, blank=True, null=True)
-    dineroCaja = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    dinerocaja = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
 
     class Meta:
         db_table = 'puntospago'
