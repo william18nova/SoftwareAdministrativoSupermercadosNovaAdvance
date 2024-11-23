@@ -884,15 +884,21 @@ def agregar_horario_caja_view(request):
     if request.method == 'POST':
         form = HorarioCajaForm(request.POST)
         if form.is_valid():
-            horarios = json.loads(request.POST.get('horarios'))
-            for horario in horarios:
-                HorarioCaja.objects.create(
-                    puntopagoid=form.cleaned_data['puntopagoid'],
-                    dia_semana=horario['dia'],
-                    horaapertura=horario['horaapertura'],
-                    horacierre=horario['horacierre']
-                )
-            return JsonResponse({'success': True})
+            horarios_temp = request.POST.get('horarios')
+            if horarios_temp:
+                horarios = json.loads(horarios_temp)
+                puntopago = form.cleaned_data['puntopagoid']
+                for horario in horarios:
+                    HorarioCaja.objects.create(
+                        puntopagoid=puntopago,
+                        dia_semana=horario['dia'],
+                        horaapertura=horario['horaapertura'],
+                        horacierre=horario['horacierre']
+                    )
+                return JsonResponse({'success': True})
+            else:
+                errors = {'__all__': [{'message': 'Debe agregar al menos un horario.'}]}
+                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
         else:
             errors = form.errors.as_json()
             return JsonResponse({'success': False, 'errors': errors})
@@ -905,15 +911,41 @@ def agregar_horario_caja_view(request):
     })
 
 @login_required
-def obtener_puntos_pago(request):
-    sucursal_id = request.GET.get('sucursal_id')
-    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).exclude(
-        puntopagoid__in=HorarioCaja.objects.values_list('puntopagoid', flat=True)
-    )
-    opciones = []
-    for punto_pago in puntos_pago:
-        opciones.append(f'<option value="{punto_pago.puntopagoid}">{punto_pago.nombre}</option>')
-    return JsonResponse(opciones, safe=False)
+def puntopago_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page = int(request.GET.get('page', '1'))
+    per_page = 50  # Número de resultados por página
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    puntos_pago = PuntosPago.objects.filter(
+        sucursalid=request.GET.get('sucursal_id', None)
+    ).annotate(
+        tiene_horario=Exists(
+            HorarioCaja.objects.filter(
+                puntopagoid=OuterRef('pk')
+            )
+        )
+    ).exclude(tiene_horario=True)
+
+    if term:
+        puntos_pago = puntos_pago.filter(nombre__icontains=term)
+
+    total_results = puntos_pago.count()
+    puntos_pago = puntos_pago[start:end]
+
+    results = []
+    for punto in puntos_pago:
+        results.append({
+            'id': punto.pk,
+            'text': punto.nombre,
+        })
+
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
+
 
 @login_required
 def visualizar_horarios_cajas_view(request):

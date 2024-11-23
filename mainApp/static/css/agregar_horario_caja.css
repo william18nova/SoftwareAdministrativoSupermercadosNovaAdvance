@@ -1,5 +1,6 @@
 /* agregar_horario_caja.css */
 
+/* Importación de fuente */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
 /* Variables CSS para facilitar cambios de color y mantenimiento */
@@ -109,6 +110,7 @@ body::before {
 .form-group {
     margin-bottom: 20px;
     text-align: left;
+    position: relative; /* Para posicionar el autocompletar */
 }
 
 /* Etiquetas de los campos */
@@ -122,7 +124,8 @@ body::before {
 
 /* Campos de entrada y select */
 .form-group select,
-.form-group input[type="time"] {
+.form-group input[type="time"],
+.form-group input[type="text"] {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--color-gris);
@@ -136,14 +139,16 @@ body::before {
 
 /* Hover sobre campos de entrada y select */
 .form-group select:hover,
-.form-group input[type="time"]:hover {
+.form-group input[type="time"]:hover,
+.form-group input[type="text"]:hover {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
 }
 
 /* Enfoque sobre campos de entrada y select */
 .form-group select:focus,
-.form-group input[type="time"]:focus {
+.form-group input[type="time"]:focus,
+.form-group input[type="text"]:focus {
     outline: none;
     border-color: var(--color-principal);
     box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
@@ -220,6 +225,40 @@ body::before {
     text-align: left;
 }
 
+/* Estilos para el autocompletar */
+.autocomplete-results {
+    position: absolute;
+    top: calc(100% + 5px); /* Añadimos un margen superior */
+    left: 0;
+    right: 0;
+    background-color: var(--color-gris-claro);
+    border: 1px solid var(--color-gris);
+    z-index: 1000;
+    max-height: 200px; /* Altura máxima */
+    overflow-y: auto; /* Permitir scroll vertical */
+    display: none;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.autocomplete-option {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+}
+
+.autocomplete-option:hover {
+    background-color: var(--color-boton-hover);
+    color: var(--color-blanco);
+}
+
+.autocomplete-no-result {
+    padding: 10px;
+    color: #999;
+    font-size: 16px;
+}
+
 /* Tabla de horarios temporales */
 .horarios-temp-container {
     margin-top: 20px;
@@ -246,6 +285,12 @@ body::before {
 
 .horarios-temp td {
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Asegurar que los inputs de hora no excedan el ancho de la columna */
+.horarios-temp td input[type="time"] {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 /* Botón eliminar */
@@ -281,7 +326,8 @@ body::before {
         margin-bottom: 15px;
     }
     .form-group select,
-    .form-group input[type="time"] {
+    .form-group input[type="time"],
+    .form-group input[type="text"] {
         padding: 8px;
         font-size: 14px;
     }
@@ -327,7 +373,8 @@ body::before {
         margin-bottom: 10px;
     }
     .form-group select,
-    .form-group input[type="time"] {
+    .form-group input[type="time"],
+    .form-group input[type="text"] {
         font-size: 14px;
         padding: 6px;
     }

@@ -10,8 +10,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agregar Horario de Caja</title>
+    <!-- Enlace al archivo CSS -->
     <link rel="stylesheet" href="{% static 'css/agregar_horario_caja.css' %}">
-    <!-- Font Awesome CDN -->
+    <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -25,26 +26,25 @@
 
         <form id="horarioForm" method="POST" action="{% url 'agregar_horario_caja' %}">
             {% csrf_token %}
-            <!-- Campo Sucursal -->
+            <!-- Campo Sucursal Autocompletar -->
             <div class="form-group">
-                <label for="id_sucursal">Sucursal</label>
-                <select id="id_sucursal" name="sucursal" required>
-                    <option value="">Seleccionar sucursal</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
-                    {% endfor %}
-                </select>
-                <div class="field-error" id="error-id_sucursal"></div>
+                <label for="id_sucursal">Sucursal <span class="campo-obligatorio">*</span></label>
+                <input type="text" id="id_sucursal_autocomplete" name="sucursal_autocomplete" class="form-control" placeholder="Escriba para buscar sucursal..." autocomplete="off" required>
+                <input type="hidden" id="id_sucursalid" name="sucursalid">
+                <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
+                <div class="field-error" id="error-id_sucursalid"></div>
             </div>
-            <!-- Campo Punto de Pago -->
+            <!-- Campo Punto de Pago Autocompletar -->
             <div class="form-group">
-                <label for="{{ form.puntopagoid.id_for_label }}">Punto de Pago</label>
-                {{ form.puntopagoid }}
-                <div class="field-error" id="error-{{ form.puntopagoid.id_for_label }}"></div>
+                <label for="id_puntopagoid">Punto de Pago <span class="campo-obligatorio">*</span></label>
+                <input type="text" id="id_puntopago_autocomplete" name="puntopago_autocomplete" class="form-control" placeholder="Escriba para buscar punto de pago..." autocomplete="off" required>
+                <input type="hidden" id="id_puntopagoid" name="puntopagoid">
+                <div class="autocomplete-results" id="puntopago-autocomplete-results"></div>
+                <div class="field-error" id="error-id_puntopagoid"></div>
             </div>
             <!-- Días de la Semana -->
             <div class="form-group">
-                <label>Días</label>
+                <label>Días <span class="campo-obligatorio">*</span></label>
                 <div class="days-container">
                     <button type="button" class="day-button" data-day="Lun">Lun</button>
                     <button type="button" class="day-button" data-day="Mar">Mar</button>
@@ -59,13 +59,13 @@
             </div>
             <!-- Hora de Apertura -->
             <div class="form-group">
-                <label for="{{ form.horaapertura.id_for_label }}">Hora de Apertura</label>
+                <label for="{{ form.horaapertura.id_for_label }}">Hora de Apertura <span class="campo-obligatorio">*</span></label>
                 {{ form.horaapertura }}
                 <div class="field-error" id="error-{{ form.horaapertura.id_for_label }}"></div>
             </div>
             <!-- Hora de Cierre -->
             <div class="form-group">
-                <label for="{{ form.horacierre.id_for_label }}">Hora de Cierre</label>
+                <label for="{{ form.horacierre.id_for_label }}">Hora de Cierre <span class="campo-obligatorio">*</span></label>
                 {{ form.horacierre }}
                 <div class="field-error" id="error-{{ form.horacierre.id_for_label }}"></div>
             </div>
@@ -89,6 +89,11 @@
             <button type="submit" class="btn-guardar">Guardar</button>
         </form>
     </div>
+    <!-- Pasamos la URL de autocompletar al JavaScript -->
+    <script type="text/javascript">
+        var sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete' %}";
+        var puntopagoAutocompleteUrl = "{% url 'puntopago_autocomplete' %}";
+    </script>
     <!-- Incluimos el JavaScript separado -->
     <script src="{% static 'javascript/agregar_horario_caja.js' %}"></script>
 </body>

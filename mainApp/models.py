@@ -178,7 +178,7 @@ class HorariosNegocio(models.Model):
     
 class HorarioCaja(models.Model):
     horariocajaid = models.AutoField(primary_key=True)  # Corrige el nombre del campo aquí
-    puntopagoid = models.IntegerField()
+    puntopagoid = models.ForeignKey(PuntosPago, on_delete=models.CASCADE, related_name='horarios_caja')
     dia_semana = models.CharField(max_length=3)
     horaapertura = models.TimeField()
     horacierre = models.TimeField()
