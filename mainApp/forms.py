@@ -325,9 +325,10 @@ class HorarioCajaForm(forms.ModelForm):
             }),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, horarios_present=False, **kwargs):
         super().__init__(*args, **kwargs)
-        
+        self.horarios_present = horarios_present
+
         # Filtrar los Puntos de Pago que no tienen horario asignado
         self.fields['puntopagoid'].queryset = PuntosPago.objects.filter(
             sucursalid__isnull=False
@@ -342,17 +343,20 @@ class HorarioCajaForm(forms.ModelForm):
         dia_semana = cleaned_data.get('dia_semana')
         puntopagoid = cleaned_data.get('puntopagoid')
 
-        if horaapertura and horacierre:
-            if horaapertura >= horacierre:
-                raise forms.ValidationError('La hora de apertura debe ser menor que la hora de cierre.')
+        # Si no hay horarios listados, validar los campos
+        if not self.horarios_present:
+            if horaapertura and horacierre:
+                if horaapertura >= horacierre:
+                    raise forms.ValidationError('La hora de apertura debe ser menor que la hora de cierre.')
 
-        if not dia_semana:
-            raise forms.ValidationError('Debe seleccionar al menos un día de la semana.')
+            if not dia_semana:
+                raise forms.ValidationError('Debe seleccionar al menos un día de la semana.')
 
-        # Validar que no exista ya un horario para el mismo día y punto de pago
-        dias = dia_semana.split(',')
-        for dia in dias:
-            if HorarioCaja.objects.filter(puntopagoid=puntopagoid, dia_semana=dia).exists():
-                raise forms.ValidationError(f'Ya existe un horario para el día {dia} en este punto de pago.')
+            # Validar que no exista ya un horario para el mismo día y punto de pago
+            if dia_semana and puntopagoid:
+                dias = dia_semana.split(',')
+                for dia in dias:
+                    if HorarioCaja.objects.filter(puntopagoid=puntopagoid, dia_semana=dia).exists():
+                        raise forms.ValidationError(f'Ya existe un horario para el día {dia} en este punto de pago.')
 
         return cleaned_data

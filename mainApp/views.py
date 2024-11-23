@@ -884,10 +884,11 @@ def agregar_horario_caja_view(request):
     ).filter(tiene_puntos_sin_horario=True).distinct()
 
     if request.method == 'POST':
-        form = HorarioCajaForm(request.POST)
+        horarios_temp = request.POST.get('horarios')
+        horarios_present = bool(horarios_temp and json.loads(horarios_temp))
+        form = HorarioCajaForm(request.POST, horarios_present=horarios_present)
         if form.is_valid():
-            horarios_temp = request.POST.get('horarios')
-            if horarios_temp:
+            if horarios_present:
                 horarios = json.loads(horarios_temp)
                 puntopago = form.cleaned_data['puntopagoid']
                 for horario in horarios:
@@ -899,8 +900,21 @@ def agregar_horario_caja_view(request):
                     )
                 return JsonResponse({'success': True})
             else:
-                errors = {'__all__': [{'message': 'Debe agregar al menos un horario.'}]}
-                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+                # Procesar la creación de un solo horario desde los campos del formulario
+                dia_semana = form.cleaned_data['dia_semana']
+                horaapertura = form.cleaned_data['horaapertura']
+                horacierre = form.cleaned_data['horacierre']
+                puntopago = form.cleaned_data['puntopagoid']
+
+                dias = dia_semana.split(',')
+                for dia in dias:
+                    HorarioCaja.objects.create(
+                        puntopagoid=puntopago,
+                        dia_semana=dia,
+                        horaapertura=horaapertura,
+                        horacierre=horacierre
+                    )
+                return JsonResponse({'success': True})
         else:
             errors = form.errors.as_json()
             return JsonResponse({'success': False, 'errors': errors})

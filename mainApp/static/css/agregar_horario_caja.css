@@ -8,12 +8,19 @@
     --color-principal: #005091;
     --color-secundario: #ADD8E6;
     --color-blanco: #ffffff;
+    --color-negro: #000000; /* Añadido */
     --color-rojo: #ff0000;
     --color-gris-claro: #f0f8ff;
     --color-gris: #ccc;
     --color-gris-hover: #aaa;
     --color-boton: #3b5998;
     --color-boton-hover: #2b467d;
+    --color-boton-activo: #73a0fa; /* Añadido */
+    --color-boton-deshabilitado: #555; /* Añadido */
+    --color-alerta-exito: #dff0d8; /* Añadido */
+    --color-alerta-exito-borde: #d6e9c6; /* Añadido */
+    --color-alerta-error: #f2dede; /* Añadido */
+    --color-alerta-error-borde: #ebccd1; /* Añadido */
     --fuente-principal: 'Roboto', Arial, sans-serif;
     --fuente-secundaria: 'Arial', sans-serif;
 }
@@ -77,33 +84,39 @@ body::before {
 
 /* Icono */
 .icono-reloj {
-    font-size: 90px;
+    font-size: 50px;
     color: var(--color-blanco);
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 /* Estilos de alertas */
 .alert {
     padding: 15px;
-    margin-top: 20px;
+    margin-bottom: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
-    font-size: 16px;
 }
 
 .alert-success {
     color: #3c763d;
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-    margin-bottom: 20px;
+    background-color: var(--color-alerta-exito);
+    border-color: var(--color-alerta-exito-borde);
 }
 
 .alert-error {
     color: #a94442;
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    margin-bottom: 20px;
+    background-color: var(--color-alerta-error);
+    border-color: var(--color-alerta-error-borde);
+}
+
+/* Estilos para mensajes de error de campo */
+.field-error {
+    color: #a94442;
+    font-size: 14px;
+    margin-top: 5px;
+    display: none; /* Inicialmente oculto */
+    text-align: left;
 }
 
 /* Grupo de formulario */
@@ -176,53 +189,10 @@ body::before {
     background-color: var(--color-boton-hover);
 }
 
-/* Contenedor de días */
-.days-container {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 20px;
-    flex-wrap: wrap; /* Permitir que los botones se ajusten en múltiples filas si es necesario */
-}
-
-/* Botones de día */
-.day-button {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 5px;
-}
-
-.day-button:hover {
-    background-color: var(--color-boton-hover);
-}
-
-/* Estado activo (seleccionado) */
-.day-button.active {
-    background-color: #73a0fa;
-    transform: scale(1.1);
-}
-
-/* Botón deshabilitado */
-.day-button:disabled {
-    background-color: #555;
-    cursor: not-allowed;
-}
-
-/* Estilos para mensajes de error de campo */
-.field-error {
-    color: #a94442;
-    font-size: 14px;
-    margin-top: 5px;
-    display: none; /* Inicialmente oculto */
-    text-align: left;
+/* Estilo para el asterisco de campo obligatorio */
+.campo-obligatorio {
+    color: var(--color-blanco); /* Corregido para usar la variable */
+    margin-left: 2px;
 }
 
 /* Estilos para el autocompletar */
@@ -259,6 +229,43 @@ body::before {
     font-size: 16px;
 }
 
+/* Contenedor de días */
+.days-container {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.day-button {
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 5px;
+}
+
+.day-button:hover {
+    background-color: var(--color-boton-hover);
+}
+
+.day-button.active {
+    background-color: var(--color-boton-activo);
+    transform: scale(1.1);
+}
+
+.day-button:disabled {
+    background-color: var(--color-boton-deshabilitado);
+    cursor: not-allowed;
+}
+
 /* Tabla de horarios temporales */
 .horarios-temp-container {
     margin-top: 20px;
@@ -270,8 +277,9 @@ body::before {
     border-collapse: collapse;
 }
 
-.horarios-temp th, .horarios-temp td {
-    border: 1px solid #ccc;
+.horarios-temp th,
+.horarios-temp td {
+    border: 1px solid var(--color-gris);
     padding: 8px;
     text-align: center;
     color: var(--color-blanco);
@@ -285,12 +293,6 @@ body::before {
 
 .horarios-temp td {
     background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Asegurar que los inputs de hora no excedan el ancho de la columna */
-.horarios-temp td input[type="time"] {
-    width: 100%;
-    box-sizing: border-box;
 }
 
 /* Botón eliminar */
@@ -315,75 +317,70 @@ body::before {
 /* Responsividad */
 @media (max-width: 768px) {
     .container-usuario {
-        padding: 30px 20px;
+        padding: 20px;
     }
-    .icono-reloj {
-        font-size: 60px;
-        margin-bottom: 10px;
-    }
-    .container-usuario h2 {
-        font-size: 22px;
-        margin-bottom: 15px;
-    }
+
     .form-group select,
     .form-group input[type="time"],
-    .form-group input[type="text"] {
-        padding: 8px;
-        font-size: 14px;
-    }
+    .form-group input[type="text"],
     .btn-agregar-temporal,
     .btn-guardar {
-        padding: 10px;
-        font-size: 16px;
+        width: 100%;
     }
+
     .alert {
         padding: 10px;
-        font-size: 14px;
     }
+
     .days-container {
         flex-direction: row;
         flex-wrap: wrap;
     }
+
     .day-button {
         margin: 5px;
         width: 30px;
         height: 30px;
     }
+
     .day-button.active {
         transform: scale(1.1);
     }
-    .horarios-temp th, .horarios-temp td {
+
+    .horarios-temp th,
+    .horarios-temp td {
         font-size: 14px;
     }
+
     .horarios-temp input[type="time"] {
         width: 90px;
     }
 }
 
-@media (max-width: 480px) {
-    .container-usuario {
-        padding: 20px 15px;
+@media (min-width: 769px) {
+    .horarios-temp input[type="time"] {
+        width: 90px; /* Ajustar ancho para pantallas grandes */
+        box-sizing: border-box;
     }
-    .icono-reloj {
-        font-size: 50px;
-        margin-bottom: 8px;
+
+    .horarios-temp {
+        table-layout: fixed;
     }
-    .container-usuario h2 {
-        font-size: 20px;
-        margin-bottom: 10px;
+
+    .horarios-temp th:nth-child(1),
+    .horarios-temp td:nth-child(1) {
+        width: 14%;
     }
-    .form-group select,
-    .form-group input[type="time"],
-    .form-group input[type="text"] {
-        font-size: 14px;
-        padding: 6px;
+
+    .horarios-temp th:nth-child(2),
+    .horarios-temp td:nth-child(2),
+    .horarios-temp th:nth-child(3),
+    .horarios-temp td:nth-child(3) {
+        width: 30%;
     }
-    .btn-agregar-temporal,
-    .btn-guardar {
-        font-size: 16px;
-        padding: 8px;
-    }
-    .alert {
-        font-size: 12px;
+
+    .horarios-temp th:nth-child(4),
+    .horarios-temp td:nth-child(4) {
+        width: 26.8%;
     }
 }
