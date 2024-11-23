@@ -105,8 +105,7 @@ def agregar_categoria_view(request):
             form.save()
             messages.success(request, 'Categoría agregada exitosamente.')
             return redirect('agregar_categoria')
-        else:
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+        # Eliminamos el mensaje general de error
     else:
         form = CategoriaForm()
     
