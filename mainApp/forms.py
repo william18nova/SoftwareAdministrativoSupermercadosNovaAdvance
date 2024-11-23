@@ -1,10 +1,11 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
+from dal import autocomplete
 
 class CategoriaForm(forms.ModelForm):
     class Meta:
@@ -256,5 +257,64 @@ class HorarioCajaForm(forms.ModelForm):
         for dia in dias:
             if HorarioCaja.objects.filter(puntopagoid=puntopagoid, dia_semana=dia).exists():
                 raise forms.ValidationError(f'Ya existe un horario para el día {dia} en este punto de pago.')
+
+        return cleaned_data
+    
+class HorariosNegocioForm(forms.ModelForm):
+    sucursal_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar sucursal...',
+            'autocomplete': 'off',
+        })
+    )
+    sucursalid = forms.ModelChoiceField(
+        queryset=Sucursal.objects.none(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+    horaapertura = forms.TimeField(
+        required=False,
+        widget=forms.TimeInput(attrs={
+            'class': 'form-control',
+            'type': 'time'
+        })
+    )
+    horacierre = forms.TimeField(
+        required=False,
+        widget=forms.TimeInput(attrs={
+            'class': 'form-control',
+            'type': 'time'
+        })
+    )
+    dia_semana = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Excluir sucursales que ya tienen horarios asignados
+        self.fields['sucursalid'].queryset = Sucursal.objects.exclude(horariosnegocio__isnull=False)
+
+    class Meta:
+        model = HorariosNegocio
+        fields = ['sucursalid', 'dia_semana', 'horaapertura', 'horacierre']
+        labels = {
+            'sucursal_autocomplete': 'Sucursal',
+            'dia_semana': 'Día de la Semana',
+            'horaapertura': 'Hora de Apertura',
+            'horacierre': 'Hora de Cierre',
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        sucursalid = cleaned_data.get('sucursalid')
+
+        if not sucursalid:
+            raise forms.ValidationError('Debe seleccionar una sucursal válida.')
+
+        # Validaciones adicionales (si es necesario)
 
         return cleaned_data

@@ -1,0 +1,362 @@
+/* agregar_horarios.css */
+
+/* Importación de fuente */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+/* Variables CSS para facilitar cambios de color y mantenimiento */
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-negro: #000000;
+    --color-rojo: #ff0000;
+    --color-gris-claro: #f0f8ff;
+    --color-gris: #ccc;
+    --color-gris-hover: #aaa;
+    --color-boton: #3b5998;
+    --color-boton-hover: #2b467d;
+    --color-boton-activo: #73a0fa;
+    --color-boton-deshabilitado: #555;
+    --color-alerta-exito: #dff0d8;
+    --color-alerta-exito-borde: #d6e9c6;
+    --color-alerta-error: #f2dede;
+    --color-alerta-error-borde: #ebccd1;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+}
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Estilos del cuerpo */
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+    font-family: var(--fuente-principal);
+    text-align: center;
+    color: var(--color-blanco);
+    overflow: auto; /* Permitir scroll en todo el body */
+    position: relative; /* Para posicionar elementos absolutos dentro del body */
+}
+
+
+
+/* Contenedor principal */
+.container-usuario {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+    position: relative;
+    overflow: hidden; /* Evitar el desbordamiento horizontal */
+}
+
+/* Título del contenedor */
+.container-usuario h2 {
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+/* Icono */
+.icono-reloj {
+    font-size: 50px;
+    color: var(--color-blanco);
+    margin-bottom: 10px;
+}
+
+/* Estilos de alertas */
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.alert-success {
+    color: #3c763d;
+    background-color: var(--color-alerta-exito);
+    border-color: var(--color-alerta-exito-borde);
+}
+
+.alert-error {
+    color: #a94442;
+    background-color: var(--color-alerta-error);
+    border-color: var(--color-alerta-error-borde);
+}
+
+.field-error {
+    color: #a94442;
+    font-size: 14px;
+    margin-top: 5px;
+    display: none;
+    text-align: left;
+}
+
+/* Grupo de formulario */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+    position: relative; /* Para posicionar el autocompletar */
+}
+
+/* Etiquetas de los campos */
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--color-blanco);
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Campos de entrada y select */
+.form-group select,
+.form-group input[type="time"],
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--color-gris);
+    border-radius: 5px;
+    background-color: var(--color-gris-claro);
+    font-size: 16px;
+    transition: background-color 0.3s, border-color 0.3s;
+    color: #333;
+    box-sizing: border-box;
+}
+
+.form-group select:hover,
+.form-group input[type="time"]:hover,
+.form-group input[type="text"]:hover {
+    background-color: #e0e8ff;
+    border-color: var(--color-gris-hover);
+}
+
+/* Botones */
+.btn-agregar-temporal,
+.btn-guardar {
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+    width: 100%;
+    font-size: 18px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    margin-top: 20px;
+    display: block;
+}
+
+.btn-agregar-temporal:hover,
+.btn-guardar:hover {
+    background-color: var(--color-boton-hover);
+}
+
+/* Estilo para el asterisco de campo obligatorio */
+.campo-obligatorio {
+    color: --color-blanco;
+    margin-left: 2px;
+}
+
+/* Estilos para el autocompletar */
+.autocomplete-results {
+    position: absolute;
+    top: calc(100% + 5px); /* Añadimos un margen superior */
+    left: 0;
+    right: 0;
+    background-color: var(--color-gris-claro);
+    border: 1px solid var(--color-gris);
+    z-index: 1000;
+    max-height: 200px; /* Altura máxima */
+    overflow-y: auto; /* Permitir scroll vertical */
+    display: none;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.autocomplete-option {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+}
+
+.autocomplete-option:hover {
+    background-color: var(--color-boton-hover);
+    color: var(--color-blanco);
+}
+
+.autocomplete-no-result {
+    padding: 10px;
+    color: #999;
+    font-size: 16px;
+}
+
+/* Contenedor de días */
+.days-container {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.day-button {
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 5px;
+}
+
+.day-button:hover {
+    background-color: var(--color-boton-hover);
+}
+
+.day-button.active {
+    background-color: var(--color-boton-activo);
+    transform: scale(1.1);
+}
+
+.day-button:disabled {
+    background-color: var(--color-boton-deshabilitado);
+    cursor: not-allowed;
+}
+
+/* Tabla de horarios temporales */
+.horarios-temp-container {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.horarios-temp {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.horarios-temp th,
+.horarios-temp td {
+    border: 1px solid var(--color-gris);
+    padding: 8px;
+    text-align: center;
+    color: var(--color-blanco);
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.horarios-temp th {
+    background-color: var(--color-boton);
+}
+
+.horarios-temp td {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+
+/* Botón eliminar */
+.btn-eliminar {
+    background-color: #ff4c4c;
+    border: none;
+    color: var(--color-blanco);
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-eliminar:hover {
+    background-color: #e60000;
+}
+
+.btn-eliminar i {
+    margin-right: 0;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+    .container-usuario {
+        padding: 20px;
+    }
+
+    .form-group select,
+    .form-group input[type="time"],
+    .form-group input[type="text"],
+    .btn-agregar-temporal,
+    .btn-guardar {
+        width: 100%;
+    }
+
+    .alert {
+        padding: 10px;
+    }
+
+    .days-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .day-button {
+        margin: 5px;
+        width: 30px;
+        height: 30px;
+    }
+
+    .day-button.active {
+        transform: scale(1.1);
+    }
+
+    .horarios-temp th,
+    .horarios-temp td {
+        font-size: 14px;
+    }
+
+    .horarios-temp input[type="time"] {
+        width: 90px;
+    }
+}
+
+@media (min-width: 769px) {
+    .horarios-temp input[type="time"] {
+        width: 90px; /* Ajustar ancho para pantallas grandes */
+        box-sizing: border-box;
+    }
+
+    .horarios-temp {
+        table-layout: fixed;
+    }
+
+    .horarios-temp th:nth-child(1),
+    .horarios-temp td:nth-child(1) {
+        width: 14%;
+    }
+
+    .horarios-temp th:nth-child(2),
+    .horarios-temp td:nth-child(2),
+    .horarios-temp th:nth-child(3),
+    .horarios-temp td:nth-child(3) {
+        width: 30%;
+    }
+
+    .horarios-temp th:nth-child(4),
+    .horarios-temp td:nth-child(4) {
+        width: 26.8%;
+    }
+}

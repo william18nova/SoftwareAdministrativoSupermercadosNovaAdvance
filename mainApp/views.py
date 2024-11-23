@@ -15,7 +15,8 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm
+from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm
+from dal import autocomplete
 
 def login(request):
     if request.method == 'POST':
@@ -754,29 +755,58 @@ def eliminar_empleado_view(request, empleado_id):
 
 @login_required
 def agregar_horario_view(request):
+    if request.method == 'POST':
+        form = HorariosNegocioForm(request.POST)
+        if form.is_valid():
+            horarios_temp = request.POST.get('horarios')
+            if horarios_temp:
+                horarios = json.loads(horarios_temp)
+                sucursal = form.cleaned_data['sucursalid']
+                for horario in horarios:
+                    HorariosNegocio.objects.create(
+                        sucursalid=sucursal,
+                        dia_semana=horario['dia'],
+                        horaapertura=horario['horaapertura'],
+                        horacierre=horario['horacierre']
+                    )
+                return JsonResponse({'success': True})
+            else:
+                errors = {'__all__': [{'message': 'Debe agregar al menos un horario.'}]}
+                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+        else:
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        form = HorariosNegocioForm()
+
+    return render(request, 'agregar_horario.html', {'form': form})
+
+def sucursal_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page = int(request.GET.get('page', '1'))
+    per_page = 50  # Número de resultados por página
+    start = (page - 1) * per_page
+    end = start + per_page
+
     sucursales = Sucursal.objects.exclude(horariosnegocio__isnull=False)
 
-    if request.method == 'POST':
-        sucursalid = request.POST.get('sucursalid')
-        horarios_temp = request.POST.get('horarios_temp')
+    if term:
+        sucursales = sucursales.filter(nombre__icontains=term)
 
-        if horarios_temp:
-            horarios = json.loads(horarios_temp)
-            for horario in horarios:
-                dia, hora_apertura, hora_cierre = horario['dia'], horario['apertura'], horario['cierre']
-                HorariosNegocio.objects.create(
-                    sucursalid=Sucursal.objects.get(pk=sucursalid),
-                    dia_semana=dia,
-                    horaapertura=hora_apertura,
-                    horacierre=hora_cierre
-                )
+    total_results = sucursales.count()
+    sucursales = sucursales[start:end]
 
-            messages.success(request, 'Horarios agregados exitosamente.')
-            return redirect('agregar_horario')
-        else:
-            messages.error(request, 'Debe agregar al menos un horario.')
+    results = []
+    for sucursal in sucursales:
+        results.append({
+            'id': sucursal.pk,
+            'text': sucursal.nombre,
+        })
 
-    return render(request, 'agregar_horario.html', {'sucursales': sucursales})
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
 
 @login_required
 def visualizar_horarios_view(request):
