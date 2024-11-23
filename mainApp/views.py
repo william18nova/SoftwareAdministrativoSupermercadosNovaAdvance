@@ -15,7 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm, EmpleadoForm
+from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm
 
 def login(request):
     if request.method == 'POST':
@@ -852,26 +852,25 @@ def agregar_horario_caja_view(request):
     ).filter(tiene_puntos_sin_horario=True).distinct()
 
     if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal')
-        puntopago_id = request.POST.get('punto_pago')
-        horarios = request.POST.get('horarios')
-
-        if not (sucursal_id and puntopago_id and horarios):
-            messages.error(request, 'Todos los campos son requeridos.')
-            return redirect('agregar_horario_caja')
-
-        horarios = json.loads(horarios)
-        for horario in horarios:
-            HorarioCaja.objects.create(
-                puntopagoid=puntopago_id,
-                dia_semana=horario['dia'],
-                horaapertura=horario['horaapertura'],
-                horacierre=horario['horacierre']
-            )
-        messages.success(request, 'Horario de caja agregado exitosamente.')
-        return redirect('agregar_horario_caja')
+        form = HorarioCajaForm(request.POST)
+        if form.is_valid():
+            horarios = json.loads(request.POST.get('horarios'))
+            for horario in horarios:
+                HorarioCaja.objects.create(
+                    puntopagoid=form.cleaned_data['puntopagoid'],
+                    dia_semana=horario['dia'],
+                    horaapertura=horario['horaapertura'],
+                    horacierre=horario['horacierre']
+                )
+            return JsonResponse({'success': True})
+        else:
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        form = HorarioCajaForm()
 
     return render(request, 'agregar_horario_caja.html', {
+        'form': form,
         'sucursales': sucursales,
     })
 

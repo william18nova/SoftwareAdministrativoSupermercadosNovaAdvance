@@ -1,18 +1,59 @@
+/* agregar_horario_caja.css */
+
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+/* Variables CSS para facilitar cambios de color y mantenimiento */
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-rojo: #ff0000;
+    --color-gris-claro: #f0f8ff;
+    --color-gris: #ccc;
+    --color-gris-hover: #aaa;
+    --color-boton: #3b5998;
+    --color-boton-hover: #2b467d;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+    --fuente-secundaria: 'Arial', sans-serif;
+}
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Estilos del cuerpo */
 body {
     margin: 0;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(to bottom right, #ADD8E6, #005091);
-    font-family: 'Roboto', Arial, sans-serif;
+    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+    font-family: var(--fuente-principal);
     text-align: center;
-    color: white;
+    color: var(--color-blanco);
     overflow: auto; /* Permitir scroll en todo el body */
+    position: relative; /* Para posicionar elementos absolutos dentro del body */
 }
 
+/* Pseudo-elemento para el fondo difuminado */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none; /* Asegura que no haya interacción con este elemento */
+}
+
+/* Contenedor principal */
 .container-usuario {
     background: rgba(255, 255, 255, 0.1);
     padding: 40px;
@@ -26,108 +67,93 @@ body {
     overflow: hidden; /* Evitar el desbordamiento horizontal */
 }
 
+/* Título del contenedor */
 .container-usuario h2 {
-    color: #ffffff;
+    color: var(--color-blanco);
     margin-bottom: 20px;
+    font-size: 24px;
 }
 
+/* Icono */
 .icono-reloj {
-    font-size: 50px;
-    color: #ffffff;
-    margin-bottom: 10px;
+    font-size: 90px;
+    color: var(--color-blanco);
+    margin-bottom: 15px;
 }
 
+/* Estilos de alertas */
 .alert {
     padding: 15px;
-    margin-bottom: 20px;
+    margin-top: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
+    font-size: 16px;
 }
 
 .alert-success {
     color: #3c763d;
     background-color: #dff0d8;
     border-color: #d6e9c6;
+    margin-bottom: 20px;
 }
 
 .alert-error {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
-}
-
-.form-group {
     margin-bottom: 20px;
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: #ffffff;
-    font-weight: bold;
+/* Grupo de formulario */
+.form-group {
+    margin-bottom: 20px;
     text-align: left;
 }
 
+/* Etiquetas de los campos */
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--color-blanco);
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Campos de entrada y select */
 .form-group select,
-.form-group input[type="time"],
-.btn-agregar-temporal,
-.btn-guardar {
+.form-group input[type="time"] {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--color-gris);
     border-radius: 5px;
-    background-color: #f0f8ff;
-    display: block;
+    background-color: var(--color-gris-claro);
     font-size: 16px;
     transition: background-color 0.3s, border-color 0.3s;
     color: #333;
     box-sizing: border-box;
 }
 
+/* Hover sobre campos de entrada y select */
 .form-group select:hover,
-.form-group input[type="time"]:hover,
-.btn-agregar-temporal:hover,
-.btn-guardar:hover {
+.form-group input[type="time"]:hover {
     background-color: #e0e8ff;
-    border-color: #aaa;
+    border-color: var(--color-gris-hover);
 }
 
-.days-container {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 20px;
+/* Enfoque sobre campos de entrada y select */
+.form-group select:focus,
+.form-group input[type="time"]:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
 }
 
-.day-button {
-    background-color: #3b5998;
-    color: #ffffff;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* Estilos para el estado activo (seleccionado) */
-.day-button.active {
-    background-color: #73a0fa;
-    transform: scale(1.1);
-}
-
-.day-button:disabled {
-    background-color: #555;
-    cursor: not-allowed;
-}
-
+/* Botones */
 .btn-agregar-temporal,
 .btn-guardar {
-    background-color: #3b5998;
-    color: #ffffff;
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
     border: none;
     cursor: pointer;
     padding: 12px;
@@ -137,11 +163,64 @@ body {
     border-radius: 5px;
     transition: background-color 0.3s;
     margin-top: 20px;
-    margin-left: auto;
-    margin-right: auto;
     display: block;
 }
 
+.btn-agregar-temporal:hover,
+.btn-guardar:hover {
+    background-color: var(--color-boton-hover);
+}
+
+/* Contenedor de días */
+.days-container {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    flex-wrap: wrap; /* Permitir que los botones se ajusten en múltiples filas si es necesario */
+}
+
+/* Botones de día */
+.day-button {
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 5px;
+}
+
+.day-button:hover {
+    background-color: var(--color-boton-hover);
+}
+
+/* Estado activo (seleccionado) */
+.day-button.active {
+    background-color: #73a0fa;
+    transform: scale(1.1);
+}
+
+/* Botón deshabilitado */
+.day-button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+}
+
+/* Estilos para mensajes de error de campo */
+.field-error {
+    color: #a94442;
+    font-size: 14px;
+    margin-top: 5px;
+    display: none; /* Inicialmente oculto */
+    text-align: left;
+}
+
+/* Tabla de horarios temporales */
 .horarios-temp-container {
     margin-top: 20px;
     margin-bottom: 20px;
@@ -156,112 +235,108 @@ body {
     border: 1px solid #ccc;
     padding: 8px;
     text-align: center;
-    color: #ffffff;
-    word-wrap: break-word; /* Permitir ajuste de texto dentro de celdas */
-    white-space: normal; /* Permitir ajuste de texto dentro de celdas */
+    color: var(--color-blanco);
+    word-wrap: break-word;
+    white-space: normal;
 }
 
 .horarios-temp th {
-    background-color: #3b5998;
+    background-color: var(--color-boton);
 }
 
 .horarios-temp td {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Botón eliminar */
 .btn-eliminar {
     background-color: #ff4c4c;
     border: none;
-    color: white;
+    color: var(--color-blanco);
     padding: 8px;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.3s;
 }
 
-.btn-eliminar i {
-    margin-right: 0;
-}
-
 .btn-eliminar:hover {
     background-color: #e60000;
 }
 
-/* Ajustar el tamaño de las celdas de tiempo en pantallas grandes */
-@media (min-width: 769px) {
-    .horarios-temp input[type="time"] {
-        width: 90px; /* Ajustar ancho para pantallas grandes */
-        box-sizing: border-box;
-    }
+.btn-eliminar i {
+    margin-right: 0;
 }
 
-/* Responsiveness */
+/* Responsividad */
 @media (max-width: 768px) {
     .container-usuario {
-        padding: 20px;
+        padding: 30px 20px;
     }
-
+    .icono-reloj {
+        font-size: 60px;
+        margin-bottom: 10px;
+    }
+    .container-usuario h2 {
+        font-size: 22px;
+        margin-bottom: 15px;
+    }
     .form-group select,
-    .form-group input[type="time"],
+    .form-group input[type="time"] {
+        padding: 8px;
+        font-size: 14px;
+    }
     .btn-agregar-temporal,
     .btn-guardar {
-        width: 100%;
+        padding: 10px;
+        font-size: 16px;
     }
-
-    .btn-agregar-temporal,
-    .btn-guardar {
-        width: 100%;
-        max-width: none; /* Quitar el ancho máximo en vista móvil */
-    }
-
     .alert {
         padding: 10px;
+        font-size: 14px;
     }
-
     .days-container {
         flex-direction: row;
         flex-wrap: wrap;
     }
-
     .day-button {
         margin: 5px;
         width: 30px;
         height: 30px;
     }
-
     .day-button.active {
-        transform: scale(1.1); /* Asegura el cambio de tamaño en vista móvil */
+        transform: scale(1.1);
     }
-
     .horarios-temp th, .horarios-temp td {
-        font-size: 14px; /* Ajustar el tamaño de la fuente para pantallas más pequeñas */
+        font-size: 14px;
     }
-
     .horarios-temp input[type="time"] {
-        width: 90px; /* Ajustar el ancho para pantallas más pequeñas */
+        width: 90px;
     }
 }
 
-/* Estilo para pantallas más grandes */
-@media (min-width: 769px) {
-    .horarios-temp {
-        table-layout: fixed; /* Ajuste fijo de la tabla para distribuir uniformemente */
+@media (max-width: 480px) {
+    .container-usuario {
+        padding: 20px 15px;
     }
-
-    .horarios-temp th:nth-child(1),
-    .horarios-temp td:nth-child(1) {
-        width: 14%; /* Ancho específico para la columna "Día" */
+    .icono-reloj {
+        font-size: 50px;
+        margin-bottom: 8px;
     }
-
-    .horarios-temp th:nth-child(2),
-    .horarios-temp td:nth-child(2),
-    .horarios-temp th:nth-child(3),
-    .horarios-temp td:nth-child(3) {
-        width: 30%; /* Ancho específico para las columnas de "Hora de Apertura" y "Hora de Cierre" */
+    .container-usuario h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
     }
-
-    .horarios-temp th:nth-child(4),
-    .horarios-temp td:nth-child(4) {
-        width: 26.8%; /* Ancho específico para la columna "Acciones" */
+    .form-group select,
+    .form-group input[type="time"] {
+        font-size: 14px;
+        padding: 6px;
+    }
+    .btn-agregar-temporal,
+    .btn-guardar {
+        font-size: 16px;
+        padding: 8px;
+    }
+    .alert {
+        font-size: 12px;
     }
 }
