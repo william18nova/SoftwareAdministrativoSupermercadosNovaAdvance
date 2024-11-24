@@ -1,49 +1,90 @@
-<!DOCTYPE html>
+<!-- agregar_sucursal.html -->
+
 {% extends 'base.html' %}
-{% block title %}Agregar sucursal{% endblock %}
+{% load static %}
+{% block title %}Agregar Sucursal{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agregar Sucursal</title>
-    <!-- Font Awesome CDN -->
-    {% load static %}
+    
+    <!-- Font Awesome CDN para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static '/agregar_sucursal copy.css' %}">
+    
+    <!-- Enlace al CSS específico -->
+    <link rel="stylesheet" href="{% static 'css/agregar_sucursal.css' %}">
 </head>
 <body>
     <div class="container">
-        <i class="fas fa-store icon"></i> <!-- Ícono de tienda -->
+        <!-- Ícono de tienda -->
+        <i class="fas fa-store icon"></i>
+        
         <h2>Agregar Sucursal</h2>
+        
+        <!-- Mensajes de Django -->
         {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
         {% endif %}
+        
+        <!-- Formulario para agregar sucursal -->
         <form id="sucursalForm" action="{% url 'agregar_sucursal' %}" method="POST">
             {% csrf_token %}
+            
+            <!-- Campo Nombre -->
             <div class="form-group">
-                <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" required>
+                <label for="{{ form.nombre.id_for_label }}">
+                    {{ form.nombre.label }} <span class="required">*</span>
+                </label>
+                {{ form.nombre }}
+                <div class="field-error" id="error-id_nombre">
+                    {% for error in form.nombre.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
             </div>
+            
+            <!-- Campo Dirección -->
             <div class="form-group">
-                <label for="direccion">Dirección</label>
-                <input type="text" id="direccion" name="direccion" required>
+                <label for="{{ form.direccion.id_for_label }}">
+                    {{ form.direccion.label }} <span class="required">*</span>
+                </label>
+                {{ form.direccion }}
+                <div class="field-error" id="error-id_direccion">
+                    {% for error in form.direccion.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
             </div>
+            
+            <!-- Campo Teléfono -->
             <div class="form-group">
-                <label for="telefono">Teléfono</label>
-                <input type="text" id="telefono" name="telefono" required>
+                <label for="{{ form.telefono.id_for_label }}">
+                    {{ form.telefono.label }} <span class="required">*</span>
+                </label>
+                {{ form.telefono }}
+                <div class="field-error" id="error-id_telefono">
+                    {% for error in form.telefono.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
             </div>
+            
+            <!-- Botón de Envío -->
             <div class="form-group">
-                <input type="submit" value="Agregar">
+                <button type="submit" class="btn-agregar-sucursal">Agregar</button>
             </div>
         </form>
     </div>
-</body>
-</html>
+
+    <!-- Incluir el archivo JavaScript específico para esta página -->
+    <script src="{% static 'javascript/agregar_sucursal.js' %}"></script>
 {% endblock %}

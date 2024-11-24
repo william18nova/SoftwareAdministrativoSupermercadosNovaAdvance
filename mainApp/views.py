@@ -15,7 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm
+from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm
 from dal import autocomplete
 
 def login(request):
@@ -40,24 +40,17 @@ def homePage_view(request):
 @login_required
 def agregar_sucursal_view(request):
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        direccion = request.POST.get('direccion')
-        telefono = request.POST.get('telefono')
-
-        if not nombre:
-            messages.error(request, 'El Nombre es un campo obligatorio.')
-            return render(request, 'agregar_sucursal.html')
-
-        if Sucursal.objects.filter(nombre=nombre).exists():
-            messages.error(request, 'El Nombre de la sucursal ya está registrado.')
-            return render(request, 'agregar_sucursal.html')
-
-        sucursal = Sucursal(nombre=nombre, direccion=direccion, telefono=telefono)
-        sucursal.save()
-        messages.success(request, f'Sucursal agregada exitosamente: Nombre={nombre}, Dirección={direccion}, Teléfono={telefono}')
-        return redirect('agregar_sucursal')
-
-    return render(request, 'agregar_sucursal.html')
+        form = SucursalForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Sucursal agregada exitosamente')
+            return redirect('agregar_sucursal')
+        else:
+            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+    else:
+        form = SucursalForm()
+    
+    return render(request, 'agregar_sucursal.html', {'form': form})
 
 @login_required
 def visualizar_sucursales_view(request):

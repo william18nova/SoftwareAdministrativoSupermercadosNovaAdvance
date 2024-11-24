@@ -101,7 +101,7 @@ body::before {
 
 /* Asterisco para campos obligatorios */
 .form-group-empleado .required {
-    color: var(--color-rojo); /* Cambiar a rojo para mayor visibilidad */
+    color: var(--color-blanco); /* Cambiar a blanco para mayor visibilidad */
     margin-left: 5px;
     font-size: 18px;
 }
@@ -182,7 +182,7 @@ body::before {
 }
 
 .alert-error {
-    color: #a94442;
+    color: var(--color-rojo);
     background-color: #f2dede;
     border-color: #ebccd1;
     margin-bottom: 20px;

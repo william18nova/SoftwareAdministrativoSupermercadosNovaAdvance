@@ -374,3 +374,54 @@ class HorarioCajaForm(forms.ModelForm):
                         raise forms.ValidationError(f'Ya existe un horario para el día {dia} en este punto de pago.')
 
         return cleaned_data
+    
+class SucursalForm(forms.ModelForm):
+    class Meta:
+        model = Sucursal
+        fields = ['nombre', 'direccion', 'telefono']
+        labels = {
+            'nombre': 'Nombre',
+            'direccion': 'Dirección',
+            'telefono': 'Teléfono',
+        }
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el nombre de la sucursal',
+                'required': 'required'
+            }),
+            'direccion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa la dirección',
+                'required': 'required'
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el teléfono',
+                'required': 'required'
+            }),
+        }
+
+    # Validadores personalizados
+    nombre_validator = RegexValidator(
+        regex=r'^[A-Za-z\s]+$',
+        message='El nombre solo debe contener letras y espacios.'
+    )
+    
+    telefono_validator = RegexValidator(
+        regex=r'^\d{10}$',
+        message='El teléfono debe contener exactamente 10 dígitos.'
+    )
+
+    nombre = forms.CharField(
+        max_length=100,
+        validators=[nombre_validator]
+    )
+
+    telefono = forms.CharField(validators=[telefono_validator])
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get('nombre')
+        if Sucursal.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError('El nombre de la sucursal ya está registrado.')
+        return nombre
