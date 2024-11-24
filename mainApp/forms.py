@@ -106,7 +106,17 @@ class ClienteForm(forms.ModelForm):
 class EmpleadoForm(forms.ModelForm):
     class Meta:
         model = Empleado
-        fields = ['numerodocumento', 'nombre', 'apellido', 'telefono', 'email', 'direccion', 'puesto', 'usuarioid', 'sucursalid']
+        fields = [
+            'numerodocumento', 
+            'nombre', 
+            'apellido', 
+            'telefono', 
+            'email', 
+            'direccion', 
+            'puesto', 
+            'usuarioid', 
+            'sucursalid'
+        ]
         labels = {
             'numerodocumento': 'Número de Documento',
             'nombre': 'Nombre',
@@ -152,7 +162,6 @@ class EmpleadoForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Ingresa el puesto'
             }),
-            # Remover widgets de select para usuarioid y sucursalid
             'usuarioid': forms.HiddenInput(),
             'sucursalid': forms.HiddenInput(),
         }

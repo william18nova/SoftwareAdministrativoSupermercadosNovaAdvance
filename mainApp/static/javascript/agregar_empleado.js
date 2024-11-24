@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const errorFields = document.querySelectorAll('.field-error');
         errorFields.forEach(function(errorField) {
             errorField.innerHTML = '';
-            errorField.style.display = 'none';
+            errorField.classList.remove('visible');
         });
     }
     
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const errorDiv = document.getElementById('error-id_' + field);
             if (errorDiv) {
                 errorDiv.innerHTML = fieldErrors.map(e => `<i class="fas fa-exclamation-circle"></i>${e.message}`).join('<br>');
-                errorDiv.style.display = 'block';
+                errorDiv.classList.add('visible');
             }
         }
     }
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
         inputElement.value = selectedText;
         hiddenInput.value = selectedId;
         resultsContainer.innerHTML = '';
-        resultsContainer.style.display = 'none';
+        resultsContainer.classList.remove('visible');
         
         // Resetear paginación y flags si es necesario
         if (resultsContainer.id === 'usuario-autocomplete-results') {
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     hasMoreUsuario = false;
                 }
                 
-                usuarioAutocompleteResults.style.display = 'block';
+                usuarioAutocompleteResults.classList.add('visible');
                 isLoadingUsuario = false;
             })
             .catch(error => {
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     hasMoreSucursal = false;
                 }
                 
-                sucursalAutocompleteResults.style.display = 'block';
+                sucursalAutocompleteResults.classList.add('visible');
                 isLoadingSucursal = false;
             })
             .catch(error => {
@@ -296,12 +296,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(event) {
         if (!usuarioInput.contains(event.target) && !usuarioAutocompleteResults.contains(event.target)) {
             usuarioAutocompleteResults.innerHTML = '';
-            usuarioAutocompleteResults.style.display = 'none';
+            usuarioAutocompleteResults.classList.remove('visible');
             hasMoreUsuario = false;
         }
         if (!sucursalInput.contains(event.target) && !sucursalAutocompleteResults.contains(event.target)) {
             sucursalAutocompleteResults.innerHTML = '';
-            sucursalAutocompleteResults.style.display = 'none';
+            sucursalAutocompleteResults.classList.remove('visible');
             hasMoreSucursal = false;
         }
     });
@@ -322,14 +322,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!usuarioId) {
             const errorDiv = document.getElementById('error-id_usuarioid');
             errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Este campo es obligatorio.`;
-            errorDiv.style.display = 'block';
+            errorDiv.classList.add('visible');
             hasLocalErrors = true;
         }
         
         if (!sucursalId) {
             const errorDiv = document.getElementById('error-id_sucursalid');
             errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Este campo es obligatorio.`;
-            errorDiv.style.display = 'block';
+            errorDiv.classList.add('visible');
             hasLocalErrors = true;
         }
         
@@ -358,9 +358,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 usuarioIdInput.value = '';
                 sucursalIdInput.value = '';
                 usuarioAutocompleteResults.innerHTML = '';
-                usuarioAutocompleteResults.style.display = 'none';
+                usuarioAutocompleteResults.classList.remove('visible');
                 sucursalAutocompleteResults.innerHTML = '';
-                sucursalAutocompleteResults.style.display = 'none';
+                sucursalAutocompleteResults.classList.remove('visible');
                 hasMoreUsuario = false;
                 hasMoreSucursal = false;
             } else {

@@ -101,7 +101,7 @@ body::before {
 
 /* Asterisco para campos obligatorios */
 .form-group-empleado .required {
-    color: var(--color-blanco);
+    color: var(--color-rojo); /* Cambiar a rojo para mayor visibilidad */
     margin-left: 5px;
     font-size: 18px;
 }
@@ -195,59 +195,18 @@ body::before {
     margin-top: 5px;
     display: none; /* Ocultar por defecto */
     text-align: left;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-/* Estilos para el autocompletar */
-.autocomplete-results {
-    /* Cambiar a posición estática para que ocupe espacio en el flujo del documento */
-    position: relative;
-    top: 0;
-    left: 0;
-    right: 0;
-    background-color: var(--color-gris-claro);
-    border: 1px solid var(--color-gris);
-    z-index: 1000;
-    max-height: 200px; /* Altura máxima */
-    overflow-y: auto; /* Scroll vertical */
-    display: none; /* Ocultar por defecto */
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    margin-top: 5px; /* Separación del campo de entrada */
-}
-
-.autocomplete-option {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #333;
-}
-
-.autocomplete-option:hover {
-    background-color: var(--color-boton-hover);
-    color: var(--color-blanco);
-}
-
-.autocomplete-no-result {
-    padding: 10px;
-    color: #999;
-    font-size: 16px;
+.field-error.visible {
+    display: block;
+    opacity: 1;
 }
 
 /* Icono dentro de mensajes de error */
 .field-error i {
     margin-right: 5px;
-}
-
-/* Animaciones opcionales para mensajes de error */
-.field-error.visible {
-    display: block;
-    opacity: 1;
-    transition: opacity 0.3s ease;
-}
-
-.field-error {
-    opacity: 0;
-    transition: opacity 0.3s ease;
 }
 
 /* Responsividad para dispositivos móviles */
@@ -328,4 +287,44 @@ body::before {
     .autocomplete-option {
         font-size: 12px;
     }
+}
+
+/* Estilos para el autocompletar */
+.autocomplete-results {
+    /* Cambiar a posición relativa para que ocupe espacio en el flujo del documento */
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--color-gris-claro);
+    border: 1px solid var(--color-gris);
+    z-index: 1000;
+    max-height: 200px; /* Altura máxima */
+    overflow-y: auto; /* Scroll vertical */
+    display: none; /* Ocultar por defecto */
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    margin-top: 5px; /* Separación del campo de entrada */
+}
+
+.autocomplete-results.visible {
+    display: block;
+}
+
+.autocomplete-option {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+}
+
+.autocomplete-option:hover {
+    background-color: var(--color-boton-hover);
+    color: var(--color-blanco);
+}
+
+.autocomplete-no-result {
+    padding: 10px;
+    color: #999;
+    font-size: 16px;
 }
