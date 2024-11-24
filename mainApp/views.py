@@ -719,10 +719,11 @@ def usuario_autocomplete(request):
     start = (page - 1) * per_page
     end = start + per_page
     
-    # Corregimos la exclusión usando 'pk__in' y 'values_list' para obtener una lista plana de IDs
+    # Filtrar Usuarios que no están asignados a ningún Empleado y coinciden con el término
     usuarios = Usuario.objects.filter(
-        Q(nombreusuario__icontains=term)
-    ).exclude().order_by('nombreusuario')
+        Q(nombreusuario__icontains=term),
+        empleado__isnull=True  # Usuarios sin Empleado asociado
+    ).order_by('nombreusuario')
     
     total_results = usuarios.count()
     usuarios = usuarios[start:end]
