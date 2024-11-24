@@ -10,31 +10,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agregar Empleado</title>
-    <link rel="stylesheet" href="{% static 'css/agregar_empleados.css' %}">
-    <!-- Font Awesome CDN -->
+    
+    <!-- Enlaces a archivos CSS -->
+    <link rel="stylesheet" href="{% static 'css/agregar_empleado.css' %}">
+    
+    <!-- Font Awesome CDN para iconos (opcional) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Eliminar estilos internos redundantes -->
+    <!-- Ya que todo el CSS está en 'agregar_empleado.css', no es necesario incluir otro bloque de estilos -->
 </head>
 <body>
     <div class="container-empleado">
+        <!-- Icono de usuario -->
         <i class="fas fa-user-plus icon-empleado"></i>
+        
         <h2>Agregar Empleado</h2>
         <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
         
-        <!-- Mensajes de éxito y error -->
+        <!-- Mensajes de éxito y error generales -->
         <div id="error-message" class="alert alert-error" style="display: none;"></div>
         <div id="success-message" class="alert alert-success" style="display: none;"></div>
         
+        <!-- Formulario para agregar empleado -->
         <form id="form-agregar-empleado" method="POST" action="{% url 'agregar_empleado' %}">
             {% csrf_token %}
+            
             <!-- Campo Número de Documento -->
             <div class="form-group-empleado">
                 <label for="{{ form.numerodocumento.id_for_label }}">
                     {{ form.numerodocumento.label }} <span class="required">*</span>
                 </label>
                 {{ form.numerodocumento }}
-                <!-- Error específico del campo -->
                 <div class="field-error" id="error-id_numerodocumento"></div>
             </div>
+            
             <!-- Campo Nombre -->
             <div class="form-group-empleado">
                 <label for="{{ form.nombre.id_for_label }}">
@@ -43,6 +53,7 @@
                 {{ form.nombre }}
                 <div class="field-error" id="error-id_nombre"></div>
             </div>
+            
             <!-- Campo Apellido -->
             <div class="form-group-empleado">
                 <label for="{{ form.apellido.id_for_label }}">
@@ -51,6 +62,7 @@
                 {{ form.apellido }}
                 <div class="field-error" id="error-id_apellido"></div>
             </div>
+            
             <!-- Campo Teléfono -->
             <div class="form-group-empleado">
                 <label for="{{ form.telefono.id_for_label }}">
@@ -59,6 +71,7 @@
                 {{ form.telefono }}
                 <div class="field-error" id="error-id_telefono"></div>
             </div>
+            
             <!-- Campo Email -->
             <div class="form-group-empleado">
                 <label for="{{ form.email.id_for_label }}">
@@ -67,6 +80,7 @@
                 {{ form.email }}
                 <div class="field-error" id="error-id_email"></div>
             </div>
+            
             <!-- Campo Dirección -->
             <div class="form-group-empleado">
                 <label for="{{ form.direccion.id_for_label }}">
@@ -75,6 +89,7 @@
                 {{ form.direccion }}
                 <div class="field-error" id="error-id_direccion"></div>
             </div>
+            
             <!-- Campo Puesto -->
             <div class="form-group-empleado">
                 <label for="{{ form.puesto.id_for_label }}">
@@ -83,32 +98,29 @@
                 {{ form.puesto }}
                 <div class="field-error" id="error-id_puesto"></div>
             </div>
-            <!-- Campo Usuario -->
+            
+            <!-- Campo Usuario (Autocomplete) -->
             <div class="form-group-empleado">
-                <label for="{{ form.usuarioid.id_for_label }}">
-                    {{ form.usuarioid.label }}
+                <label for="id_usuario_autocomplete">
+                    Usuario <span class="required">*</span>
                 </label>
-                <select id="{{ form.usuarioid.id_for_label }}" name="{{ form.usuarioid.name }}" class="form-control">
-                    <option value="">Seleccionar usuario</option>
-                    {% for usuario in usuarios %}
-                        <option value="{{ usuario.usuarioid }}">{{ usuario.nombreusuario }}</option>
-                    {% endfor %}
-                </select>
+                <input type="text" id="id_usuario_autocomplete" name="usuario_autocomplete" class="form-control" placeholder="Escriba para buscar usuario..." autocomplete="off" required>
+                <input type="hidden" id="id_usuarioid" name="usuarioid">
+                <div class="autocomplete-results" id="usuario-autocomplete-results"></div>
                 <div class="field-error" id="error-id_usuarioid"></div>
             </div>
-            <!-- Campo Sucursal -->
+            
+            <!-- Campo Sucursal (Autocomplete) -->
             <div class="form-group-empleado">
-                <label for="{{ form.sucursalid.id_for_label }}">
-                    {{ form.sucursalid.label }}
+                <label for="id_sucursal_autocomplete">
+                    Sucursal <span class="required">*</span>
                 </label>
-                <select id="{{ form.sucursalid.id_for_label }}" name="{{ form.sucursalid.name }}" class="form-control">
-                    <option value="">Seleccionar sucursal</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
-                    {% endfor %}
-                </select>
+                <input type="text" id="id_sucursal_autocomplete" name="sucursal_autocomplete" class="form-control" placeholder="Escriba para buscar sucursal..." autocomplete="off" required>
+                <input type="hidden" id="id_sucursalid" name="sucursalid">
+                <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
                 <div class="field-error" id="error-id_sucursalid"></div>
             </div>
+            
             <!-- Botón de Envío -->
             <div class="form-group-empleado">
                 <button type="submit" class="btn-agregar-empleado">Agregar Empleado</button>
@@ -116,7 +128,13 @@
         </form>
     </div>
 
-    <!-- Incluye tu archivo JavaScript -->
+    <!-- Pasar las URLs de autocompletar al JavaScript -->
+    <script type="text/javascript">
+        var usuarioAutocompleteUrl = "{% url 'usuario_autocomplete' %}";
+        var sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete' %}";
+    </script>
+
+    <!-- Incluir el archivo JavaScript específico para esta página -->
     <script src="{% static 'javascript/agregar_empleado.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>

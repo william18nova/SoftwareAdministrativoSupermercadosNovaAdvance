@@ -152,14 +152,11 @@ class EmpleadoForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Ingresa el puesto'
             }),
-            'usuarioid': forms.Select(attrs={
-                'class': 'form-control',
-            }),
-            'sucursalid': forms.Select(attrs={
-                'class': 'form-control',
-            }),
+            # Remover widgets de select para usuarioid y sucursalid
+            'usuarioid': forms.HiddenInput(),
+            'sucursalid': forms.HiddenInput(),
         }
-
+    
     # Validadores
     nombre_validator = RegexValidator(
         regex=r'^[A-Za-z\s]+$',
@@ -195,7 +192,9 @@ class EmpleadoForm(forms.ModelForm):
 
     def clean_usuarioid(self):
         usuarioid = self.cleaned_data.get('usuarioid')
-        if usuarioid and Empleado.objects.filter(usuarioid=usuarioid).exists():
+        if not usuarioid:
+            raise forms.ValidationError('Este campo es obligatorio.')
+        if Empleado.objects.filter(usuarioid=usuarioid).exists():
             raise forms.ValidationError('Este usuario ya está asignado a un empleado.')
         return usuarioid
 
@@ -209,7 +208,13 @@ class EmpleadoForm(forms.ModelForm):
         telefono = self.cleaned_data.get('telefono')
         if Empleado.objects.filter(telefono=telefono).exists():
             raise forms.ValidationError('El teléfono ya está en uso.')
-        return telefono
+        return telefono 
+
+    def clean_sucursalid(self):
+        sucursalid = self.cleaned_data.get('sucursalid')
+        if not sucursalid:
+            raise forms.ValidationError('Este campo es obligatorio.')
+        return sucursalid
 
 class HorariosNegocioForm(forms.ModelForm):
     sucursal_autocomplete = forms.CharField(

@@ -697,10 +697,83 @@ def agregar_empleado_view(request):
     else:
         form = EmpleadoForm()
     
-    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid'))
+    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid_id'))
     sucursales = Sucursal.objects.all()
     
     return render(request, 'agregar_empleado.html', {'form': form, 'usuarios': usuarios, 'sucursales': sucursales})
+
+@login_required
+def usuario_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page = request.GET.get('page', '1').strip()
+    per_page = 10  # Número de resultados por página
+    
+    try:
+        page = int(page)
+        if page < 1:
+            page = 1
+    except ValueError:
+        logger.warning(f"Valor de 'page' no válido: {page}. Estableciendo a 1.")
+        page = 1
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    
+    # Corregimos la exclusión usando 'pk__in' y 'values_list' para obtener una lista plana de IDs
+    usuarios = Usuario.objects.filter(
+        Q(nombreusuario__icontains=term)
+    ).exclude().order_by('nombreusuario')
+    
+    total_results = usuarios.count()
+    usuarios = usuarios[start:end]
+    
+    results = []
+    for usuario in usuarios:
+        results.append({
+            'id': usuario.pk,  # Usamos 'pk' que es equivalente a 'usuarioid'
+            'text': usuario.nombreusuario,
+        })
+    
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
+
+@login_required
+def sucursal_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page = request.GET.get('page', '1').strip()
+    per_page = 10  # Número de resultados por página
+    
+    try:
+        page = int(page)
+        if page < 1:
+            page = 1
+    except ValueError:
+        logger.warning(f"Valor de 'page' no válido: {page}. Estableciendo a 1.")
+        page = 1
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    
+    sucursales = Sucursal.objects.filter(
+        Q(nombre__icontains=term)
+    ).order_by('nombre')
+    
+    total_results = sucursales.count()
+    sucursales = sucursales[start:end]
+    
+    results = []
+    for sucursal in sucursales:
+        results.append({
+            'id': sucursal.sucursalid,
+            'text': sucursal.nombre,
+        })
+    
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
 
 @login_required
 def visualizar_empleados_view(request):
