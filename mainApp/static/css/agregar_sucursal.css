@@ -68,6 +68,13 @@ body {
     color: var(--color-blanco);
 }
 
+/* Mensaje de campos obligatorios */
+.obligatorio-texto {
+    color: var(--color-blanco);
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
 /* Grupo de formulario */
 .form-group {
     margin-bottom: 20px;
@@ -164,7 +171,7 @@ body {
 
 /* Estilos para mensajes de error de campo */
 .field-error {
-    color: var(--color-rojo);
+    color: #a94442;
     font-size: 14px;
     margin-top: 5px;
     display: none; /* Ocultar por defecto */
