@@ -82,8 +82,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'defaultdb',
         'USER': 'avnadmin',
-        'PASSWORD': 'AVNS_OAicR-UdHRwwt0oC4Pu',
-        'HOST': 'nova-advance-dessarrolo-william84859-1d6e.i.aivencloud.com',
+        'PASSWORD': 'AVNS_lvNWZhagqrduCpWqeUU',
+        'HOST': 'desarrollo-william84859-1d6e.g.aivencloud.com',
         'PORT': '16802',  # Puerto personalizado para PostgreSQL
         'OPTIONS': {
             'sslmode': 'require',

@@ -15,7 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm
+from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm, ProductoForm
 from dal import autocomplete
 
 def login(request):
@@ -150,29 +150,51 @@ def editar_categoria_view(request, categoria_id):
 @login_required
 def agregar_producto_view(request):
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion')
-        precio = request.POST.get('precio')
-        categoria_id = request.POST.get('categoria')
-        codigo_de_barras = request.POST.get('codigo_de_barras')
-        iva = request.POST.get('iva')
-
-        if not nombre:
-            messages.error(request, 'El Nombre es un campo obligatorio.')
-            return redirect('agregar_producto')
-
-        if Producto.objects.filter(nombre=nombre).exists():
-            messages.error(request, 'El Nombre del producto ya está registrado.')
-            return redirect('agregar_producto')
-
-        categoria = Categoria.objects.get(pk=categoria_id) if categoria_id else None
-        producto = Producto(nombre=nombre, descripcion=descripcion, precio=precio, categoria=categoria, codigo_de_barras=codigo_de_barras, iva=iva)
-        producto.save()
-        messages.success(request, f'Producto agregado exitosamente: Nombre={nombre}, Descripción={descripcion}, Precio={precio}, Categoría={categoria.nombre if categoria else "Sin categoría"}')
-        return redirect('agregar_producto')
-
+        form = ProductoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'success': False, 'errors': form.errors.as_json()})
+    else:
+        form = ProductoForm()
     categorias = Categoria.objects.all()
-    return render(request, 'agregar_producto.html', {'categorias': categorias})
+    return render(request, 'agregar_producto.html', {'form': form, 'categorias': categorias})
+
+@login_required
+def categoria_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page = request.GET.get('page', '1').strip()
+    per_page = 10  # Número de resultados por página
+    
+    try:
+        page = int(page)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    
+    categorias = Categoria.objects.filter(
+        Q(nombre__icontains=term)
+    ).order_by('nombre')
+    
+    total_results = categorias.count()
+    categorias = categorias[start:end]
+    
+    results = []
+    for categoria in categorias:
+        results.append({
+            'id': categoria.categoriaid,
+            'text': categoria.nombre,
+        })
+    
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
 
 @login_required
 def visualizar_productos_view(request):

@@ -1,7 +1,7 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -425,3 +425,68 @@ class SucursalForm(forms.ModelForm):
         if Sucursal.objects.filter(nombre__iexact=nombre).exists():
             raise forms.ValidationError('El nombre de la sucursal ya está registrado.')
         return nombre
+    
+class ProductoForm(forms.ModelForm):
+    class Meta:
+        model = Producto
+        fields = ['nombre', 'descripcion', 'precio', 'categoria', 'codigo_de_barras', 'iva']
+        labels = {
+            'nombre': 'Nombre',
+            'descripcion': 'Descripción',
+            'precio': 'Precio',
+            'categoria': 'Categoría',
+            'codigo_de_barras': 'Código de Barras',
+            'iva': 'IVA (Por ejemplo, para 19% ingrese 0.19)',
+        }
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el nombre del producto',
+                'required': 'required'
+            }),
+            'descripcion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa la descripción del producto'
+            }),
+            'precio': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el precio',
+                'required': 'required',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'categoria': forms.HiddenInput(),  # Campo oculto para almacenar el ID de la categoría
+            'codigo_de_barras': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el código de barras'
+            }),
+            'iva': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el IVA (Por ejemplo, para 19% ingrese 0.19)',
+                'required': 'required',
+                'step': '0.01',
+                'min': '0',
+                'max': '1'
+            }),
+        }
+    
+    
+    codigo_de_barras_validator = RegexValidator(
+        regex=r'^\d{12}$',
+        message='El código de barras debe contener exactamente 12 dígitos.'
+    )
+    
+    # Aplicar validadores a los campos
+    codigo_de_barras = forms.CharField(validators=[codigo_de_barras_validator], required=False)
+    
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get('nombre')
+        if Producto.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError('El nombre del producto ya está registrado.')
+        return nombre
+    
+    def clean_codigo_de_barras(self):
+        codigo_de_barras = self.cleaned_data.get('codigo_de_barras')
+        if codigo_de_barras and Producto.objects.filter(codigo_de_barras=codigo_de_barras).exists():
+            raise forms.ValidationError('El código de barras ya está registrado.')
+        return codigo_de_barras

@@ -1,110 +1,145 @@
-<!DOCTYPE html>
+<!-- agregar_producto.html -->
+
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Agregar Producto{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agregar Producto</title>
-    {% load static %}
+    
+    <!-- Font Awesome CDN para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Enlace al CSS específico -->
     <link rel="stylesheet" href="{% static 'css/agregar_producto.css' %}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script> <!-- QuaggaJS -->
 </head>
 <body>
     <div class="container">
-        <i class="fas fa-box-open icon"></i> <!-- Ícono de producto -->
+        <!-- Ícono de producto -->
+        <i class="fas fa-box-open icon"></i>
+        
         <h2>Agregar Producto</h2>
+        
+        <!-- Mensaje de campos obligatorios -->
+        <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
+        
+        <!-- Mensajes de éxito y error generales -->
+        <div id="error-message" class="alert alert-error" style="display: none;"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+        
+        <!-- Mensajes de Django -->
         {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
         {% endif %}
+        
+        <!-- Formulario para agregar producto -->
         <form id="productoForm" action="{% url 'agregar_producto' %}" method="POST">
             {% csrf_token %}
+            
+            <!-- Campo Nombre -->
             <div class="form-group">
-                <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" required>
-            </div>
-            <div class="form-group">
-                <label for="descripcion">Descripción</label>
-                <input type="text" id="descripcion" name="descripcion">
-            </div>
-            <div class="form-group">
-                <label for="precio">Precio</label>
-                <input type="number" id="precio" name="precio" step="0.01" required>
-            </div>
-            <div class="form-group">
-                <label for="categoria">Categoría</label>
-                <select id="categoria" name="categoria">
-                    <option value="">Seleccionar categoría</option>
-                    {% for categoria in categorias %}
-                        <option value="{{ categoria.categoriaid }}">{{ categoria.nombre }}</option>
+                <label for="{{ form.nombre.id_for_label }}">
+                    {{ form.nombre.label }} <span class="required">*</span>
+                </label>
+                {{ form.nombre }}
+                <div class="field-error" id="error-id_nombre">
+                    {% for error in form.nombre.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
                     {% endfor %}
-                </select>
+                </div>
             </div>
+            
+            <!-- Campo Descripción -->
             <div class="form-group">
-                <label for="codigo_de_barras">Código de Barras</label>
-                <input type="text" id="codigo_de_barras" name="codigo_de_barras">
-                <button type="button" id="btnEscanear" class="btn-escanear">Escanear Código de Barras</button>
+                <label for="{{ form.descripcion.id_for_label }}">
+                    {{ form.descripcion.label }}
+                </label>
+                {{ form.descripcion }}
+                <div class="field-error" id="error-id_descripcion">
+                    {% for error in form.descripcion.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
             </div>
+            
+            <!-- Campo Precio -->
             <div class="form-group">
-                <label for="iva">IVA (Por ejemplo, para 19% ingrese 0.19)</label>
-                <input type="number" id="iva" name="iva" step="0.01" min="0" max="1" required>
+                <label for="{{ form.precio.id_for_label }}">
+                    {{ form.precio.label }} <span class="required">*</span>
+                </label>
+                {{ form.precio }}
+                <div class="field-error" id="error-id_precio">
+                    {% for error in form.precio.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
             </div>
-            <div id="interactive" class="viewport"></div> <!-- Contenedor para el escáner -->
+            
+            <!-- Campo Categoría (Autocomplete) -->
             <div class="form-group">
-                <input type="submit" value="Agregar">
+                <label for="id_categoria_autocomplete">
+                    Categoría <span class="required">*</span>
+                </label>
+                <input type="text" id="id_categoria_autocomplete" name="categoria_autocomplete" class="form-control" placeholder="Escriba para buscar categoría..." autocomplete="off" required>
+                <input type="hidden" id="id_categoria" name="categoria">
+                <div class="autocomplete-results" id="categoria-autocomplete-results"></div>
+                <div class="field-error" id="error-id_categoria">
+                    {% for error in form.categoria.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Campo Código de Barras -->
+            <div class="form-group">
+                <label for="{{ form.codigo_de_barras.id_for_label }}">
+                    {{ form.codigo_de_barras.label }}
+                </label>
+                {{ form.codigo_de_barras }}
+                <div class="field-error" id="error-id_codigo_de_barras">
+                    {% for error in form.codigo_de_barras.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Campo IVA -->
+            <div class="form-group">
+                <label for="{{ form.iva.id_for_label }}">
+                    {{ form.iva.label }} <span class="required">*</span>
+                </label>
+                {{ form.iva }}
+                <div class="field-error" id="error-id_iva">
+                    {% for error in form.iva.errors %}
+                        <i class="fas fa-exclamation-circle"></i> {{ error }}
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Botón de Envío -->
+            <div class="form-group">
+                <button type="submit" class="btn-agregar-producto">Agregar Producto</button>
             </div>
         </form>
     </div>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Inicializar el escáner de Quagga cuando se haga clic en el botón
-            document.getElementById('btnEscanear').addEventListener('click', function() {
-                document.getElementById('interactive').style.display = 'block'; // Mostrar el contenedor de la cámara
-                Quagga.init({
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        target: document.querySelector('#interactive'),    // Pasar el ID del elemento
-                        constraints: {
-                            width: 640,
-                            height: 480,
-                            facingMode: "environment" // Utilizar la cámara trasera del celular
-                        }
-                    },
-                    decoder: {
-                        readers: ["ean_reader"] // Usar específicamente el lector EAN
-                    },
-                    locate: true, // Detectar el código de barras en toda la imagen
-                    locator: {
-                        patchSize: "medium",
-                        halfSample: true
-                    }
-                }, function(err) {
-                    if (err) {
-                        console.log(err);
-                        return;
-                    }
-                    Quagga.start();
-                });
 
-                Quagga.onDetected(function(data) {
-                    var codigo = data.codeResult.code;
-                    console.log("Código detectado: ", codigo);
-                    document.getElementById('codigo_de_barras').value = codigo;
-                    Quagga.stop(); // Detener el escáner después de detectar un código
-                    document.getElementById('interactive').style.display = 'none'; // Ocultar el contenedor de la cámara
-                });
-            });
-        });
+    <!-- Pasar la URL de autocompletar al JavaScript -->
+    <script type="text/javascript">
+        var categoriaAutocompleteUrl = "{% url 'categoria_autocomplete' %}";
     </script>
+
+    <!-- Incluir el archivo JavaScript específico para esta página -->
+    <script src="{% static 'javascript/agregar_producto.js' %}"></script>
 </body>
 </html>
 {% endblock %}
