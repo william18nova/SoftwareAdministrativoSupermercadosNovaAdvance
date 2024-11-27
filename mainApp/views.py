@@ -15,7 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm, ProductoForm
+from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm, ProductoForm, ProveedorForm
 from dal import autocomplete
 
 def login(request):
@@ -341,22 +341,17 @@ def eliminar_producto_inventario_view(request, inventario_id):
 @login_required
 def agregar_proveedor_view(request):
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        empresa = request.POST.get('empresa')
-        telefono = request.POST.get('telefono')
-        email = request.POST.get('email')
-        direccion = request.POST.get('direccion')
-
-        if Proveedor.objects.filter(nombre=nombre).exists():
-            messages.error(request, 'Ya existe un proveedor con este nombre.')
-            return render(request, 'agregar_proveedor.html')
-
-        proveedor = Proveedor(nombre=nombre, empresa=empresa, telefono=telefono, email=email, direccion=direccion)
-        proveedor.save()
-        messages.success(request, 'Proveedor agregado exitosamente.')
-        return redirect('agregar_proveedor')
-
-    return render(request, 'agregar_proveedor.html')
+        form = ProveedorForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Proveedor agregado exitosamente.')
+            return redirect('agregar_proveedor')
+        else:
+            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+            return render(request, 'agregar_proveedor.html', {'form': form})
+    else:
+        form = ProveedorForm()
+    return render(request, 'agregar_proveedor.html', {'form': form})
 
 @login_required
 def visualizar_proveedores_view(request):

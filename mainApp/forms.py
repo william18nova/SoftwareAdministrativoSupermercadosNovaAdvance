@@ -1,7 +1,7 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -490,3 +490,81 @@ class ProductoForm(forms.ModelForm):
         if codigo_de_barras and Producto.objects.filter(codigo_de_barras=codigo_de_barras).exists():
             raise forms.ValidationError('El código de barras ya está registrado.')
         return codigo_de_barras
+    
+class ProveedorForm(forms.ModelForm):
+    nombre = forms.CharField(
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$',
+                message='El nombre solo debe contener letras y espacios.'
+            )
+        ],
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el nombre del proveedor',
+            'required': 'required'
+        })
+    )
+    telefono = forms.CharField(
+        max_length=20,
+        validators=[
+            RegexValidator(
+                regex=r'^\d{7,15}$',
+                message='El teléfono debe contener solo dígitos y tener entre 7 y 15 caracteres.'
+            )
+        ],
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el teléfono',
+            'required': 'required'
+        })
+    )
+    email = forms.EmailField(
+        max_length=100,
+        required=False,  # Campo opcional
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el correo electrónico'
+        })
+    )
+    direccion = forms.CharField(
+        required=False,  # Campo opcional
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa la dirección',
+            'rows': 3
+        })
+    )
+    
+    class Meta:
+        model = Proveedor
+        fields = ['nombre', 'empresa', 'telefono', 'email', 'direccion']
+        labels = {
+            'nombre': 'Nombre',
+            'empresa': 'Empresa',
+            'telefono': 'Teléfono',
+            'email': 'Email',
+            'direccion': 'Dirección',
+        }
+        widgets = {
+            'empresa': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa la empresa',
+                'required': 'required'
+            }),
+        }
+    
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get('nombre')
+        if Proveedor.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError('Ya existe un proveedor con este nombre.')
+        return nombre
+    
+    def clean_telefono(self):
+        telefono = self.cleaned_data.get('telefono')
+        if not telefono.isdigit():
+            raise forms.ValidationError('El teléfono debe contener solo dígitos.')
+        return telefono
