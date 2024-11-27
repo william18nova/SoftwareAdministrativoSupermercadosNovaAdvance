@@ -1,7 +1,7 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -568,3 +568,42 @@ class ProveedorForm(forms.ModelForm):
         if not telefono.isdigit():
             raise forms.ValidationError('El teléfono debe contener solo dígitos.')
         return telefono
+    
+class RolForm(forms.ModelForm):
+    nombre = forms.CharField(
+        max_length=50,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$',
+                message='El nombre del rol solo debe contener letras y espacios.'
+            )
+        ],
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el nombre del rol',
+            'required': 'required'
+        })
+    )
+    descripcion = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa la descripción del rol',
+            'rows': 4
+        }),
+        required=False
+    )
+    
+    class Meta:
+        model = Rol
+        fields = ['nombre', 'descripcion']
+        labels = {
+            'nombre': 'Nombre del Rol',
+            'descripcion': 'Descripción',
+        }
+    
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get('nombre')
+        if Rol.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError('Ya existe un rol con ese nombre.')
+        return nombre

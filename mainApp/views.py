@@ -15,7 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm, ProductoForm, ProveedorForm
+from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm, ProductoForm, ProveedorForm, RolForm
 from dal import autocomplete
 
 def login(request):
@@ -580,20 +580,16 @@ def editar_puntos_pago_view(request, sucursal_id):
 @login_required
 def agregar_rol_view(request):
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion')
-
-        if nombre:
-            if Rol.objects.filter(nombre=nombre).exists():
-                messages.error(request, 'Ya existe un rol con ese nombre.')
-            else:
-                Rol.objects.create(nombre=nombre, descripcion=descripcion)
-                messages.success(request, 'Rol agregado exitosamente.')
-                return redirect('agregar_rol')
+        form = RolForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Rol agregado exitosamente.')
+            return redirect('agregar_rol')
         else:
-            messages.error(request, 'El nombre del rol es obligatorio.')
-
-    return render(request, 'agregar_rol.html')
+            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+    else:
+        form = RolForm()
+    return render(request, 'agregar_rol.html', {'form': form})
 
 @login_required
 def visualizar_roles_view(request):

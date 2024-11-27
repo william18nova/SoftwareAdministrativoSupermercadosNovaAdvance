@@ -47,6 +47,7 @@ body {
     color: var(--color-rojo);
     margin-top: 5px;
     margin-bottom: -10px;
+    font-family: var(--fuente-principal);
 }
 
 /* Contenedor principal */
