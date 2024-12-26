@@ -102,6 +102,12 @@ class ClienteForm(forms.ModelForm):
         if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', apellido):
             raise forms.ValidationError('El apellido solo puede contener letras.')
         return apellido
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and Cliente.objects.filter(email=email).exists():
+            raise forms.ValidationError('El correo electrónico ya está registrado.')
+        return email
     
 class EmpleadoForm(forms.ModelForm):
     class Meta:

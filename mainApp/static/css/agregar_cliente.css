@@ -47,11 +47,10 @@ body {
     background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
     font-family: var(--fuente-principal);
     color: var(--color-blanco);
-    overflow: auto; /* Permitir el desplazamiento en la página */
-    position: relative; /* Para posicionar elementos absolutos dentro del body */
+    overflow: auto; 
+    position: relative;
 }
 
-/* Pseudo-elemento para el fondo difuminado */
 body::before {
     content: '';
     position: absolute;
@@ -62,7 +61,7 @@ body::before {
     background: inherit;
     filter: blur(20px);
     z-index: -1;
-    pointer-events: none; /* Asegura que no haya interacción con este elemento */
+    pointer-events: none;
 }
 
 /* Contenedor principal */
@@ -75,17 +74,16 @@ body::before {
     max-width: 400px;
     text-align: center;
     position: relative;
-    overflow: hidden; /* Evitar el desbordamiento horizontal */
+    overflow: hidden;
 }
 
-/* Título del contenedor */
 .container-empleado h2 {
     color: var(--color-blanco);
     margin-bottom: 20px;
     font-size: var(--tamanio-titulo);
 }
 
-/* Icono */
+/* Ícono */
 .icon-empleado {
     font-size: var(--tamanio-icono);
     margin-bottom: 15px;
@@ -111,7 +109,7 @@ body::before {
 .form-group-empleado .required {
     color: var(--color-blanco);
     margin-left: 5px;
-    font-size: 18px; /* Tamaño del asterisco */
+    font-size: 18px;
 }
 
 /* Texto informativo sobre campos obligatorios */
@@ -134,14 +132,14 @@ body::before {
     transition: background-color var(--transicion), border-color var(--transicion);
 }
 
-/* Hover sobre campos de entrada y select */
+/* Hover */
 .form-group-empleado input:hover,
 .form-group-empleado select:hover {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
 }
 
-/* Enfoque sobre campos de entrada y select */
+/* Focus */
 .form-group-empleado input:focus,
 .form-group-empleado select:focus {
     outline: none;
@@ -149,7 +147,7 @@ body::before {
     box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
 }
 
-/* Botón de agregar empleado */
+/* Botón */
 .btn-agregar-empleado {
     background-color: var(--color-boton);
     color: var(--color-blanco);
@@ -202,66 +200,54 @@ body::before {
     margin-top: 5px;
 }
 
-
-/* Responsividad para dispositivos móviles */
+/* Responsividad */
 @media (max-width: 768px) {
     .container-empleado {
         padding: var(--padding-contenedor-movil);
     }
-
     .icon-empleado {
         font-size: var(--tamanio-icono-movil);
         margin-bottom: 10px;
     }
-
     .container-empleado h2 {
         font-size: var(--tamanio-titulo-movil);
         margin-bottom: 15px;
     }
-
     .form-group-empleado input,
     .form-group-empleado select {
         padding: var(--padding-input-movil);
         font-size: 14px;
     }
-
     .btn-agregar-empleado {
         font-size: 16px;
         padding: 10px;
     }
-
     .obligatorio-texto {
         font-size: var(--tamanio-texto-obligatorio-movil);
     }
 }
 
-/* Responsividad para dispositivos muy pequeños */
 @media (max-width: 480px) {
     .container-empleado {
         padding: 20px 15px;
     }
-
     .icon-empleado {
         font-size: 50px;
         margin-bottom: 8px;
     }
-
     .container-empleado h2 {
         font-size: 20px;
         margin-bottom: 10px;
     }
-
     .form-group-empleado input,
     .form-group-empleado select {
         font-size: 14px;
         padding: 6px;
     }
-
     .btn-agregar-empleado {
         font-size: 16px;
         padding: 8px;
     }
-
     .obligatorio-texto {
         font-size: 10px;
     }

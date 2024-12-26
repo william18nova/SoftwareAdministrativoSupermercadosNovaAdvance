@@ -7,13 +7,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     form.addEventListener('submit', function(event) {
         event.preventDefault(); // Prevenir el envío predeterminado
-
         const formData = new FormData(form);
 
         fetch(form.action, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'), // Incluir el token CSRF
+                'X-CSRFToken': getCookie('csrftoken'),
                 'Accept': 'application/json',
             },
             body: formData
@@ -66,7 +65,6 @@ document.addEventListener('DOMContentLoaded', function() {
         successMessageDiv.style.display = 'none';
         successMessageDiv.textContent = '';
 
-        // Remover mensajes de error de campos anteriores
         const errorFields = document.querySelectorAll('.field-error');
         errorFields.forEach(function(errorField) {
             errorField.remove();

@@ -15,8 +15,21 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
-from .forms import CategoriaForm, ClienteForm, EmpleadoForm, HorarioCajaForm, HorariosNegocioForm, SucursalForm, ProductoForm, ProveedorForm, RolForm
+from .forms import (
+    CategoriaForm,
+    ClienteForm,
+    EmpleadoForm,
+    HorarioCajaForm,
+    HorariosNegocioForm,
+    SucursalForm,
+    ProductoForm,
+    ProveedorForm,
+    RolForm
+)
 from dal import autocomplete
+
+logger = logging.getLogger(__name__)
+
 
 def login(request):
     if request.method == 'POST':
@@ -27,15 +40,17 @@ def login(request):
         
         if usuario is not None:
             auth_login(request, usuario)
-            return redirect('home')  # Asegúrate de que 'home' está correctamente definido en tus URLs
+            return redirect('home')  # Asegúrate de que 'home' está definido en tus URLs
         else:
             messages.error(request, 'Nombre de usuario o contraseña incorrectos')
 
     return render(request, 'login.html')
 
+
 @login_required
 def homePage_view(request):
     return render(request, 'homePage.html')
+
 
 @login_required
 def agregar_sucursal_view(request):
@@ -52,10 +67,12 @@ def agregar_sucursal_view(request):
     
     return render(request, 'agregar_sucursal.html', {'form': form})
 
+
 @login_required
 def visualizar_sucursales_view(request):
     sucursales = Sucursal.objects.all()
     return render(request, 'visualizar_sucursales.html', {'sucursales': sucursales})
+
 
 @login_required
 def eliminar_sucursal(request, sucursal_id):
@@ -65,6 +82,7 @@ def eliminar_sucursal(request, sucursal_id):
         messages.success(request, 'La sucursal ha sido eliminada exitosamente.')
         return redirect('visualizar_sucursales')
     return render(request, 'visualizar_sucursales.html', {'sucursales': Sucursal.objects.all()})
+
 
 @login_required
 def editar_sucursal_view(request, sucursal_id):
@@ -86,10 +104,14 @@ def editar_sucursal_view(request, sucursal_id):
         sucursal.direccion = direccion
         sucursal.telefono = telefono
         sucursal.save()
-        messages.success(request, f'Sucursal actualizada exitosamente: Nombre={nombre}, Dirección={direccion}, Teléfono={telefono}')
+        messages.success(
+            request,
+            f'Sucursal actualizada exitosamente: Nombre={nombre}, Dirección={direccion}, Teléfono={telefono}'
+        )
         return redirect('visualizar_sucursales')
 
     return render(request, 'editar_sucursal.html', {'sucursal': sucursal})
+
 
 @login_required
 def agregar_categoria_view(request):
@@ -99,17 +121,18 @@ def agregar_categoria_view(request):
             form.save()
             return JsonResponse({'success': True})
         else:
-            # Obtenemos los errores del formulario y los enviamos en la respuesta JSON
             errors = form.errors.as_json()
             return JsonResponse({'success': False, 'errors': errors})
     else:
         form = CategoriaForm()
     return render(request, 'agregar_categoria.html', {'form': form})
 
+
 @login_required
 def visualizar_categorias_view(request):
     categorias = Categoria.objects.all()
     return render(request, 'visualizar_categorias.html', {'categorias': categorias})
+
 
 @login_required
 def eliminar_categoria(request, categoria_id):
@@ -123,6 +146,7 @@ def eliminar_categoria(request, categoria_id):
         messages.success(request, f'La categoría "{nombre_categoria}" ha sido eliminada exitosamente.')
         return redirect('visualizar_categorias')
     return render(request, 'visualizar_categorias.html', {'categorias': Categoria.objects.all()})
+
 
 @login_required
 def editar_categoria_view(request, categoria_id):
@@ -147,6 +171,7 @@ def editar_categoria_view(request, categoria_id):
 
     return render(request, 'editar_categoria.html', {'categoria': categoria})
 
+
 @login_required
 def agregar_producto_view(request):
     if request.method == 'POST':
@@ -161,8 +186,12 @@ def agregar_producto_view(request):
     categorias = Categoria.objects.all()
     return render(request, 'agregar_producto.html', {'form': form, 'categorias': categorias})
 
+
 @login_required
 def categoria_autocomplete(request):
+    """
+    Autocomplete para Categoría.
+    """
     term = request.GET.get('term', '').strip()
     page = request.GET.get('page', '1').strip()
     per_page = 10  # Número de resultados por página
@@ -196,10 +225,12 @@ def categoria_autocomplete(request):
         'has_more': end < total_results,
     })
 
+
 @login_required
 def visualizar_productos_view(request):
     productos = Producto.objects.all()
     return render(request, 'visualizar_productos.html', {'productos': productos})
+
 
 @login_required
 def eliminar_producto(request, producto_id):
@@ -210,6 +241,7 @@ def eliminar_producto(request, producto_id):
         messages.success(request, f'El producto "{nombre_producto}" ha sido eliminado exitosamente.')
         return redirect('visualizar_productos')
     return render(request, 'visualizar_productos.html', {'productos': Producto.objects.all()})
+
 
 @login_required
 def editar_producto_view(request, producto_id):
@@ -224,11 +256,19 @@ def editar_producto_view(request, producto_id):
 
         if not nombre:
             messages.error(request, 'El Nombre es un campo obligatorio.')
-            return render(request, 'editar_producto.html', {'producto': producto, 'categorias': Categoria.objects.all()})
+            return render(
+                request,
+                'editar_producto.html',
+                {'producto': producto, 'categorias': Categoria.objects.all()}
+            )
 
         if Producto.objects.filter(nombre=nombre).exclude(productoid=producto_id).exists():
             messages.error(request, 'El Nombre del producto ya está registrado.')
-            return render(request, 'editar_producto.html', {'producto': producto, 'categorias': Categoria.objects.all()})
+            return render(
+                request,
+                'editar_producto.html',
+                {'producto': producto, 'categorias': Categoria.objects.all()}
+            )
 
         producto.nombre = nombre
         producto.descripcion = descripcion
@@ -237,10 +277,20 @@ def editar_producto_view(request, producto_id):
         producto.codigo_de_barras = codigo_de_barras
         producto.iva = iva
         producto.save()
-        messages.success(request, f'Producto actualizado exitosamente: Nombre={nombre}, Descripción={descripcion}, Precio={precio}, Categoría={producto.categoria.nombre if producto.categoria else "Sin categoría"}')
+        messages.success(
+            request,
+            f'Producto actualizado exitosamente: '
+            f'Nombre={nombre}, Descripción={descripcion}, Precio={precio}, '
+            f'Categoría={producto.categoria.nombre if producto.categoria else "Sin categoría"}'
+        )
         return redirect('visualizar_productos')
 
-    return render(request, 'editar_producto.html', {'producto': producto, 'categorias': Categoria.objects.all()})
+    return render(
+        request,
+        'editar_producto.html',
+        {'producto': producto, 'categorias': Categoria.objects.all()}
+    )
+
 
 @login_required
 def agregar_inventario_view(request):
@@ -262,16 +312,28 @@ def agregar_inventario_view(request):
         messages.success(request, 'Inventario creado exitosamente')
         return redirect('agregar_inventario')
 
-    sucursales_sin_inventario = Sucursal.objects.annotate(inventarios_count=Count('inventario')).filter(inventarios_count=0)
+    sucursales_sin_inventario = Sucursal.objects.annotate(inventarios_count=Count('inventario')) \
+                                                .filter(inventarios_count=0)
     productos = Producto.objects.all()
 
     if not sucursales_sin_inventario.exists():
-        messages.error(request, 'Todas las sucursales ya tienen inventario. Debe ir a visualizar inventario para modificarlas o ir a agregar sucursales para añadir nuevas sucursales.')
+        messages.error(
+            request,
+            'Todas las sucursales ya tienen inventario. '
+            'Debe ir a visualizar inventario para modificarlas o ir a agregar sucursales para añadir nuevas.'
+        )
 
     if not productos.exists():
-        messages.error(request, 'No hay productos en el sistema. Debe ir a agregar productos para añadir productos al sistema y generar un inventario.')
+        messages.error(
+            request,
+            'No hay productos en el sistema. Debe ir a agregar productos para añadir productos al sistema.'
+        )
 
-    return render(request, 'agregar_inventario.html', {'sucursales': sucursales_sin_inventario, 'productos': productos})
+    return render(request, 'agregar_inventario.html', {
+        'sucursales': sucursales_sin_inventario,
+        'productos': productos
+    })
+
 
 @login_required
 def visualizar_inventarios_view(request):
@@ -286,16 +348,21 @@ def visualizar_inventarios_view(request):
         inventarios = Inventario.objects.filter(sucursalid=sucursal_seleccionada)
     elif sucursal_id == "global":
         inventario_global = True
-        inventario_global_data = Inventario.objects.values('productoid__nombre').annotate(total_cantidad=Sum('cantidad'))
+        inventario_global_data = Inventario.objects.values('productoid__nombre').annotate(
+            total_cantidad=Sum('cantidad')
+        )
 
     context = {
         'sucursales': sucursales_con_inventario,
         'inventarios': inventarios,
         'inventario_global': inventario_global,
         'inventario_global_data': inventario_global_data,
-        'sucursal_seleccionada': sucursal_seleccionada if sucursal_id and sucursal_id != "global" else None,
+        'sucursal_seleccionada': (
+            sucursal_seleccionada if (sucursal_id and sucursal_id != "global") else None
+        ),
     }
     return render(request, 'visualizar_inventarios.html', context)
+
 
 @login_required
 def editar_inventario_view(request, sucursal_id):
@@ -320,7 +387,10 @@ def editar_inventario_view(request, sucursal_id):
                 cantidad=cantidad
             )
 
-        messages.success(request, f'Inventario de la sucursal {sucursal.nombre} actualizado exitosamente.')
+        messages.success(
+            request,
+            f'Inventario de la sucursal {sucursal.nombre} actualizado exitosamente.'
+        )
         return redirect('visualizar_inventarios')
 
     return render(request, 'editar_inventario.html', {
@@ -329,14 +399,20 @@ def editar_inventario_view(request, sucursal_id):
         'productos': productos,
     })
 
+
 @login_required
 def eliminar_producto_inventario_view(request, inventario_id):
     if request.method == 'POST':
         inventario = get_object_or_404(Inventario, pk=inventario_id)
         producto_nombre = inventario.productoid.nombre
         inventario.delete()
-        return JsonResponse({'success': True, 'message': f'Producto "{producto_nombre}" eliminado exitosamente.', 'producto_nombre': producto_nombre})
+        return JsonResponse({
+            'success': True,
+            'message': f'Producto "{producto_nombre}" eliminado exitosamente.',
+            'producto_nombre': producto_nombre
+        })
     return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
+
 
 @login_required
 def agregar_proveedor_view(request):
@@ -353,10 +429,12 @@ def agregar_proveedor_view(request):
         form = ProveedorForm()
     return render(request, 'agregar_proveedor.html', {'form': form})
 
+
 @login_required
 def visualizar_proveedores_view(request):
     proveedores = Proveedor.objects.all()
     return render(request, 'visualizar_proveedores.html', {'proveedores': proveedores})
+
 
 @login_required
 def eliminar_proveedor(request, proveedor_id):
@@ -366,6 +444,7 @@ def eliminar_proveedor(request, proveedor_id):
         messages.success(request, 'El proveedor ha sido eliminado exitosamente.')
         return redirect('visualizar_proveedores')
     return render(request, 'visualizar_proveedores.html', {'proveedores': Proveedor.objects.all()})
+
 
 @login_required
 def editar_proveedor_view(request, proveedor_id):
@@ -393,6 +472,7 @@ def editar_proveedor_view(request, proveedor_id):
 
     return render(request, 'editar_proveedor.html', {'proveedor': proveedor})
 
+
 @login_required
 def agregar_productos_precios_proveedor_view(request):
     if request.method == 'POST':
@@ -406,7 +486,10 @@ def agregar_productos_precios_proveedor_view(request):
             if producto_id and precio:
                 producto = get_object_or_404(Producto, pk=producto_id)
                 if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
-                    messages.error(request, f'El producto {producto.nombre} ya está registrado para el proveedor {proveedor.nombre}.')
+                    messages.error(
+                        request,
+                        f'El producto {producto.nombre} ya está registrado para el proveedor {proveedor.nombre}.'
+                    )
                     continue
                 PreciosProveedor.objects.create(productoid=producto, proveedorid=proveedor, precio=precio)
 
@@ -414,10 +497,16 @@ def agregar_productos_precios_proveedor_view(request):
         return redirect('agregar_productos_precios_proveedor')
 
     proveedores_con_productos = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
-    proveedores = Proveedor.objects.annotate(tiene_productos=Exists(proveedores_con_productos)).filter(tiene_productos=False)
+    proveedores = Proveedor.objects.annotate(tiene_productos=Exists(proveedores_con_productos)) \
+                                   .filter(tiene_productos=False)
     
     productos = Producto.objects.all()
-    return render(request, 'agregar_productos_precios_proveedor.html', {'proveedores': proveedores, 'productos': productos})
+    return render(
+        request,
+        'agregar_productos_precios_proveedor.html',
+        {'proveedores': proveedores, 'productos': productos}
+    )
+
 
 @login_required
 def visualizar_productos_precios_proveedores_view(request):
@@ -437,6 +526,7 @@ def visualizar_productos_precios_proveedores_view(request):
         'proveedor_seleccionado': proveedor_seleccionado,
     })
 
+
 @login_required
 def eliminar_precio_proveedor_view(request, id):
     if request.method == 'POST':
@@ -445,6 +535,7 @@ def eliminar_precio_proveedor_view(request, id):
         precio_proveedor.delete()
         return JsonResponse({'success': True, 'message': f'Producto "{nombre_producto}" eliminado correctamente.'})
     return JsonResponse({'success': False, 'message': 'Error al eliminar el producto.'})
+
 
 @login_required
 def editar_productos_precios_proveedor_view(request, proveedor_id):
@@ -460,13 +551,16 @@ def editar_productos_precios_proveedor_view(request, proveedor_id):
         nuevos_productos_ids = [pid for pid in nuevos_productos_ids if pid]
         nuevos_precios = [precio for precio in nuevos_precios if precio]
 
+        # Eliminar productos que no estén en la nueva lista
         PreciosProveedor.objects.filter(proveedorid=proveedor).exclude(productoid__in=nuevos_productos_ids).delete()
 
+        # Actualizar o crear registros
         for producto_id, precio in zip(nuevos_productos_ids, nuevos_precios):
             if producto_id and precio:
                 producto = get_object_or_404(Producto, pk=producto_id)
-                precios_proveedor, created = PreciosProveedor.objects.update_or_create(
-                    productoid=producto, proveedorid=proveedor,
+                PreciosProveedor.objects.update_or_create(
+                    productoid=producto,
+                    proveedorid=proveedor,
                     defaults={'precio': precio}
                 )
 
@@ -479,6 +573,7 @@ def editar_productos_precios_proveedor_view(request, proveedor_id):
         'productos': productos,
         'productos_existentes': productos_existentes,
     })
+
 
 @login_required
 def agregar_punto_pago_view(request):
@@ -501,7 +596,10 @@ def agregar_punto_pago_view(request):
         for nombre, descripcion, dinero_caja in zip(nombres, descripciones, dinero_caja_list):
             if nombre:
                 if PuntosPago.objects.filter(sucursalid=sucursal, nombre=nombre).exists():
-                    messages.error(request, f'La sucursal ya tiene un punto de pago con el nombre {nombre}.')
+                    messages.error(
+                        request,
+                        f'La sucursal ya tiene un punto de pago con el nombre {nombre}.'
+                    )
                     return redirect('agregar_punto_pago')
                 
                 punto_pago = PuntosPago(
@@ -517,6 +615,7 @@ def agregar_punto_pago_view(request):
 
     sucursales_sin_punto_pago = Sucursal.objects.exclude(puntospago__isnull=False)
     return render(request, 'agregar_punto_pago.html', {'sucursales': sucursales_sin_punto_pago})
+
 
 @login_required
 def visualizar_puntos_pago_view(request):
@@ -536,6 +635,7 @@ def visualizar_puntos_pago_view(request):
         'sucursal_seleccionada': sucursal_seleccionada,
     })
 
+
 @login_required
 def eliminar_punto_pago_view(request, puntopagoid):
     if request.method == 'POST':
@@ -547,6 +647,7 @@ def eliminar_punto_pago_view(request, puntopagoid):
         except Exception as e:
             return JsonResponse({'success': False, 'message': f'Error al eliminar el punto de pago: {str(e)}'})
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+
 
 @login_required
 def editar_puntos_pago_view(request, sucursal_id):
@@ -560,22 +661,29 @@ def editar_puntos_pago_view(request, sucursal_id):
         nuevos_nombres = [nombre for nombre in nuevos_nombres if nombre]
         nuevas_descripciones = [descripcion for descripcion in nuevas_descripciones]
 
+        # Eliminar puntos de pago que ya no están en la nueva lista
         PuntosPago.objects.filter(sucursalid=sucursal_id).exclude(nombre__in=nuevos_nombres).delete()
 
+        # Crear o actualizar puntos de pago
         for nombre, descripcion in zip(nuevos_nombres, nuevas_descripciones):
             if nombre:
-                punto_pago, created = PuntosPago.objects.update_or_create(
-                    nombre=nombre, sucursalid=sucursal,
+                PuntosPago.objects.update_or_create(
+                    nombre=nombre,
+                    sucursalid=sucursal,
                     defaults={'descripcion': descripcion}
                 )
 
-        messages.success(request, f'Puntos de pago de la sucursal {sucursal.nombre} actualizados exitosamente.')
+        messages.success(
+            request,
+            f'Puntos de pago de la sucursal {sucursal.nombre} actualizados exitosamente.'
+        )
         return redirect('visualizar_puntos_pago')
 
     return render(request, 'editar_puntos_pago.html', {
         'sucursal': sucursal,
         'puntos_pago': puntos_pago,
     })
+
 
 @login_required
 def agregar_rol_view(request):
@@ -591,10 +699,12 @@ def agregar_rol_view(request):
         form = RolForm()
     return render(request, 'agregar_rol.html', {'form': form})
 
+
 @login_required
 def visualizar_roles_view(request):
     roles = Rol.objects.all()
     return render(request, 'visualizar_roles.html', {'roles': roles})
+
 
 @login_required
 def editar_rol_view(request, rol_id):
@@ -618,6 +728,7 @@ def editar_rol_view(request, rol_id):
     
     return render(request, 'editar_rol.html', {'rol': rol})
 
+
 @login_required
 def eliminar_rol_view(request, rol_id):
     if request.method == 'POST':
@@ -627,6 +738,7 @@ def eliminar_rol_view(request, rol_id):
         messages.success(request, f'Se eliminó el rol "{nombre_rol}" correctamente.')
         return redirect('visualizar_roles')
     return JsonResponse({'success': False, 'message': 'Error al eliminar el rol.'})
+
 
 @login_required
 def agregar_usuario_view(request):
@@ -640,12 +752,10 @@ def agregar_usuario_view(request):
 
         if contraseña != confirmar_contraseña:
             messages.error(request, 'Las contraseñas no coinciden.')
-
         elif Usuario.objects.filter(nombreusuario=nombreusuario).exists():
             messages.error(request, f'El nombre de usuario "{nombreusuario}" ya existe.')
-
         else:
-            nuevo_usuario = Usuario(nombreusuario=nombreusuario, rolid=rol_id)  # Pasa el ID del rol como un entero
+            nuevo_usuario = Usuario(nombreusuario=nombreusuario, rolid=rol_id)
             nuevo_usuario.set_password(contraseña)  # Encripta la contraseña antes de guardar
             nuevo_usuario.save()
             messages.success(request, f'Usuario "{nombreusuario}" creado exitosamente.')
@@ -657,6 +767,7 @@ def agregar_usuario_view(request):
 def visualizar_usuarios_view(request):
     usuarios = Usuario.objects.all()
     return render(request, 'visualizar_usuarios.html', {'usuarios': usuarios})
+
 
 @login_required
 def editar_usuario_view(request, usuarioid):
@@ -682,6 +793,7 @@ def editar_usuario_view(request, usuarioid):
 
     return render(request, 'editar_usuario.html', {'usuario': usuario, 'roles': roles})
 
+
 @login_required
 def eliminar_usuario_view(request, usuarioid):
     usuario = get_object_or_404(Usuario, pk=usuarioid)
@@ -689,6 +801,7 @@ def eliminar_usuario_view(request, usuarioid):
     usuario.delete()
     messages.success(request, f'Usuario "{nombre_usuario}" eliminado exitosamente.')
     return redirect('visualizar_usuarios')
+
 
 @login_required
 def agregar_empleado_view(request):
@@ -707,6 +820,7 @@ def agregar_empleado_view(request):
     sucursales = Sucursal.objects.all()
     
     return render(request, 'agregar_empleado.html', {'form': form, 'usuarios': usuarios, 'sucursales': sucursales})
+
 
 @login_required
 def usuario_autocomplete(request):
@@ -728,7 +842,7 @@ def usuario_autocomplete(request):
     # Filtrar Usuarios que no están asignados a ningún Empleado y coinciden con el término
     usuarios = Usuario.objects.filter(
         Q(nombreusuario__icontains=term),
-        empleado__isnull=True  # Usuarios sin Empleado asociado
+        empleado__isnull=True
     ).order_by('nombreusuario')
     
     total_results = usuarios.count()
@@ -737,7 +851,7 @@ def usuario_autocomplete(request):
     results = []
     for usuario in usuarios:
         results.append({
-            'id': usuario.pk,  # Usamos 'pk' que es equivalente a 'usuarioid'
+            'id': usuario.pk,
             'text': usuario.nombreusuario,
         })
     
@@ -746,51 +860,81 @@ def usuario_autocomplete(request):
         'has_more': end < total_results,
     })
 
+
+# === UNIFICAMOS LA FUNCIÓN SUCURSAL_AUTOCOMPLETE (antes aparecía dos veces) === #
 @login_required
 def sucursal_autocomplete(request):
+    """
+    Autocomplete unificado para Sucursal.
+    Combina la lógica de las dos versiones anteriores en una sola función.
+    """
     term = request.GET.get('term', '').strip()
-    page = request.GET.get('page', '1').strip()
-    per_page = 10  # Número de resultados por página
-    
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '50').strip()
+
     try:
-        page = int(page)
-        if page < 1:
-            page = 1
+        page = int(page_str)
     except ValueError:
-        logger.warning(f"Valor de 'page' no válido: {page}. Estableciendo a 1.")
+        logger.warning(f"Valor de 'page' no válido: {page_str}. Se establece en 1.")
         page = 1
-    
+
+    if page < 1:
+        logger.warning(f"Valor de 'page' menor a 1: {page}. Se establece en 1.")
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        logger.warning(f"Valor de 'per_page' no válido: {per_page_str}. Se establece en 50.")
+        per_page = 50
+
+    if per_page < 1:
+        logger.warning(f"Valor de 'per_page' menor a 1: {per_page}. Se establece en 50.")
+        per_page = 50
+
     start = (page - 1) * per_page
     end = start + per_page
-    
-    sucursales = Sucursal.objects.filter(
-        Q(nombre__icontains=term)
-    ).order_by('nombre')
-    
+
+    sucursales = Sucursal.objects.all().order_by('nombre')
+    if term:
+        sucursales = sucursales.filter(nombre__icontains=term)
     total_results = sucursales.count()
     sucursales = sucursales[start:end]
-    
+
     results = []
     for sucursal in sucursales:
         results.append({
             'id': sucursal.sucursalid,
             'text': sucursal.nombre,
         })
-    
+
     return JsonResponse({
         'results': results,
         'has_more': end < total_results,
     })
+
+
+@login_required
+def sucursal_autocomplete_eliminar(request):
+    """
+    Nota: si alguna vista estaba usando otra función distinta de sucursal_autocomplete,
+    puedes redirigirla o eliminarla. Aquí dejamos una referencia vacía a modo de ejemplo,
+    pero lo ideal es eliminar la función duplicada totalmente del código.
+    """
+    return JsonResponse({'error': 'Función no utilizada.'}, status=404)
+
 
 @login_required
 def visualizar_empleados_view(request):
     empleados = Empleado.objects.all()
     return render(request, 'visualizar_empleados.html', {'empleados': empleados})
 
+
 @login_required
 def editar_empleado_view(request, empleadoid):
     empleado = get_object_or_404(Empleado, pk=empleadoid)
-    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid')).union(Usuario.objects.filter(pk=empleado.usuarioid_id))
+    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid')) \
+        .union(Usuario.objects.filter(pk=empleado.usuarioid_id))
     sucursales = Sucursal.objects.all()
 
     if request.method == 'POST':
@@ -807,7 +951,8 @@ def editar_empleado_view(request, empleadoid):
             messages.error(request, 'El teléfono ya está en uso.')
         elif Empleado.objects.filter(email=email).exclude(pk=empleadoid).exists():
             messages.error(request, 'El correo ya está en uso.')
-        elif numerodocumento and Empleado.objects.filter(numerodocumento=numerodocumento).exclude(pk=empleadoid).exists():
+        elif numerodocumento and Empleado.objects.filter(numerodocumento=numerodocumento) \
+                                                 .exclude(pk=empleadoid).exists():
             messages.error(request, 'El número de documento ya está en uso.')
         else:
             if numerodocumento:
@@ -823,7 +968,12 @@ def editar_empleado_view(request, empleadoid):
             messages.success(request, f'Empleado "{nombre} {apellido}" editado exitosamente.')
             return redirect('visualizar_empleados')
 
-    return render(request, 'editar_empleado.html', {'empleado': empleado, 'usuarios': usuarios, 'sucursales': sucursales})
+    return render(request, 'editar_empleado.html', {
+        'empleado': empleado,
+        'usuarios': usuarios,
+        'sucursales': sucursales
+    })
+
 
 @login_required
 def eliminar_empleado_view(request, empleado_id):
@@ -832,6 +982,7 @@ def eliminar_empleado_view(request, empleado_id):
     empleado.delete()
     messages.success(request, f'Empleado "{nombre_completo}" ha sido eliminado exitosamente.')
     return redirect('visualizar_empleados')
+
 
 @login_required
 def agregar_horario_view(request):
@@ -861,32 +1012,6 @@ def agregar_horario_view(request):
 
     return render(request, 'agregar_horario.html', {'form': form})
 
-def sucursal_autocomplete(request):
-    term = request.GET.get('term', '').strip()
-    page = int(request.GET.get('page', '1'))
-    per_page = 50  # Número de resultados por página
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    sucursales = Sucursal.objects.all()
-
-    if term:
-        sucursales = sucursales.filter(nombre__icontains=term)
-
-    total_results = sucursales.count()
-    sucursales = sucursales[start:end]
-
-    results = []
-    for sucursal in sucursales:
-        results.append({
-            'id': sucursal.pk,
-            'text': sucursal.nombre,
-        })
-
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
 
 @login_required
 def visualizar_horarios_view(request):
@@ -905,6 +1030,7 @@ def visualizar_horarios_view(request):
         'sucursal_seleccionada': sucursal_seleccionada,
         'horarios': horarios,
     })
+
 
 @login_required
 def editar_horarios_view(request, sucursal_id):
@@ -941,6 +1067,7 @@ def editar_horarios_view(request, sucursal_id):
 
     return render(request, 'editar_horario.html', {'sucursal': sucursal, 'horarios': horarios})
 
+
 @login_required
 def eliminar_horario_view(request, horario_id):
     if request.method == 'POST':
@@ -948,6 +1075,7 @@ def eliminar_horario_view(request, horario_id):
         horario.delete()
         return JsonResponse({'success': True, 'message': 'Horario eliminado exitosamente.'})
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+
 
 @login_required
 def agregar_horario_caja_view(request):
@@ -980,7 +1108,6 @@ def agregar_horario_caja_view(request):
                     )
                 return JsonResponse({'success': True})
             else:
-                # Procesar la creación de un solo horario desde los campos del formulario
                 dia_semana = form.cleaned_data['dia_semana']
                 horaapertura = form.cleaned_data['horaapertura']
                 horacierre = form.cleaned_data['horacierre']
@@ -1005,6 +1132,7 @@ def agregar_horario_caja_view(request):
         'form': form,
         'sucursales': sucursales,
     })
+
 
 @login_required
 def puntopago_autocomplete(request):
@@ -1045,7 +1173,6 @@ def puntopago_autocomplete(request):
                 'error': 'ID de sucursal inválido.'
             })
 
-        # Verificar si la Sucursal existe
         try:
             sucursal = Sucursal.objects.get(pk=sucursal_id)
         except Sucursal.DoesNotExist:
@@ -1056,21 +1183,14 @@ def puntopago_autocomplete(request):
                 'error': 'Sucursal no encontrada.'
             })
 
-        puntos_pago = PuntosPago.objects.filter(
-            sucursalid=sucursal
-        ).annotate(
+        puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal).annotate(
             tiene_horario=Exists(
-                HorarioCaja.objects.filter(
-                    puntopagoid=OuterRef('pk')
-                )
+                HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
             )
         ).exclude(tiene_horario=True)
 
-        logger.debug(f"Cantidad de Puntos de Pago filtrados: {puntos_pago.count()}")
-
         if term:
             puntos_pago = puntos_pago.filter(nombre__icontains=term)
-            logger.debug(f"Cantidad de Puntos de Pago después del filtro por término '{term}': {puntos_pago.count()}")
 
         total_results = puntos_pago.count()
         puntos_pago = puntos_pago[start:end]
@@ -1081,9 +1201,6 @@ def puntopago_autocomplete(request):
                 'id': punto.pk,
                 'text': punto.nombre,
             })
-
-        logger.debug(f"Cantidad de resultados enviados: {len(results)}")
-        logger.debug(f"¿Hay más resultados? {end < total_results}")
 
         return JsonResponse({
             'results': results,
@@ -1097,6 +1214,7 @@ def puntopago_autocomplete(request):
             'has_more': False,
             'error': 'Ocurrió un error interno del servidor.'
         }, status=500)
+
 
 @login_required
 def visualizar_horarios_cajas_view(request):
@@ -1119,7 +1237,9 @@ def visualizar_horarios_cajas_view(request):
         punto_pago_id = request.POST.get('punto_pago')
         if sucursal_id:
             sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
-            puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_seleccionada).filter(Exists(puntos_con_horario))
+            puntos_pago = PuntosPago.objects.filter(
+                sucursalid=sucursal_seleccionada
+            ).filter(Exists(puntos_con_horario))
         if punto_pago_id:
             punto_pago_seleccionado = get_object_or_404(PuntosPago, pk=punto_pago_id)
             horarios = HorarioCaja.objects.filter(puntopagoid=punto_pago_seleccionado.puntopagoid)
@@ -1132,6 +1252,7 @@ def visualizar_horarios_cajas_view(request):
         'horarios': horarios
     })
 
+
 @login_required
 def eliminar_horario_caja_view(request, horario_id):
     try:
@@ -1140,6 +1261,7 @@ def eliminar_horario_caja_view(request, horario_id):
         return JsonResponse({'success': True, 'message': 'Horario eliminado exitosamente.'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': 'Ocurrió un error al eliminar el horario.'})
+
 
 @login_required
 def obtener_puntos_pago_con_horarios(request):
@@ -1150,6 +1272,7 @@ def obtener_puntos_pago_con_horarios(request):
     for punto_pago in puntos_pago:
         opciones.append(f'<option value="{punto_pago.puntopagoid}">{punto_pago.nombre}</option>')
     return JsonResponse(opciones, safe=False)
+
 
 @login_required
 def editar_horarios_cajas_view(request, puntopagoid):
@@ -1164,9 +1287,18 @@ def editar_horarios_cajas_view(request, puntopagoid):
                 dia = horario['dia']
                 hora_apertura = horario['hora_apertura']
                 hora_cierre = horario['hora_cierre']
-                HorarioCaja.objects.create(puntopagoid=puntopagoid, dia_semana=dia, horaapertura=hora_apertura, horacierre=hora_cierre)
+                HorarioCaja.objects.create(
+                    puntopagoid=puntopagoid,
+                    dia_semana=dia,
+                    horaapertura=hora_apertura,
+                    horacierre=hora_cierre
+                )
 
-            messages.success(request, f'Se ha editado correctamente la caja del punto de pago {punto_pago.nombre} de la sucursal {punto_pago.sucursalid.nombre}')
+            messages.success(
+                request,
+                f'Se ha editado correctamente la caja del punto de pago {punto_pago.nombre} '
+                f'de la sucursal {punto_pago.sucursalid.nombre}'
+            )
             return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
@@ -1176,27 +1308,37 @@ def editar_horarios_cajas_view(request, puntopagoid):
         sucursal = punto_pago.sucursalid
         horarios = HorarioCaja.objects.filter(puntopagoid=puntopagoid)
 
-        return render(request, 'editar_horarios_cajas.html', {'punto_pago': punto_pago, 'horarios': horarios, 'sucursal': sucursal})
+        return render(request, 'editar_horarios_cajas.html', {
+            'punto_pago': punto_pago,
+            'horarios': horarios,
+            'sucursal': sucursal
+        })
+
 
 @login_required
 def agregar_cliente(request):
+    """
+    Vista para agregar un cliente usando AJAX. La validación (número de documento,
+    teléfono, nombre, apellido y ahora correo único) se maneja en ClienteForm.
+    """
     if request.method == 'POST':
         form = ClienteForm(request.POST)
         if form.is_valid():
             form.save()
             return JsonResponse({'success': True})
         else:
-            # Obtenemos los errores del formulario y los enviamos en la respuesta JSON
             errors = form.errors.as_json()
             return JsonResponse({'success': False, 'errors': errors})
     else:
         form = ClienteForm()
     return render(request, 'agregar_cliente.html', {'form': form})
 
+
 @login_required
 def visualizar_clientes(request):
     clientes = Cliente.objects.all()
     return render(request, 'visualizar_clientes.html', {'clientes': clientes})
+
 
 @login_required
 def eliminar_cliente(request, clienteid):
@@ -1204,6 +1346,7 @@ def eliminar_cliente(request, clienteid):
     cliente.delete()
     messages.success(request, 'Cliente eliminado exitosamente.')
     return redirect('visualizar_clientes')
+
 
 @login_required
 def editar_cliente(request, clienteid):
@@ -1217,15 +1360,16 @@ def editar_cliente(request, clienteid):
         
         try:
             cliente.save()
-            messages.success(request, f'Cliente con número de documento {cliente.numerodocumento} editado exitosamente.')
+            messages.success(
+                request,
+                f'Cliente con número de documento {cliente.numerodocumento} editado exitosamente.'
+            )
             return redirect('visualizar_clientes')
         except Exception as e:
             messages.error(request, f'Ocurrió un error al guardar los cambios: {str(e)}')
 
     return render(request, 'editar_cliente.html', {'cliente': cliente})
 
-# Configuración del logger
-logger = logging.getLogger(__name__)
 
 @login_required
 def generar_venta(request):
@@ -1248,7 +1392,10 @@ def generar_venta(request):
                 inventario = inventarios.get(productoid=producto)
                 cantidad = int(cantidades[i])
                 if cantidad > inventario.cantidad:
-                    return JsonResponse({'success': False, 'error': f'No hay suficiente stock de {producto.nombre} en la sucursal seleccionada.'})
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'No hay suficiente stock de {producto.nombre} en la sucursal seleccionada.'
+                    })
 
                 subtotal = producto.precio * cantidad
                 total += subtotal
@@ -1280,6 +1427,7 @@ def generar_venta(request):
     puntopago_id = request.GET.get('puntopago_id')
     return render(request, 'generar_venta.html', obtener_contexto(sucursal_id, puntopago_id))
 
+
 def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, cantidades, medio_pago, detalles, total):
     try:
         with transaction.atomic():
@@ -1310,7 +1458,10 @@ def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, ca
                     cantidad=detalle['cantidad'],
                     preciounitario=detalle['precio_unitario']
                 )
-                inventario = Inventario.objects.get(productoid_id=detalle['productoid'], sucursalid=sucursal_id)
+                inventario = Inventario.objects.get(
+                    productoid_id=detalle['productoid'],
+                    sucursalid=sucursal_id
+                )
                 inventario.cantidad -= detalle['cantidad']
                 inventario.save()
 
@@ -1319,17 +1470,22 @@ def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, ca
     except Exception as e:
         return JsonResponse({'success': False, 'message': 'Error al crear la venta.'})
 
+
 def obtener_contexto(sucursal_id=None, puntopago_id=None, detalles=[], total=0):
     return {
         'clientes': Cliente.objects.all(),
         'sucursales': Sucursal.objects.all(),
-        'puntos_pago': PuntosPago.objects.filter(sucursalid=sucursal_id) if sucursal_id else PuntosPago.objects.none(),
+        'puntos_pago': (
+            PuntosPago.objects.filter(sucursalid=sucursal_id)
+            if sucursal_id else PuntosPago.objects.none()
+        ),
         'productos': Producto.objects.all(),
         'detalles': detalles,
         'total': total,
         'selected_sucursal': sucursal_id,
         'selected_puntopago': puntopago_id
     }
+
 
 @login_required
 def verificar_producto(request):
@@ -1361,11 +1517,13 @@ def verificar_producto(request):
             return JsonResponse({'exists': False})
     return JsonResponse({'exists': False})
 
+
 @login_required
 def obtener_puntos_pago(request):
     sucursal_id = request.GET.get('sucursal_id')
     puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).values('puntopagoid', 'nombre')
     return JsonResponse({'puntos_pago': list(puntos_pago)})
+
 
 @login_required
 def buscar_productos(request):
@@ -1374,19 +1532,17 @@ def buscar_productos(request):
     try:
         term_as_int = int(term)
         productos = Producto.objects.filter(
-            Q(productoid=term_as_int) | 
-            Q(nombre__icontains=term) | 
-            Q(codigo_de_barras__icontains=term), 
+            Q(productoid=term_as_int) | Q(nombre__icontains=term) | Q(codigo_de_barras__icontains=term),
             inventario__sucursalid=sucursal_id
         ).values('productoid', 'nombre', 'codigo_de_barras').distinct()
     except ValueError:
         productos = Producto.objects.filter(
-            Q(nombre__icontains=term) | 
-            Q(codigo_de_barras__icontains=term), 
+            Q(nombre__icontains=term) | Q(codigo_de_barras__icontains=term),
             inventario__sucursalid=sucursal_id
         ).values('productoid', 'nombre', 'codigo_de_barras').distinct()
     
     return JsonResponse({'productos': list(productos)})
+
 
 @login_required
 def buscar_cliente(request):
@@ -1396,6 +1552,7 @@ def buscar_cliente(request):
     )
     clientes_list = list(clientes.values('clienteid', 'nombre', 'apellido'))
     return JsonResponse({'clientes': clientes_list})
+
 
 @login_required
 def buscar_producto_por_codigo(request):
@@ -1413,12 +1570,13 @@ def buscar_producto_por_codigo(request):
         })
     return JsonResponse({'exists': False})
 
+
 @csrf_exempt
 @login_required
 def verificar_pago_nequi(request):
     if request.method == 'POST':
         total = float(request.POST.get('total'))
-        flag = verificacionPago(total)  # Deberías ajustar verificacionPago para que tome el total y espere la confirmación
+        flag = verificacionPago(total)  # Ajustar verificacionPago para que tome el total
         if flag:
             return JsonResponse({'success': True})
         else:

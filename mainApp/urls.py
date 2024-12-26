@@ -8,19 +8,23 @@ urlpatterns = [
     path('visualizar_sucursales/', views.visualizar_sucursales_view, name='visualizar_sucursales'),
     path('sucursales/eliminar/<int:sucursal_id>/', views.eliminar_sucursal, name='eliminar_sucursal'),
     path('sucursales/editar/<int:sucursal_id>/', views.editar_sucursal_view, name='editar_sucursal'),
+
     path('agregar_categoria/', views.agregar_categoria_view, name='agregar_categoria'),
     path('visualizar_categorias/', views.visualizar_categorias_view, name='visualizar_categorias'),
     path('categorias/eliminar/<int:categoria_id>/', views.eliminar_categoria, name='eliminar_categoria'),
     path('categorias/editar/<int:categoria_id>/', views.editar_categoria_view, name='editar_categoria'),
+    
     path('agregar_producto/', views.agregar_producto_view, name='agregar_producto'),
     path('categoria_autocomplete/', views.categoria_autocomplete, name='categoria_autocomplete'),
     path('visualizar_productos/', views.visualizar_productos_view, name='visualizar_productos'),
     path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
     path('productos/editar/<int:producto_id>/', views.editar_producto_view, name='editar_producto'),
+    
     path('agregar_inventario/', views.agregar_inventario_view, name='agregar_inventario'),
     path('visualizar_inventarios/', views.visualizar_inventarios_view, name='visualizar_inventarios'),
     path('editar_inventario/<int:sucursal_id>/', views.editar_inventario_view, name='editar_inventario'),
     path('inventario/eliminar/<int:inventario_id>/', views.eliminar_producto_inventario_view, name='eliminar_producto_inventario'),
+    
     path('agregar_proveedor/', views.agregar_proveedor_view, name='agregar_proveedor'),
     path('visualizar_proveedores/', views.visualizar_proveedores_view, name='visualizar_proveedores'),
     path('eliminar_proveedor/<int:proveedor_id>/', views.eliminar_proveedor, name='eliminar_proveedor'),
@@ -29,44 +33,55 @@ urlpatterns = [
     path('visualizar_productos_precios_proveedores/', views.visualizar_productos_precios_proveedores_view, name='visualizar_productos_precios_proveedores'),
     path('precios_proveedor/eliminar/<int:id>/', views.eliminar_precio_proveedor_view, name='eliminar_precio_proveedor'),
     path('editar_productos_precios_proveedor/<int:proveedor_id>/', views.editar_productos_precios_proveedor_view, name='editar_productos_precios_proveedor'),
+
     path('agregar_punto_pago/', views.agregar_punto_pago_view, name='agregar_punto_pago'),
-    path('visualizar_puntos_pago/', views.visualizar_puntos_pago_view, name='visualizar_puntos_pago'), 
+    path('visualizar_puntos_pago/', views.visualizar_puntos_pago_view, name='visualizar_puntos_pago'),
     path('editar-puntos-pago/<int:sucursal_id>/', views.editar_puntos_pago_view, name='editar_puntos_pago'),
     path('eliminar-punto-pago/<int:puntopagoid>/', views.eliminar_punto_pago_view, name='eliminar_punto_pago'),
+
     path('agregar_rol/', views.agregar_rol_view, name='agregar_rol'),
     path('visualizar_roles/', views.visualizar_roles_view, name='visualizar_roles'),
     path('editar_rol/<int:rol_id>/', views.editar_rol_view, name='editar_rol'),
     path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
+
     path('agregar_usuario/', views.agregar_usuario_view, name='agregar_usuario'),
     path('visualizar_usuarios/', views.visualizar_usuarios_view, name='visualizar_usuarios'),
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
     path('editar_usuario/<int:usuarioid>/', views.editar_usuario_view, name='editar_usuario'),
-    path('agregar_empleado/', views.agregar_empleado_view, name='agregar_empleado'), 
+
+    path('agregar_empleado/', views.agregar_empleado_view, name='agregar_empleado'),
     path('autocomplete/usuario/', views.usuario_autocomplete, name='usuario_autocomplete'),
+
+    # Se deja un solo path para sucursal_autocomplete
     path('autocomplete/sucursal/', views.sucursal_autocomplete, name='sucursal_autocomplete'),
+    # Se podría eliminar el duplicado si no se usa:
+    path('sucursal-autocomplete/', views.sucursal_autocomplete, name='sucursal_autocomplete'),
+
     path('visualizar_empleados/', views.visualizar_empleados_view, name='visualizar_empleados'),
     path('editar_empleado/<int:empleadoid>/', views.editar_empleado_view, name='editar_empleado'),
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
+
     path('agregar_horario/', views.agregar_horario_view, name='agregar_horario'),
-    path('sucursal-autocomplete/', views.sucursal_autocomplete, name='sucursal_autocomplete'),
     path('visualizar_horarios/', views.visualizar_horarios_view, name='visualizar_horarios'),
     path('editar_horarios/<int:sucursal_id>/', views.editar_horarios_view, name='editar_horarios'),
     path('eliminar_horario/<int:horario_id>/', views.eliminar_horario_view, name='eliminar_horario'),
+
     path('agregar_horario_caja/', views.agregar_horario_caja_view, name='agregar_horario_caja'),
     path('puntopago-autocomplete/', views.puntopago_autocomplete, name='puntopago_autocomplete'),
     path('visualizar_horarios_cajas/', views.visualizar_horarios_cajas_view, name='visualizar_horarios_cajas'),
     path('eliminar_horario_caja/<int:horario_id>/', views.eliminar_horario_caja_view, name='eliminar_horario_caja'),
     path('obtener_puntos_pago_con_horarios/', views.obtener_puntos_pago_con_horarios, name='obtener_puntos_pago_con_horarios'),
     path('editar_horarios_cajas/<int:puntopagoid>/', views.editar_horarios_cajas_view, name='editar_horarios_cajas'),
+
     path('agregar_cliente/', views.agregar_cliente, name='agregar_cliente'),
     path('visualizar_clientes/', views.visualizar_clientes, name='visualizar_clientes'),
     path('editar_cliente/<int:clienteid>/', views.editar_cliente, name='editar_cliente'),
     path('eliminar_cliente/<int:clienteid>/', views.eliminar_cliente, name='eliminar_cliente'),
+
     path('generar_venta/', views.generar_venta, name='generar_venta'),
     path('buscar_productos/', views.buscar_productos, name='buscar_productos'),
     path('verificar_producto/', views.verificar_producto, name='verificar_producto'),
     path('buscar_producto_por_codigo/', views.buscar_producto_por_codigo, name='buscar_producto_por_codigo'),
     path('buscar_cliente/', views.buscar_cliente, name='buscar_cliente'),
-    path('generar_venta/', views.generar_venta, name='generar_venta'),
     path('verificar_pago_nequi/', views.verificar_pago_nequi, name='verificar_pago_nequi'),
 ]
