@@ -1,8 +1,9 @@
-/* agregar_categorias.css */
+/* agregar_empleado.css */
 
+/* Importación de fuente */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* Variables CSS */
+/* Variables CSS para facilitar cambios de color y mantenimiento */
 :root {
     --color-principal: #005091;
     --color-secundario: #ADD8E6;
@@ -11,8 +12,8 @@
     --color-gris-claro: #f0f8ff;
     --color-gris: #ccc;
     --color-gris-hover: #aaa;
-    --color-boton: #003366;
-    --color-boton-hover: #002244;
+    --color-boton: #3b5998;
+    --color-boton-hover: #2b467d;
     --fuente-principal: 'Roboto', Arial, sans-serif;
     --fuente-secundaria: 'Arial', sans-serif;
 }
@@ -30,14 +31,18 @@ body {
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center;
+    /* Remover align-items: center; para permitir expansión vertical */
+    /* align-items: center; */
     background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
     font-family: var(--fuente-principal);
+    text-align: center;
     color: var(--color-blanco);
     overflow: auto;
     position: relative;
+    padding: 20px; /* Añadir padding para evitar que el contenido quede pegado a los bordes */
 }
 
+/* Pseudo-elemento para el fondo difuminado */
 body::before {
     content: '';
     position: absolute;
@@ -52,40 +57,41 @@ body::before {
 }
 
 /* Contenedor principal */
-.container {
+.container-empleado {
     background: rgba(255, 255, 255, 0.1);
     padding: 40px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 90%;
+    width: 100%;
     max-width: 400px;
     text-align: center;
     position: relative;
-    overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* Título del contenedor */
-.container h2 {
+.container-empleado h2 {
     color: var(--color-blanco);
     margin-bottom: 20px;
     font-size: 24px;
 }
 
 /* Icono */
-.icon {
+.icon-empleado {
     font-size: 90px;
     margin-bottom: 15px;
     color: var(--color-blanco);
 }
 
 /* Grupo de formulario */
-.form-group {
+.form-group-empleado {
     margin-bottom: 20px;
     text-align: left;
+    position: relative; /* Para posicionar el autocomplete correctamente */
 }
 
 /* Etiquetas de los campos */
-.form-group label {
+.form-group-empleado label {
     display: block;
     margin-bottom: 5px;
     color: var(--color-blanco);
@@ -94,8 +100,8 @@ body::before {
 }
 
 /* Asterisco para campos obligatorios */
-.form-group .required {
-    color: var(--color-blanco);
+.form-group-empleado .required {
+    color: var(--color-blanco); /* Cambiar a blanco para mayor visibilidad */
     margin-left: 5px;
     font-size: 18px;
 }
@@ -108,8 +114,9 @@ body::before {
     font-size: 14px;
 }
 
-/* Campos de entrada */
-.form-group input[type="text"] {
+/* Campos de entrada y select */
+.form-group-empleado input,
+.form-group-empleado select {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--color-gris);
@@ -119,21 +126,23 @@ body::before {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-/* Hover y enfoque en campos */
-.form-group input[type="text"]:hover,
-.form-group input[type="text"]:focus {
+/* Hover sobre campos de entrada y select */
+.form-group-empleado input:hover,
+.form-group-empleado select:hover {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
 }
 
-.form-group input[type="text"]:focus {
+/* Enfoque sobre campos de entrada y select */
+.form-group-empleado input:focus,
+.form-group-empleado select:focus {
     outline: none;
     border-color: var(--color-principal);
     box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
 }
 
-/* Botón de envío */
-.btn-agregar-categoria {
+/* Botón de agregar empleado */
+.btn-agregar-empleado {
     background-color: var(--color-boton);
     color: var(--color-blanco);
     border: none;
@@ -144,10 +153,11 @@ body::before {
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s;
-    margin-top: 20px;
+    margin: 20px auto 0;
+    display: block;
 }
 
-.btn-agregar-categoria:hover {
+.btn-agregar-empleado:hover {
     background-color: var(--color-boton-hover);
 }
 
@@ -161,13 +171,6 @@ body::before {
     font-size: 16px;
 }
 
-.alert-error {
-    color: #a94442;
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    margin-bottom: 20px;
-}
-
 .alert-success {
     color: #3c763d;
     background-color: #dff0d8;
@@ -178,60 +181,150 @@ body::before {
     margin-bottom: 20px;
 }
 
-/* Estilos para mensajes de error de campo */
-.field-error {
-    color: #a94442;
-    font-size: 14px;
-    margin-top: 5px;
+.alert-error {
+    color: var(--color-rojo);
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    margin-bottom: 20px;
 }
 
-/* Responsividad */
+/* Estilos para mensajes de error de campo */
+.field-error {
+    color: var(--color-rojo);
+    font-size: 14px;
+    margin-top: 5px;
+    display: none; /* Ocultar por defecto */
+    text-align: left;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.field-error.visible {
+    display: block;
+    opacity: 1;
+}
+
+/* Icono dentro de mensajes de error */
+.field-error i {
+    margin-right: 5px;
+}
+
+/* Responsividad para dispositivos móviles */
 @media (max-width: 768px) {
-    .container {
+    .container-empleado {
         padding: 30px 20px;
     }
-    .icon {
+
+    .icon-empleado {
         font-size: 60px;
         margin-bottom: 10px;
     }
-    .container h2 {
+
+    .container-empleado h2 {
         font-size: 22px;
         margin-bottom: 15px;
     }
-    .form-group input[type="text"] {
+
+    .form-group-empleado input,
+    .form-group-empleado select {
         padding: 8px;
         font-size: 14px;
     }
-    .btn-agregar-categoria {
+
+    .btn-agregar-empleado {
         padding: 10px;
         font-size: 16px;
     }
+
     .obligatorio-texto {
+        font-size: 12px;
+    }
+
+    .autocomplete-results {
+        max-height: 150px;
+    }
+
+    .autocomplete-option {
+        font-size: 14px;
+    }
+}
+
+/* Responsividad para dispositivos muy pequeños */
+@media (max-width: 480px) {
+    .container-empleado {
+        padding: 20px 15px;
+    }
+
+    .icon-empleado {
+        font-size: 50px;
+        margin-bottom: 8px;
+    }
+
+    .container-empleado h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .form-group-empleado input,
+    .form-group-empleado select {
+        font-size: 14px;
+        padding: 6px;
+    }
+
+    .btn-agregar-empleado {
+        font-size: 16px;
+        padding: 8px;
+    }
+
+    .obligatorio-texto {
+        font-size: 10px;
+    }
+
+    .autocomplete-results {
+        max-height: 120px;
+    }
+
+    .autocomplete-option {
         font-size: 12px;
     }
 }
 
-@media (max-width: 480px) {
-    .container {
-        padding: 20px 15px;
-    }
-    .icon {
-        font-size: 50px;
-        margin-bottom: 8px;
-    }
-    .container h2 {
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
-    .form-group input[type="text"] {
-        font-size: 14px;
-        padding: 6px;
-    }
-    .btn-agregar-categoria {
-        font-size: 16px;
-        padding: 8px;
-    }
-    .obligatorio-texto {
-        font-size: 10px;
-    }
+/* Estilos para el autocompletar */
+.autocomplete-results {
+    /* Cambiar a posición relativa para que ocupe espacio en el flujo del documento */
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--color-gris-claro);
+    border: 1px solid var(--color-gris);
+    z-index: 1000;
+    max-height: 200px; /* Altura máxima */
+    overflow-y: auto; /* Scroll vertical */
+    display: none; /* Ocultar por defecto */
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    margin-top: 5px; /* Separación del campo de entrada */
+}
+
+.autocomplete-results.visible {
+    display: block;
+}
+
+.autocomplete-option {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+}
+
+.autocomplete-option:hover {
+    background-color: var(--color-boton-hover);
+    color: var(--color-blanco);
+}
+
+.autocomplete-no-result {
+    padding: 10px;
+    color: #999;
+    font-size: 16px;
 }

@@ -8,68 +8,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agregar Cliente</title>
-    <!-- Font Awesome CDN -->
+    <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- CSS de Agregar Cliente -->
-    <link rel="stylesheet" href="{% static 'css/agregar_cliente.css' %}">
+    <link rel="stylesheet" href="{% static 'css/agregar_clientess.css' %}">
 </head>
 <body>
-    <div class="container-empleado">
-        <i class="fas fa-user-plus icon-empleado"></i> <!-- Ícono de usuario con signo de más -->
+    <div class="container-empleado"><!-- O "container-cliente" si deseas -->
+        
+        <!-- Ícono y Título -->
+        <i class="fas fa-user-plus icon-empleado"></i>
         <h2>Agregar Cliente</h2>
-        <!-- Texto Informativo sobre Campos Obligatorios -->
+        
+        <!-- Texto sobre campos obligatorios -->
         <p class="obligatorio-texto">
             Todos los campos con <span class="required">*</span> son obligatorios.
         </p>
         
-        <!-- Mensajes de éxito y error -->
+        <!-- Mensajes de error (global) y éxito -->
         <div id="error-message" class="alert alert-error" style="display: none;"></div>
         <div id="success-message" class="alert alert-success" style="display: none;"></div>
         
+        <!-- Formulario -->
         <form id="form-agregar-cliente" method="POST" action="{% url 'agregar_cliente' %}">
             {% csrf_token %}
+            
             <!-- Campo Número de Documento -->
             <div class="form-group-empleado">
                 <label for="{{ form.numerodocumento.id_for_label }}">
                     {{ form.numerodocumento.label }} <span class="required">*</span>
                 </label>
                 {{ form.numerodocumento }}
+                <!-- Error específico -->
+                <div class="field-error" id="error-id_numerodocumento"></div>
             </div>
+            
             <!-- Campo Nombre -->
             <div class="form-group-empleado">
                 <label for="{{ form.nombre.id_for_label }}">
                     {{ form.nombre.label }} <span class="required">*</span>
                 </label>
                 {{ form.nombre }}
+                <!-- Error específico -->
+                <div class="field-error" id="error-id_nombre"></div>
             </div>
+            
             <!-- Campo Apellido -->
             <div class="form-group-empleado">
                 <label for="{{ form.apellido.id_for_label }}">
                     {{ form.apellido.label }} <span class="required">*</span>
                 </label>
                 {{ form.apellido }}
+                <!-- Error específico -->
+                <div class="field-error" id="error-id_apellido"></div>
             </div>
+            
             <!-- Campo Teléfono -->
             <div class="form-group-empleado">
                 <label for="{{ form.telefono.id_for_label }}">
                     {{ form.telefono.label }} <span class="required">*</span>
                 </label>
                 {{ form.telefono }}
+                <!-- Error específico -->
+                <div class="field-error" id="error-id_telefono"></div>
             </div>
+            
             <!-- Campo Email -->
             <div class="form-group-empleado">
                 <label for="{{ form.email.id_for_label }}">
                     {{ form.email.label }} <span class="required">*</span>
                 </label>
                 {{ form.email }}
+                <!-- Error específico -->
+                <div class="field-error" id="error-id_email"></div>
             </div>
-            <!-- Botón de Envío -->
+            
+            <!-- Botón de envío -->
             <div class="form-group-empleado">
                 <button type="submit" class="btn-agregar-empleado">Agregar Cliente</button>
             </div>
         </form>
     </div>
 
+    <!-- Script principal -->
     <script src="{% static 'javascript/agregar_cliente.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>

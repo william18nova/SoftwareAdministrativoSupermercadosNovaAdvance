@@ -115,6 +115,10 @@ def editar_sucursal_view(request, sucursal_id):
 
 @login_required
 def agregar_categoria_view(request):
+    """
+    Vista para agregar una categoría usando AJAX.
+    Retorna un JSON con success=True o success=False y la lista de errores en caso de no ser válido.
+    """
     if request.method == 'POST':
         form = CategoriaForm(request.POST)
         if form.is_valid():
@@ -125,6 +129,7 @@ def agregar_categoria_view(request):
             return JsonResponse({'success': False, 'errors': errors})
     else:
         form = CategoriaForm()
+    
     return render(request, 'agregar_categoria.html', {'form': form})
 
 
@@ -1315,11 +1320,11 @@ def editar_horarios_cajas_view(request, puntopagoid):
         })
 
 
-@login_required
 def agregar_cliente(request):
     """
     Vista para agregar un cliente usando AJAX. La validación (número de documento,
-    teléfono, nombre, apellido y ahora correo único) se maneja en ClienteForm.
+    teléfono, nombre, apellido, correo único) se maneja en ClienteForm.
+    Devuelve un JSON con success=True o success=False y la lista de errores.
     """
     if request.method == 'POST':
         form = ClienteForm(request.POST)
@@ -1331,6 +1336,7 @@ def agregar_cliente(request):
             return JsonResponse({'success': False, 'errors': errors})
     else:
         form = ClienteForm()
+    
     return render(request, 'agregar_cliente.html', {'form': form})
 
 

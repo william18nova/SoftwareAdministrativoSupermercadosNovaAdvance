@@ -34,6 +34,7 @@ class CategoriaForm(forms.ModelForm):
             raise forms.ValidationError('El Nombre de la categoría ya está registrado.')
         return nombre
 
+
 class ClienteForm(forms.ModelForm):
     class Meta:
         model = Cliente
@@ -110,6 +111,42 @@ class ClienteForm(forms.ModelForm):
         return email
     
 class EmpleadoForm(forms.ModelForm):
+    # Validadores para campos específicos
+    nombre_validator = RegexValidator(
+        regex=r'^[A-Za-z\s]+$',
+        message='El nombre solo debe contener letras y espacios.'
+    )
+    
+    apellido_validator = RegexValidator(
+        regex=r'^[A-Za-z\s]+$',
+        message='El apellido solo debe contener letras y espacios.'
+    )
+    
+    numerodocumento_validator = RegexValidator(
+        regex=r'^\d{6,10}$',
+        message='El número de documento debe contener entre 6 y 10 dígitos.'
+    )
+    
+    telefono_validator = RegexValidator(
+        regex=r'^\d{10}$',
+        message='El teléfono debe contener exactamente 10 dígitos.'
+    )
+
+    # Redefinimos los campos para incluir validadores y label (si procede)
+    numerodocumento = forms.CharField(
+        label='Número de Documento',
+        validators=[numerodocumento_validator]
+    )
+    nombre = forms.CharField(
+        validators=[nombre_validator]
+    )
+    apellido = forms.CharField(
+        validators=[apellido_validator]
+    )
+    telefono = forms.CharField(
+        validators=[telefono_validator]
+    )
+
     class Meta:
         model = Empleado
         fields = [
@@ -124,7 +161,7 @@ class EmpleadoForm(forms.ModelForm):
             'sucursalid'
         ]
         labels = {
-            'numerodocumento': 'Número de Documento',
+            'numerodocumento': 'Número de Documento',  # (opcional, pues ya lo redefinimos arriba)
             'nombre': 'Nombre',
             'apellido': 'Apellido',
             'telefono': 'Teléfono',
@@ -171,33 +208,6 @@ class EmpleadoForm(forms.ModelForm):
             'usuarioid': forms.HiddenInput(),
             'sucursalid': forms.HiddenInput(),
         }
-    
-    # Validadores
-    nombre_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El nombre solo debe contener letras y espacios.'
-    )
-    
-    apellido_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El apellido solo debe contener letras y espacios.'
-    )
-    
-    numerodocumento_validator = RegexValidator(
-        regex=r'^\d{6,10}$',
-        message='El número de documento debe contener entre 6 y 10 dígitos.'
-    )
-    
-    telefono_validator = RegexValidator(
-        regex=r'^\d{10}$',
-        message='El teléfono debe contener exactamente 10 dígitos.'
-    )
-
-    # Aplicar validadores a los campos
-    nombre = forms.CharField(validators=[nombre_validator])
-    apellido = forms.CharField(validators=[apellido_validator])
-    numerodocumento = forms.CharField(validators=[numerodocumento_validator])
-    telefono = forms.CharField(validators=[telefono_validator])
 
     def clean_email(self):
         email = self.cleaned_data.get('email')

@@ -1,10 +1,11 @@
+/* Importación de fuente (opcional) */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
 /* Variables CSS para facilitar cambios de color y mantenimiento */
 :root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
+    --color-principal: #005091;       /* Azul oscuro */
+    --color-secundario: #ADD8E6;      /* Azul claro */
+    --color-blanco: #ffffff;          
     --color-rojo: #ff0000;
     --color-gris-claro: #f0f8ff;
     --color-gris: #ccc;
@@ -43,11 +44,11 @@ body {
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: center; /* Opcional: Centra verticalmente */
     background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
     font-family: var(--fuente-principal);
     color: var(--color-blanco);
-    overflow: auto; 
+    overflow: auto;
     position: relative;
 }
 
@@ -177,7 +178,7 @@ body::before {
 }
 
 .alert-error {
-    color: #a94442;
+    color: var(--color-rojo);
     background-color: #f2dede;
     border-color: #ebccd1;
     margin-bottom: 20px;
@@ -195,12 +196,26 @@ body::before {
 
 /* CSS para mensajes de error de campo */
 .field-error {
-    color: #a94442;
+    color: var(--color-rojo);
     font-size: 14px;
     margin-top: 5px;
+    display: none; /* Ocultar por defecto para animar su aparición */
+    text-align: left;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-/* Responsividad */
+.field-error.visible {
+    display: block;
+    opacity: 1;
+}
+
+/* Icono dentro de mensajes de error */
+.field-error i {
+    margin-right: 5px;
+}
+
+/* Responsividad (tablets) */
 @media (max-width: 768px) {
     .container-empleado {
         padding: var(--padding-contenedor-movil);
@@ -227,6 +242,7 @@ body::before {
     }
 }
 
+/* Responsividad (móviles) */
 @media (max-width: 480px) {
     .container-empleado {
         padding: 20px 15px;
