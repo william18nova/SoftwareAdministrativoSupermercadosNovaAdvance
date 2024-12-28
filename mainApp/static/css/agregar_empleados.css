@@ -59,7 +59,10 @@ body::before {
 /* Contenedor principal */
 .container-empleado {
     background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
+    padding-top: 40px;
+    padding-right: 40px;
+    padding-left: 40px;
+    padding-bottom: 20px; /* Reducido de 40px a 20px */
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 100%;
@@ -101,7 +104,7 @@ body::before {
 
 /* Asterisco para campos obligatorios */
 .form-group-empleado .required {
-    color: var(--color-blanco); /* Cambiar a blanco para mayor visibilidad */
+    color: var(--color-blanco); /* Cambiar a rojo para mayor visibilidad */
     margin-left: 5px;
     font-size: 18px;
 }
@@ -164,13 +167,14 @@ body::before {
 /* Estilos de alertas */
 .alert {
     padding: 15px;
-    margin-top: 20px;
+    margin-bottom: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
     font-size: 16px;
 }
 
+/* Mensajes de éxito */
 .alert-success {
     color: #3c763d;
     background-color: #dff0d8;
@@ -178,14 +182,13 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 20px;
 }
 
+/* Mensajes de error */
 .alert-error {
     color: var(--color-rojo);
     background-color: #f2dede;
     border-color: #ebccd1;
-    margin-bottom: 20px;
 }
 
 /* Estilos para mensajes de error de campo */
@@ -205,7 +208,9 @@ body::before {
 }
 
 /* Icono dentro de mensajes de error */
-.field-error i {
+.field-error i,
+.alert-error i,
+.alert-success i {
     margin-right: 5px;
 }
 

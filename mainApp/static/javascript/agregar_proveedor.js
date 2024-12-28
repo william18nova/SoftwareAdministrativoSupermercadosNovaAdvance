@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('form-agregar-proveedor');
     const errorMessageDiv = document.getElementById('error-message');
     const successMessageDiv = document.getElementById('success-message');
-    
+    const successTextSpan = document.getElementById('success-text'); // Nuevo elemento
+
     /**
      * Función para limpiar mensajes de error y éxito
      */
@@ -13,8 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessageDiv.style.display = 'none';
         errorMessageDiv.innerHTML = '';
         successMessageDiv.style.display = 'none';
-        successMessageDiv.textContent = '';
-        
+        successTextSpan.textContent = ''; // Limpiar texto
         // Limpiar errores específicos de campos
         const errorFields = document.querySelectorAll('.field-error');
         errorFields.forEach(function(errorField) {
@@ -22,19 +22,19 @@ document.addEventListener('DOMContentLoaded', function() {
             errorField.classList.remove('visible');
         });
     }
-    
+
     /**
      * Función para mostrar mensajes de error
      */
     function displayErrors(errors) {
         clearMessages();
-        
+
         // Errores generales (si los hubiera)
         if (errors.__all__) {
             errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
             errorMessageDiv.style.display = 'block';
         }
-        
+
         // Errores específicos de campo
         for (let field in errors) {
             if (field === '__all__') continue;
@@ -46,25 +46,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     /**
      * Función para mostrar mensajes de éxito
      */
     function displaySuccess(message) {
-        successMessageDiv.textContent = message;
-        successMessageDiv.style.display = 'block';
+        successTextSpan.textContent = message;
+        successMessageDiv.style.display = 'flex'; // Cambiar a flex para mostrar el ícono y el texto
         form.reset();
     }
-    
+
     /**
      * Evento de envío del formulario
      */
     form.addEventListener('submit', function(event) {
         event.preventDefault(); // Prevenir el envío predeterminado
         clearMessages();
-        
+
         const formData = new FormData(form);
-        
+
         fetch(form.action, {
             method: 'POST',
             headers: {
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
             errorMessageDiv.style.display = 'block';
         });
     });
-    
+
     /**
      * Función para obtener el valor de una cookie por nombre
      */

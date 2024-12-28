@@ -58,13 +58,12 @@ def agregar_sucursal_view(request):
         form = SucursalForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, f'Sucursal agregada exitosamente')
-            return redirect('agregar_sucursal')
+            return JsonResponse({'success': True, 'message': 'Sucursal agregada exitosamente.'})
         else:
-            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+            errors = form.errors.get_json_data()  # Obtener errores como dict
+            return JsonResponse({'success': False, 'errors': errors})
     else:
         form = SucursalForm()
-    
     return render(request, 'agregar_sucursal.html', {'form': form})
 
 
@@ -813,17 +812,13 @@ def agregar_empleado_view(request):
         form = EmpleadoForm(request.POST)
         if form.is_valid():
             form.save()
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'message': 'Empleado agregado exitosamente.'})
         else:
-            errors = form.errors.as_json()
+            errors = form.errors.get_json_data()  # Obtener errores como dict
             return JsonResponse({'success': False, 'errors': errors})
     else:
         form = EmpleadoForm()
-    
-    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid_id'))
-    sucursales = Sucursal.objects.all()
-    
-    return render(request, 'agregar_empleado.html', {'form': form, 'usuarios': usuarios, 'sucursales': sucursales})
+    return render(request, 'agregar_empleado.html', {'form': form})
 
 
 @login_required

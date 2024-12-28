@@ -37,13 +37,19 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessageDiv.style.display = 'none';
         errorMessageDiv.innerHTML = '';
         successMessageDiv.style.display = 'none';
-        successMessageDiv.textContent = '';
+        successMessageDiv.innerHTML = '';
         
         // Limpiar errores específicos de campos
         const errorFields = document.querySelectorAll('.field-error');
         errorFields.forEach(function(errorField) {
             errorField.innerHTML = '';
             errorField.classList.remove('visible');
+        });
+        
+        // Remover clases de error de los inputs
+        const inputs = form.querySelectorAll('input, textarea');
+        inputs.forEach(function(input) {
+            input.classList.remove('input-error');
         });
     }
     
@@ -65,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const fieldErrors = errors[field];
             const errorDiv = document.getElementById('error-id_' + field);
             if (errorDiv) {
-                errorDiv.innerHTML = fieldErrors.map(e => `<i class="fas fa-exclamation-circle"></i>${e.message}`).join('<br>');
+                errorDiv.innerHTML = fieldErrors.map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`).join('<br>');
                 errorDiv.classList.add('visible');
             }
         }
@@ -334,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (hasLocalErrors) {
-            errorMessageDiv.textContent = 'Por favor, corrige los errores en el formulario.';
+            errorMessageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Por favor, corrige los errores en el formulario.';
             errorMessageDiv.style.display = 'block';
             return;
         }
@@ -352,7 +358,8 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                successMessageDiv.textContent = 'Empleado agregado exitosamente.';
+                // Añadir el ícono de éxito antes del texto
+                successMessageDiv.innerHTML = `<i class="fas fa-check-circle"></i> Empleado agregado exitosamente.`;
                 successMessageDiv.style.display = 'block';
                 form.reset();
                 usuarioIdInput.value = '';
@@ -364,13 +371,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 hasMoreUsuario = false;
                 hasMoreSucursal = false;
             } else {
-                const errors = JSON.parse(data.errors);
+                const errors = data.errors; // Ya es un objeto JSON
                 displayErrors(errors);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            errorMessageDiv.textContent = 'Ocurrió un error inesperado.';
+            errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Ocurrió un error inesperado.`;
             errorMessageDiv.style.display = 'block';
         });
     });

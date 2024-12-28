@@ -27,16 +27,9 @@
         <!-- Mensaje de campos obligatorios -->
         <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
         
-        <!-- Mensajes de Django -->
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+        <!-- Mensajes de éxito y error generales (manejados vía AJAX) -->
+        <div id="error-message" class="alert alert-error" style="display: none;"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;"></div>
         
         <!-- Formulario para agregar sucursal -->
         <form id="sucursalForm" action="{% url 'agregar_sucursal' %}" method="POST">
@@ -48,11 +41,7 @@
                     {{ form.nombre.label }} <span class="required">*</span>
                 </label>
                 {{ form.nombre }}
-                <div class="field-error" id="error-id_nombre">
-                    {% for error in form.nombre.errors %}
-                        <i class="fas fa-exclamation-circle"></i> {{ error }}
-                    {% endfor %}
-                </div>
+                <div class="field-error" id="error-id_nombre"></div>
             </div>
             
             <!-- Campo Dirección -->
@@ -61,11 +50,7 @@
                     {{ form.direccion.label }} <span class="required">*</span>
                 </label>
                 {{ form.direccion }}
-                <div class="field-error" id="error-id_direccion">
-                    {% for error in form.direccion.errors %}
-                        <i class="fas fa-exclamation-circle"></i> {{ error }}
-                    {% endfor %}
-                </div>
+                <div class="field-error" id="error-id_direccion"></div>
             </div>
             
             <!-- Campo Teléfono -->
@@ -74,11 +59,7 @@
                     {{ form.telefono.label }} <span class="required">*</span>
                 </label>
                 {{ form.telefono }}
-                <div class="field-error" id="error-id_telefono">
-                    {% for error in form.telefono.errors %}
-                        <i class="fas fa-exclamation-circle"></i> {{ error }}
-                    {% endfor %}
-                </div>
+                <div class="field-error" id="error-id_telefono"></div>
             </div>
             
             <!-- Botón de Envío -->
@@ -90,4 +71,6 @@
 
     <!-- Incluir el archivo JavaScript específico para esta página -->
     <script src="{% static 'javascript/agregar_sucursal.js' %}"></script>
+</body>
+</html>
 {% endblock %}

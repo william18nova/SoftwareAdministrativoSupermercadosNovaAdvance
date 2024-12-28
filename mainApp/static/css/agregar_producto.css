@@ -32,15 +32,14 @@ body {
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    /* Remover align-items: center; para permitir expansión vertical */
-    /* align-items: center; */
+    align-items: center; /* Habilitado para centrar verticalmente */
     background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
     font-family: var(--fuente-principal);
     text-align: center;
     color: var(--color-blanco);
     overflow: auto;
     position: relative;
-    padding: 20px; /* Añadir padding para evitar que el contenido quede pegado a los bordes */
+    /* padding: 20px; */ /* Eliminado para evitar interferencias con el centrado */
 }
 
 /* Pseudo-elemento para el fondo difuminado */
@@ -60,7 +59,7 @@ body::before {
 /* Contenedor principal */
 .container {
     background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
+    padding: 30px 40px 10px; /* Top | Right & Left | Bottom */
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 100%;
@@ -68,7 +67,14 @@ body::before {
     text-align: center;
     position: relative;
     box-sizing: border-box;
-    margin: 20px auto; /* Añadir margen para asegurar espacio para scroll */
+    margin: 20px auto; /* Mantener el margen existente */
+    /* height: 70%; */ /* Eliminado */
+
+    /* Flexbox properties */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Distribuye espacio equitativamente */
+    height: auto; /* Permite que el contenido defina la altura */
 }
 
 /* Título del contenedor */
@@ -87,14 +93,16 @@ body::before {
 
 /* Mensaje de campos obligatorios */
 .obligatorio-texto {
+    font-style: italic;
     color: var(--color-blanco);
     font-size: 14px;
-    margin-bottom: 20px;
+    margin-top: 10px; /* Reducido de 20px a 10px */
+    margin-bottom: 10px; /* Añadido margin-bottom para equilibrar */
 }
 
 /* Grupo de formulario */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 10px; /* Reducido de 15px a 10px */
     text-align: left;
     position: relative; /* Para posicionar mensajes de error correctamente */
 }
@@ -151,13 +159,13 @@ body::before {
     color: var(--color-blanco);
     border: none;
     cursor: pointer;
-    padding: 12px 20px; /* Añadido padding horizontal para mejor tamaño */
+    padding: 12px 20px; /* Mantener padding horizontal */
     text-align: center;
     width: 100%;
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
-    margin: 20px auto 0;
+    margin: 25px auto 25px; /* Top | Left & Right | Bottom */
     display: block;
     font-weight: bold;
 }
@@ -266,33 +274,23 @@ body::before {
 /* Responsividad para dispositivos móviles */
 @media (max-width: 768px) {
     .container {
-        padding: 30px 20px;
+        padding: 15px 20px; /* Reducido padding para móviles */
     }
 
-    .icon {
-        font-size: 60px;
-        margin-bottom: 10px;
-    }
-
-    .container h2 {
-        font-size: 22px;
-        margin-bottom: 15px;
-    }
-
-    .form-group input[type="text"],
-    .form-group input[type="number"],
-    .form-group select {
-        font-size: 14px;
-        padding: 8px;
+    .form-group {
+        margin-bottom: 10px; /* Reducido espacio entre campos */
     }
 
     .btn-agregar-producto {
         padding: 10px 18px; /* Ajuste de padding para dispositivos móviles */
         font-size: 16px;
+        margin: 10px auto 10px; /* Mantener consistencia */
     }
 
     .obligatorio-texto {
         font-size: 12px;
+        margin-top: 10px; /* Mantener consistencia */
+        margin-bottom: 10px; /* Añadido para equilibrar */
     }
 
     .autocomplete-results {
@@ -307,7 +305,7 @@ body::before {
 /* Responsividad para dispositivos muy pequeños */
 @media (max-width: 480px) {
     .container {
-        padding: 20px 15px;
+        padding: 10px 15px; /* Reducido padding para pantallas muy pequeñas */
     }
 
     .icon {
@@ -330,10 +328,13 @@ body::before {
     .btn-agregar-producto {
         font-size: 16px;
         padding: 8px 16px; /* Ajuste de padding para dispositivos muy pequeños */
+        margin: 10px auto 10px; /* Mantener consistencia */
     }
 
     .obligatorio-texto {
         font-size: 10px;
+        margin-top: 10px; /* Mantener consistencia */
+        margin-bottom: 10px; /* Añadido para equilibrar */
     }
 
     .autocomplete-results {
