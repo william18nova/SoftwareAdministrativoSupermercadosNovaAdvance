@@ -24,14 +24,10 @@ document.addEventListener('DOMContentLoaded', function() {
      * Función para limpiar mensajes de error y éxito
      */
     function clearMessages() {
-        if (errorMessageDiv) {
-            errorMessageDiv.style.display = 'none';
-            errorMessageDiv.innerHTML = '';
-        }
-        if (successMessageDiv) {
-            successMessageDiv.style.display = 'none';
-            successMessageDiv.innerHTML = '';
-        }
+        errorMessageDiv.style.display = 'none';
+        errorMessageDiv.innerHTML = '';
+        successMessageDiv.style.display = 'none';
+        successMessageDiv.innerHTML = '';
         
         // Limpiar errores específicos de campos
         const errorFields = document.querySelectorAll('.field-error');

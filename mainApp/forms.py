@@ -443,6 +443,20 @@ class SucursalForm(forms.ModelForm):
         return nombre
     
 class ProductoForm(forms.ModelForm):
+    codigo_de_barras_validator = RegexValidator(
+        regex=r'^\d{12}$',
+        message='El código de barras debe contener exactamente 12 dígitos.'
+    )
+
+    codigo_de_barras = forms.CharField(
+        validators=[codigo_de_barras_validator],
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el código de barras'
+        })
+    )
+
     class Meta:
         model = Producto
         fields = ['nombre', 'descripcion', 'precio', 'categoria', 'codigo_de_barras', 'iva']
@@ -472,10 +486,6 @@ class ProductoForm(forms.ModelForm):
                 'min': '0'
             }),
             'categoria': forms.HiddenInput(),  # Campo oculto para almacenar el ID de la categoría
-            'codigo_de_barras': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el código de barras'
-            }),
             'iva': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Ingresa el IVA (Por ejemplo, para 19% ingrese 0.19)',
@@ -485,22 +495,13 @@ class ProductoForm(forms.ModelForm):
                 'max': '1'
             }),
         }
-    
-    
-    codigo_de_barras_validator = RegexValidator(
-        regex=r'^\d{12}$',
-        message='El código de barras debe contener exactamente 12 dígitos.'
-    )
-    
-    # Aplicar validadores a los campos
-    codigo_de_barras = forms.CharField(validators=[codigo_de_barras_validator], required=False)
-    
+
     def clean_nombre(self):
         nombre = self.cleaned_data.get('nombre')
         if Producto.objects.filter(nombre__iexact=nombre).exists():
             raise forms.ValidationError('El nombre del producto ya está registrado.')
         return nombre
-    
+
     def clean_codigo_de_barras(self):
         codigo_de_barras = self.cleaned_data.get('codigo_de_barras')
         if codigo_de_barras and Producto.objects.filter(codigo_de_barras=codigo_de_barras).exists():

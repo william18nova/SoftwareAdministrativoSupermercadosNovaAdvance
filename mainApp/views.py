@@ -183,14 +183,14 @@ def agregar_producto_view(request):
         form = ProductoForm(request.POST)
         if form.is_valid():
             form.save()
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'message': 'Producto agregado exitosamente.'})
         else:
-            return JsonResponse({'success': False, 'errors': form.errors.as_json()})
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
     else:
         form = ProductoForm()
     categorias = Categoria.objects.all()
     return render(request, 'agregar_producto.html', {'form': form, 'categorias': categorias})
-
 
 @login_required
 def categoria_autocomplete(request):
@@ -200,31 +200,31 @@ def categoria_autocomplete(request):
     term = request.GET.get('term', '').strip()
     page = request.GET.get('page', '1').strip()
     per_page = 10  # Número de resultados por página
-    
+
     try:
         page = int(page)
         if page < 1:
             page = 1
     except ValueError:
         page = 1
-    
+
     start = (page - 1) * per_page
     end = start + per_page
-    
+
     categorias = Categoria.objects.filter(
         Q(nombre__icontains=term)
     ).order_by('nombre')
-    
+
     total_results = categorias.count()
     categorias = categorias[start:end]
-    
+
     results = []
     for categoria in categorias:
         results.append({
             'id': categoria.categoriaid,
             'text': categoria.nombre,
         })
-    
+
     return JsonResponse({
         'results': results,
         'has_more': end < total_results,
