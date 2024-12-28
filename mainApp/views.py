@@ -695,10 +695,10 @@ def agregar_rol_view(request):
         form = RolForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Rol agregado exitosamente.')
-            return redirect('agregar_rol')
+            return JsonResponse({'success': True, 'message': 'Rol agregado exitosamente.'})
         else:
-            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
     else:
         form = RolForm()
     return render(request, 'agregar_rol.html', {'form': form})

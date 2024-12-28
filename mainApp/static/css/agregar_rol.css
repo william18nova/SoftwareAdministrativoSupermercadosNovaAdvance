@@ -8,7 +8,7 @@
     --color-principal: #005091;
     --color-secundario: #ADD8E6;
     --color-blanco: #ffffff;
-    --color-rojo: #a94442;
+    --color-rojo: #ff0000;
     --color-verde: #3c763d;
     --color-gris-claro: #f0f8ff;
     --color-gris: #ccc;
@@ -41,14 +41,18 @@ body {
     padding: 20px; /* Añadir padding para evitar que el contenido quede pegado a los bordes */
 }
 
-/* Estilo para listas de errores de Django Forms */
-.errorlist {
-    color: var(--color-rojo);
-    margin-top: 5px;
-    margin-bottom: -10px;
-    font-family: var(--fuente-principal);
-    list-style-type: none; /* Eliminar viñetas */
-    padding-left: 0; /* Eliminar padding izquierdo */
+/* Pseudo-elemento para el fondo difuminado */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none;
 }
 
 /* Contenedor principal */
@@ -196,8 +200,29 @@ body {
 }
 
 /* Estilos para errores de campos */
+.field-error {
+    color: var(--color-rojo);
+    font-size: 14px;
+    margin-top: 5px;
+    display: none; /* Ocultar por defecto */
+    text-align: left;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.field-error.visible {
+    display: block;
+    opacity: 1;
+}
+
+/* Clases de error en inputs */
 .input-error {
     border-color: var(--color-rojo) !important;
+}
+
+/* Icono dentro de mensajes de error */
+.field-error i {
+    margin-right: 5px;
 }
 
 /* Responsividad para dispositivos móviles */
