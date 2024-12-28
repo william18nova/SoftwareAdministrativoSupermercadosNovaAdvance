@@ -523,6 +523,15 @@ class ProveedorForm(forms.ModelForm):
             'required': 'required'
         })
     )
+    empresa = forms.CharField(
+        max_length=100,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa la empresa',
+            'required': 'required'
+        })
+    )
     telefono = forms.CharField(
         max_length=20,
         validators=[

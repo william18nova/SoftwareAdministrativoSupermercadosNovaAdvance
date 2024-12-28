@@ -2,7 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     // Variables generales
-    const form = document.getElementById('proveedorForm');
+    const form = document.getElementById('form-agregar-proveedor');
     const errorMessageDiv = document.getElementById('error-message');
     const successMessageDiv = document.getElementById('success-message');
     
@@ -10,29 +10,40 @@ document.addEventListener('DOMContentLoaded', function() {
      * Función para limpiar mensajes de error y éxito
      */
     function clearMessages() {
-        if (errorMessageDiv) {
-            errorMessageDiv.style.display = 'none';
-            errorMessageDiv.innerHTML = '';
-        }
-        if (successMessageDiv) {
-            successMessageDiv.style.display = 'none';
-            successMessageDiv.innerHTML = '';
-        }
+        errorMessageDiv.style.display = 'none';
+        errorMessageDiv.innerHTML = '';
+        successMessageDiv.style.display = 'none';
+        successMessageDiv.textContent = '';
         
         // Limpiar errores específicos de campos
-        const inputErrors = form.querySelectorAll('.input-error');
-        inputErrors.forEach(function(input) {
-            input.classList.remove('input-error');
+        const errorFields = document.querySelectorAll('.field-error');
+        errorFields.forEach(function(errorField) {
+            errorField.innerHTML = '';
+            errorField.classList.remove('visible');
         });
     }
     
     /**
      * Función para mostrar mensajes de error
      */
-    function displayErrors(messages) {
-        if (errorMessageDiv) {
-            errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${messages}`;
+    function displayErrors(errors) {
+        clearMessages();
+        
+        // Errores generales (si los hubiera)
+        if (errors.__all__) {
+            errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
             errorMessageDiv.style.display = 'block';
+        }
+        
+        // Errores específicos de campo
+        for (let field in errors) {
+            if (field === '__all__') continue;
+            const fieldErrors = errors[field];
+            const errorDiv = document.getElementById('error-id_' + field);
+            if (errorDiv) {
+                errorDiv.innerHTML = fieldErrors.map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`).join('<br>');
+                errorDiv.classList.add('visible');
+            }
         }
     }
     
@@ -40,96 +51,60 @@ document.addEventListener('DOMContentLoaded', function() {
      * Función para mostrar mensajes de éxito
      */
     function displaySuccess(message) {
-        if (successMessageDiv) {
-            successMessageDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-            successMessageDiv.style.display = 'block';
-        }
-    }
-    
-    /**
-     * Función para validar el formato de correo electrónico
-     */
-    function isValidEmail(email) {
-        // Expresión regular simple para validar emails
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
-    }
-    
-    /**
-     * Función para validar el campo teléfono
-     */
-    function isValidTelefono(telefono) {
-        const re = /^\d{7,15}$/; // Permite entre 7 y 15 dígitos
-        return re.test(telefono);
-    }
-    
-    /**
-     * Función para validar el campo nombre
-     */
-    function isValidNombre(nombre) {
-        const re = /^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$/; // Solo letras y espacios
-        return re.test(nombre);
+        successMessageDiv.textContent = message;
+        successMessageDiv.style.display = 'block';
+        form.reset();
     }
     
     /**
      * Evento de envío del formulario
      */
     form.addEventListener('submit', function(event) {
+        event.preventDefault(); // Prevenir el envío predeterminado
         clearMessages();
-        let valid = true;
-        const errorMessages = [];
         
-        // Obtener valores de los campos
-        const nombre = form.querySelector('#nombre').value.trim();
-        const empresa = form.querySelector('#empresa').value.trim();
-        const telefono = form.querySelector('#telefono').value.trim();
-        const email = form.querySelector('#email').value.trim();
-        const direccion = form.querySelector('#direccion').value.trim(); // Opcional
+        const formData = new FormData(form);
         
-        // Validar campo nombre
-        if (nombre === '') {
-            valid = false;
-            errorMessages.push('El campo Nombre es obligatorio.');
-            form.querySelector('#nombre').classList.add('input-error');
-        } else if (!isValidNombre(nombre)) {
-            valid = false;
-            errorMessages.push('El Nombre solo debe contener letras y espacios.');
-            form.querySelector('#nombre').classList.add('input-error');
-        }
-        
-        // Validar campo empresa
-        if (empresa === '') {
-            valid = false;
-            errorMessages.push('El campo Empresa es obligatorio.');
-            form.querySelector('#empresa').classList.add('input-error');
-        }
-        
-        // Validar campo telefono
-        if (telefono === '') {
-            valid = false;
-            errorMessages.push('El campo Teléfono es obligatorio.');
-            form.querySelector('#telefono').classList.add('input-error');
-        } else if (!isValidTelefono(telefono)) {
-            valid = false;
-            errorMessages.push('El Teléfono debe contener solo dígitos y tener entre 7 y 15 caracteres.');
-            form.querySelector('#telefono').classList.add('input-error');
-        }
-        
-        // Validar campo email si está lleno
-        if (email !== '' && !isValidEmail(email)) {
-            valid = false;
-            errorMessages.push('El Email proporcionado no tiene un formato válido.');
-            form.querySelector('#email').classList.add('input-error');
-        }
-        
-        // Puedes agregar más validaciones aquí si lo deseas
-        
-        if (!valid) {
-            event.preventDefault(); // Prevenir el envío del formulario
-            displayErrors(errorMessages.join('<br>'));
-            return;
-        }
-        
-        // Si todas las validaciones pasan, el formulario se enviará normalmente
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Accept': 'application/json',
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displaySuccess(data.message);
+            } else {
+                const errors = JSON.parse(data.errors);
+                displayErrors(errors);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            errorMessageDiv.textContent = 'Ocurrió un error inesperado.';
+            errorMessageDiv.style.display = 'block';
+        });
     });
+    
+    /**
+     * Función para obtener el valor de una cookie por nombre
+     */
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                // Verificar si la cookie empieza con el nombre buscado
+                if (cookie.startsWith(name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
 });

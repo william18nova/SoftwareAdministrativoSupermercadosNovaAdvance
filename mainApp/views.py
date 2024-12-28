@@ -425,11 +425,10 @@ def agregar_proveedor_view(request):
         form = ProveedorForm(request.POST)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Proveedor agregado exitosamente.')
-            return redirect('agregar_proveedor')
+            return JsonResponse({'success': True, 'message': 'Proveedor agregado exitosamente.'})
         else:
-            messages.error(request, 'Por favor, corrige los errores en el formulario.')
-            return render(request, 'agregar_proveedor.html', {'form': form})
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
     else:
         form = ProveedorForm()
     return render(request, 'agregar_proveedor.html', {'form': form})

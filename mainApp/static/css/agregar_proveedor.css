@@ -8,7 +8,7 @@
     --color-principal: #005091;
     --color-secundario: #ADD8E6;
     --color-blanco: #ffffff;
-    --color-rojo: #a94442;
+    --color-rojo: #ff0000;;
     --color-verde: #3c763d;
     --color-gris-claro: #f0f8ff;
     --color-gris: #ccc;
@@ -18,8 +18,6 @@
     --fuente-principal: 'Roboto', Arial, sans-serif;
     --fuente-secundaria: 'Arial', sans-serif;
 }
-
-
 
 /* Reset básico */
 * {
@@ -34,24 +32,33 @@ body {
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center;
+    /* Remover align-items: center; para permitir expansión vertical */
+    /* align-items: center; */
     background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
     font-family: var(--fuente-principal);
     text-align: center;
     color: var(--color-blanco);
-    overflow: auto; /* Permitir desplazamiento */
+    overflow: auto;
+    position: relative;
     padding: 20px; /* Añadir padding para evitar que el contenido quede pegado a los bordes */
 }
 
-.errorlist{
-    color: var(--color-rojo);
-    margin-top: 5px;
-    margin-bottom: -10px;
-    font-family: var(--fuente-principal);
+/* Pseudo-elemento para el fondo difuminado */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none;
 }
 
 /* Contenedor principal */
-.container {
+.container-proveedor {
     background: rgba(255, 255, 255, 0.1);
     padding: 40px;
     border-radius: 10px;
@@ -65,14 +72,14 @@ body {
 }
 
 /* Título del contenedor */
-.container h2 {
+.container-proveedor h2 {
     color: var(--color-blanco);
     margin-bottom: 10px;
     font-size: 24px;
 }
 
 /* Icono */
-.icon {
+.icon-proveedor {
     font-size: 90px;
     margin-bottom: 15px;
     color: var(--color-blanco);
@@ -86,14 +93,14 @@ body {
 }
 
 /* Grupo de formulario */
-.form-group {
+.form-group-proveedor {
     margin-bottom: 20px;
     text-align: left;
     position: relative; /* Para posicionar mensajes de error correctamente */
 }
 
 /* Etiquetas de los campos */
-.form-group label {
+.form-group-proveedor label {
     display: block;
     margin-bottom: 5px;
     color: var(--color-blanco);
@@ -102,16 +109,16 @@ body {
 }
 
 /* Asterisco para campos obligatorios */
-.form-group .required {
+.form-group-proveedor .required {
     color: var(--color-blanco); /* Cambiar a rojo para mayor visibilidad */
     margin-left: 5px;
     font-size: 18px;
 }
 
-/* Campos de entrada */
-.form-group input[type="text"],
-.form-group input[type="email"],
-.form-group textarea {
+/* Campos de entrada y textarea */
+.form-group-proveedor input[type="text"],
+.form-group-proveedor input[type="email"],
+.form-group-proveedor textarea {
     width: 100%;
     padding: 10px;
     border: 1px solid var(--color-gris);
@@ -122,17 +129,17 @@ body {
 }
 
 /* Hover sobre campos de entrada */
-.form-group input[type="text"]:hover,
-.form-group input[type="email"]:hover,
-.form-group textarea:hover {
+.form-group-proveedor input[type="text"]:hover,
+.form-group-proveedor input[type="email"]:hover,
+.form-group-proveedor textarea:hover {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
 }
 
 /* Enfoque sobre campos de entrada */
-.form-group input[type="text"]:focus,
-.form-group input[type="email"]:focus,
-.form-group textarea:focus {
+.form-group-proveedor input[type="text"]:focus,
+.form-group-proveedor input[type="email"]:focus,
+.form-group-proveedor textarea:focus {
     outline: none;
     border-color: var(--color-principal);
     box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
@@ -196,29 +203,45 @@ body {
 }
 
 /* Estilos para errores de campos */
-.input-error {
-    border-color: var(--color-rojo) !important;
+.field-error {
+    color: var(--color-rojo);
+    font-size: 14px;
+    margin-top: 5px;
+    display: none; /* Ocultar por defecto */
+    text-align: left;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.field-error.visible {
+    display: block;
+    opacity: 1;
+}
+
+/* Icono dentro de mensajes de error */
+.field-error i {
+    margin-right: 5px;
 }
 
 /* Responsividad para dispositivos móviles */
 @media (max-width: 768px) {
-    .container {
+    .container-proveedor {
         padding: 30px 20px;
     }
 
-    .icon {
+    .icon-proveedor {
         font-size: 60px;
         margin-bottom: 10px;
     }
 
-    .container h2 {
+    .container-proveedor h2 {
         font-size: 22px;
         margin-bottom: 15px;
     }
 
-    .form-group input[type="text"],
-    .form-group input[type="email"],
-    .form-group textarea {
+    .form-group-proveedor input[type="text"],
+    .form-group-proveedor input[type="email"],
+    .form-group-proveedor textarea {
         font-size: 14px;
         padding: 8px;
     }
@@ -239,23 +262,23 @@ body {
 
 /* Responsividad para dispositivos muy pequeños */
 @media (max-width: 480px) {
-    .container {
+    .container-proveedor {
         padding: 20px 15px;
     }
 
-    .icon {
+    .icon-proveedor {
         font-size: 50px;
         margin-bottom: 8px;
     }
 
-    .container h2 {
+    .container-proveedor h2 {
         font-size: 20px;
         margin-bottom: 10px;
     }
 
-    .form-group input[type="text"],
-    .form-group input[type="email"],
-    .form-group textarea {
+    .form-group-proveedor input[type="text"],
+    .form-group-proveedor input[type="email"],
+    .form-group-proveedor textarea {
         font-size: 14px;
         padding: 6px;
     }
