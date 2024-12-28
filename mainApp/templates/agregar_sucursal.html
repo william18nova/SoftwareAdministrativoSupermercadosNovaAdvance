@@ -29,7 +29,10 @@
         
         <!-- Mensajes de éxito y error generales (manejados vía AJAX) -->
         <div id="error-message" class="alert alert-error" style="display: none;"></div>
-        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;">
+            <i class="fas fa-check-circle success-icon"></i>
+            <span id="success-text"></span>
+        </div>
         
         <!-- Formulario para agregar sucursal -->
         <form id="sucursalForm" action="{% url 'agregar_sucursal' %}" method="POST">

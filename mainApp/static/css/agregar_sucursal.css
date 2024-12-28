@@ -187,6 +187,13 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 10px; /* Espacio entre el ícono y el texto */
+}
+
+/* Icono de éxito dentro de alert-success */
+.success-icon {
+    color: var(--color-verde);
+    font-size: 24px;
 }
 
 /* Mensajes de error */
@@ -212,15 +219,39 @@ body::before {
     opacity: 1;
 }
 
+/* Clases de error en inputs */
+.input-error {
+    border-color: var(--color-rojo) !important;
+}
+
 /* Icono dentro de mensajes de error */
 .field-error i {
     margin-right: 5px;
 }
 
+/* Estilos para los placeholders */
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    opacity: 1; /* Asegurar que el color no sea transparente */
+}
+
+/* Compatibilidad con navegadores antiguos */
+.form-group input:-ms-input-placeholder,
+.form-group textarea:-ms-input-placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+.form-group input::-ms-input-placeholder,
+.form-group textarea::-ms-input-placeholder {
+    color: #999;
+    font-style: italic;
+}
+
 /* Responsividad para dispositivos móviles */
 @media (max-width: 768px) {
     .container {
-        padding: 30px 20px 30px 20px; /* Ajuste de padding */
+        padding: 30px 20px;
     }
 
     .icon {
@@ -255,7 +286,7 @@ body::before {
 /* Responsividad para dispositivos muy pequeños */
 @media (max-width: 480px) {
     .container {
-        padding: 20px 15px 20px 15px; /* Ajuste de padding */
+        padding: 20px 15px;
     }
 
     .icon {

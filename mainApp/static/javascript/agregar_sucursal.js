@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('sucursalForm');
     const errorMessageDiv = document.getElementById('error-message');
     const successMessageDiv = document.getElementById('success-message');
+    const successTextSpan = document.getElementById('success-text'); // Nuevo elemento
 
     /**
      * Función para limpiar mensajes de error y éxito
@@ -12,19 +13,12 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessageDiv.style.display = 'none';
         errorMessageDiv.innerHTML = '';
         successMessageDiv.style.display = 'none';
-        successMessageDiv.innerHTML = '';
-        
+        successTextSpan.textContent = ''; // Limpiar texto
         // Limpiar errores específicos de campos
         const errorFields = document.querySelectorAll('.field-error');
         errorFields.forEach(function(errorField) {
             errorField.innerHTML = '';
             errorField.classList.remove('visible');
-        });
-        
-        // Remover clases de error de los inputs
-        const inputs = form.querySelectorAll('input, textarea');
-        inputs.forEach(function(input) {
-            input.classList.remove('input-error');
         });
     }
 
@@ -33,26 +27,21 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function displayErrors(errors) {
         clearMessages();
-        
+
         // Errores generales (si los hubiera)
         if (errors.__all__) {
-            const generalErrors = errors.__all__.map(e => e.message).join('<br>');
-            errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${generalErrors}`;
+            errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
             errorMessageDiv.style.display = 'block';
         }
-        
+
         // Errores específicos de campo
         for (let field in errors) {
             if (field === '__all__') continue;
             const fieldErrors = errors[field];
             const errorDiv = document.getElementById('error-id_' + field);
-            const inputField = form.querySelector(`#id_${field}`);
             if (errorDiv) {
                 errorDiv.innerHTML = fieldErrors.map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`).join('<br>');
                 errorDiv.classList.add('visible');
-            }
-            if (inputField) {
-                inputField.classList.add('input-error');
             }
         }
     }
@@ -61,8 +50,8 @@ document.addEventListener('DOMContentLoaded', function() {
      * Función para mostrar mensajes de éxito
      */
     function displaySuccess(message) {
-        successMessageDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-        successMessageDiv.style.display = 'block';
+        successTextSpan.textContent = message;
+        successMessageDiv.style.display = 'flex'; // Cambiar a flex para mostrar el ícono y el texto
         form.reset();
     }
 
@@ -72,9 +61,9 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', function(event) {
         event.preventDefault(); // Prevenir el envío predeterminado
         clearMessages();
-        
+
         const formData = new FormData(form);
-        
+
         fetch(form.action, {
             method: 'POST',
             headers: {
@@ -88,12 +77,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 displaySuccess(data.message);
             } else {
-                displayErrors(data.errors);
+                const errors = JSON.parse(data.errors);
+                displayErrors(errors);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Ocurrió un error inesperado. Por favor, intenta nuevamente.`;
+            errorMessageDiv.textContent = 'Ocurrió un error inesperado.';
             errorMessageDiv.style.display = 'block';
         });
     });
@@ -134,4 +124,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    /**
+     * (Opcional) Añadir placeholders dinámicamente si faltan
+     */
+    function addMissingPlaceholders() {
+        inputs.forEach(function(input) {
+            if (!input.hasAttribute('placeholder')) {
+                // Puedes definir un mapeo de IDs a placeholders
+                const placeholders = {
+                    'id_nombre': 'Ingresa el nombre de la sucursal',
+                    'id_direccion': 'Ingresa la dirección',
+                    'id_telefono': 'Ingresa el teléfono'
+                    // Añade más campos según sea necesario
+                };
+                if (placeholders[input.id]) {
+                    input.setAttribute('placeholder', placeholders[input.id]);
+                }
+            }
+        });
+    }
+
+    // Ejecutar la función al cargar el DOM
+    addMissingPlaceholders();
 });
