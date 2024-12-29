@@ -132,19 +132,69 @@ class EmpleadoForm(forms.ModelForm):
         message='El teléfono debe contener exactamente 10 dígitos.'
     )
 
-    # Redefinimos los campos para incluir validadores y label (si procede)
+    # Definición de los campos con widgets que incluyen placeholders
     numerodocumento = forms.CharField(
         label='Número de Documento',
-        validators=[numerodocumento_validator]
+        validators=[numerodocumento_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el número de documento',
+            'required': 'required'
+        })
     )
     nombre = forms.CharField(
-        validators=[nombre_validator]
+        validators=[nombre_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el nombre',
+            'required': 'required'
+        })
     )
     apellido = forms.CharField(
-        validators=[apellido_validator]
+        validators=[apellido_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el apellido',
+            'required': 'required'
+        })
     )
     telefono = forms.CharField(
-        validators=[telefono_validator]
+        validators=[telefono_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el teléfono',
+            'required': 'required'
+        })
+    )
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el correo electrónico',
+            'required': 'required'
+        })
+    )
+    direccion = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa la dirección'
+        })
+    )
+    puesto = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el puesto'
+        })
+    )
+    usuarioid = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    sucursalid = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput()
     )
 
     class Meta:
@@ -161,7 +211,7 @@ class EmpleadoForm(forms.ModelForm):
             'sucursalid'
         ]
         labels = {
-            'numerodocumento': 'Número de Documento',  # (opcional, pues ya lo redefinimos arriba)
+            'numerodocumento': 'Número de Documento',
             'nombre': 'Nombre',
             'apellido': 'Apellido',
             'telefono': 'Teléfono',
@@ -170,43 +220,6 @@ class EmpleadoForm(forms.ModelForm):
             'puesto': 'Puesto',
             'usuarioid': 'Usuario',
             'sucursalid': 'Sucursal',
-        }
-        widgets = {
-            'numerodocumento': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el número de documento',
-                'required': 'required'
-            }),
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el nombre',
-                'required': 'required'
-            }),
-            'apellido': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el apellido',
-                'required': 'required'
-            }),
-            'telefono': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el teléfono',
-                'required': 'required'
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el correo electrónico',
-                'required': 'required'
-            }),
-            'direccion': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa la dirección'
-            }),
-            'puesto': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el puesto'
-            }),
-            'usuarioid': forms.HiddenInput(),
-            'sucursalid': forms.HiddenInput(),
         }
 
     def clean_email(self):

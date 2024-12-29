@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('form-agregar-empleado');
     const errorMessageDiv = document.getElementById('error-message');
     const successMessageDiv = document.getElementById('success-message');
+    const successTextSpan = document.getElementById('success-text');
     
     // Campos de Autocompletado
     const usuarioInput = document.getElementById('id_usuario_autocomplete');
@@ -37,8 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         errorMessageDiv.style.display = 'none';
         errorMessageDiv.innerHTML = '';
         successMessageDiv.style.display = 'none';
-        successMessageDiv.innerHTML = '';
-        
+        successTextSpan.textContent = ''; // Limpiar texto
         // Limpiar errores específicos de campos
         const errorFields = document.querySelectorAll('.field-error');
         errorFields.forEach(function(errorField) {
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Remover clases de error de los inputs
-        const inputs = form.querySelectorAll('input, textarea');
+        const inputs = form.querySelectorAll('input, textarea, select');
         inputs.forEach(function(input) {
             input.classList.remove('input-error');
         });
@@ -360,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // Añadir el ícono de éxito antes del texto
                 successMessageDiv.innerHTML = `<i class="fas fa-check-circle"></i> Empleado agregado exitosamente.`;
-                successMessageDiv.style.display = 'block';
+                successMessageDiv.style.display = 'flex';
                 form.reset();
                 usuarioIdInput.value = '';
                 sucursalIdInput.value = '';
