@@ -23,6 +23,7 @@
     --color-alerta-error-borde: #ebccd1;
     --fuente-principal: 'Roboto', Arial, sans-serif;
     --fuente-secundaria: 'Arial', sans-serif;
+    --tamanio-icono: 90px;
 }
 
 /* Reset básico */
@@ -84,7 +85,7 @@ body::before {
 
 /* Icono */
 .icon-horario {
-    font-size: 90px;
+    font-size: var(--tamanio-icono);
     color: var(--color-blanco);
     margin-bottom: 10px;
 }

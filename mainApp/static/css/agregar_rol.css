@@ -17,6 +17,7 @@
     --color-boton-hover: #2b467d;
     --fuente-principal: 'Roboto', Arial, sans-serif;
     --fuente-secundaria: 'Arial', sans-serif;
+    --tamanio-icono: 90px;
 }
 
 /* Reset básico */
@@ -78,7 +79,7 @@ body::before {
 
 /* Icono */
 .icon {
-    font-size: 90px;
+    font-size: var(--tamanio-icono);
     margin-bottom: 15px;
     color: var(--color-blanco);
 }

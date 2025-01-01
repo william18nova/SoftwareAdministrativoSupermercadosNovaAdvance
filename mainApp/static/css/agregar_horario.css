@@ -22,6 +22,7 @@
     --color-alerta-error: #f2dede;
     --color-alerta-error-borde: #ebccd1;
     --fuente-principal: 'Roboto', Arial, sans-serif;
+    --tamanio-icono: 90px;
 }
 
 /* Reset básico */
@@ -82,7 +83,7 @@ body::before {
 
 /* Icono */
 .icono-reloj {
-    font-size: 90px;
+    font-size: var(--tamanio-icono);
     color: var(--color-blanco);
     margin-bottom: 10px;
 }
