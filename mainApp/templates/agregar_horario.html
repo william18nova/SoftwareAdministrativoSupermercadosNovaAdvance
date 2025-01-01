@@ -1,8 +1,8 @@
 <!-- agregar_horario.html -->
 
 {% extends 'base.html' %}
-{% block title %}Agregar Horarios{% endblock %}
 {% load static %}
+{% block title %}Agregar Horarios{% endblock %}
 {% block content %}
 <!DOCTYPE html>
 <html lang="es">
@@ -22,21 +22,25 @@
         <!-- Icono y título -->
         <i class="fas fa-clock icono-reloj"></i>
         <h2>Agregar Horarios</h2>
+        <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
 
-        <!-- Mensajes de éxito y error -->
-        <div id="error-message" class="alert alert-error" style="display: none;"></div>
-        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+        <!-- Mensaje de éxito -->
+        <div id="success-message" class="alert alert-success" style="display: none;">
+            <i class="fas fa-check-circle"></i> Horarios agregados exitosamente.
+        </div>
 
         <!-- Formulario -->
         <form method="POST" action="{% url 'agregar_horario' %}" id="horario-form">
             {% csrf_token %}
             <!-- Campo Sucursal Autocompletar -->
             <div class="form-group">
-                <label for="{{ form.sucursal_autocomplete.id_for_label }}">Sucursal <span class="campo-obligatorio">*</span></label>
+                <label for="{{ form.sucursal_autocomplete.id_for_label }}">
+                    Sucursal <span class="campo-obligatorio">*</span>
+                </label>
                 {{ form.sucursal_autocomplete }}
                 {{ form.sucursalid }}
                 <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
-                <div class="field-error" id="error-id_sucursalid"></div>
+                <div class="field-error" id="error-id_sucursalid"></div> <!-- Errores de sucursal -->
             </div>
             <!-- Días de la Semana -->
             <div class="form-group">
@@ -51,20 +55,23 @@
                     <button type="button" class="day-button" data-day="Dom">Dom</button>
                 </div>
                 {{ form.dia_semana }}
-                <div class="field-error" id="error-{{ form.dia_semana.id_for_label }}"></div>
+                <div class="field-error" id="error-id_dia_semana"></div>
             </div>
             <!-- Hora de Apertura -->
             <div class="form-group">
                 <label for="{{ form.horaapertura.id_for_label }}">Hora de Apertura <span class="campo-obligatorio">*</span></label>
                 {{ form.horaapertura }}
-                <div class="field-error" id="error-{{ form.horaapertura.id_for_label }}"></div>
+                <div class="field-error" id="error-id_horaapertura"></div>
             </div>
             <!-- Hora de Cierre -->
             <div class="form-group">
                 <label for="{{ form.horacierre.id_for_label }}">Hora de Cierre <span class="campo-obligatorio">*</span></label>
                 {{ form.horacierre }}
-                <div class="field-error" id="error-{{ form.horacierre.id_for_label }}"></div>
+                <div class="field-error" id="error-id_horacierre"></div>
             </div>
+            <!-- Campo oculto para horarios y errores -->
+            <input type="hidden" name="horarios" id="id_horarios">
+            <div class="field-error" id="error-id_horarios"></div>
             <!-- Botón para agregar al listado temporal -->
             <button type="button" class="btn-agregar-temporal">Listar Horario</button>
             <!-- Tabla de horarios temporales -->

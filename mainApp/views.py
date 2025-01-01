@@ -864,42 +864,45 @@ def usuario_autocomplete(request):
 @login_required
 def sucursal_autocomplete(request):
     """
-    Autocomplete unificado para Sucursal.
-    Combina la lógica de las dos versiones anteriores en una sola función.
+    Autocomplete para Sucursal que excluye las que ya tengan
+    un horario establecido en la tabla HorariosNegocio.
     """
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()
     per_page_str = request.GET.get('per_page', '50').strip()
 
+    # Validar y convertir 'page' a entero
     try:
         page = int(page_str)
     except ValueError:
-        logger.warning(f"Valor de 'page' no válido: {page_str}. Se establece en 1.")
         page = 1
-
     if page < 1:
-        logger.warning(f"Valor de 'page' menor a 1: {page}. Se establece en 1.")
         page = 1
 
+    # Validar y convertir 'per_page' a entero
     try:
         per_page = int(per_page_str)
     except ValueError:
-        logger.warning(f"Valor de 'per_page' no válido: {per_page_str}. Se establece en 50.")
         per_page = 50
-
     if per_page < 1:
-        logger.warning(f"Valor de 'per_page' menor a 1: {per_page}. Se establece en 50.")
         per_page = 50
 
     start = (page - 1) * per_page
     end = start + per_page
 
-    sucursales = Sucursal.objects.all().order_by('nombre')
+    # --- 1) Obtener únicamente las sucursales SIN horarios establecidos ---
+    sucursales = Sucursal.objects.exclude(horariosnegocio__isnull=False)
+
+    # --- 2) Filtro por nombre con 'term' ---
     if term:
         sucursales = sucursales.filter(nombre__icontains=term)
+
+    # --- 3) Ordenar y paginar ---
+    sucursales = sucursales.order_by('nombre')
     total_results = sucursales.count()
     sucursales = sucursales[start:end]
 
+    # Crear la lista de resultados
     results = []
     for sucursal in sucursales:
         results.append({
@@ -907,9 +910,13 @@ def sucursal_autocomplete(request):
             'text': sucursal.nombre,
         })
 
+    # Saber si hay más resultados
+    has_more = end < total_results
+
+    # Retornar la respuesta en formato JSON
     return JsonResponse({
         'results': results,
-        'has_more': end < total_results,
+        'has_more': has_more,
     })
 
 
@@ -985,6 +992,12 @@ def eliminar_empleado_view(request, empleado_id):
 
 @login_required
 def agregar_horario_view(request):
+    """
+    Vista para agregar horarios a una sucursal.
+    Maneja tanto GET como POST requests.
+    En POST, valida el formulario y procesa los horarios temporales.
+    Responde con JSON para manejar las respuestas en el frontend.
+    """
     if request.method == 'POST':
         form = HorariosNegocioForm(request.POST)
         if form.is_valid():
@@ -1001,11 +1014,18 @@ def agregar_horario_view(request):
                     )
                 return JsonResponse({'success': True})
             else:
-                errors = {'__all__': [{'message': 'Debe agregar al menos un horario.'}]}
+                errors = {
+                    'horarios': [{'message': 'Debe agregar al menos un horario antes de guardar.'}]
+                }
                 return JsonResponse({'success': False, 'errors': json.dumps(errors)})
         else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
+            # Convertir errores del formulario a JSON
+            errors = form.errors.get_json_data()
+            # Procesar errores para el formato esperado por el frontend
+            processed_errors = {}
+            for field, field_errors in errors.items():
+                processed_errors[field] = [{'message': error['message']} for error in field_errors]
+            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
     else:
         form = HorariosNegocioForm()
 

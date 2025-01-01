@@ -46,7 +46,19 @@ body {
     position: relative; /* Para posicionar elementos absolutos dentro del body */
 }
 
-
+/* Pseudo-elemento para el fondo difuminado */
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none;
+}
 
 /* Contenedor principal */
 .container-usuario {
@@ -55,7 +67,7 @@ body {
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 100%;
-    max-width: 450px;
+    max-width: 500px;
     text-align: center;
     position: relative;
     overflow: hidden; /* Evitar el desbordamiento horizontal */
@@ -70,7 +82,7 @@ body {
 
 /* Icono */
 .icono-reloj {
-    font-size: 50px;
+    font-size: 90px;
     color: var(--color-blanco);
     margin-bottom: 10px;
 }
@@ -88,20 +100,23 @@ body {
     color: #3c763d;
     background-color: var(--color-alerta-exito);
     border-color: var(--color-alerta-exito-borde);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* Espacio entre el ícono y el texto */
 }
 
-.alert-error {
-    color: #a94442;
-    background-color: var(--color-alerta-error);
-    border-color: var(--color-alerta-error-borde);
-}
-
+/* Estilos para los errores de campo */
 .field-error {
-    color: #a94442;
+    color: var(--color-rojo);
     font-size: 14px;
     margin-top: 5px;
     display: none;
     text-align: left;
+}
+
+.field-error i {
+    margin-right: 5px;
 }
 
 /* Grupo de formulario */
@@ -120,6 +135,27 @@ body {
     font-size: 16px;
 }
 
+/* Asterisco para campos obligatorios */
+.form-group-empleado .required {
+    color: var(--color-blanco); /* Cambiar a rojo para mayor visibilidad */
+    margin-left: 5px;
+    font-size: 18px;
+}
+
+/* Texto informativo sobre campos obligatorios */
+.obligatorio-texto {
+    font-style: italic;
+    color: var(--color-blanco);
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+/* Estilo para el asterisco de campo obligatorio */
+.campo-obligatorio {
+    color: var(--color-blanco);
+    margin-left: 2px;
+}
+
 /* Campos de entrada y select */
 .form-group select,
 .form-group input[type="time"],
@@ -135,11 +171,41 @@ body {
     box-sizing: border-box;
 }
 
+/* Hover sobre campos de entrada y select */
 .form-group select:hover,
 .form-group input[type="time"]:hover,
 .form-group input[type="text"]:hover {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
+}
+
+/* Enfoque sobre campos de entrada y select */
+.form-group select:focus,
+.form-group input[type="time"]:focus,
+.form-group input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
+}
+
+/* Estilos para los placeholders */
+.form-group input::placeholder,
+.form-group select::placeholder {
+    color: #999; /* Color gris para placeholders */
+    opacity: 1; /* Asegurar que el color no sea transparente */
+    font-style: italic; /* Opcional: estilo de fuente en cursiva */
+}
+
+.form-group input:-ms-input-placeholder,
+.form-group select:-ms-input-placeholder {
+    color: #999;
+    font-style: italic;
+}
+
+.form-group input::-ms-input-placeholder,
+.form-group select::-ms-input-placeholder {
+    color: #999;
+    font-style: italic;
 }
 
 /* Botones */
@@ -162,12 +228,6 @@ body {
 .btn-agregar-temporal:hover,
 .btn-guardar:hover {
     background-color: var(--color-boton-hover);
-}
-
-/* Estilo para el asterisco de campo obligatorio */
-.campo-obligatorio {
-    color: --color-blanco;
-    margin-left: 2px;
 }
 
 /* Estilos para el autocompletar */
@@ -270,7 +330,6 @@ body {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-
 /* Botón eliminar */
 .btn-eliminar {
     background-color: #ff4c4c;
@@ -302,10 +361,6 @@ body {
     .btn-agregar-temporal,
     .btn-guardar {
         width: 100%;
-    }
-
-    .alert {
-        padding: 10px;
     }
 
     .days-container {

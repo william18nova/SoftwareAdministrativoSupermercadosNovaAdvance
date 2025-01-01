@@ -255,6 +255,13 @@ class EmpleadoForm(forms.ModelForm):
         return sucursalid
 
 class HorariosNegocioForm(forms.ModelForm):
+    """
+    Formulario para agregar horarios a una sucursal.
+    Incluye un campo de autocompletado para seleccionar la sucursal,
+    campos para seleccionar días de la semana y horarios de apertura y cierre.
+    """
+
+    # Campos para el autocompletado de sucursal
     sucursal_autocomplete = forms.CharField(
         required=True,
         widget=forms.TextInput(attrs={
@@ -263,34 +270,35 @@ class HorariosNegocioForm(forms.ModelForm):
             'autocomplete': 'off',
         })
     )
+
+    # Campo oculto que guarda el ID de la sucursal elegida
     sucursalid = forms.ModelChoiceField(
         queryset=Sucursal.objects.none(),
         widget=forms.HiddenInput(),
         required=True,
     )
+
+    # Campos para días y horarios
+    dia_semana = forms.CharField(
+        required=False,  # Solo obligatorio si no hay horarios listados
+        widget=forms.HiddenInput()
+    )
     horaapertura = forms.TimeField(
-        required=False,
+        required=False,  # Solo obligatorio si no hay horarios listados
         widget=forms.TimeInput(attrs={
             'class': 'form-control',
-            'type': 'time'
+            'type': 'time',
+            'placeholder': 'Seleccione la hora de apertura',
         })
     )
     horacierre = forms.TimeField(
-        required=False,
+        required=False,  # Solo obligatorio si no hay horarios listados
         widget=forms.TimeInput(attrs={
             'class': 'form-control',
-            'type': 'time'
+            'type': 'time',
+            'placeholder': 'Seleccione la hora de cierre',
         })
     )
-    dia_semana = forms.CharField(
-        required=False,
-        widget=forms.HiddenInput()
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Excluir sucursales que ya tienen horarios asignados
-        self.fields['sucursalid'].queryset = Sucursal.objects.exclude(horariosnegocio__isnull=False)
 
     class Meta:
         model = HorariosNegocio
@@ -302,14 +310,54 @@ class HorariosNegocioForm(forms.ModelForm):
             'horacierre': 'Hora de Cierre',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Excluir sucursales que ya tienen horarios asignados
+        self.fields['sucursalid'].queryset = Sucursal.objects.exclude(horariosnegocio__isnull=False)
+
     def clean(self):
+        """
+        Validaciones personalizadas:
+         - Sucursal no puede quedar vacía en ningún caso.
+         - Si el usuario no ha agregado horarios a la lista temporal,
+           los campos (dia_semana, horaapertura y horacierre) deben estar llenos.
+         - Si se llenan horaapertura y horacierre, validar que horaapertura < horacierre.
+        """
         cleaned_data = super().clean()
+
+        # Campos del formulario
         sucursalid = cleaned_data.get('sucursalid')
+        dia_semana = cleaned_data.get('dia_semana')
+        horaapertura = cleaned_data.get('horaapertura')
+        horacierre = cleaned_data.get('horacierre')
 
+        # Este campo hidden viene del JavaScript con la lista de horarios temporales
+        horarios_json = self.data.get('horarios')
+
+        # 1. Validación de sucursalid (siempre requerida)
         if not sucursalid:
-            raise forms.ValidationError('Debe seleccionar una sucursal válida.')
+            self.add_error('sucursalid', 'Debe seleccionar una sucursal.')
 
-        # Validaciones adicionales (si es necesario)
+        # 2. Revisar si hay horarios listados en la tabla temporal
+        #    (el usuario pudo haber agregado horarios sin usar estos campos)
+        if not horarios_json:
+            # Si NO hay horarios listados, entonces estos campos son obligatorios:
+            # dia_semana, horaapertura, horacierre
+            if not dia_semana:
+                self.add_error('dia_semana', 'Debe seleccionar al menos un día de la semana.')
+            if not horaapertura:
+                self.add_error('horaapertura', 'Debe seleccionar una hora de apertura.')
+            if not horacierre:
+                self.add_error('horacierre', 'Debe seleccionar una hora de cierre.')
+
+            # Validar también que horaapertura < horacierre si ambos están presentes
+            if horaapertura and horacierre and horaapertura >= horacierre:
+                self.add_error('horacierre', 'La hora de cierre debe ser mayor que la hora de apertura.')
+        else:
+            # Si hay horarios en horarios_json, no es obligatorio
+            # rellenar estos campos, pero si se rellenan, verificarlos
+            if horaapertura and horacierre and horaapertura >= horacierre:
+                self.add_error('horacierre', 'La hora de cierre debe ser mayor que la hora de apertura.')
 
         return cleaned_data
 
