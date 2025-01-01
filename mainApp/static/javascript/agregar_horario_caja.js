@@ -1,39 +1,49 @@
 // agregar_horario_caja.js
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Variables generales
+    // =====================
+    // 1. Variables Generales
+    // =====================
     const sucursalInput = document.getElementById('id_sucursal_autocomplete');
     const sucursalIdInput = document.getElementById('id_sucursalid');
+    const autocompleteSucursalResults = document.getElementById('sucursal-autocomplete-results');
+
     const puntopagoInput = document.getElementById('id_puntopago_autocomplete');
     const puntopagoIdInput = document.getElementById('id_puntopagoid');
-    const autocompleteSucursalResults = document.getElementById('sucursal-autocomplete-results');
     const autocompletePuntopagoResults = document.getElementById('puntopago-autocomplete-results');
+
     const diaSemanaInput = document.getElementById('id_dia_semana');
+    const horaAperturaInput = document.getElementById('id_horaapertura');
+    const horaCierreInput = document.getElementById('id_horacierre');
+
     const horariosTempBody = document.getElementById('horarios-temp-body');
-    const errorMessageDiv = document.getElementById('error-message');
     const successMessageDiv = document.getElementById('success-message');
+    const errorMessageDiv = document.getElementById('error-message');
     const form = document.getElementById('form-agregar-horario');
     const buttons = document.querySelectorAll('.day-button');
+
+    // Lista temporal de horarios
     let horariosTemp = [];
+
+    // Variables para paginación/autocompletado
     let debounceTimeoutSucursal = null;
     let debounceTimeoutPuntopago = null;
 
-    // Variables para la paginación de sucursales
     let currentPageSucursal = 1;
     let isLoadingSucursal = false;
     let hasMoreSucursal = true;
     let currentTermSucursal = '';
 
-    // Variables para la paginación de puntos de pago
     let currentPagePuntopago = 1;
     let isLoadingPuntopago = false;
     let hasMorePuntopago = true;
     let currentTermPuntopago = '';
 
+    // =========================
+    // 2. Funciones de Autocompletado
+    // =========================
     /**
-     * Función para mostrar sugerencias de sucursales.
-     * @param {string} term - Término de búsqueda.
-     * @param {number} page - Número de página para la paginación.
+     * Autocompletado de Sucursales
      */
     function fetchSucursales(term, page = 1) {
         if (isLoadingSucursal || !hasMoreSucursal) return;
@@ -41,161 +51,156 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
         fetch(url)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (page === 1) {
-                // Si es la primera página, limpiar resultados anteriores
-                autocompleteSucursalResults.innerHTML = '';
-            }
-
-            if (data.results.length > 0) {
-                data.results.forEach(item => {
-                    const option = document.createElement('div');
-                    option.classList.add('autocomplete-option');
-                    option.textContent = item.text;
-                    option.dataset.id = item.id;
-                    autocompleteSucursalResults.appendChild(option);
-                });
-                hasMoreSucursal = data.has_more;
-            } else if (page === 1) {
-                // Si no hay resultados en la primera página
-                const noResult = document.createElement('div');
-                noResult.classList.add('autocomplete-no-result');
-                noResult.textContent = 'No se encontraron resultados';
-                autocompleteSucursalResults.appendChild(noResult);
-                hasMoreSucursal = false;
-            }
-
-            autocompleteSucursalResults.style.display = 'block';
-            isLoadingSucursal = false;
-        })
-        .catch(error => {
-            console.error('Error en la solicitud de autocompletar sucursales:', error);
-            isLoadingSucursal = false;
-        });
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (page === 1) {
+                    // Limpiar resultados anteriores
+                    autocompleteSucursalResults.innerHTML = '';
+                }
+                if (data.results.length > 0) {
+                    data.results.forEach(item => {
+                        const option = document.createElement('div');
+                        option.classList.add('autocomplete-option');
+                        option.textContent = item.text;
+                        option.dataset.id = item.id;
+                        autocompleteSucursalResults.appendChild(option);
+                    });
+                    hasMoreSucursal = data.has_more;
+                } else if (page === 1) {
+                    // Sin resultados en primera página
+                    const noResult = document.createElement('div');
+                    noResult.classList.add('autocomplete-no-result');
+                    noResult.textContent = 'No se encontraron resultados';
+                    autocompleteSucursalResults.appendChild(noResult);
+                    hasMoreSucursal = false;
+                }
+                autocompleteSucursalResults.style.display = 'block';
+                isLoadingSucursal = false;
+            })
+            .catch(error => {
+                console.error('Error en autocompletar sucursales:', error);
+                isLoadingSucursal = false;
+            });
     }
 
     /**
-     * Función para mostrar sugerencias de puntos de pago.
-     * @param {string} term - Término de búsqueda.
-     * @param {number} page - Número de página para la paginación.
+     * Autocompletado de Puntos de Pago
      */
     function fetchPuntosPago(term, page = 1) {
         if (isLoadingPuntopago || !hasMorePuntopago) return;
         isLoadingPuntopago = true;
-    
+
+        // Necesitamos la sucursal elegida
         const sucursalId = sucursalIdInput.value;
         if (!sucursalId) {
             isLoadingPuntopago = false;
             return;
         }
-    
+
         const url = `${puntopagoAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}&sucursal_id=${sucursalId}`;
         fetch(url)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (page === 1) {
-                // Si es la primera página, limpiar resultados anteriores
-                autocompletePuntopagoResults.innerHTML = '';
-            }
-    
-            if (data.results.length > 0) {
-                data.results.forEach(item => {
-                    const option = document.createElement('div');
-                    option.classList.add('autocomplete-option');
-                    option.textContent = item.text;
-                    option.dataset.id = item.id;
-                    autocompletePuntopagoResults.appendChild(option);
-                });
-                hasMorePuntopago = data.has_more;
-            } else if (page === 1) {
-                // Si no hay resultados en la primera página
-                const noResult = document.createElement('div');
-                noResult.classList.add('autocomplete-no-result');
-                noResult.textContent = 'No se encontraron resultados';
-                autocompletePuntopagoResults.appendChild(noResult);
-                hasMorePuntopago = false;
-            }
-    
-            autocompletePuntopagoResults.style.display = 'block';
-            isLoadingPuntopago = false;
-        })
-        .catch(error => {
-            console.error('Error en la solicitud de autocompletar puntos de pago:', error);
-            isLoadingPuntopago = false;
-        });
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (page === 1) {
+                    autocompletePuntopagoResults.innerHTML = '';
+                }
+                if (data.results.length > 0) {
+                    data.results.forEach(item => {
+                        const option = document.createElement('div');
+                        option.classList.add('autocomplete-option');
+                        option.textContent = item.text;
+                        option.dataset.id = item.id;
+                        autocompletePuntopagoResults.appendChild(option);
+                    });
+                    hasMorePuntopago = data.has_more;
+                } else if (page === 1) {
+                    const noResult = document.createElement('div');
+                    noResult.classList.add('autocomplete-no-result');
+                    noResult.textContent = 'No se encontraron resultados';
+                    autocompletePuntopagoResults.appendChild(noResult);
+                    hasMorePuntopago = false;
+                }
+                autocompletePuntopagoResults.style.display = 'block';
+                isLoadingPuntopago = false;
+            })
+            .catch(error => {
+                console.error('Error en autocompletar puntos de pago:', error);
+                isLoadingPuntopago = false;
+            });
     }
 
-    /**
-     * Función para limpiar mensajes de error.
-     */
+    // ========================
+    // 3. Manejo de Mensajes
+    // ========================
     function clearErrors() {
+        // Limpia todos los errores de campos
+        const errorFields = document.querySelectorAll('.field-error');
+        errorFields.forEach(field => {
+            field.innerHTML = '';
+            field.style.display = 'none';
+        });
+
+        // Limpia mensajería general
         errorMessageDiv.style.display = 'none';
         errorMessageDiv.innerHTML = '';
         successMessageDiv.style.display = 'none';
-        successMessageDiv.textContent = '';
-
-        const errorFields = document.querySelectorAll('.field-error');
-        errorFields.forEach(function(errorField) {
-            errorField.innerHTML = '';
-            errorField.style.display = 'none';
-        });
+        successMessageDiv.innerHTML = '';
     }
 
-    /**
-     * Función para mostrar mensajes de error.
-     * @param {object} errors - Objeto de errores devuelto por el servidor.
-     */
+    function showFieldError(field, message) {
+        // Muestra error debajo de un campo con id="error-id_<field>"
+        const errorDiv = document.getElementById(`error-id_${field}`);
+        if (errorDiv) {
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+            errorDiv.style.display = 'block';
+        }
+    }
+
     function showErrors(errors) {
+        // Limpia primero
         clearErrors();
 
-        if (errors.__all__) {
-            errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
-            errorMessageDiv.style.display = 'block';
-        }
-
+        // 'errors' es un objeto con {field: [{message: "..."}], ...}
         for (let field in errors) {
-            if (field === '__all__') continue;
             const fieldErrors = errors[field];
-            const errorDiv = document.getElementById('error-id_' + field);
+            const errorDiv = document.getElementById(`error-id_${field}`);
             if (errorDiv) {
-                errorDiv.innerHTML = fieldErrors.map(e => e.message).join('<br>');
+                errorDiv.innerHTML = fieldErrors
+                    .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
+                    .join('<br>');
                 errorDiv.style.display = 'block';
             }
         }
     }
 
-    /**
-     * Evento 'input' en el campo de sucursal para filtrar resultados.
-     */
+    // ===============================
+    // 4. Eventos de Autocompletado
+    // ===============================
+    // -- Sucursal --
     sucursalInput.addEventListener('input', function() {
         currentTermSucursal = sucursalInput.value.trim();
-        sucursalIdInput.value = ''; // Limpiar el campo oculto
+        sucursalIdInput.value = '';
         hasMoreSucursal = true;
         currentPageSucursal = 1;
 
         if (debounceTimeoutSucursal) {
             clearTimeout(debounceTimeoutSucursal);
         }
-
         debounceTimeoutSucursal = setTimeout(function() {
             fetchSucursales(currentTermSucursal, currentPageSucursal);
-        }, 300); // Retraso para debounce
+        }, 300);
     });
 
-    /**
-     * Evento 'focus' en el campo de sucursal para cargar todas las sucursales si está vacío.
-     */
     sucursalInput.addEventListener('focus', function() {
         currentTermSucursal = sucursalInput.value.trim();
         hasMoreSucursal = true;
@@ -203,9 +208,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchSucursales(currentTermSucursal, currentPageSucursal);
     });
 
-    /**
-     * Evento 'scroll' en el contenedor de resultados de sucursales para implementar scroll infinito.
-     */
     autocompleteSucursalResults.addEventListener('scroll', function() {
         if (autocompleteSucursalResults.scrollTop + autocompleteSucursalResults.clientHeight >= autocompleteSucursalResults.scrollHeight - 5) {
             if (hasMoreSucursal && !isLoadingSucursal) {
@@ -215,9 +217,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /**
-     * Evento 'click' en las opciones de autocompletar sucursales para seleccionar una sucursal.
-     */
     autocompleteSucursalResults.addEventListener('click', function(event) {
         if (event.target && event.target.classList.contains('autocomplete-option')) {
             const selectedText = event.target.textContent;
@@ -228,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
             autocompleteSucursalResults.style.display = 'none';
             hasMoreSucursal = false;
 
-            // Resetear el campo de punto de pago al cambiar la sucursal
+            // Al cambiar la sucursal, resetea Puntos de Pago
             puntopagoInput.value = '';
             puntopagoIdInput.value = '';
             autocompletePuntopagoResults.innerHTML = '';
@@ -238,27 +237,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /**
-     * Evento 'input' en el campo de punto de pago para filtrar resultados.
-     */
+    document.addEventListener('click', function(event) {
+        if (!sucursalInput.contains(event.target) && !autocompleteSucursalResults.contains(event.target)) {
+            autocompleteSucursalResults.innerHTML = '';
+            autocompleteSucursalResults.style.display = 'none';
+            hasMoreSucursal = false;
+        }
+    });
+
+    // -- Punto de Pago --
     puntopagoInput.addEventListener('input', function() {
         currentTermPuntopago = puntopagoInput.value.trim();
-        puntopagoIdInput.value = ''; // Limpiar el campo oculto
+        puntopagoIdInput.value = '';
         hasMorePuntopago = true;
         currentPagePuntopago = 1;
 
         if (debounceTimeoutPuntopago) {
             clearTimeout(debounceTimeoutPuntopago);
         }
-
         debounceTimeoutPuntopago = setTimeout(function() {
             fetchPuntosPago(currentTermPuntopago, currentPagePuntopago);
-        }, 300); // Retraso para debounce
+        }, 300);
     });
 
-    /**
-     * Evento 'focus' en el campo de punto de pago para cargar todas las opciones si está vacío.
-     */
     puntopagoInput.addEventListener('focus', function() {
         currentTermPuntopago = puntopagoInput.value.trim();
         hasMorePuntopago = true;
@@ -266,9 +267,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchPuntosPago(currentTermPuntopago, currentPagePuntopago);
     });
 
-    /**
-     * Evento 'scroll' en el contenedor de resultados de puntos de pago para implementar scroll infinito.
-     */
     autocompletePuntopagoResults.addEventListener('scroll', function() {
         if (autocompletePuntopagoResults.scrollTop + autocompletePuntopagoResults.clientHeight >= autocompletePuntopagoResults.scrollHeight - 5) {
             if (hasMorePuntopago && !isLoadingPuntopago) {
@@ -278,9 +276,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /**
-     * Evento 'click' en las opciones de autocompletar puntos de pago para seleccionar un punto de pago.
-     */
     autocompletePuntopagoResults.addEventListener('click', function(event) {
         if (event.target && event.target.classList.contains('autocomplete-option')) {
             const selectedText = event.target.textContent;
@@ -293,15 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /**
-     * Evento 'click' en el documento para cerrar los autocompletados al hacer clic fuera.
-     */
     document.addEventListener('click', function(event) {
-        if (!sucursalInput.contains(event.target) && !autocompleteSucursalResults.contains(event.target)) {
-            autocompleteSucursalResults.innerHTML = '';
-            autocompleteSucursalResults.style.display = 'none';
-            hasMoreSucursal = false;
-        }
         if (!puntopagoInput.contains(event.target) && !autocompletePuntopagoResults.contains(event.target)) {
             autocompletePuntopagoResults.innerHTML = '';
             autocompletePuntopagoResults.style.display = 'none';
@@ -309,55 +296,79 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /**
-     * Manejo de selección de días de la semana.
-     */
+    // ======================
+    // 5. Selección de Días
+    // ======================
     buttons.forEach(button => {
         button.addEventListener('click', function() {
             const day = this.getAttribute('data-day');
-            let diasSeleccionados = diaSemanaInput.value.split(',').filter(d => d);
+            let dias = diaSemanaInput.value.split(',').filter(d => d);
 
-            if (diasSeleccionados.includes(day)) {
-                diasSeleccionados = diasSeleccionados.filter(d => d !== day);
+            if (dias.includes(day)) {
+                dias = dias.filter(d => d !== day);
                 this.classList.remove('active');
             } else {
-                diasSeleccionados.push(day);
+                dias.push(day);
                 this.classList.add('active');
             }
-
-            diaSemanaInput.value = diasSeleccionados.join(',');
+            diaSemanaInput.value = dias.join(',');
         });
     });
 
-    /**
-     * Agregar horario a la tabla temporal
-     */
-    document.querySelector('.btn-agregar-temporal').addEventListener('click', function() {
+    // ========================================
+    // 6. Agregar Horarios a la Lista Temporal
+    // ========================================
+    const btnAgregarTemporal = document.querySelector('.btn-agregar-temporal');
+    btnAgregarTemporal.addEventListener('click', function() {
         clearErrors();
 
-        const diaSemana = diaSemanaInput.value;
-        const horaApertura = document.getElementById('id_horaapertura').value;
-        const horaCierre = document.getElementById('id_horacierre').value;
+        // Capturar valores
+        const sucursalid = sucursalIdInput.value;
         const puntopagoid = puntopagoIdInput.value;
+        const diasSeleccionados = diaSemanaInput.value;
+        const horaApertura = horaAperturaInput.value;
+        const horaCierre = horaCierreInput.value;
 
-        // Validaciones al agregar horario a la lista temporal
-        if (!diaSemana || !horaApertura || !horaCierre || !puntopagoid) {
-            errorMessageDiv.innerHTML = 'Por favor, complete todos los campos para agregar un horario.';
-            errorMessageDiv.style.display = 'block';
+        // Validaciones campo a campo
+        let hasLocalErrors = false;
+
+        if (!sucursalid) {
+            showFieldError('sucursalid', 'Por favor, seleccione la sucursal.');
+            hasLocalErrors = true;
+        }
+        if (!puntopagoid) {
+            showFieldError('puntopagoid', 'Por favor, seleccione el punto de pago.');
+            hasLocalErrors = true;
+        }
+        if (!diasSeleccionados) {
+            showFieldError('dia_semana', 'Debe seleccionar al menos un día de la semana.');
+            hasLocalErrors = true;
+        }
+        if (!horaApertura) {
+            showFieldError('horaapertura', 'Debe seleccionar la hora de apertura.');
+            hasLocalErrors = true;
+        }
+        if (!horaCierre) {
+            showFieldError('horacierre', 'Debe seleccionar la hora de cierre.');
+            hasLocalErrors = true;
+        }
+        if (horaApertura && horaCierre && horaApertura >= horaCierre) {
+            showFieldError('horacierre', 'La hora de cierre debe ser mayor que la hora de apertura.');
+            hasLocalErrors = true;
+        }
+
+        if (hasLocalErrors) {
             return;
         }
 
-        if (horaApertura >= horaCierre) {
-            errorMessageDiv.innerHTML = 'La hora de apertura debe ser menor que la hora de cierre.';
-            errorMessageDiv.style.display = 'block';
-            return;
-        }
-
-        diaSemana.split(',').forEach(day => {
-            // Verificar si el horario ya existe en la tabla temporal
-            const existe = horariosTemp.some(horario => horario.dia === day && horario.horaapertura === horaApertura && horario.horacierre === horaCierre);
+        // Agregar al listado
+        diasSeleccionados.split(',').forEach(day => {
+            const existe = horariosTemp.some(
+                horario => horario.dia === day && horario.horaapertura === horaApertura && horario.horacierre === horaCierre
+            );
             if (!existe) {
                 horariosTemp.push({ dia: day, horaapertura: horaApertura, horacierre: horaCierre });
+                // Crear fila en la tabla
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${day}</td>
@@ -368,45 +379,49 @@ document.addEventListener('DOMContentLoaded', function() {
                 horariosTempBody.appendChild(row);
 
                 // Deshabilitar el botón del día seleccionado
-                buttons.forEach(button => {
-                    if (button.getAttribute('data-day') === day) {
-                        button.disabled = true;
-                        button.classList.remove('active');
+                buttons.forEach(btn => {
+                    if (btn.getAttribute('data-day') === day) {
+                        btn.disabled = true;
+                        btn.classList.remove('active');
                     }
                 });
             }
         });
 
+        // Limpiar campos
         diaSemanaInput.value = '';
-        document.getElementById('id_horaapertura').value = '';
-        document.getElementById('id_horacierre').value = '';
+        horaAperturaInput.value = '';
+        horaCierreInput.value = '';
     });
 
-    /**
-     * Eliminar horario de la tabla temporal
-     */
+    // ================================
+    // 7. Eliminar Horarios de la Lista
+    // ================================
     horariosTempBody.addEventListener('click', function(event) {
         if (event.target.closest('.btn-eliminar')) {
             const row = event.target.closest('tr');
             const day = row.cells[0].textContent;
+            const horaApertura = row.cells[1].querySelector('input').value;
+            const horaCierre = row.cells[2].querySelector('input').value;
 
-            // Eliminar el horario del array temporal
-            horariosTemp = horariosTemp.filter(horario => horario.dia !== day);
+            // Remover del array temporal
+            horariosTemp = horariosTemp.filter(
+                h => !(h.dia === day && h.horaapertura === horaApertura && h.horacierre === horaCierre)
+            );
             row.remove();
 
             // Habilitar nuevamente el botón del día
-            buttons.forEach(button => {
-                if (button.getAttribute('data-day') === day) {
-                    button.disabled = false;
-                    button.classList.remove('active');
+            buttons.forEach(btn => {
+                if (btn.getAttribute('data-day') === day) {
+                    btn.disabled = false;
                 }
             });
         }
     });
 
-    /**
-     * Enviar el formulario
-     */
+    // ===============================
+    // 8. Enviar el Formulario
+    // ===============================
     form.addEventListener('submit', function(event) {
         event.preventDefault();
         clearErrors();
@@ -414,26 +429,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const sucursalid = sucursalIdInput.value;
         const puntopagoid = puntopagoIdInput.value;
 
-        if (!sucursalid || !puntopagoid) {
-            errorMessageDiv.innerHTML = 'Por favor, seleccione una sucursal y un punto de pago.';
-            errorMessageDiv.style.display = 'block';
+        // Verificar si hay algo en la tabla
+        if (!sucursalid) {
+            showFieldError('sucursalid', 'Por favor, seleccione la sucursal.');
             return;
         }
-
+        if (!puntopagoid) {
+            showFieldError('puntopagoid', 'Por favor, seleccione el punto de pago.');
+            return;
+        }
         if (horariosTemp.length === 0) {
-            errorMessageDiv.innerHTML = 'Debe agregar al menos un horario antes de guardar.';
-            errorMessageDiv.style.display = 'block';
+            showFieldError('dia_semana', 'Debe agregar al menos un horario antes de guardar.');
             return;
         }
 
+        // Enviar la lista de horarios en un campo oculto
         const horariosInput = document.createElement('input');
         horariosInput.type = 'hidden';
         horariosInput.name = 'horarios';
         horariosInput.value = JSON.stringify(horariosTemp);
         form.appendChild(horariosInput);
 
+        // Enviar la data
         const formData = new FormData(form);
-
         fetch(form.action, {
             method: 'POST',
             headers: {
@@ -445,15 +463,20 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                successMessageDiv.textContent = 'Horario de caja agregado exitosamente.';
+                // Éxito
+                successMessageDiv.innerHTML = `<i class="fas fa-check-circle"></i> Horario de caja agregado exitosamente.`;
                 successMessageDiv.style.display = 'block';
                 form.reset();
                 horariosTemp = [];
                 horariosTempBody.innerHTML = '';
-                buttons.forEach(button => {
-                    button.disabled = false;
-                    button.classList.remove('active');
+
+                // Re-habilitar botones de días
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('active');
                 });
+
+                // Limpiar sucursal/puntopago
                 sucursalIdInput.value = '';
                 puntopagoIdInput.value = '';
                 autocompleteSucursalResults.innerHTML = '';
@@ -463,22 +486,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 hasMoreSucursal = false;
                 hasMorePuntopago = false;
             } else {
+                // Errores devueltos por el backend
                 const errors = JSON.parse(data.errors);
                 showErrors(errors);
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            errorMessageDiv.innerHTML = 'Ocurrió un error inesperado.';
+            console.error('Error al guardar:', error);
+            errorMessageDiv.textContent = 'Ocurrió un error inesperado.';
             errorMessageDiv.style.display = 'block';
         });
     });
 
-    /**
-     * Función para obtener el valor de una cookie por nombre.
-     * @param {string} name - Nombre de la cookie.
-     * @returns {string|null} - Valor de la cookie o null si no se encuentra.
-     */
+    // ============================
+    // 9. Obtener valor de la Cookie
+    // ============================
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {

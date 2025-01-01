@@ -84,7 +84,7 @@ body::before {
 
 /* Icono */
 .icon-horario {
-    font-size: 50px;
+    font-size: 90px;
     color: var(--color-blanco);
     margin-bottom: 10px;
 }
@@ -111,17 +111,18 @@ body::before {
     color: #3c763d;
     background-color: var(--color-alerta-exito);
     border-color: var(--color-alerta-exito-borde);
+    margin-bottom: 15px;
 }
 
 .alert-error {
-    color: #a94442;
+    color: var(--color-rojo);
     background-color: var(--color-alerta-error);
     border-color: var(--color-alerta-error-borde);
 }
 
 /* Estilos para mensajes de error de campo */
 .field-error {
-    color: #a94442; /* Color rojo para errores */
+    color: var(--color-rojo);/* Color rojo para errores */
     font-size: 14px;
     margin-top: 5px;
     display: none; /* Ocultar por defecto */
