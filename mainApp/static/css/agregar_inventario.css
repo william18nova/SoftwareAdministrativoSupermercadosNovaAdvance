@@ -1,6 +1,3 @@
-/* agregar_inventario.css */
-
-/* Importación de fuente */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
 /* Variables CSS globales */
@@ -26,23 +23,21 @@
     padding: 0;
 }
 
-/* Estilos del body con fondo degradado */
+/* Estilos del body */
 body {
     margin: 0;
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center; /* Centrar vertical */
+    align-items: center;
     background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
     font-family: var(--fuente-principal);
     text-align: center;
     color: var(--color-blanco);
     overflow: auto;
-    position: relative;
     padding: 20px;
 }
 
-/* Pseudo-elemento para fondo difuminado */
 body::before {
     content: '';
     position: absolute;
@@ -63,11 +58,11 @@ body::before {
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 100%;
-    max-width: 500px;
+    max-width: 600px;
     text-align: center;
     position: relative;
-    box-sizing: border-box;
     margin: 20px auto;
+    overflow-x: auto;
 }
 
 /* Título */
@@ -84,7 +79,7 @@ body::before {
     color: var(--color-blanco);
 }
 
-/* Texto explicativo de campos obligatorios */
+/* Texto explicativo */
 .obligatorio-texto {
     font-style: italic;
     color: var(--color-blanco);
@@ -92,7 +87,7 @@ body::before {
     font-size: 14px;
 }
 
-/* Alertas globales */
+/* Alertas */
 .alert {
     padding: 15px;
     margin-top: 20px;
@@ -103,21 +98,16 @@ body::before {
     margin-bottom: 20px;
 }
 
-/* Alerta de éxito */
 .alert-success {
     color: var(--color-verde);
     background-color: #dff0d8;
     border-color: #d6e9c6;
-    margin-bottom: 15px;
 }
 
-/* Alerta de error */
 .alert-error {
     color: var(--color-rojo);
     background-color: #f2dede;
     border-color: #ebccd1;
-    position: relative;
-    z-index: 9999;
 }
 
 /* Grupos de formulario */
@@ -127,7 +117,6 @@ body::before {
     position: relative;
 }
 
-/* Etiquetas */
 .form-group-inventario label {
     display: block;
     margin-bottom: 5px;
@@ -145,23 +134,59 @@ body::before {
     border-radius: 5px;
     background-color: var(--color-gris-claro);
     font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
     color: #333;
 }
 
-/* Hover */
-.form-group-inventario input[type="text"]:hover,
-.form-group-inventario input[type="number"]:hover {
+/* Hover y Foco */
+.form-group-inventario input:hover {
     background-color: #e0e8ff;
     border-color: var(--color-gris-hover);
 }
 
-/* Foco */
-.form-group-inventario input[type="text"]:focus,
-.form-group-inventario input[type="number"]:focus {
+.form-group-inventario input:focus {
     outline: none;
     border-color: var(--color-principal);
     box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
+}
+
+/* Autocomplete results */
+.autocomplete-results {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background-color: #fff; /* Fondo blanco */
+    border: 1px solid var(--color-gris); /* Borde gris claro */
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra para destacar */
+    display: none;
+}
+
+/* Opciones de autocomplete */
+.autocomplete-option {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333; /* Texto gris oscuro */
+    background-color: #f9f9f9; /* Fondo claro para cada opción */
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.autocomplete-option:hover {
+    background-color: var(--color-boton-hover); /* Fondo azul oscuro al pasar el cursor */
+    color: var(--color-blanco); /* Texto blanco */
+}
+
+/* Mensaje de "no resultados" */
+.autocomplete-no-result {
+    padding: 10px;
+    font-size: 14px;
+    color: #999; /* Texto gris claro */
+    text-align: center;
+    background-color: #f9f9f9; /* Fondo claro */
 }
 
 /* Botones */
@@ -172,117 +197,67 @@ body::before {
     border: none;
     cursor: pointer;
     padding: 12px;
-    text-align: center;
     width: 100%;
     font-size: 18px;
     border-radius: 5px;
     transition: background-color 0.3s;
     margin-top: 10px;
-    display: block;
     font-weight: bold;
 }
+
 .btn-agregar-inventario:hover,
 .btn-guardar-inventario:hover {
     background-color: var(--color-boton-hover);
 }
 
-/* Field errors (debajo del campo) */
-.field-error {
-    color: var(--color-rojo);
-    font-size: 14px;
-    margin-top: 5px;
-    text-align: left;
-    display: none; 
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-.field-error.visible {
-    display: block !important;
-    opacity: 1 !important;
-    color: var(--color-rojo);
-}
-.field-error i {
-    margin-right: 5px;
-}
-
-/* Autocomplete results */
-.autocomplete-results {
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    right: 0;
-    background-color: var(--color-gris-claro);
-    border: 1px solid var(--color-gris);
-    z-index: 1000;
-    max-height: 200px;
-    overflow-y: auto;
-    display: none;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-.autocomplete-option {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #333;
-}
-.autocomplete-option:hover {
-    background-color: var(--color-boton-hover);
-    color: var(--color-blanco);
-}
-.autocomplete-no-result {
-    padding: 10px;
-    color: #999;
-    font-size: 16px;
-}
-
 /* Tabla con DataTables */
 .table-container-inventario {
-    margin-top: 20px;
-    margin-bottom: 20px;
     background-color: #ffffff;
     padding: 10px;
     border-radius: 10px;
+    margin-top: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
 }
+
 .table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
-    color: #333;
+    table-layout: fixed;
 }
-.table th,
-.table td {
-    border: 1px solid #ddd;
+
+.table th, .table td {
     padding: 10px;
+    border: 1px solid #ddd;
+    word-wrap: break-word;
 }
+
 .table th {
     background-color: var(--color-boton);
     color: var(--color-blanco);
 }
+
 .table td {
     background-color: #f9f9f9;
+    color: #333;
 }
 
-/* Botón eliminar centrado */
 .btn-eliminar {
     background-color: #e74c3c;
-    color: #fff;
+    color: white;
     border: none;
     padding: 5px 10px;
     border-radius: 5px;
     cursor: pointer;
-    display: block;    /* Para centrarlo en la celda */
-    margin: 0 auto;    /* Para centrarlo en la celda */
-}
-.btn-eliminar:hover {
-    background-color: #c0392b;
+    display: flex; /* Usamos flexbox */
+    justify-content: center; /* Centrar horizontalmente */
+    align-items: center; /* Centrar verticalmente */
+    margin: 0 auto; /* Asegura que el botón esté centrado */
 }
 
-/* Ícono en el alert success */
-.alert-success i {
-    color: var(--color-verde);
-    margin-right: 8px;
+.btn-eliminar:hover {
+    background-color: #c0392b;
 }
 
 /* Responsividad */
@@ -290,24 +265,26 @@ body::before {
     .container-inventario {
         padding: 20px;
     }
+
     .icon-inventario {
         font-size: 60px;
-        margin-bottom: 10px;
     }
+
     .container-inventario h2 {
         font-size: 22px;
     }
-    .form-group-inventario input[type="text"],
-    .form-group-inventario input[type="number"] {
+
+    .form-group-inventario input {
         font-size: 14px;
-        padding: 8px;
     }
+
     .btn-agregar-inventario,
     .btn-guardar-inventario {
         font-size: 16px;
     }
-    .alert {
-        font-size: 14px;
+
+    .table th, .table td {
+        padding: 8px;
     }
 }
 
@@ -315,25 +292,28 @@ body::before {
     .container-inventario {
         padding: 15px;
     }
+
     .icon-inventario {
         font-size: 50px;
-        margin-bottom: 8px;
     }
+
     .container-inventario h2 {
         font-size: 20px;
-        margin-bottom: 10px;
     }
-    .form-group-inventario input[type="text"],
-    .form-group-inventario input[type="number"] {
+
+    .form-group-inventario input {
         font-size: 14px;
         padding: 6px;
     }
+
     .btn-agregar-inventario,
     .btn-guardar-inventario {
         font-size: 16px;
         padding: 10px;
     }
-    .alert {
-        font-size: 12px;
+
+    .table th, .table td {
+        padding: 6px;
+        font-size: 14px;
     }
 }
