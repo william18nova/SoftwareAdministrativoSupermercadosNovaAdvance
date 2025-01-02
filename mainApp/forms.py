@@ -1,7 +1,7 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol, Inventario
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -694,3 +694,79 @@ class RolForm(forms.ModelForm):
         if Rol.objects.filter(nombre__iexact=nombre).exists():
             raise forms.ValidationError('Ya existe un rol con ese nombre.')
         return nombre
+
+class InventarioForm(forms.Form):
+    """
+    Form para 'Agregar Inventario' con autocompletado de Sucursal y Producto,
+    y campo de cantidad.
+    """
+    # Campo de autocompletado para Sucursal
+    sucursal_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar sucursal...',
+            'autocomplete': 'off',
+        })
+    )
+    # ID oculto de la sucursal
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.none(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+
+    # Campo de autocompletado para Producto
+    producto_autocomplete = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar producto...',
+            'autocomplete': 'off',
+        })
+    )
+    # ID oculto del producto
+    productoid = forms.ModelChoiceField(
+        queryset=Producto.objects.none(),
+        widget=forms.HiddenInput(),
+        required=False,
+    )
+
+    # Campo de cantidad
+    cantidad = forms.IntegerField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': '1'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ajustar queryset de Sucursales que no tengan inventario,
+        # o la lógica que desees para "excluir" sucursales con inventario.
+        self.fields['sucursal'].queryset = (
+            Sucursal.objects.annotate(inventarios_count=Count('inventario'))
+                            .filter(inventarios_count=0)
+        )
+
+        # Aquí podrías filtrar productos según tu lógica,
+        # por ejemplo, listar todos o excluir los que ya tengan stock.
+        self.fields['productoid'].queryset = Producto.objects.all()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        sucursal_obj = cleaned_data.get('sucursal')
+        product_obj = cleaned_data.get('productoid')
+        cantidad_val = cleaned_data.get('cantidad')
+
+        # Ejemplo de validaciones mínimas:
+        if not sucursal_obj:
+            self.add_error('sucursal', 'Debe seleccionar una sucursal válida.')
+
+        # Dado que vamos a agregar varios productos, la cantidad puede ser obligatoria
+        # solo si se está usando la lógica de un "producto" a la vez, etc.
+        if product_obj and (not cantidad_val or cantidad_val <= 0):
+            self.add_error('cantidad', 'La cantidad debe ser mayor que 0.')
+
+        return cleaned_data

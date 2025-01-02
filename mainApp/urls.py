@@ -21,6 +21,10 @@ urlpatterns = [
     path('productos/editar/<int:producto_id>/', views.editar_producto_view, name='editar_producto'),
     
     path('agregar_inventario/', views.agregar_inventario_view, name='agregar_inventario'),
+    # Ruta para autocompletar Sucursales sin Inventario
+    path('autocomplete/sucursal_inventario/', views.sucursal_inventario_autocomplete, name='sucursal_inventario_autocomplete'),
+    # Ruta para autocompletar Productos (por ejemplo)
+    path('autocomplete/producto_inventario/', views.producto_inventario_autocomplete, name='producto_inventario_autocomplete'),
     path('visualizar_inventarios/', views.visualizar_inventarios_view, name='visualizar_inventarios'),
     path('editar_inventario/<int:sucursal_id>/', views.editar_inventario_view, name='editar_inventario'),
     path('inventario/eliminar/<int:inventario_id>/', views.eliminar_producto_inventario_view, name='eliminar_producto_inventario'),

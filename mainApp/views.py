@@ -338,6 +338,98 @@ def agregar_inventario_view(request):
         'productos': productos
     })
 
+@login_required
+def sucursal_inventario_autocomplete(request):
+    """
+    Lista únicamente las sucursales que no tengan inventario
+    (o la lógica que tú prefieras).
+    Incluye scroll infinito con 'term' y 'page'.
+    """
+    print("DEBUG: ¡Entré a la vista de autocompletado de sucursales!")  # <-- Comprobación
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page = 10  # Ajusta el número de resultados por página
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Filtrar sucursales sin inventario
+    qs = (Sucursal.objects.annotate(inventarios_count=Count('inventario'))
+                        .filter(inventarios_count=0)
+                        .order_by('nombre'))
+
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for sucursal in qs:
+        results.append({
+            'id': sucursal.sucursalid,
+            'text': sucursal.nombre,
+        })
+
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
+
+@login_required
+def producto_inventario_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    excluded_str = request.GET.get('excluded', '').strip()  # <-- AQUÍ
+    per_page = 10
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    qs = Producto.objects.all().order_by('nombre')
+
+    # Excluir IDs listados
+    excluded_ids = []
+    if excluded_str:
+        try:
+            excluded_ids = [int(x) for x in excluded_str.split(',') if x.isdigit()]
+        except:
+            pass
+
+    if excluded_ids:
+        qs = qs.exclude(productoid__in=excluded_ids)
+
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for prod in qs:
+        results.append({
+            'id': prod.productoid,
+            'text': prod.nombre,
+        })
+
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
 
 @login_required
 def visualizar_inventarios_view(request):
