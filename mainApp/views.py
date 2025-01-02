@@ -27,6 +27,7 @@ from .forms import (
     RolForm
 )
 from dal import autocomplete
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -568,39 +569,155 @@ def editar_proveedor_view(request, proveedor_id):
     return render(request, 'editar_proveedor.html', {'proveedor': proveedor})
 
 
-@login_required
 def agregar_productos_precios_proveedor_view(request):
+    """
+    Vista para agregar productos con sus precios a un Proveedor.
+    Maneja tanto GET como POST.
+    - En GET, se muestra el formulario con autocompletados.
+    - En POST, recibe la lista de productos y precios, y los asigna.
+    """
     if request.method == 'POST':
         proveedor_id = request.POST.get('proveedor')
+        proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+
+        # Lista de productos y precios
         productos = request.POST.getlist('producto[]')
         precios = request.POST.getlist('precio[]')
 
-        proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
-
-        for producto_id, precio in zip(productos, precios):
-            if producto_id and precio:
+        for producto_id, precio_str in zip(productos, precios):
+            if producto_id and precio_str:
                 producto = get_object_or_404(Producto, pk=producto_id)
+
+                # Evitar duplicados
                 if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
                     messages.error(
                         request,
                         f'El producto {producto.nombre} ya está registrado para el proveedor {proveedor.nombre}.'
                     )
                     continue
-                PreciosProveedor.objects.create(productoid=producto, proveedorid=proveedor, precio=precio)
+
+                PreciosProveedor.objects.create(
+                    productoid=producto,
+                    proveedorid=proveedor,
+                    precio=Decimal(precio_str)  # Asegura que sea decimal
+                )
 
         messages.success(request, 'Productos y precios agregados exitosamente al proveedor.')
         return redirect('agregar_productos_precios_proveedor')
 
+    # Lógica para proveedores sin productos (según tu criterio):
     proveedores_con_productos = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
-    proveedores = Proveedor.objects.annotate(tiene_productos=Exists(proveedores_con_productos)) \
-                                   .filter(tiene_productos=False)
-    
-    productos = Producto.objects.all()
-    return render(
-        request,
-        'agregar_productos_precios_proveedor.html',
-        {'proveedores': proveedores, 'productos': productos}
+    proveedores = (
+        Proveedor.objects
+                 .annotate(tiene_productos=Exists(proveedores_con_productos))
+                 .filter(tiene_productos=False)  # Solo los que no tienen productos
     )
+
+    # Podrías no requerir "productos = ..." aquí si vas a usar solo autocompletes.
+    productos = Producto.objects.all()
+
+    return render(request, 'agregar_productos_precios_proveedor.html', {
+        'proveedores': proveedores,
+        'productos': productos,  # Solo si deseas mostrarlos de alguna forma
+    })
+    
+@login_required
+def proveedor_precios_autocomplete(request):
+    """
+    Autocomplete de Proveedores, excluyendo aquellos que ya
+    tienen registros en PreciosProveedor.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page = 10  # Cantidad de resultados por página
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Excluir Proveedores que ya tengan algo en PreciosProveedor
+    # => Los que tengan precios_count=0
+    qs = (
+        Proveedor.objects.annotate(precios_count=Count('preciosproveedor'))
+                         .filter(precios_count=0)
+    )
+
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    # Paginamos
+    qs = qs.order_by('nombre')[start:end]
+
+    results = []
+    for prov in qs:
+        results.append({
+            'id': prov.proveedorid,
+            'text': prov.nombre,
+        })
+
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
+
+
+@login_required
+def producto_precios_autocomplete(request):
+    """
+    Autocomplete para Producto, excluyendo IDs pasados via 'excluded'.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    excluded_str = request.GET.get('excluded', '').strip()
+    per_page = 10
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    qs = Producto.objects.all().order_by('nombre')
+
+    # Excluir IDs
+    excluded_ids = []
+    if excluded_str:
+        try:
+            excluded_ids = [int(x) for x in excluded_str.split(',') if x.isdigit()]
+        except:
+            pass
+
+    if excluded_ids:
+        qs = qs.exclude(productoid__in=excluded_ids)
+
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for prod in qs:
+        results.append({
+            'id': prod.productoid,
+            'text': prod.nombre,
+        })
+
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
 
 
 @login_required

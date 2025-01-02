@@ -770,3 +770,72 @@ class InventarioForm(forms.Form):
             self.add_error('cantidad', 'La cantidad debe ser mayor que 0.')
 
         return cleaned_data
+    
+class PreciosProveedorForm(forms.Form):
+    """
+    Form para 'Agregar Productos y Precios' a un Proveedor,
+    con autocompletado.
+    """
+    proveedor_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar proveedor...',
+            'autocomplete': 'off',
+        })
+    )
+    proveedor = forms.ModelChoiceField(
+        queryset=Proveedor.objects.none(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+
+    producto_autocomplete = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar producto...',
+            'autocomplete': 'off',
+        })
+    )
+    productoid = forms.ModelChoiceField(
+        queryset=Producto.objects.none(),
+        widget=forms.HiddenInput(),
+        required=False,
+    )
+
+    precio = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'min': '0.01',
+            'step': '0.01'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filtra Proveedores sin productos (o la lógica que quieras)
+        subquery = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
+        self.fields['proveedor'].queryset = (
+            Proveedor.objects
+                     .annotate(tiene_productos=Exists(subquery))
+                     .filter(tiene_productos=False)
+        )
+
+        # Todos los productos (o filtra según tu lógica)
+        self.fields['productoid'].queryset = Producto.objects.all()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        prov_obj = cleaned_data.get('proveedor')
+        prod_obj = cleaned_data.get('productoid')
+        precio_val = cleaned_data.get('precio')
+
+        if not prov_obj:
+            self.add_error('proveedor', 'Debe seleccionar un proveedor válido.')
+
+        if prod_obj and (not precio_val or precio_val <= 0):
+            self.add_error('precio', 'El precio debe ser mayor que 0.')
+
+        return cleaned_data
