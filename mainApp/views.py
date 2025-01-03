@@ -24,7 +24,8 @@ from .forms import (
     SucursalForm,
     ProductoForm,
     ProveedorForm,
-    RolForm
+    RolForm, 
+    PreciosProveedorForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -569,57 +570,82 @@ def editar_proveedor_view(request, proveedor_id):
     return render(request, 'editar_proveedor.html', {'proveedor': proveedor})
 
 
+@login_required
 def agregar_productos_precios_proveedor_view(request):
     """
     Vista para agregar productos con sus precios a un Proveedor.
     Maneja tanto GET como POST.
     - En GET, se muestra el formulario con autocompletados.
     - En POST, recibe la lista de productos y precios, y los asigna.
+    Responde con JSON para manejar las respuestas en el frontend.
     """
     if request.method == 'POST':
-        proveedor_id = request.POST.get('proveedor')
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'errors': ['Datos JSON inválidos.']})
+
+        proveedor_id = data.get('proveedor')
+        productos = data.get('productos')
+
+        if not proveedor_id:
+            return JsonResponse({'success': False, 'errors': ['Debe seleccionar un proveedor.']})
+
+        if not productos:
+            return JsonResponse({'success': False, 'errors': ['Debe agregar al menos un producto antes de guardar.']})
+
         proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+        errores = []
 
-        # Lista de productos y precios
-        productos = request.POST.getlist('producto[]')
-        precios = request.POST.getlist('precio[]')
+        for item in productos:
+            producto_id = item.get('productId')
+            precio_str = item.get('precio')
 
-        for producto_id, precio_str in zip(productos, precios):
-            if producto_id and precio_str:
-                producto = get_object_or_404(Producto, pk=producto_id)
+            if not producto_id or not precio_str:
+                errores.append('Producto y precio son obligatorios.')
+                continue
 
-                # Evitar duplicados
-                if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
-                    messages.error(
-                        request,
-                        f'El producto {producto.nombre} ya está registrado para el proveedor {proveedor.nombre}.'
-                    )
+            producto = get_object_or_404(Producto, pk=producto_id)
+
+            # Evitar duplicados
+            if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
+                errores.append(f'El producto {producto.nombre} ya está registrado para el proveedor {proveedor.nombre}.')
+                continue
+
+            try:
+                precio = Decimal(precio_str)
+                if precio <= 0:
+                    errores.append(f'El precio para el producto {producto.nombre} debe ser mayor que 0.')
                     continue
+            except:
+                errores.append(f'El precio para el producto {producto.nombre} no es válido.')
+                continue
 
-                PreciosProveedor.objects.create(
-                    productoid=producto,
-                    proveedorid=proveedor,
-                    precio=Decimal(precio_str)  # Asegura que sea decimal
-                )
+            PreciosProveedor.objects.create(
+                productoid=producto,
+                proveedorid=proveedor,
+                precio=precio
+            )
 
-        messages.success(request, 'Productos y precios agregados exitosamente al proveedor.')
-        return redirect('agregar_productos_precios_proveedor')
+        if errores:
+            return JsonResponse({'success': False, 'errors': errores})
 
-    # Lógica para proveedores sin productos (según tu criterio):
-    proveedores_con_productos = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
-    proveedores = (
-        Proveedor.objects
-                 .annotate(tiene_productos=Exists(proveedores_con_productos))
-                 .filter(tiene_productos=False)  # Solo los que no tienen productos
-    )
-
-    # Podrías no requerir "productos = ..." aquí si vas a usar solo autocompletes.
-    productos = Producto.objects.all()
-
-    return render(request, 'agregar_productos_precios_proveedor.html', {
-        'proveedores': proveedores,
-        'productos': productos,  # Solo si deseas mostrarlos de alguna forma
-    })
+        return JsonResponse({'success': True, 'message': 'Productos y precios agregados exitosamente al proveedor.'})
+    else:
+        form = PreciosProveedorForm()
+        # Obtener proveedores sin productos
+        proveedores_con_productos = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
+        proveedores = (
+            Proveedor.objects
+                     .annotate(tiene_productos=Exists(proveedores_con_productos))
+                     .filter(tiene_productos=False)
+        )
+        productos = Producto.objects.all()
+        return render(request, 'agregar_productos_precios_proveedor.html', {
+            'form': form,
+            'proveedores': proveedores,
+            'productos': productos,
+        })
     
 @login_required
 def proveedor_precios_autocomplete(request):

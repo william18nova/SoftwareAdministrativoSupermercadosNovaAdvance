@@ -1,12 +1,13 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol, Inventario
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol, Inventario, PreciosProveedor
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from dal import autocomplete
 import json
+from django.db.models import Exists, OuterRef  # Agrega esta línea
 
 class CategoriaForm(forms.ModelForm):
     class Meta:
@@ -813,9 +814,12 @@ class PreciosProveedorForm(forms.Form):
         })
     )
 
+    class Meta:
+        fields = ['proveedor_autocomplete', 'proveedor', 'producto_autocomplete', 'productoid', 'precio']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filtra Proveedores sin productos (o la lógica que quieras)
+        # Filtra Proveedores sin productos
         subquery = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
         self.fields['proveedor'].queryset = (
             Proveedor.objects
@@ -823,7 +827,7 @@ class PreciosProveedorForm(forms.Form):
                      .filter(tiene_productos=False)
         )
 
-        # Todos los productos (o filtra según tu lógica)
+        # Todos los productos
         self.fields['productoid'].queryset = Producto.objects.all()
 
     def clean(self):
