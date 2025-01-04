@@ -24,7 +24,8 @@ from .forms import (
     SucursalForm,
     ProductoForm,
     ProveedorForm,
-    RolForm, 
+    RolForm,
+    InventarioForm, 
     PreciosProveedorForm
 )
 from dal import autocomplete
@@ -300,24 +301,65 @@ def editar_producto_view(request, producto_id):
 
 @login_required
 def agregar_inventario_view(request):
+    """
+    Vista para agregar inventario a una Sucursal.
+    Maneja tanto GET como POST.
+    - En GET, muestra el formulario con autocompletados.
+    - En POST, valida el formulario y procesa los inventarios temporales.
+      Responde con JSON para manejar las respuestas en el frontend.
+    """
     if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal')
-        sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
+        form = InventarioForm(request.POST)
+        if form.is_valid():
+            sucursal = form.cleaned_data['sucursal']
+            inventarios_temp = request.POST.get('inventarios_temp')
+            if inventarios_temp:
+                try:
+                    inventarios = json.loads(inventarios_temp)
+                except json.JSONDecodeError:
+                    inventarios = []
 
-        productos = request.POST.getlist('producto[]')
-        cantidades = request.POST.getlist('cantidad[]')
+                if not inventarios:
+                    errors = {
+                        'inventarios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
+                    }
+                    return JsonResponse({'success': False, 'errors': json.dumps(errors)})
 
-        for producto_id, cantidad in zip(productos, cantidades):
-            producto = get_object_or_404(Producto, pk=producto_id)
-            Inventario.objects.create(
-                productoid=producto,
-                sucursalid=sucursal,
-                cantidad=int(cantidad)
-            )
+                for inventario in inventarios:
+                    producto_id = inventario.get('productId')
+                    cantidad = inventario.get('cantidad')
+                    if not producto_id or not cantidad:
+                        continue  # Puedes optar por manejar errores específicos aquí
 
-        messages.success(request, 'Inventario creado exitosamente')
-        return redirect('agregar_inventario')
+                    producto = get_object_or_404(Producto, pk=producto_id)
 
+                    # Evitar duplicados
+                    if Inventario.objects.filter(productoid=producto, sucursalid=sucursal).exists():
+                        continue  # Opcional: manejar duplicados según necesidades
+
+                    Inventario.objects.create(
+                        productoid=producto,
+                        sucursalid=sucursal,
+                        cantidad=int(cantidad)
+                    )
+                return JsonResponse({'success': True})
+            else:
+                errors = {
+                    'inventarios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
+                }
+                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+        else:
+            # Convertir errores del formulario a JSON
+            errors = form.errors.get_json_data()
+            # Procesar errores para el formato esperado por el frontend
+            processed_errors = {}
+            for field, field_errors in errors.items():
+                processed_errors[field] = [{'message': error['message']} for error in field_errors]
+            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
+    else:
+        form = InventarioForm()
+
+    # Filtrar sucursales sin inventario y listar productos
     sucursales_sin_inventario = Sucursal.objects.annotate(inventarios_count=Count('inventario')) \
                                                 .filter(inventarios_count=0)
     productos = Producto.objects.all()
@@ -336,6 +378,7 @@ def agregar_inventario_view(request):
         )
 
     return render(request, 'agregar_inventario.html', {
+        'form': form,
         'sucursales': sucursales_sin_inventario,
         'productos': productos
     })

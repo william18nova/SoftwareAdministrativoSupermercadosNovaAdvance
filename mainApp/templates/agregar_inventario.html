@@ -25,14 +25,14 @@
 
   <!-- CSS específico de esta página -->
   <link rel="stylesheet" href="{% static 'css/agregar_inventario.css' %}"/>
-
+  
   <!-- jQuery y DataTables JS -->
   <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
   <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
   <div class="container-inventario">
-    <!-- Ícono de inventario -->
+    <!-- Ícono de Inventario -->
     <i class="fas fa-boxes icon-inventario"></i>
     <h2>Agregar Inventario</h2>
 
@@ -55,6 +55,7 @@
                 </div>
             {% elif message.tags == 'error' %}
                 <div class="alert alert-error">
+                <i class="fas fa-exclamation-circle"></i>
                 {{ message }}
                 </div>
             {% else %}
@@ -70,63 +71,41 @@
       {% csrf_token %}
 
       <!-- Sucursal (autocompletado) -->
-      <div class="form-group-inventario">
+      <div class="form-group-precio">
         <label for="id_sucursal_autocomplete">
           Sucursal <span class="required">*</span>
         </label>
-        <input
-          type="text"
-          id="id_sucursal_autocomplete"
-          name="sucursal_autocomplete"
-          class="form-control"
-          placeholder="Escriba para buscar sucursal..."
-          autocomplete="off"
-          required
-        />
-        <input type="hidden" id="id_sucursalid" name="sucursal"/>
+        {{ form.sucursal_autocomplete }}
+        {{ form.sucursal }}
         <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
-        <div class="field-error" id="error-id_sucursalid"></div>
+        <div class="field-error" id="error-id_sucursal"></div>
       </div>
 
       <!-- Producto (autocompletado) -->
-      <div class="form-group-inventario">
+      <div class="form-group-precio">
         <label for="id_producto_autocomplete">
           Producto <span class="required">*</span>
         </label>
-        <input
-          type="text"
-          id="id_producto_autocomplete"
-          name="producto_autocomplete"
-          class="form-control"
-          placeholder="Escriba para buscar producto..."
-          autocomplete="off"
-        />
-        <input type="hidden" id="id_producto_id" name="producto_id"/>
+        {{ form.producto_autocomplete }}
+        {{ form.productoid }}
         <div class="autocomplete-results" id="producto-autocomplete-results"></div>
-        <div class="field-error" id="error-id_producto_id"></div>
+        <div class="field-error" id="error-id_productoid"></div>
       </div>
 
       <!-- Cantidad -->
-      <div class="form-group-inventario">
+      <div class="form-group-precio">
         <label for="id_cantidad">
           Cantidad <span class="required">*</span>
         </label>
-        <input
-          type="number"
-          id="id_cantidad"
-          name="cantidad"
-          class="form-control"
-          placeholder="Ingresa la cantidad"
-          min="1"
-        />
+        {{ form.cantidad }}
         <div class="field-error" id="error-id_cantidad"></div>
       </div>
 
       <!-- Botón para añadir producto a la lista temporal -->
-      <div class="form-group-inventario">
+      <div class="form-group-precio">
         <button
           type="button"
-          class="btn-agregar-inventario"
+          class="btn-agregar-precio"
           id="agregarProductoBtn"
         >
           Agregar Producto
@@ -134,7 +113,7 @@
       </div>
 
       <!-- Tabla con DataTable -->
-      <div class="table-container-inventario">
+      <div class="table-container-precio table-container-inventario">
         <table id="productos-list" class="table display">
           <thead>
             <tr>
@@ -147,16 +126,19 @@
         </table>
       </div>
 
+      <!-- Campo oculto para inventarios temporales -->
+      <input type="hidden" name="inventarios_temp" id="id_inventarios_temp">
+
       <!-- Botón de Envío final -->
-      <div class="form-group-inventario">
-        <button type="submit" class="btn-guardar-inventario">
+      <div class="form-group-precio">
+        <button type="submit" class="btn-guardar-precio">
           Guardar Inventario
         </button>
       </div>
     </form>
   </div>
 
-  <!-- Rutas para autocompletar: -->
+  <!-- Rutas para autocompletar -->
   <script type="text/javascript">
     var sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete' %}";
     var productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete' %}";

@@ -738,21 +738,25 @@ class InventarioForm(forms.Form):
         required=False,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
+            'placeholder': 'Ingresa la cantidad',
             'min': '1'
         })
     )
 
+    class Meta:
+        fields = ['sucursal', 'productoid', 'cantidad']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Ajustar queryset de Sucursales que no tengan inventario,
-        # o la lógica que desees para "excluir" sucursales con inventario.
+        # Filtra Sucursales sin inventario
+        subquery = Inventario.objects.filter(sucursalid=OuterRef('pk'))
         self.fields['sucursal'].queryset = (
-            Sucursal.objects.annotate(inventarios_count=Count('inventario'))
-                            .filter(inventarios_count=0)
+            Sucursal.objects
+                    .annotate(tiene_inventario=Exists(subquery))
+                    .filter(tiene_inventario=False)
         )
 
-        # Aquí podrías filtrar productos según tu lógica,
-        # por ejemplo, listar todos o excluir los que ya tengan stock.
+        # Todos los productos
         self.fields['productoid'].queryset = Producto.objects.all()
 
     def clean(self):
@@ -761,12 +765,9 @@ class InventarioForm(forms.Form):
         product_obj = cleaned_data.get('productoid')
         cantidad_val = cleaned_data.get('cantidad')
 
-        # Ejemplo de validaciones mínimas:
         if not sucursal_obj:
             self.add_error('sucursal', 'Debe seleccionar una sucursal válida.')
 
-        # Dado que vamos a agregar varios productos, la cantidad puede ser obligatoria
-        # solo si se está usando la lógica de un "producto" a la vez, etc.
         if product_obj and (not cantidad_val or cantidad_val <= 0):
             self.add_error('cantidad', 'La cantidad debe ser mayor que 0.')
 
