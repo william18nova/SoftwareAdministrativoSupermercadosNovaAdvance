@@ -325,6 +325,8 @@ def agregar_inventario_view(request):
                     }
                     return JsonResponse({'success': False, 'errors': json.dumps(errors)})
 
+                # Preparar lista para bulk_create
+                inventarios_to_create = []
                 for inventario in inventarios:
                     producto_id = inventario.get('productId')
                     cantidad = inventario.get('cantidad')
@@ -337,11 +339,15 @@ def agregar_inventario_view(request):
                     if Inventario.objects.filter(productoid=producto, sucursalid=sucursal).exists():
                         continue  # Opcional: manejar duplicados según necesidades
 
-                    Inventario.objects.create(
-                        productoid=producto,
-                        sucursalid=sucursal,
-                        cantidad=int(cantidad)
+                    inventarios_to_create.append(
+                        Inventario(
+                            productoid=producto,
+                            sucursalid=sucursal,
+                            cantidad=int(cantidad)
+                        )
                     )
+                # Crear todos los inventarios en una sola consulta
+                Inventario.objects.bulk_create(inventarios_to_create)
                 return JsonResponse({'success': True})
             else:
                 errors = {
@@ -387,10 +393,8 @@ def agregar_inventario_view(request):
 def sucursal_inventario_autocomplete(request):
     """
     Lista únicamente las sucursales que no tengan inventario
-    (o la lógica que tú prefieras).
     Incluye scroll infinito con 'term' y 'page'.
     """
-    print("DEBUG: ¡Entré a la vista de autocompletado de sucursales!")  # <-- Comprobación
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()
     per_page = 10  # Ajusta el número de resultados por página
@@ -405,7 +409,7 @@ def sucursal_inventario_autocomplete(request):
     start = (page - 1) * per_page
     end = start + per_page
 
-    # Filtrar sucursales sin inventario
+    # Filtrar sucursales sin inventario y asegurarse de que 'nombre' está indexado
     qs = (Sucursal.objects.annotate(inventarios_count=Count('inventario'))
                         .filter(inventarios_count=0)
                         .order_by('nombre'))
@@ -430,10 +434,14 @@ def sucursal_inventario_autocomplete(request):
 
 @login_required
 def producto_inventario_autocomplete(request):
+    """
+    Lista productos con autocompletado, excluyendo los IDs proporcionados.
+    Incluye scroll infinito con 'term', 'page' y 'excluded'.
+    """
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()
-    excluded_str = request.GET.get('excluded', '').strip()  # <-- AQUÍ
-    per_page = 10
+    excluded_str = request.GET.get('excluded', '').strip()
+    per_page = 10  # Ajusta el número de resultados por página
 
     try:
         page = int(page_str)

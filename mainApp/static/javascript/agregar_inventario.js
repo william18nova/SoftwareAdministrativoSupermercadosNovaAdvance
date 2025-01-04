@@ -54,21 +54,28 @@ document.addEventListener('DOMContentLoaded', function() {
   let inventarioTemp = [];
 
   /* ==========================
-     3. Variables de Debounce
+     3. Variables de Debounce y Caching
   ========================== */
+  const DEBOUNCE_TIME = 300; // Aumentado a 300 ms para reducir solicitudes
   let debounceTimeoutSucursal = null;
   let debounceTimeoutProducto  = null;
-  const DEBOUNCE_TIME = 150; // 150 ms => más rápido que los 300 ms habituales
+
+  // Caches para almacenar respuestas anteriores
+  const cacheSucursal = {};
+  const cacheProducto = {};
 
   /* ===================================
-     4. Funciones de Autocompletado
+     4. Funciones de Autocompletado Mejoradas
   =================================== */
-  function fetchSucursales(term, page = 1) {
-    if (isLoadingSucursal || !hasMoreSucursal) return;
-    isLoadingSucursal = true;
-    console.log(`Fetching sucursales: term='${term}', page=${page}`);
+  
+  // Función genérica para fetch con caching
+  function fetchWithCache(url, cache, term, page, callback) {
+    const cacheKey = `${term}_${page}`;
+    if (cache[cacheKey]) {
+      callback(cache[cacheKey]);
+      return;
+    }
 
-    const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
     fetch(url)
       .then(response => {
         if (!response.ok) {
@@ -77,33 +84,45 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.json();
       })
       .then(data => {
-        if (page === 1) {
-          sucursalResults.innerHTML = '';
-        }
-        if (data.results.length > 0) {
-          data.results.forEach(item => {
-            const opt = document.createElement('div');
-            opt.classList.add('autocomplete-option');
-            opt.textContent = item.text;
-            opt.dataset.id  = item.id;
-            sucursalResults.appendChild(opt);
-          });
-          hasMoreSucursal = data.has_more;
-        } else if (page === 1) {
-          const noResult = document.createElement('div');
-          noResult.classList.add('autocomplete-no-result');
-          noResult.textContent = 'No se encontraron resultados';
-          sucursalResults.appendChild(noResult);
-          hasMoreSucursal = false;
-        }
-        sucursalResults.style.display = 'block';
-        isLoadingSucursal = false;
-        console.log('Sucursales fetch completado:', data);
+        cache[cacheKey] = data; // Guardar en caché
+        callback(data);
       })
       .catch(error => {
-        console.error('fetchSucursales error:', error);
-        isLoadingSucursal = false;
+        console.error('fetchWithCache error:', error);
       });
+  }
+
+  function fetchSucursales(term, page = 1) {
+    if (isLoadingSucursal || !hasMoreSucursal) return;
+    isLoadingSucursal = true;
+    console.log(`Fetching sucursales: term='${term}', page=${page}`);
+
+    const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
+    
+    fetchWithCache(url, cacheSucursal, term, page, function(data) {
+      if (page === 1) {
+        sucursalResults.innerHTML = '';
+      }
+      if (data.results.length > 0) {
+        data.results.forEach(item => {
+          const opt = document.createElement('div');
+          opt.classList.add('autocomplete-option');
+          opt.textContent = item.text;
+          opt.dataset.id  = item.id;
+          sucursalResults.appendChild(opt);
+        });
+        hasMoreSucursal = data.has_more;
+      } else if (page === 1) {
+        const noResult = document.createElement('div');
+        noResult.classList.add('autocomplete-no-result');
+        noResult.textContent = 'No se encontraron resultados';
+        sucursalResults.appendChild(noResult);
+        hasMoreSucursal = false;
+      }
+      sucursalResults.style.display = 'block';
+      isLoadingSucursal = false;
+      console.log('Sucursales fetch completado:', data);
+    });
   }
 
   function fetchProductos(term, page = 1) {
@@ -116,41 +135,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const url = `${productoAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}&excluded=${excludedIds}`;
     console.log('Productos excluidos:', excludedIds);
 
-    fetch(url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (page === 1) {
-          productoResults.innerHTML = '';
-        }
-        if (data.results.length > 0) {
-          data.results.forEach(item => {
-            const opt = document.createElement('div');
-            opt.classList.add('autocomplete-option');
-            opt.textContent = item.text;
-            opt.dataset.id  = item.id;
-            productoResults.appendChild(opt);
-          });
-          hasMoreProducto = data.has_more;
-        } else if (page === 1) {
-          const noResult = document.createElement('div');
-          noResult.classList.add('autocomplete-no-result');
-          noResult.textContent = 'No se encontraron resultados';
-          productoResults.appendChild(noResult);
-          hasMoreProducto = false;
-        }
-        productoResults.style.display = 'block';
-        isLoadingProducto = false;
-        console.log('Productos fetch completado:', data);
-      })
-      .catch(error => {
-        console.error('fetchProductos error:', error);
-        isLoadingProducto = false;
-      });
+    fetchWithCache(url, cacheProducto, term, page, function(data) {
+      if (page === 1) {
+        productoResults.innerHTML = '';
+      }
+      if (data.results.length > 0) {
+        data.results.forEach(item => {
+          const opt = document.createElement('div');
+          opt.classList.add('autocomplete-option');
+          opt.textContent = item.text;
+          opt.dataset.id  = item.id;
+          productoResults.appendChild(opt);
+        });
+        hasMoreProducto = data.has_more;
+      } else if (page === 1) {
+        const noResult = document.createElement('div');
+        noResult.classList.add('autocomplete-no-result');
+        noResult.textContent = 'No se encontraron resultados';
+        productoResults.appendChild(noResult);
+        hasMoreProducto = false;
+      }
+      productoResults.style.display = 'block';
+      isLoadingProducto = false;
+      console.log('Productos fetch completado:', data);
+    });
   }
 
   /* ======================
@@ -202,9 +210,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* ==========================
-     6. Eventos de Autocomplete
+     6. Eventos de Autocomplete Mejorados
   ========================== */
+  
+  // Función genérica de debounce
+  function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), delay);
+    };
+  }
+
   // --- Sucursal ---
+  const debouncedFetchSucursales = debounce(function() {
+    fetchSucursales(currentTermSucursal, currentPageSucursal);
+  }, DEBOUNCE_TIME);
+
   sucursalInput.addEventListener('input', function() {
     sucursalIdInput.value = '';
     hasMoreSucursal = true;
@@ -216,24 +238,15 @@ document.addEventListener('DOMContentLoaded', function() {
       sucursalResults.style.display = 'none';
       return;
     }
-    if (debounceTimeoutSucursal) {
-      clearTimeout(debounceTimeoutSucursal);
-    }
-    debounceTimeoutSucursal = setTimeout(function() {
-      fetchSucursales(currentTermSucursal, currentPageSucursal);
-    }, DEBOUNCE_TIME);
+
+    debouncedFetchSucursales();
   });
 
   sucursalInput.addEventListener('focus', function() {
     currentTermSucursal = sucursalInput.value.trim();
     hasMoreSucursal = true;
     currentPageSucursal = 1;
-    if (debounceTimeoutSucursal) {
-      clearTimeout(debounceTimeoutSucursal);
-    }
-    debounceTimeoutSucursal = setTimeout(function() {
-      fetchSucursales(currentTermSucursal, currentPageSucursal);
-    }, DEBOUNCE_TIME);
+    debouncedFetchSucursales();
   });
 
   sucursalResults.addEventListener('scroll', function() {
@@ -264,6 +277,10 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // --- Producto ---
+  const debouncedFetchProductos = debounce(function() {
+    fetchProductos(currentTermProducto, currentPageProducto);
+  }, DEBOUNCE_TIME);
+
   productoInput.addEventListener('input', function() {
     productoIdInput.value = '';
     hasMoreProducto = true;
@@ -275,24 +292,15 @@ document.addEventListener('DOMContentLoaded', function() {
       productoResults.style.display = 'none';
       return;
     }
-    if (debounceTimeoutProducto) {
-      clearTimeout(debounceTimeoutProducto);
-    }
-    debounceTimeoutProducto = setTimeout(function() {
-      fetchProductos(currentTermProducto, currentPageProducto);
-    }, DEBOUNCE_TIME);
+
+    debouncedFetchProductos();
   });
 
   productoInput.addEventListener('focus', function() {
     currentTermProducto = productoInput.value.trim();
     hasMoreProducto = true;
     currentPageProducto = 1;
-    if (debounceTimeoutProducto) {
-      clearTimeout(debounceTimeoutProducto);
-    }
-    debounceTimeoutProducto = setTimeout(function() {
-      fetchProductos(currentTermProducto, currentPageProducto);
-    }, DEBOUNCE_TIME);
+    debouncedFetchProductos();
   });
 
   productoResults.addEventListener('scroll', function() {
