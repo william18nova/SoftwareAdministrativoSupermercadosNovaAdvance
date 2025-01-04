@@ -634,19 +634,42 @@ def agregar_productos_precios_proveedor_view(request):
         form = PreciosProveedorForm(request.POST)
         if form.is_valid():
             precios_temp = request.POST.get('precios_temp')
+            proveedor = form.cleaned_data['proveedor']
             if precios_temp:
-                precios = json.loads(precios_temp)
-                proveedor = form.cleaned_data['proveedor']
+                try:
+                    precios = json.loads(precios_temp)
+                except json.JSONDecodeError:
+                    precios = []
+
+                if not precios:
+                    errors = {
+                        'precios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
+                    }
+                    return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+
+                # Preparar lista para bulk_create
+                precios_to_create = []
                 for precio in precios:
-                    producto = get_object_or_404(Producto, pk=precio['productId'])
+                    producto_id = precio.get('productId')
+                    precio_val = precio.get('price')
+                    if not producto_id or not precio_val:
+                        continue  # Puedes optar por manejar errores específicos aquí
+
+                    producto = get_object_or_404(Producto, pk=producto_id)
+
                     # Evitar duplicados
                     if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
-                        continue  # Puedes optar por manejar esto de otra manera si es necesario
-                    PreciosProveedor.objects.create(
-                        productoid=producto,
-                        proveedorid=proveedor,
-                        precio=Decimal(precio['price'])
+                        continue  # Opcional: manejar duplicados según necesidades
+
+                    precios_to_create.append(
+                        PreciosProveedor(
+                            productoid=producto,
+                            proveedorid=proveedor,
+                            precio=Decimal(precio_val)
+                        )
                     )
+                # Crear todos los precios en una sola consulta
+                PreciosProveedor.objects.bulk_create(precios_to_create)
                 return JsonResponse({'success': True})
             else:
                 errors = {
@@ -665,12 +688,13 @@ def agregar_productos_precios_proveedor_view(request):
         form = PreciosProveedorForm()
 
     return render(request, 'agregar_productos_precios_proveedor.html', {'form': form})
-    
+
 @login_required
 def proveedor_precios_autocomplete(request):
     """
     Autocomplete de Proveedores, excluyendo aquellos que ya
     tienen registros en PreciosProveedor.
+    Implementa paginación y manejo de términos vacíos.
     """
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()
@@ -690,15 +714,15 @@ def proveedor_precios_autocomplete(request):
     # => Los que tengan precios_count=0
     qs = (
         Proveedor.objects.annotate(precios_count=Count('preciosproveedor'))
-                         .filter(precios_count=0)
+                        .filter(precios_count=0)
+                        .order_by('nombre')
     )
 
     if term:
         qs = qs.filter(nombre__icontains=term)
 
     total_results = qs.count()
-    # Paginamos
-    qs = qs.order_by('nombre')[start:end]
+    qs = qs[start:end]
 
     results = []
     for prov in qs:
@@ -712,11 +736,11 @@ def proveedor_precios_autocomplete(request):
         'has_more': end < total_results,
     })
 
-
 @login_required
 def producto_precios_autocomplete(request):
     """
     Autocomplete para Producto, excluyendo IDs pasados via 'excluded'.
+    Implementa paginación y manejo de términos vacíos.
     """
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()

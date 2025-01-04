@@ -1,4 +1,5 @@
 <!-- agregar_productos_precios_proveedor.html -->
+
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Agregar Precios de Proveedor{% endblock %}
@@ -46,7 +47,7 @@
       
       <!-- Campo Proveedor Autocompletar -->
       <div class="form-group-precio">
-        <label for="{{ form.proveedor_autocomplete.id_for_label }}">
+        <label for="id_proveedor_autocomplete">
           Proveedor <span class="required">*</span>
         </label>
         {{ form.proveedor_autocomplete }}
@@ -57,7 +58,7 @@
 
       <!-- Campo Producto Autocompletar -->
       <div class="form-group-precio">
-        <label for="{{ form.producto_autocomplete.id_for_label }}">
+        <label for="id_producto_autocomplete">
           Producto <span class="required">*</span>
         </label>
         {{ form.producto_autocomplete }}
@@ -68,7 +69,7 @@
 
       <!-- Campo Precio -->
       <div class="form-group-precio">
-        <label for="{{ form.precio.id_for_label }}">
+        <label for="id_precio">
           Precio <span class="required">*</span>
         </label>
         {{ form.precio }}

@@ -1,6 +1,7 @@
 // agregar_precios_proveedor.js
 
 document.addEventListener('DOMContentLoaded', function() {
+
   /* =======================
      1. Inicializar DataTable con opciones responsive
   ======================= */
@@ -53,20 +54,28 @@ document.addEventListener('DOMContentLoaded', function() {
   let preciosTemp = [];
 
   /* ==========================
-     3. Variables de Debounce
+     3. Variables de Debounce y Caching
   ========================== */
+  const DEBOUNCE_TIME = 300; // 300 ms
   let debounceTimeoutProveedor = null;
   let debounceTimeoutProducto  = null;
-  const DEBOUNCE_TIME = 300; // 300 ms
 
-  /* ==============================
-     4. Funciones de Autocompletado
-  ============================== */
-  function fetchProveedores(term, page = 1) {
-    if (isLoadingProveedor || !hasMoreProveedor) return;
-    isLoadingProveedor = true;
+  // Caches para almacenar respuestas anteriores
+  const cacheProveedor = {};
+  const cacheProducto = {};
 
-    const url = `${proveedorAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
+  /* ===================================
+     4. Funciones de Autocompletado Mejoradas
+  =================================== */
+  
+  // Función genérica para fetch con caching
+  function fetchWithCache(url, cache, term, page, callback) {
+    const cacheKey = `${term}_${page}`;
+    if (cache[cacheKey]) {
+      callback(cache[cacheKey]);
+      return;
+    }
+
     fetch(url)
       .then(response => {
         if (!response.ok) {
@@ -75,76 +84,81 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.json();
       })
       .then(data => {
-        if (page === 1) {
-          proveedorResults.innerHTML = '';
-        }
-        if (data.results.length > 0) {
-          data.results.forEach(item => {
-            const opt = document.createElement('div');
-            opt.classList.add('autocomplete-option');
-            opt.textContent = item.text;
-            opt.dataset.id  = item.id;
-            proveedorResults.appendChild(opt);
-          });
-          hasMoreProveedor = data.has_more;
-        } else if (page === 1) {
-          const noResult = document.createElement('div');
-          noResult.classList.add('autocomplete-no-result');
-          noResult.textContent = 'No se encontraron resultados';
-          proveedorResults.appendChild(noResult);
-          hasMoreProveedor = false;
-        }
-        proveedorResults.style.display = 'block';
-        isLoadingProveedor = false;
+        cache[cacheKey] = data; // Guardar en caché
+        callback(data);
       })
       .catch(error => {
-        console.error('fetchProveedores error:', error);
-        isLoadingProveedor = false;
+        console.error('fetchWithCache error:', error);
       });
+  }
+
+  function fetchProveedores(term, page = 1) {
+    if (isLoadingProveedor || !hasMoreProveedor) return;
+    isLoadingProveedor = true;
+    console.log(`Fetching proveedores: term='${term}', page=${page}`);
+
+    const url = `${proveedorAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
+    
+    fetchWithCache(url, cacheProveedor, term, page, function(data) {
+      if (page === 1) {
+        proveedorResults.innerHTML = '';
+      }
+      if (data.results.length > 0) {
+        data.results.forEach(item => {
+          const opt = document.createElement('div');
+          opt.classList.add('autocomplete-option');
+          opt.textContent = item.text;
+          opt.dataset.id  = item.id;
+          proveedorResults.appendChild(opt);
+        });
+        hasMoreProveedor = data.has_more;
+      } else if (page === 1) {
+        const noResult = document.createElement('div');
+        noResult.classList.add('autocomplete-no-result');
+        noResult.textContent = 'No se encontraron resultados';
+        proveedorResults.appendChild(noResult);
+        hasMoreProveedor = false;
+      }
+      proveedorResults.style.display = 'block';
+      isLoadingProveedor = false;
+      console.log('Proveedores fetch completado:', data);
+    });
   }
 
   function fetchProductos(term, page = 1) {
     if (isLoadingProducto || !hasMoreProducto) return;
     isLoadingProducto = true;
+    console.log(`Fetching productos: term='${term}', page=${page}`);
 
-    // Excluimos IDs ya listados en “preciosTemp”
+    // Excluir IDs ya listados en preciosTemp
     const excludedIds = preciosTemp.map(item => item.productId).join(',');
     const url = `${productoPreciosAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}&excluded=${excludedIds}`;
+    console.log('Productos excluidos:', excludedIds);
 
-    fetch(url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (page === 1) {
-          productoResults.innerHTML = '';
-        }
-        if (data.results.length > 0) {
-          data.results.forEach(item => {
-            const opt = document.createElement('div');
-            opt.classList.add('autocomplete-option');
-            opt.textContent = item.text;
-            opt.dataset.id  = item.id;
-            productoResults.appendChild(opt);
-          });
-          hasMoreProducto = data.has_more;
-        } else if (page === 1) {
-          const noResult = document.createElement('div');
-          noResult.classList.add('autocomplete-no-result');
-          noResult.textContent = 'No se encontraron resultados';
-          productoResults.appendChild(noResult);
-          hasMoreProducto = false;
-        }
-        productoResults.style.display = 'block';
-        isLoadingProducto = false;
-      })
-      .catch(error => {
-        console.error('fetchProductos error:', error);
-        isLoadingProducto = false;
-      });
+    fetchWithCache(url, cacheProducto, term, page, function(data) {
+      if (page === 1) {
+        productoResults.innerHTML = '';
+      }
+      if (data.results.length > 0) {
+        data.results.forEach(item => {
+          const opt = document.createElement('div');
+          opt.classList.add('autocomplete-option');
+          opt.textContent = item.text;
+          opt.dataset.id  = item.id;
+          productoResults.appendChild(opt);
+        });
+        hasMoreProducto = data.has_more;
+      } else if (page === 1) {
+        const noResult = document.createElement('div');
+        noResult.classList.add('autocomplete-no-result');
+        noResult.textContent = 'No se encontraron resultados';
+        productoResults.appendChild(noResult);
+        hasMoreProducto = false;
+      }
+      productoResults.style.display = 'block';
+      isLoadingProducto = false;
+      console.log('Productos fetch completado:', data);
+    });
   }
 
   /* ======================
@@ -157,6 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
       e.style.display = 'none';
       e.classList.remove('visible');
     });
+    // Ocultar alert global
     const globalError = document.getElementById('error-message');
     if (globalError) {
       globalError.style.display = 'none';
@@ -195,9 +210,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   /* ==========================
-     6. Eventos de Autocomplete
+     6. Eventos de Autocomplete Mejorados
   ========================== */
+  
+  // Función genérica de debounce
+  function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), delay);
+    };
+  }
+
   // --- Proveedor ---
+  const debouncedFetchProveedores = debounce(function() {
+    fetchProveedores(currentTermProveedor, currentPageProveedor);
+  }, DEBOUNCE_TIME);
+
   proveedorInput.addEventListener('input', function() {
     proveedorIdInput.value = '';
     hasMoreProveedor = true;
@@ -209,24 +238,15 @@ document.addEventListener('DOMContentLoaded', function() {
       proveedorResults.style.display = 'none';
       return;
     }
-    if (debounceTimeoutProveedor) {
-      clearTimeout(debounceTimeoutProveedor);
-    }
-    debounceTimeoutProveedor = setTimeout(function() {
-      fetchProveedores(currentTermProveedor, currentPageProveedor);
-    }, DEBOUNCE_TIME);
+
+    debouncedFetchProveedores();
   });
 
   proveedorInput.addEventListener('focus', function() {
     currentTermProveedor = proveedorInput.value.trim();
     hasMoreProveedor = true;
     currentPageProveedor = 1;
-    if (debounceTimeoutProveedor) {
-      clearTimeout(debounceTimeoutProveedor);
-    }
-    debounceTimeoutProveedor = setTimeout(function() {
-      fetchProveedores(currentTermProveedor, currentPageProveedor);
-    }, DEBOUNCE_TIME);
+    debouncedFetchProveedores();
   });
 
   proveedorResults.addEventListener('scroll', function() {
@@ -257,6 +277,10 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // --- Producto ---
+  const debouncedFetchProductos = debounce(function() {
+    fetchProductos(currentTermProducto, currentPageProducto);
+  }, DEBOUNCE_TIME);
+
   productoInput.addEventListener('input', function() {
     productoIdInput.value = '';
     hasMoreProducto = true;
@@ -268,24 +292,15 @@ document.addEventListener('DOMContentLoaded', function() {
       productoResults.style.display = 'none';
       return;
     }
-    if (debounceTimeoutProducto) {
-      clearTimeout(debounceTimeoutProducto);
-    }
-    debounceTimeoutProducto = setTimeout(function() {
-      fetchProductos(currentTermProducto, currentPageProducto);
-    }, DEBOUNCE_TIME);
+
+    debouncedFetchProductos();
   });
 
   productoInput.addEventListener('focus', function() {
     currentTermProducto = productoInput.value.trim();
     hasMoreProducto = true;
     currentPageProducto = 1;
-    if (debounceTimeoutProducto) {
-      clearTimeout(debounceTimeoutProducto);
-    }
-    debounceTimeoutProducto = setTimeout(function() {
-      fetchProductos(currentTermProducto, currentPageProducto);
-    }, DEBOUNCE_TIME);
+    debouncedFetchProductos();
   });
 
   productoResults.addEventListener('scroll', function() {
@@ -315,9 +330,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  /* =======================
-     7. Agregar Producto
-  ======================= */
+  /* =================================================
+     7. Agregar Producto (con campo editable de Precio)
+  ================================================= */
   btnAgregarProducto.addEventListener('click', function() {
     clearErrors();
 
@@ -331,6 +346,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // REGLA: SE REQUIEREN los 3 campos para agregar un producto
     if (!provId) {
       showFieldError('proveedor', 'Debe seleccionar un proveedor.');
+      // Eliminamos la llamada a showGlobalError aquí
+      // showGlobalError('Debe seleccionar un proveedor antes de agregar un producto.'); // <--- ALERTA GLOBAL ELIMINADA
       hasLocalErrors = true;
     }
     if (!prodId) {
@@ -378,6 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
   /* ======================
      8. Eliminar de la tabla
   ====================== */
+  // Manejar el evento de eliminar utilizando delegación de eventos
   document.getElementById('productos-body').addEventListener('click', function(e) {
     if (e.target.closest('.btn-eliminar')) {
       const button = e.target.closest('.btn-eliminar');
@@ -385,6 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const row = button.closest('tr');
       dataTable.row(row).remove().draw(false);
       preciosTemp = preciosTemp.filter(p => p.productId !== productId);
+      console.log('preciosTemp después de eliminar:', preciosTemp);
     }
   });
 
@@ -401,7 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    // Actualizar precios según lo editado en la tabla
+    // Actualizar preciosTemp según lo editado en la tabla
     const rows = dataTable.rows().indexes();
     rows.each(function(idx) {
       const rowNode = dataTable.row(idx).node();
@@ -419,9 +438,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
+    console.log('preciosTemp antes de enviar:', preciosTemp);
+
     // Poner preciosTemp en el campo oculto como JSON
     const preciosTempInput = document.getElementById('id_precios_temp');
     preciosTempInput.value = JSON.stringify(preciosTemp);
+    console.log('precios_temp enviado:', preciosTempInput.value);
 
     // Enviar el formulario vía AJAX
     const formData = new FormData(form);
@@ -479,4 +501,5 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       return cookieValue;
   }
+
 });

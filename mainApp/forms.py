@@ -810,7 +810,7 @@ class PreciosProveedorForm(forms.Form):
         required=False,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Ingrese el precio',  # Placeholder añadido
+            'placeholder': 'Ingrese el precio',
             'min': '0.01',
             'step': '0.01'
         })

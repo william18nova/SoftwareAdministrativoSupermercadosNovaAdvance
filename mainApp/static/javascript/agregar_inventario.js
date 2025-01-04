@@ -344,6 +344,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasLocalErrors = false;
     if (!sucursalId) {
       showFieldError('sucursal', 'Debe seleccionar una sucursal.');
+      // Eliminamos la llamada a showGlobalError aquí
+      // showGlobalError('Debe seleccionar una sucursal antes de agregar un producto.'); // <--- ALERTA GLOBAL ELIMINADA
       hasLocalErrors = true;
     }
     if (!productId) {
