@@ -285,7 +285,7 @@ class HorariosNegocioForm(forms.ModelForm):
 
     # Campo oculto que guarda el ID de la sucursal elegida
     sucursalid = forms.ModelChoiceField(
-        queryset=Sucursal.objects.none(),
+        queryset=Sucursal.objects.exclude(horariosnegocio__isnull=False),
         widget=forms.HiddenInput(),
         required=True,
     )

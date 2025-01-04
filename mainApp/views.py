@@ -1147,6 +1147,7 @@ def sucursal_autocomplete(request):
     """
     Autocomplete para Sucursal que excluye las que ya tengan
     un horario establecido en la tabla HorariosNegocio.
+    Implementa paginación y responde con JSON.
     """
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()
@@ -1171,15 +1172,20 @@ def sucursal_autocomplete(request):
     start = (page - 1) * per_page
     end = start + per_page
 
-    # --- 1) Obtener únicamente las sucursales SIN horarios establecidos ---
-    sucursales = Sucursal.objects.exclude(horariosnegocio__isnull=False)
+    # Optimización: Usar 'annotate' y 'filter' para excluir sucursales con horarios
+    sucursales = Sucursal.objects.annotate(
+        horarios_count=Count('horariosnegocio')
+    ).filter(
+        horarios_count=0  # Solo sucursales sin horarios
+    )
 
-    # --- 2) Filtro por nombre con 'term' ---
+    # Filtro por nombre si se proporciona 'term'
     if term:
         sucursales = sucursales.filter(nombre__icontains=term)
 
-    # --- 3) Ordenar y paginar ---
+    # Ordenar por nombre
     sucursales = sucursales.order_by('nombre')
+
     total_results = sucursales.count()
     sucursales = sucursales[start:end]
 
@@ -1187,7 +1193,7 @@ def sucursal_autocomplete(request):
     results = []
     for sucursal in sucursales:
         results.append({
-            'id': sucursal.pk,  # Asegúrate de que 'pk' es el campo correcto
+            'id': sucursal.pk,
             'text': sucursal.nombre,
         })
 
