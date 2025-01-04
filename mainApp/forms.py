@@ -809,17 +809,18 @@ class PreciosProveedorForm(forms.Form):
         required=False,
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
+            'placeholder': 'Ingrese el precio',  # Placeholder añadido
             'min': '0.01',
             'step': '0.01'
         })
     )
 
     class Meta:
-        fields = ['proveedor_autocomplete', 'proveedor', 'producto_autocomplete', 'productoid', 'precio']
+        fields = ['proveedor', 'productoid', 'precio']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filtra Proveedores sin productos
+        # Filtra Proveedores sin productos (o la lógica que quieras)
         subquery = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
         self.fields['proveedor'].queryset = (
             Proveedor.objects
@@ -827,7 +828,7 @@ class PreciosProveedorForm(forms.Form):
                      .filter(tiene_productos=False)
         )
 
-        # Todos los productos
+        # Todos los productos (o filtra según tu lógica)
         self.fields['productoid'].queryset = Producto.objects.all()
 
     def clean(self):

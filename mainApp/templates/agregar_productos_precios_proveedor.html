@@ -1,5 +1,4 @@
 <!-- agregar_productos_precios_proveedor.html -->
-
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Agregar Precios de Proveedor{% endblock %}
@@ -33,81 +32,52 @@
       Todos los campos con <span class="required">*</span> son obligatorios.
     </p>
 
-    <!-- Mensajes de éxito y error global (manejado por JS) -->
-    <div id="error-message" class="alert alert-error" style="display: none;">
-      <i class="fas fa-exclamation-circle"></i> <span id="error-text"></span>
-    </div>
+    <!-- Mensaje de éxito -->
     <div id="success-message" class="alert alert-success" style="display: none;">
-      <i class="fas fa-check-circle"></i> <span id="success-text"></span>
+      <i class="fas fa-check-circle"></i> Productos y precios agregados exitosamente al proveedor.
     </div>
 
-    <!-- Formulario principal -->
+    <!-- Mensajes de error -->
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+
+    <!-- Formulario -->
     <form id="preciosForm" action="{% url 'agregar_productos_precios_proveedor' %}" method="POST">
       {% csrf_token %}
-
-      <!-- Proveedor (autocompletado) -->
+      
+      <!-- Campo Proveedor Autocompletar -->
       <div class="form-group-precio">
-        <label for="id_proveedor_autocomplete">
+        <label for="{{ form.proveedor_autocomplete.id_for_label }}">
           Proveedor <span class="required">*</span>
         </label>
-        <input
-          type="text"
-          id="id_proveedor_autocomplete"
-          name="proveedor_autocomplete"
-          class="form-control"
-          placeholder="Escriba para buscar proveedor..."
-          autocomplete="off"
-          required
-        />
+        {{ form.proveedor_autocomplete }}
         {{ form.proveedor }}
         <div class="autocomplete-results" id="proveedor-autocomplete-results"></div>
         <div class="field-error" id="error-id_proveedor"></div>
       </div>
 
-      <!-- Producto (autocompletado) -->
+      <!-- Campo Producto Autocompletar -->
       <div class="form-group-precio">
-        <label for="id_producto_autocomplete">
+        <label for="{{ form.producto_autocomplete.id_for_label }}">
           Producto <span class="required">*</span>
         </label>
-        <input
-          type="text"
-          id="id_producto_autocomplete"
-          name="producto_autocomplete"
-          class="form-control"
-          placeholder="Escriba para buscar producto..."
-          autocomplete="off"
-          required
-        />
-        <input type="hidden" id="id_productoid" name="productoid"/>
+        {{ form.producto_autocomplete }}
+        {{ form.productoid }}
         <div class="autocomplete-results" id="producto-autocomplete-results"></div>
         <div class="field-error" id="error-id_productoid"></div>
       </div>
 
-      <!-- Precio -->
+      <!-- Campo Precio -->
       <div class="form-group-precio">
-        <label for="id_precio">
+        <label for="{{ form.precio.id_for_label }}">
           Precio <span class="required">*</span>
         </label>
-        <input
-          type="number"
-          id="id_precio"
-          name="precio"
-          class="form-control"
-          placeholder="Ingrese el precio"
-          step="0.01"
-          min="0.01"
-          required
-        />
+        {{ form.precio }}
         <div class="field-error" id="error-id_precio"></div>
       </div>
 
       <!-- Botón para añadir producto a la lista temporal -->
       <div class="form-group-precio">
-        <button
-          type="button"
-          class="btn-agregar-precio"
-          id="agregarProductoBtn"
-        >
+        <button type="button" class="btn-agregar-precio" id="agregarProductoBtn">
           Agregar Producto
         </button>
       </div>
@@ -122,11 +92,12 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody id="productos-body">
-            <!-- Filas agregadas dinámicamente aquí -->
-          </tbody>
+          <tbody id="productos-body"></tbody>
         </table>
       </div>
+
+      <!-- Campo oculto para precios temporales -->
+      <input type="hidden" name="precios_temp" id="id_precios_temp">
 
       <!-- Botón de Envío final -->
       <div class="form-group-precio">

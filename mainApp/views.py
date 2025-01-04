@@ -575,77 +575,45 @@ def agregar_productos_precios_proveedor_view(request):
     """
     Vista para agregar productos con sus precios a un Proveedor.
     Maneja tanto GET como POST.
-    - En GET, se muestra el formulario con autocompletados.
-    - En POST, recibe la lista de productos y precios, y los asigna.
-    Responde con JSON para manejar las respuestas en el frontend.
+    - En GET, muestra el formulario con autocompletados.
+    - En POST, valida el formulario y procesa los productos y precios temporales.
+      Responde con JSON para manejar las respuestas en el frontend.
     """
     if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'errors': ['Datos JSON inválidos.']})
-
-        proveedor_id = data.get('proveedor')
-        productos = data.get('productos')
-
-        if not proveedor_id:
-            return JsonResponse({'success': False, 'errors': ['Debe seleccionar un proveedor.']})
-
-        if not productos:
-            return JsonResponse({'success': False, 'errors': ['Debe agregar al menos un producto antes de guardar.']})
-
-        proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
-        errores = []
-
-        for item in productos:
-            producto_id = item.get('productId')
-            precio_str = item.get('precio')
-
-            if not producto_id or not precio_str:
-                errores.append('Producto y precio son obligatorios.')
-                continue
-
-            producto = get_object_or_404(Producto, pk=producto_id)
-
-            # Evitar duplicados
-            if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
-                errores.append(f'El producto {producto.nombre} ya está registrado para el proveedor {proveedor.nombre}.')
-                continue
-
-            try:
-                precio = Decimal(precio_str)
-                if precio <= 0:
-                    errores.append(f'El precio para el producto {producto.nombre} debe ser mayor que 0.')
-                    continue
-            except:
-                errores.append(f'El precio para el producto {producto.nombre} no es válido.')
-                continue
-
-            PreciosProveedor.objects.create(
-                productoid=producto,
-                proveedorid=proveedor,
-                precio=precio
-            )
-
-        if errores:
-            return JsonResponse({'success': False, 'errors': errores})
-
-        return JsonResponse({'success': True, 'message': 'Productos y precios agregados exitosamente al proveedor.'})
+        form = PreciosProveedorForm(request.POST)
+        if form.is_valid():
+            precios_temp = request.POST.get('precios_temp')
+            if precios_temp:
+                precios = json.loads(precios_temp)
+                proveedor = form.cleaned_data['proveedor']
+                for precio in precios:
+                    producto = get_object_or_404(Producto, pk=precio['productId'])
+                    # Evitar duplicados
+                    if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
+                        continue  # Puedes optar por manejar esto de otra manera si es necesario
+                    PreciosProveedor.objects.create(
+                        productoid=producto,
+                        proveedorid=proveedor,
+                        precio=Decimal(precio['price'])
+                    )
+                return JsonResponse({'success': True})
+            else:
+                errors = {
+                    'precios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
+                }
+                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+        else:
+            # Convertir errores del formulario a JSON
+            errors = form.errors.get_json_data()
+            # Procesar errores para el formato esperado por el frontend
+            processed_errors = {}
+            for field, field_errors in errors.items():
+                processed_errors[field] = [{'message': error['message']} for error in field_errors]
+            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
     else:
         form = PreciosProveedorForm()
-        # Obtener proveedores sin productos
-        proveedores_con_productos = PreciosProveedor.objects.filter(proveedorid=OuterRef('pk'))
-        proveedores = (
-            Proveedor.objects
-                     .annotate(tiene_productos=Exists(proveedores_con_productos))
-                     .filter(tiene_productos=False)
-        )
-        productos = Producto.objects.all()
-        return render(request, 'agregar_productos_precios_proveedor.html', {
-            'form': form,
-            'proveedores': proveedores,
-            'productos': productos,
-        })
+
+    return render(request, 'agregar_productos_precios_proveedor.html', {'form': form})
     
 @login_required
 def proveedor_precios_autocomplete(request):

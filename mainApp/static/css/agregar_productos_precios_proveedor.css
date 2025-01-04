@@ -1,3 +1,5 @@
+/* agregar_productos_precios_proveedor.css */
+
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
 :root {
@@ -228,6 +230,7 @@ body::before {
     overflow-x: auto;
 }
 
+/* Tabla */
 .table {
     width: 100%;
     border-collapse: collapse;
@@ -254,8 +257,11 @@ body::before {
 .table td input[type="number"] {
     width: 70%;
     padding: 5px;
+    border: 1px solid var(--color-gris);
+    border-radius: 3px;
 }
 
+/* Botón eliminar */
 .btn-eliminar {
     background-color: #e74c3c;
     color: #fff;
@@ -311,5 +317,33 @@ body::before {
         width: 30px;
         height: 30px;
         padding: 5px;
+    }
+}
+
+@media (min-width: 769px) {
+    .table td input[type="number"] {
+        width: 90px; /* Ajustar ancho para pantallas grandes */
+        box-sizing: border-box;
+    }
+
+    .table {
+        table-layout: fixed;
+    }
+
+    .table th:nth-child(1),
+    .table td:nth-child(1) {
+        width: 14%;
+    }
+
+    .table th:nth-child(2),
+    .table td:nth-child(2),
+    .table th:nth-child(3),
+    .table td:nth-child(3) {
+        width: 30%;
+    }
+
+    .table th:nth-child(4),
+    .table td:nth-child(4) {
+        width: 26.8%;
     }
 }
