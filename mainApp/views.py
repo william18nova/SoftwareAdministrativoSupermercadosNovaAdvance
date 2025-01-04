@@ -1089,15 +1089,20 @@ def agregar_empleado_view(request):
     if request.method == 'POST':
         form = EmpleadoForm(request.POST)
         if form.is_valid():
-            form.save()
-            return JsonResponse({'success': True, 'message': 'Empleado agregado exitosamente.'})
+            try:
+                form.save()
+                logger.info(f"Empleado agregado: {form.cleaned_data}")
+                return JsonResponse({'success': True, 'message': 'Empleado agregado exitosamente.'})
+            except Exception as e:
+                logger.error(f"Error al guardar el empleado: {e}")
+                return JsonResponse({'success': False, 'errors': {'__all__': [{'message': 'Ocurrió un error al guardar el empleado.'}]}})
         else:
+            logger.warning(f"Formulario inválido: {form.errors}")
             errors = form.errors.get_json_data()  # Obtener errores como dict
             return JsonResponse({'success': False, 'errors': errors})
     else:
         form = EmpleadoForm()
     return render(request, 'agregar_empleado.html', {'form': form})
-
 
 @login_required
 def usuario_autocomplete(request):
@@ -1137,8 +1142,6 @@ def usuario_autocomplete(request):
         'has_more': end < total_results,
     })
 
-
-# === UNIFICAMOS LA FUNCIÓN SUCURSAL_AUTOCOMPLETE (antes aparecía dos veces) === #
 @login_required
 def sucursal_autocomplete(request):
     """
@@ -1184,7 +1187,7 @@ def sucursal_autocomplete(request):
     results = []
     for sucursal in sucursales:
         results.append({
-            'id': sucursal.sucursalid,
+            'id': sucursal.pk,  # Asegúrate de que 'pk' es el campo correcto
             'text': sucursal.nombre,
         })
 

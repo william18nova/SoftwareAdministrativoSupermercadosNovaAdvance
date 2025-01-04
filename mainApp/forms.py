@@ -189,13 +189,17 @@ class EmpleadoForm(forms.ModelForm):
             'placeholder': 'Ingresa el puesto'
         })
     )
-    usuarioid = forms.CharField(
-        required=False,
-        widget=forms.HiddenInput()
+    
+    # Cambiamos 'usuario' y 'sucursal' a 'usuarioid' y 'sucursalid'
+    usuarioid = forms.ModelChoiceField(
+        queryset=Usuario.objects.all(),
+        widget=forms.HiddenInput(),
+        required=True
     )
-    sucursalid = forms.CharField(
-        required=False,
-        widget=forms.HiddenInput()
+    sucursalid = forms.ModelChoiceField(
+        queryset=Sucursal.objects.all(),
+        widget=forms.HiddenInput(),
+        required=True
     )
 
     class Meta:
@@ -237,6 +241,12 @@ class EmpleadoForm(forms.ModelForm):
             raise forms.ValidationError('Este usuario ya está asignado a un empleado.')
         return usuarioid
 
+    def clean_sucursalid(self):
+        sucursalid = self.cleaned_data.get('sucursalid')
+        if not sucursalid:
+            raise forms.ValidationError('Este campo es obligatorio.')
+        return sucursalid
+
     def clean_numerodocumento(self):
         numerodocumento = self.cleaned_data.get('numerodocumento')
         if Empleado.objects.filter(numerodocumento=numerodocumento).exists():
@@ -249,11 +259,12 @@ class EmpleadoForm(forms.ModelForm):
             raise forms.ValidationError('El teléfono ya está en uso.')
         return telefono 
 
-    def clean_sucursalid(self):
-        sucursalid = self.cleaned_data.get('sucursalid')
-        if not sucursalid:
-            raise forms.ValidationError('Este campo es obligatorio.')
-        return sucursalid
+    def save(self, commit=True):
+        empleado = super().save(commit=False)
+        # Los campos 'usuarioid' y 'sucursalid' ya están asignados automáticamente
+        if commit:
+            empleado.save()
+        return empleado
 
 class HorariosNegocioForm(forms.ModelForm):
     """
