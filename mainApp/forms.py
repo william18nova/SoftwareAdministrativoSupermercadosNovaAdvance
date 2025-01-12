@@ -933,3 +933,62 @@ class PuntosPagoForm(forms.Form):
         # No forzamos a que “nombre” sea obligatorio, puesto que
         # se agregarán varios nombres en la tabla
         return cleaned_data
+    
+class UsuarioForm(forms.Form):
+    """
+    Form para 'Agregar Usuario' con autocompletado de Rol,
+    campos para nombre de usuario y contraseñas.
+    """
+    # Autocomplete de Rol
+    rol_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar rol...',
+            'autocomplete': 'off',
+        })
+    )
+    rolid = forms.ModelChoiceField(
+        queryset=Rol.objects.none(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+
+    nombreusuario = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nombre de usuario',
+        })
+    )
+    contraseña = forms.CharField(
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Contraseña',
+        })
+    )
+    confirmar_contraseña = forms.CharField(
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Confirmar contraseña',
+        })
+    )
+
+    class Meta:
+        fields = ['rolid', 'nombreusuario', 'contraseña', 'confirmar_contraseña']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Si deseas filtrar roles de alguna manera, puedes hacerlo aquí.
+        self.fields['rolid'].queryset = Rol.objects.all()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('contraseña')
+        confirm = cleaned_data.get('confirmar_contraseña')
+        if password and confirm and password != confirm:
+            self.add_error('confirmar_contraseña', 'Las contraseñas no coinciden.')
+
+        return cleaned_data

@@ -27,7 +27,8 @@ from .forms import (
     RolForm,
     InventarioForm, 
     PreciosProveedorForm,
-    PuntosPagoForm
+    PuntosPagoForm,
+    UsuarioForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1119,25 +1120,97 @@ def eliminar_rol_view(request, rol_id):
 
 @login_required
 def agregar_usuario_view(request):
-    roles = Rol.objects.all()
-
+    """
+    Vista para agregar un nuevo Usuario.
+    Maneja GET (muestra formulario) y POST (valida y guarda).
+    Devuelve JSON en caso de POST.
+    """
     if request.method == 'POST':
-        nombreusuario = request.POST['nombreusuario']
-        contraseña = request.POST['contraseña']
-        confirmar_contraseña = request.POST['confirmar_contraseña']
-        rol_id = request.POST['rolid']
+        form = UsuarioForm(request.POST)
+        if form.is_valid():
+            nombreusuario = form.cleaned_data['nombreusuario']
+            password = form.cleaned_data['contraseña']
+            rol_obj = form.cleaned_data['rolid']
 
-        if contraseña != confirmar_contraseña:
-            messages.error(request, 'Las contraseñas no coinciden.')
-        elif Usuario.objects.filter(nombreusuario=nombreusuario).exists():
-            messages.error(request, f'El nombre de usuario "{nombreusuario}" ya existe.')
-        else:
-            nuevo_usuario = Usuario(nombreusuario=nombreusuario, rolid=rol_id)
-            nuevo_usuario.set_password(contraseña)  # Encripta la contraseña antes de guardar
+            # Validar si ya existe un usuario con ese nombre
+            if Usuario.objects.filter(nombreusuario=nombreusuario).exists():
+                errors = {
+                    'nombreusuario': [{'message': f'El nombre de usuario "{nombreusuario}" ya existe.'}]
+                }
+                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+
+            # Crear el nuevo usuario
+            nuevo_usuario = Usuario(
+                nombreusuario=nombreusuario,
+                rolid=rol_obj.rolid  # asumiendo que 'rolid' es un int en la DB
+            )
+            # Encriptar la contraseña
+            nuevo_usuario.set_password(password)
             nuevo_usuario.save()
-            messages.success(request, f'Usuario "{nombreusuario}" creado exitosamente.')
 
-    return render(request, 'agregar_usuario.html', {'roles': roles})
+            return JsonResponse({'success': True})
+        else:
+            # Convertir errores del formulario a JSON
+            errors = form.errors.get_json_data()
+            processed_errors = {}
+            for field, field_errors in errors.items():
+                processed_errors[field] = [{'message': e['message']} for e in field_errors]
+            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
+    else:
+        # GET
+        form = UsuarioForm()
+
+    # Render normal (si es GET)
+    return render(request, 'agregar_usuario.html', {'form': form})
+
+
+@login_required
+def rol_autocomplete(request):
+    """
+    Autocomplete para Rol.
+    Implementa paginación y responde con JSON.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '10').strip()
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+        if per_page < 1:
+            per_page = 10
+    except ValueError:
+        per_page = 10
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    qs = Rol.objects.all().order_by('nombre')
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for rol in qs:
+        results.append({
+            'id': rol.rolid,
+            'text': rol.nombre,
+        })
+
+    has_more = end < total_results
+
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
+    })
 
 
 @login_required

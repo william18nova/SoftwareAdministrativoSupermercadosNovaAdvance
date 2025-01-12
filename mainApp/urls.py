@@ -54,6 +54,7 @@ urlpatterns = [
     path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
 
     path('agregar_usuario/', views.agregar_usuario_view, name='agregar_usuario'),
+    path('rol_autocomplete/', views.rol_autocomplete, name='rol_autocomplete'),
     path('visualizar_usuarios/', views.visualizar_usuarios_view, name='visualizar_usuarios'),
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
     path('editar_usuario/<int:usuarioid>/', views.editar_usuario_view, name='editar_usuario'),
