@@ -26,7 +26,8 @@ from .forms import (
     ProveedorForm,
     RolForm,
     InventarioForm, 
-    PreciosProveedorForm
+    PreciosProveedorForm,
+    PuntosPagoForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -858,44 +859,139 @@ def editar_productos_precios_proveedor_view(request, proveedor_id):
 
 @login_required
 def agregar_punto_pago_view(request):
+    """
+    Vista para agregar Puntos de Pago a una Sucursal.
+    - GET: muestra formulario + autocompletado.
+    - POST: valida e inserta la lista temporal de Puntos de Pago.
+      Devuelve JSON.
+    """
     if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal')
-        nombres = request.POST.getlist('nombre[]')
-        descripciones = request.POST.getlist('descripcion[]')
-        dinero_caja_list = request.POST.getlist('dinerocaja[]')
+        form = PuntosPagoForm(request.POST)
+        if form.is_valid():
+            sucursal = form.cleaned_data['sucursal']
+            puntos_temp_json = request.POST.get('puntos_temp')
 
-        if not sucursal_id:
-            messages.error(request, 'La sucursal es obligatoria.')
-            return redirect('agregar_punto_pago')
+            if puntos_temp_json:
+                try:
+                    puntos_temp = json.loads(puntos_temp_json)
+                except json.JSONDecodeError:
+                    puntos_temp = []
 
-        if not nombres:
-            messages.error(request, 'Debe agregar al menos un punto de pago.')
-            return redirect('agregar_punto_pago')
+                if not puntos_temp:
+                    # No hay puntos de pago
+                    errors = {
+                        'puntos_temp': [{'message': 'Debe agregar al menos un Punto de Pago antes de guardar.'}]
+                    }
+                    return JsonResponse({'success': False, 'errors': json.dumps(errors)})
 
-        sucursal = Sucursal.objects.get(sucursalid=sucursal_id)
+                # Crear lista de objetos
+                puntos_crear = []
+                for punto in puntos_temp:
+                    nombre = punto.get('nombre')
+                    descripcion = punto.get('descripcion', '')
+                    dinerocaja = punto.get('dinerocaja', 0.00)
 
-        for nombre, descripcion, dinero_caja in zip(nombres, descripciones, dinero_caja_list):
-            if nombre:
-                if PuntosPago.objects.filter(sucursalid=sucursal, nombre=nombre).exists():
-                    messages.error(
-                        request,
-                        f'La sucursal ya tiene un punto de pago con el nombre {nombre}.'
+                    if not nombre:
+                        # Omitir si el campo nombre no existe
+                        continue
+
+                    # Evitar duplicados
+                    if PuntosPago.objects.filter(sucursalid=sucursal, nombre=nombre).exists():
+                        # Omitimos o retornamos error, según tu lógica:
+                        # Aquí, devolvemos un error para todo.
+                        errors = {
+                            'nombre': [{'message': f'Ya existe un punto de pago con el nombre "{nombre}" en la sucursal.'}]
+                        }
+                        return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+
+                    puntos_crear.append(
+                        PuntosPago(
+                            sucursalid=sucursal,
+                            nombre=nombre,
+                            descripcion=descripcion or "",
+                            dinerocaja=dinerocaja or 0.00
+                        )
                     )
-                    return redirect('agregar_punto_pago')
-                
-                punto_pago = PuntosPago(
-                    sucursalid=sucursal,
-                    nombre=nombre,
-                    descripcion=descripcion or "",
-                    dineroCaja=dinero_caja or 0.00
-                )
-                punto_pago.save()
 
-        messages.success(request, 'Puntos de pago agregados exitosamente.')
-        return redirect('agregar_punto_pago')
+                # Bulk create
+                PuntosPago.objects.bulk_create(puntos_crear)
+                return JsonResponse({'success': True})
+            else:
+                errors = {
+                    'puntos_temp': [{'message': 'Debe agregar al menos un Punto de Pago antes de guardar.'}]
+                }
+                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+        else:
+            # Error de formulario (por ejemplo, sucursal no válida)
+            errors = form.errors.get_json_data()
+            processed_errors = {}
+            for field, field_errors in errors.items():
+                processed_errors[field] = [{'message': error['message']} for error in field_errors]
+            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
+    else:
+        form = PuntosPagoForm()
 
-    sucursales_sin_punto_pago = Sucursal.objects.exclude(puntospago__isnull=False)
-    return render(request, 'agregar_punto_pago.html', {'sucursales': sucursales_sin_punto_pago})
+    # Filtrar Sucursales sin puntos de pago (o tu lógica)
+    sucursales_sin_pp = Sucursal.objects.exclude(puntospago__isnull=False)
+
+    return render(request, 'agregar_punto_pago.html', {
+        'form': form,
+        'sucursales': sucursales_sin_pp,
+    })
+
+
+@login_required
+def sucursal_punto_pago_autocomplete(request):
+    """
+    Autocomplete para Sucursales sin Puntos de Pago.
+    Paginación + Respuesta JSON.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '10').strip()
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+        if per_page < 1:
+            per_page = 10
+    except ValueError:
+        per_page = 10
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Filtrar sucursales sin puntos de pago
+    qs = Sucursal.objects.annotate(
+        puntos_count=Count('puntospago')
+    ).filter(
+        puntos_count=0
+    ).order_by('nombre')
+
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for suc in qs:
+        results.append({
+            'id': suc.sucursalid,
+            'text': suc.nombre,
+        })
+
+    has_more = end < total_results
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
+    })
 
 
 @login_required

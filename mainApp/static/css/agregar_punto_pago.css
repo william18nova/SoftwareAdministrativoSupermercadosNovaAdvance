@@ -1,4 +1,29 @@
+/* agregar_punto_pago.css */
+
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+/* Variables */
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-rojo: #ff0000;
+    --color-verde: #3c763d;
+    --color-gris-claro: #f0f8ff;
+    --color-gris: #ccc;
+    --color-gris-hover: #aaa;
+    --color-boton: #3b5998;
+    --color-boton-hover: #2b467d;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+    --tamanio-icono: 90px;
+}
+
+/* Reset básico */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
 body {
     margin: 0;
@@ -6,13 +31,29 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(to bottom right, #ADD8E6, #005091);
-    font-family: 'Roboto', Arial, sans-serif;
+    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+    font-family: var(--fuente-principal);
     text-align: center;
-    color: white;
-    overflow: auto; /* Permitir scroll en todo el body */
+    color: var(--color-blanco);
+    overflow: auto;
+    position: relative;
+    padding: 20px;
 }
 
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    filter: blur(20px);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Contenedor principal */
 .container-punto-pago {
     background: rgba(255, 255, 255, 0.1);
     padding: 40px;
@@ -21,257 +62,280 @@ body {
     width: 100%;
     max-width: 600px;
     text-align: center;
-    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
+    box-sizing: border-box;
+    margin: 20px auto;
+    position: relative;
+    overflow-x: auto;
 }
 
 .container-punto-pago h2 {
-    color: #ffffff;
+    color: var(--color-blanco);
     margin-bottom: 10px;
+    font-size: 24px;
 }
 
+/* Ícono */
 .icon-punto-pago {
-    font-size: 90px;
-    margin-bottom: 5px;
-    color: #ffffff;
+    font-size: var(--tamanio-icono);
+    margin-bottom: 10px;
+    color: var(--color-blanco);
 }
 
-.form-group-punto-pago {
+/* Texto explicativo */
+.obligatorio-texto {
+    font-style: italic;
+    color: var(--color-blanco);
     margin-bottom: 20px;
-    text-align: left;
+    font-size: 14px;
 }
 
-.form-group-punto-pago label {
-    display: block;
-    margin-bottom: 5px;
-    color: #ffffff;
-    font-weight: bold;
-}
-
-.form-group-punto-pago select {
-    width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.input-nombre,
-.input-descripcion,
-.input-dinero-caja {
-    width: calc(100% - 20px); /* Ajusta este valor para incluir padding */
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.input-dinero-caja:hover {
-    background-color: #d0d8ff;
-    border-color: #777;
-}
-
-.btn-agregar-punto-pago,
-.btn-submit-punto-pago {
-    display: block;
-    margin: 0 auto 10px auto; /* Centramos el botón y agregamos margen inferior */
-    padding: 12px;
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-    cursor: pointer;
-    width: 50%; /* Ajustar el ancho en móvil */
-}
-
-.btn-agregar-punto-pago {
-    background-color: #ffffff;
-    color: #000000;
-    border: none;
-}
-
-.btn-agregar-punto-pago:hover {
-    background-color: #e0e8ff;
-}
-
-.btn-submit-punto-pago {
-    background-color: #003366;
-    color: #ffffff;
-    border: none;
-    margin-top: 22px;
-    margin-bottom: -30px;
-}
-
-.btn-submit-punto-pago:hover {
-    background-color: #002244;
-}
-
-.table-container-punto-pago {
-    background: #ffffff;
-    padding: 10px;
-    border-radius: 10px;
-    margin-top: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    overflow-x: auto; /* Permitir desplazamiento horizontal en dispositivos móviles */
-}
-
-.table {
-    width: 100%; /* Ajustamos el ancho */
-    border-collapse: collapse;
-    text-align: left;
-}
-
-.table th,
-.table td {
-    padding: 10px;
-    border: 1px solid #ddd;
-}
-
-.table th {
-    background-color: #003366;
-    color: #fff;
-}
-
-.table td {
-    background-color: #f9f9f9;
-    color: #333;
-}
-
-.table td.text-center {
-    text-align: center;
-}
-
-.btn-eliminar {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    cursor: pointer;
-    border-radius: 5px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-}
-
-.btn-eliminar i {
-    margin-right: 0;
-}
-
-.btn-eliminar:hover {
-    background-color: #c0392b;
-}
-
+/* Alertas */
 .alert {
     padding: 15px;
     margin-top: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
-}
-
-.alert-error {
-    color: #a94442;
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    margin-top: 25px;
-    margin-bottom: 25px;
+    font-size: 16px;
+    margin-bottom: 20px;
 }
 
 .alert-success {
-    color: #3c763d;
+    color: var(--color-verde);
     background-color: #dff0d8;
     border-color: #d6e9c6;
-    margin-top: 50px;
 }
 
-.column-title {
+.alert-error {
+    color: var(--color-rojo);
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    position: relative;
+    z-index: 9999;
+}
+
+/* Grupos de formulario */
+.form-group-punto-pago {
+    margin-bottom: 20px;
+    text-align: left;
+    position: relative;
+}
+
+.form-group-punto-pago label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--color-blanco);
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.form-group-punto-pago input[type="text"],
+.form-group-punto-pago input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--color-gris);
+    border-radius: 5px;
+    background-color: var(--color-gris-claro);
+    font-size: 16px;
+    color: #333;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+/* Hover y Focus */
+.form-group-punto-pago input[type="text"]:hover,
+.form-group-punto-pago input[type="number"]:hover {
+    background-color: #e0e8ff;
+    border-color: var(--color-gris-hover);
+}
+
+.form-group-punto-pago input[type="text"]:focus,
+.form-group-punto-pago input[type="number"]:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
+}
+
+/* Autocomplete results */
+.autocomplete-results {
+    position: absolute;
+    top: calc(100% + 5px); 
+    left: 0;
+    right: 0;
+    background-color: var(--color-gris-claro);
+    border: 1px solid var(--color-gris);
+    z-index: 9999; 
+    max-height: 200px;
+    overflow-y: auto;
     display: none;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-/* Responsiveness */
+.autocomplete-option {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+}
+
+.autocomplete-option:hover {
+    background-color: var(--color-boton-hover);
+    color: var(--color-blanco);
+}
+
+.autocomplete-no-result {
+    padding: 10px;
+    color: #999;
+    font-size: 16px;
+}
+
+/* Botones */
+.btn-agregar-punto-pago,
+.btn-submit-punto-pago {
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
+    border: none;
+    cursor: pointer;
+    padding: 12px;
+    text-align: center;
+    width: 100%;
+    font-size: 18px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    margin-top: 10px;
+    display: block;
+    font-weight: bold;
+}
+
+.btn-agregar-punto-pago:hover,
+.btn-submit-punto-pago:hover {
+    background-color: var(--color-boton-hover);
+}
+
+/* Errores de campo */
+.field-error {
+    color: var(--color-rojo);
+    font-size: 14px;
+    margin-top: 5px;
+    text-align: left;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.field-error.visible {
+    display: block !important;
+    opacity: 1 !important;
+    color: var(--color-rojo);
+}
+
+.field-error i {
+    margin-right: 5px;
+}
+
+/* Tabla con DataTables */
+.table-container-punto-pago {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    background-color: #ffffff;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+}
+
+.table-container-punto-pago .table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    table-layout: fixed;
+}
+
+.table-container-punto-pago .table th,
+.table-container-punto-pago .table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    word-wrap: break-word;
+}
+
+.table-container-punto-pago .table th {
+    background-color: var(--color-boton);
+    color: var(--color-blanco);
+}
+
+.table-container-punto-pago .table td {
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+/* Botón Eliminar */
+.btn-eliminar {
+    background-color: #e74c3c;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.btn-eliminar:hover {
+    background-color: #c0392b;
+}
+
+/* Responsividad */
 @media (max-width: 768px) {
     .container-punto-pago {
         padding: 20px;
     }
 
-    .form-group-punto-pago select,
+    .icon-punto-pago {
+        font-size: 60px;
+        margin-bottom: 10px;
+    }
+
+    .container-punto-pago h2 {
+        font-size: 22px;
+    }
+
     .form-group-punto-pago input[type="text"],
     .form-group-punto-pago input[type="number"] {
-        width: calc(100% - 20px); /* Ajustar ancho para incluir padding */
+        font-size: 14px;
+        padding: 8px;
     }
 
     .btn-agregar-punto-pago,
     .btn-submit-punto-pago {
-        width: 100%;
+        font-size: 16px;
+    }
+
+    .alert {
+        font-size: 14px;
     }
 
     .table-container-punto-pago {
-        padding: 5px;
-        margin-top: 10px;
+        padding: 10px;
+        overflow-x: auto;
     }
 
-    .table {
-        border: 0;
-    }
-
-    .table thead {
-        display: none;
-    }
-
-    .table tbody tr {
-        display: block;
-        margin-bottom: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-    }
-
-    .table tbody td {
-        display: block;
-        text-align: left;
-        padding-left: 10px;
-        position: relative;
-        border-bottom: 1px solid #ddd;
-        word-break: break-word;
-    }
-
-    .table tbody td::before {
-        content: attr(data-label);
-        display: block;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-
-    .table tbody td:last-child {
-        border-bottom: 0;
-    }
-
-    .actions-cell {
-        justify-content: flex-start;
-        flex-direction: column; /* Colocar botones en columna en dispositivos móviles */
-        align-items: flex-start; /* Alinear a la izquierda */
-    }
-
-    .btn-container {
-        display: flex;
-        gap: 10px;
-        flex-direction: row; /* Asegurar que los botones estén en una fila */
+    .table-container-punto-pago .table th,
+    .table-container-punto-pago .table td {
+        padding: 8px;
+        font-size: 14px;
     }
 
     .btn-eliminar {
-        justify-content: flex-start;
-        align-items: flex-start;
-        margin: 0; /* Alinear a la izquierda */
+        width: 30px;
+        height: 30px;
+        padding: 5px;
     }
+}
 
-    .column-title {
-        display: block;
-        font-weight: bold;
+@media (min-width: 769px) {
+    .table-container-punto-pago .table td {
+        width: auto;
     }
 }

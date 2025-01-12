@@ -35,7 +35,7 @@ urlpatterns = [
     path('editar_proveedor/<int:proveedor_id>/', views.editar_proveedor_view, name='editar_proveedor'),
     
     
-   path('agregar_productos_precios_proveedor/', views.agregar_productos_precios_proveedor_view, name='agregar_productos_precios_proveedor'),
+    path('agregar_productos_precios_proveedor/', views.agregar_productos_precios_proveedor_view, name='agregar_productos_precios_proveedor'),
     path('autocomplete/proveedor/', views.proveedor_precios_autocomplete, name='proveedor_precios_autocomplete'),
     path('autocomplete/producto/', views.producto_precios_autocomplete, name='producto_precios_autocomplete'),
     path('visualizar_productos_precios_proveedores/', views.visualizar_productos_precios_proveedores_view, name='visualizar_productos_precios_proveedores'),
@@ -43,6 +43,7 @@ urlpatterns = [
     path('editar_productos_precios_proveedor/<int:proveedor_id>/', views.editar_productos_precios_proveedor_view, name='editar_productos_precios_proveedor'),
 
     path('agregar_punto_pago/', views.agregar_punto_pago_view, name='agregar_punto_pago'),
+    path('sucursal_punto_pago_autocomplete/', views.sucursal_punto_pago_autocomplete, name='sucursal_punto_pago_autocomplete'),
     path('visualizar_puntos_pago/', views.visualizar_puntos_pago_view, name='visualizar_puntos_pago'),
     path('editar-puntos-pago/<int:sucursal_id>/', views.editar_puntos_pago_view, name='editar_puntos_pago'),
     path('eliminar-punto-pago/<int:puntopagoid>/', views.eliminar_punto_pago_view, name='eliminar_punto_pago'),

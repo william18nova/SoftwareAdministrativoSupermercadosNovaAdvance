@@ -1,148 +1,116 @@
-<!DOCTYPE html>
+<!-- templates/agregar_punto_pago.html -->
+
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Agregar Puntos de Pago{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agregar Puntos de Pago</title>
-    {% load static %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'css/agregar_punto_pago.css' %}">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            const table = $('#puntos-pago-list').DataTable({
-                paging: false,
-                searching: true,
-                info: false,
-                language: {
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay puntos de pago para mostrar",
-                },
-            });
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agregar Puntos de Pago</title>
 
-            function validarFormulario(event) {
-                if (table.data().count() === 0 && !$('#nombre').val().trim()) {
-                    event.preventDefault();
-                    mostrarMensaje('Por favor, agrega al menos un punto de pago a la lista o completa los campos.', 'alert-error');
-                }
-            }
+  <!-- Font Awesome para íconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 
-            function agregarPuntoPago() {
-                const nombreInput = $('#nombre');
-                const descripcionInput = $('#descripcion');
-                const dineroCajaInput = $('#dinerocaja');
-                const nombre = nombreInput.val().trim();
-                const descripcion = descripcionInput.val().trim();
-                const dinerocaja = dinerocajaInput.val().trim();
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css"/>
 
-                if (nombre) {
-                    table.row.add([
-                        `<div class="column-title">Nombre:</div><div>${nombre}</div><input type="hidden" name="nombre[]" value="${nombre}">`,
-                        `<div class="column-title">Descripción:</div><div>${descripcion}</div><input type="hidden" name="descripcion[]" value="${descripcion}">`,
-                        `<div class="column-title">Dinero en Caja:</div><div>${dinerocaja}</div><input type="hidden" name="dinerocaja[]" value="${dinerocaja}">`,
-                        `<div class="column-title">Acciones:</div><button type="button" class="btn-eliminar" onclick="confirmarEliminarPuntoPago(this)"><i class="fas fa-trash-alt"></i></button>`
-                    ]).draw(false);
+  <!-- CSS específico de esta página -->
+  <link rel="stylesheet" href="{% static 'css/agregar_punto_pago.css' %}" />
 
-                    nombreInput.val('');
-                    descripcionInput.val('');
-                    dinerocajaInput.val('');
-                } else {
-                    mostrarMensaje('Por favor, completa el campo nombre.', 'alert-error');
-                }
-            }
-
-            window.confirmarEliminarPuntoPago = function(button) {
-                if (confirm("¿Está seguro de que desea eliminar este punto de pago?")) {
-                    eliminarPuntoPago(button);
-                }
-            }
-
-            window.eliminarPuntoPago = function(button) {
-                const row = $(button).closest('tr');
-                table.row(row).remove().draw(false);
-            }
-
-            function mostrarMensaje(mensaje, clase) {
-                const alertasExistentes = document.querySelectorAll('.alert');
-                alertasExistentes.forEach(alerta => alerta.remove());
-
-                const mensajeDiv = document.createElement('div');
-                mensajeDiv.className = `alert ${clase}`;
-                mensajeDiv.textContent = mensaje;
-                const form = document.getElementById('puntoPagoForm');
-                form.insertBefore(mensajeDiv, form.firstChild);
-            }
-
-            $('#puntoPagoForm').on('submit', validarFormulario);
-            $('#agregarPuntoPagoBtn').on('click', agregarPuntoPago);
-        });
-    </script>
+  <!-- jQuery y DataTables JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
-    <div class="container-punto-pago">
-        <i class="fas fa-credit-card icon-punto-pago"></i> <!-- Ícono de punto de pago -->
-        <h2>Agregar Puntos de Pago</h2>
-        <form id="puntoPagoForm" action="{% url 'agregar_punto_pago' %}" method="POST">
-            {% csrf_token %}
-            <div class="form-group-punto-pago">
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal" name="sucursal" required>
-                    <option value="" disabled selected>Seleccione una sucursal</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}">{{ sucursal.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group-punto-pago">
-                <label for="nombre">Nombre del Punto de Pago</label>
-                <input type="text" id="nombre" name="nombre" class="input-nombre">
-            </div>
-            <div class="form-group-punto-pago">
-                <label for="descripcion">Descripción (Opcional)</label>
-                <input type="text" id="descripcion" name="descripcion" class="input-descripcion">
-            </div>
-            <div class="form-group-punto-pago">
-                <label for="dinerocaja">Dinero en Caja</label>
-                <input type="number" id="dinerocaja" name="dinerocaja" class="input-dinero-caja">
-            </div>
-            <div class="form-group-punto-pago">
-                <button type="button" class="btn-agregar-punto-pago" id="agregarPuntoPagoBtn">Agregar Punto de Pago</button>
-            </div>
-            <div class="table-container-punto-pago">
-                <table id="puntos-pago-list" class="table display">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Descripción</th>
-                            <th>Dinero en Caja</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="puntos-pago-body">
-                        <!-- Aquí se agregarán los puntos de pago dinámicamente -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="form-group-punto-pago">
-                <input type="submit" value="Agregar Puntos de Pago" class="btn-submit-punto-pago">
-            </div>
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </form>
-    </div>
+  <div class="container-punto-pago">
+    <i class="fas fa-credit-card icon-punto-pago"></i>
+    <h2>Agregar Puntos de Pago</h2>
+    <p class="obligatorio-texto">
+      Todos los campos con <span class="required">*</span> son obligatorios.
+    </p>
+
+    <!-- Alertas globales (JS) -->
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+
+    <!-- Formulario principal -->
+    <form id="puntoPagoForm" action="{% url 'agregar_punto_pago' %}" method="POST">
+      {% csrf_token %}
+
+      <!-- Autocomplete de Sucursal -->
+      <div class="form-group-punto-pago">
+        <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
+        {{ form.sucursal_autocomplete }}
+        {{ form.sucursal }}
+        <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
+        <div class="field-error" id="error-id_sucursal"></div>
+      </div>
+
+      <!-- Nombre del Punto de Pago -->
+      <div class="form-group-punto-pago">
+        <label for="id_nombre">Nombre <span class="required">*</span></label>
+        {{ form.nombre }}
+        <div class="field-error" id="error-id_nombre"></div>
+      </div>
+
+      <!-- Descripción (Opcional) -->
+      <div class="form-group-punto-pago">
+        <label for="id_descripcion">Descripción</label>
+        {{ form.descripcion }}
+        <div class="field-error" id="error-id_descripcion"></div>
+      </div>
+
+      <!-- Dinero en Caja -->
+      <div class="form-group-punto-pago">
+        <label for="id_dinerocaja">Dinero en Caja</label>
+        {{ form.dinerocaja }}
+        <div class="field-error" id="error-id_dinerocaja"></div>
+      </div>
+
+      <!-- Botón Agregar a la Tabla Temporal -->
+      <div class="form-group-punto-pago">
+        <button type="button" class="btn-agregar-punto-pago" id="agregarPuntoPagoBtn">
+          Agregar Punto de Pago
+        </button>
+      </div>
+
+      <!-- Tabla con DataTable -->
+      <div class="table-container-punto-pago">
+        <table id="puntos-pago-list" class="table display">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Dinero en Caja</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="puntos-pago-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Campo oculto para Puntos de Pago temporales -->
+      <input type="hidden" name="puntos_temp" id="id_puntos_temp" />
+
+      <!-- Botón Final -->
+      <div class="form-group-punto-pago">
+        <button type="submit" class="btn-submit-punto-pago">
+          Guardar Puntos de Pago
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Rutas para autocompletar -->
+  <script type="text/javascript">
+    var sucursalAutocompleteUrl = "{% url 'sucursal_punto_pago_autocomplete' %}";
+  </script>
+
+  <!-- JS específico de esta página -->
+  <script src="{% static 'javascript/agregar_punto_pago.js' %}"></script>
 </body>
 </html>
 {% endblock %}

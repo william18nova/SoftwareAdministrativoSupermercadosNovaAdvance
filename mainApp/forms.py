@@ -856,3 +856,80 @@ class PreciosProveedorForm(forms.Form):
             self.add_error('precio', 'El precio debe ser mayor que 0.')
 
         return cleaned_data
+
+class PuntosPagoForm(forms.Form):
+    """
+    Form para 'Agregar Puntos de Pago' con autocompletado de Sucursal
+    y campos para nombre, descripción, dinero en caja.
+    Maneja validaciones mínimas (el resto las hacemos en la vista).
+    """
+
+    # Autocomplete de Sucursal
+    sucursal_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar sucursal...',
+            'autocomplete': 'off',
+        })
+    )
+
+    # ID oculto de la sucursal
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.none(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+
+    # Campos para añadir un solo “punto de pago” si deseas (aunque luego iremos a la tabla)
+    nombre = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nombre del punto de pago...',
+        })
+    )
+    descripcion = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Descripción (opcional)...',
+        })
+    )
+    dinerocaja = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Dinero en caja...',
+            'min': '0.00',
+            'step': '0.01'
+        })
+    )
+
+    class Meta:
+        fields = ['sucursal', 'nombre', 'descripcion', 'dinerocaja']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Filtrar Sucursales que no tengan Puntos de Pago (o la lógica que necesites)
+        # Aquí, asumiendo que solo quieres sucursales sin puntos de pago en 'puntospago'.
+        # Ojo: Si la lógica es que cada sucursal puede tener muchos puntos de pago,
+        #      no hagas filter en el queryset.
+        subquery = PuntosPago.objects.filter(sucursalid=OuterRef('pk'))
+        self.fields['sucursal'].queryset = (
+            Sucursal.objects
+                    .annotate(tiene_puntos=Exists(subquery))
+                    .filter(tiene_puntos=False)
+        )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Validaciones mínimas
+        sucursal_obj = cleaned_data.get('sucursal')
+        if not sucursal_obj:
+            self.add_error('sucursal', 'Debe seleccionar una sucursal válida.')
+
+        # No forzamos a que “nombre” sea obligatorio, puesto que
+        # se agregarán varios nombres en la tabla
+        return cleaned_data
