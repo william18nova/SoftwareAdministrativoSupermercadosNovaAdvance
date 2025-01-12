@@ -28,10 +28,12 @@ from .forms import (
     InventarioForm, 
     PreciosProveedorForm,
     PuntosPagoForm,
-    UsuarioForm
+    UsuarioForm,
+    EditarCategoriaForm
 )
 from dal import autocomplete
 from decimal import Decimal
+from django.urls import reverse
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +142,9 @@ def agregar_categoria_view(request):
 @login_required
 def visualizar_categorias_view(request):
     categorias = Categoria.objects.all()
-    return render(request, 'visualizar_categorias.html', {'categorias': categorias})
+    return render(request, 'visualizar_categorias.html', {
+        'categorias': categorias
+    })
 
 
 @login_required
@@ -159,26 +163,24 @@ def eliminar_categoria(request, categoria_id):
 
 @login_required
 def editar_categoria_view(request, categoria_id):
-    categoria = get_object_or_404(Categoria, categoriaid=categoria_id)
+    categoria = get_object_or_404(Categoria, pk=categoria_id)
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion')
+        form = EditarCategoriaForm(request.POST, instance=categoria)
+        if form.is_valid():
+            form.save()
+            # Mensaje de éxito
+            messages.success(request, f'Categoría "{categoria.nombre}" editada exitosamente.')
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('visualizar_categorias')
+            })
+        else:
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        form = EditarCategoriaForm(instance=categoria)
 
-        if not nombre:
-            messages.error(request, 'El Nombre es un campo obligatorio.')
-            return render(request, 'editar_categoria.html', {'categoria': categoria})
-
-        if Categoria.objects.filter(nombre=nombre).exclude(categoriaid=categoria_id).exists():
-            messages.error(request, 'El Nombre de la categoría ya está registrado.')
-            return render(request, 'editar_categoria.html', {'categoria': categoria})
-
-        categoria.nombre = nombre
-        categoria.descripcion = descripcion
-        categoria.save()
-        messages.success(request, f'Categoría actualizada exitosamente a "{nombre}".')
-        return redirect('visualizar_categorias')
-
-    return render(request, 'editar_categoria.html', {'categoria': categoria})
+    return render(request, 'editar_categoria.html', {'form': form})
 
 
 @login_required
