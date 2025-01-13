@@ -30,7 +30,8 @@ from .forms import (
     PuntosPagoForm,
     UsuarioForm,
     EditarCategoriaForm,
-    EditarClienteForm
+    EditarClienteForm,
+    EditarEmpleadoForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1279,36 +1280,58 @@ def agregar_empleado_view(request):
 @login_required
 def usuario_autocomplete(request):
     term = request.GET.get('term', '').strip()
-    page = request.GET.get('page', '1').strip()
-    per_page = 10  # Número de resultados por página
+    page_str = request.GET.get('page', '1').strip()
+    empleado_id_str = request.GET.get('empleadoid', '').strip()  # <-- nuevo
+    per_page = 10
     
+    # Convertir page
     try:
-        page = int(page)
-        if page < 1:
-            page = 1
+        page = int(page_str)
+        if page < 1: page = 1
     except ValueError:
-        logger.warning(f"Valor de 'page' no válido: {page}. Estableciendo a 1.")
         page = 1
-    
+
+    # Convertir empleadoid
+    empleado_id = None
+    try:
+        empleado_id = int(empleado_id_str)
+    except (ValueError, TypeError):
+        empleado_id = None
+
     start = (page - 1) * per_page
     end = start + per_page
-    
-    # Filtrar Usuarios que no están asignados a ningún Empleado y coinciden con el término
-    usuarios = Usuario.objects.filter(
+
+    # Caso base: Filtrar usuarios sin empleado
+    # y que nombreusuario contenga `term`
+    qs = Usuario.objects.filter(
         Q(nombreusuario__icontains=term),
-        empleado__isnull=True
+        Q(empleado__isnull=True)
     ).order_by('nombreusuario')
-    
-    total_results = usuarios.count()
-    usuarios = usuarios[start:end]
-    
+
+    # Si “empleado_id” existe, incluir el USUARIO que ya estaba asignado a ese empleado
+    # => Ejemplo: si Empleado xyz tenía usuario X, no lo excluimos
+    if empleado_id:
+        try:
+            empleado = Empleado.objects.select_related('usuarioid').get(pk=empleado_id)
+            if empleado.usuarioid:
+                # Incluir el “usuarioid actual” en el queryset
+                # De modo que si ya está asignado a “empleado”, no se excluya
+                qs = qs.union(
+                    Usuario.objects.filter(pk=empleado.usuarioid.pk)
+                )
+        except Empleado.DoesNotExist:
+            pass
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
     results = []
-    for usuario in usuarios:
+    for usuario in qs:
         results.append({
             'id': usuario.pk,
             'text': usuario.nombreusuario,
         })
-    
+
     return JsonResponse({
         'results': results,
         'has_more': end < total_results,
@@ -1317,15 +1340,14 @@ def usuario_autocomplete(request):
 @login_required
 def sucursal_autocomplete(request):
     """
-    Autocomplete para Sucursal que excluye las que ya tengan
-    un horario establecido en la tabla HorariosNegocio.
-    Implementa paginación y responde con JSON.
+    Autocomplete para Sucursal: muestra TODAS las sucursales,
+    con paginación y soporte para 'term'.
     """
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()
     per_page_str = request.GET.get('per_page', '50').strip()
 
-    # Validar y convertir 'page' a entero
+    # 1. Convertir 'page'
     try:
         page = int(page_str)
     except ValueError:
@@ -1333,7 +1355,7 @@ def sucursal_autocomplete(request):
     if page < 1:
         page = 1
 
-    # Validar y convertir 'per_page' a entero
+    # 2. Convertir 'per_page'
     try:
         per_page = int(per_page_str)
     except ValueError:
@@ -1344,26 +1366,23 @@ def sucursal_autocomplete(request):
     start = (page - 1) * per_page
     end = start + per_page
 
-    # Optimización: Usar 'annotate' y 'filter' para excluir sucursales con horarios
-    sucursales = Sucursal.objects.annotate(
-        horarios_count=Count('horariosnegocio')
-    ).filter(
-        horarios_count=0  # Solo sucursales sin horarios
-    )
+    # 3. Tomar TODAS las sucursales (SIN filtrar por horarios)
+    qs = Sucursal.objects.all()
 
-    # Filtro por nombre si se proporciona 'term'
+    # 4. Filtro por 'term'
     if term:
-        sucursales = sucursales.filter(nombre__icontains=term)
+        qs = qs.filter(nombre__icontains=term)
 
-    # Ordenar por nombre
-    sucursales = sucursales.order_by('nombre')
+    # 5. Ordenar
+    qs = qs.order_by('nombre')
 
-    total_results = sucursales.count()
-    sucursales = sucursales[start:end]
+    # 6. Paginación
+    total_results = qs.count()
+    qs = qs[start:end]
 
-    # Crear la lista de resultados
+    # 7. Construir 'results'
     results = []
-    for sucursal in sucursales:
+    for sucursal in qs:
         results.append({
             'id': sucursal.pk,
             'text': sucursal.nombre,
@@ -1372,7 +1391,7 @@ def sucursal_autocomplete(request):
     # Saber si hay más resultados
     has_more = end < total_results
 
-    # Retornar la respuesta en formato JSON
+    # Retornar en formato JSON para el autocomplete
     return JsonResponse({
         'results': results,
         'has_more': has_more,
@@ -1397,47 +1416,34 @@ def visualizar_empleados_view(request):
 
 @login_required
 def editar_empleado_view(request, empleadoid):
+    from django.urls import reverse
     empleado = get_object_or_404(Empleado, pk=empleadoid)
-    usuarios = Usuario.objects.exclude(usuarioid__in=Empleado.objects.values('usuarioid')) \
-        .union(Usuario.objects.filter(pk=empleado.usuarioid_id))
-    sucursales = Sucursal.objects.all()
 
     if request.method == 'POST':
-        nombre = request.POST['nombre']
-        apellido = request.POST['apellido']
-        telefono = request.POST['telefono']
-        email = request.POST['email']
-        direccion = request.POST['direccion']
-        puesto = request.POST['puesto']
-        numerodocumento = request.POST['numerodocumento']
-        sucursal_id = request.POST['sucursal']
-
-        if Empleado.objects.filter(telefono=telefono).exclude(pk=empleadoid).exists():
-            messages.error(request, 'El teléfono ya está en uso.')
-        elif Empleado.objects.filter(email=email).exclude(pk=empleadoid).exists():
-            messages.error(request, 'El correo ya está en uso.')
-        elif numerodocumento and Empleado.objects.filter(numerodocumento=numerodocumento) \
-                                                 .exclude(pk=empleadoid).exists():
-            messages.error(request, 'El número de documento ya está en uso.')
+        form = EditarEmpleadoForm(request.POST, instance=empleado)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request,
+                f'Empleado "{form.instance.nombre} {form.instance.apellido}" editado exitosamente.'
+            )
+            # Responder en JSON (AJAX)
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('visualizar_empleados')
+            })
         else:
-            if numerodocumento:
-                empleado.numerodocumento = numerodocumento
-            empleado.nombre = nombre
-            empleado.apellido = apellido
-            empleado.telefono = telefono
-            empleado.email = email
-            empleado.direccion = direccion
-            empleado.puesto = puesto
-            empleado.sucursalid_id = sucursal_id
-            empleado.save()
-            messages.success(request, f'Empleado "{nombre} {apellido}" editado exitosamente.')
-            return redirect('visualizar_empleados')
+            # Retornar errores en JSON
+            errors = form.errors.as_json()
+            return JsonResponse({
+                'success': False,
+                'errors': errors
+            })
+    else:
+        # GET => mostrar formulario con datos
+        form = EditarEmpleadoForm(instance=empleado)
 
-    return render(request, 'editar_empleado.html', {
-        'empleado': empleado,
-        'usuarios': usuarios,
-        'sucursales': sucursales
-    })
+    return render(request, 'editar_empleado.html', {'form': form})
 
 
 @login_required

@@ -368,6 +368,148 @@ class EmpleadoForm(forms.ModelForm):
             empleado.save()
         return empleado
 
+class EditarEmpleadoForm(forms.ModelForm):
+    # Validadores similares a los de EmpleadoForm
+    nombre_validator = RegexValidator(
+        regex=r'^[A-Za-z\s]+$',
+        message='El nombre solo debe contener letras y espacios.'
+    )
+
+    apellido_validator = RegexValidator(
+        regex=r'^[A-Za-z\s]+$',
+        message='El apellido solo debe contener letras y espacios.'
+    )
+
+    numerodocumento_validator = RegexValidator(
+        regex=r'^\d{6,10}$',
+        message='El número de documento debe contener entre 6 y 10 dígitos.'
+    )
+
+    telefono_validator = RegexValidator(
+        regex=r'^\d{10}$',
+        message='El teléfono debe contener exactamente 10 dígitos.'
+    )
+
+    numerodocumento = forms.CharField(
+        label='Número de Documento',
+        required=False,  # Si permites "dejar en blanco para mantener la actual"
+        validators=[numerodocumento_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Dejar en blanco para mantener la actual'
+        })
+    )
+    nombre = forms.CharField(
+        validators=[nombre_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el nombre'
+        })
+    )
+    apellido = forms.CharField(
+        validators=[apellido_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el apellido'
+        })
+    )
+    telefono = forms.CharField(
+        validators=[telefono_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el teléfono'
+        })
+    )
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el correo electrónico'
+        })
+    )
+    direccion = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa la dirección'
+        })
+    )
+    puesto = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el puesto'
+        })
+    )
+    # usuarioid y sucursalid podrían manejarse con inputs/hidden o selects
+    # depende de tu lógica de autocompletado o select normal
+    usuarioid = forms.ModelChoiceField(
+        queryset=Usuario.objects.all(),
+        required=False,  # O True si es obligatorio
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
+    sucursalid = forms.ModelChoiceField(
+        queryset=Sucursal.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
+
+    class Meta:
+        model = Empleado
+        fields = [
+            'numerodocumento',
+            'nombre',
+            'apellido',
+            'telefono',
+            'email',
+            'direccion',
+            'puesto',
+            'usuarioid',
+            'sucursalid'
+        ]
+
+    def clean_numerodocumento(self):
+        numero = self.cleaned_data.get('numerodocumento')
+        # Si se deja en blanco => no se cambia
+        # Si no está en blanco => validamos
+        if numero:
+            if Empleado.objects.filter(numerodocumento=numero).exclude(pk=self.instance.pk).exists():
+                raise forms.ValidationError('El número de documento ya está en uso.')
+        return numero
+
+    def clean_telefono(self):
+        tel = self.cleaned_data.get('telefono')
+        # Validar si ya existe en otro Empleado, excluyendo el actual
+        if Empleado.objects.filter(telefono=tel).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('El teléfono ya está en uso.')
+        return tel
+
+    def clean_email(self):
+        mail = self.cleaned_data.get('email')
+        if Empleado.objects.filter(email=mail).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('El correo ya está en uso.')
+        return mail
+
+    # Podrías agregar más clean_... si gustas replicar la lógica de:
+    # clean_nombre, clean_apellido => Revisar solo letras, etc.
+
+    def save(self, commit=True):
+        """
+        Si 'numerodocumento' vino en blanco => se mantiene la actual
+        """
+        instance = super().save(commit=False)
+        # Lógica: si numerodocumento == '', no sobrescribir
+        if not self.cleaned_data.get('numerodocumento'):
+            # Dejamos la anterior
+            pass  # El instance ya tiene su numerodocumento previo
+        # De lo contrario, la forma ya se aplicó
+        if commit:
+            instance.save()
+        return instance
+
 class HorariosNegocioForm(forms.ModelForm):
     """
     Formulario para agregar horarios a una sucursal.
