@@ -144,6 +144,74 @@ class ClienteForm(forms.ModelForm):
         if email and Cliente.objects.filter(email=email).exists():
             raise forms.ValidationError('El correo electrónico ya está registrado.')
         return email
+
+class EditarClienteForm(forms.ModelForm):
+    class Meta:
+        model = Cliente
+        fields = ['numerodocumento', 'nombre', 'apellido', 'telefono', 'email']
+        labels = {
+            'numerodocumento': 'Número de Documento',
+            'nombre': 'Nombre',
+            'apellido': 'Apellido',
+            'telefono': 'Teléfono',
+            'email': 'Correo Electrónico',
+        }
+        widgets = {
+            'numerodocumento': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el número de documento',
+            }),
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el nombre',
+            }),
+            'apellido': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el apellido',
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el teléfono',
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el correo electrónico',
+            }),
+        }
+
+    def clean_numerodocumento(self):
+        numerodocumento = self.cleaned_data.get('numerodocumento', '')
+        # Validaciones similares a las del "ClienteForm" original
+        if not numerodocumento.isdigit():
+            raise forms.ValidationError('El número de documento debe contener solo dígitos.')
+
+        # Excluir la PK actual (self.instance) para no chocar con uno mismo
+        if (Cliente.objects.filter(numerodocumento=numerodocumento)
+                           .exclude(pk=self.instance.pk)
+                           .exists()):
+            raise forms.ValidationError('El número de documento ya está registrado.')
+        return numerodocumento
+
+    def clean_telefono(self):
+        telefono = self.cleaned_data.get('telefono', '')
+        if not telefono.isdigit():
+            raise forms.ValidationError('El teléfono debe contener solo dígitos.')
+        if len(telefono) < 7 or len(telefono) > 15:
+            raise forms.ValidationError('El teléfono debe tener entre 7 y 15 dígitos.')
+        if (Cliente.objects.filter(telefono=telefono)
+                           .exclude(pk=self.instance.pk)
+                           .exists()):
+            raise forms.ValidationError('El teléfono ya está registrado.')
+        return telefono
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '')
+        if (email
+            and Cliente.objects.filter(email=email)
+                               .exclude(pk=self.instance.pk)
+                               .exists()):
+            raise forms.ValidationError('El correo electrónico ya está registrado.')
+        return email
     
 class EmpleadoForm(forms.ModelForm):
     # Validadores para campos específicos

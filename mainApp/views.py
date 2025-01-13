@@ -29,7 +29,8 @@ from .forms import (
     PreciosProveedorForm,
     PuntosPagoForm,
     UsuarioForm,
-    EditarCategoriaForm
+    EditarCategoriaForm,
+    EditarClienteForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1828,25 +1829,30 @@ def eliminar_cliente(request, clienteid):
 
 @login_required
 def editar_cliente(request, clienteid):
-    cliente = get_object_or_404(Cliente, clienteid=clienteid)
+    from django.urls import reverse  # Asegúrate de importar
+    cliente = get_object_or_404(Cliente, pk=clienteid)
+    
     if request.method == 'POST':
-        cliente.numerodocumento = request.POST.get('numerodocumento')
-        cliente.nombre = request.POST.get('nombre')
-        cliente.apellido = request.POST.get('apellido')
-        cliente.telefono = request.POST.get('telefono')
-        cliente.email = request.POST.get('email')
-        
-        try:
-            cliente.save()
+        form = EditarClienteForm(request.POST, instance=cliente)
+        if form.is_valid():
+            form.save()
             messages.success(
                 request,
                 f'Cliente con número de documento {cliente.numerodocumento} editado exitosamente.'
             )
-            return redirect('visualizar_clientes')
-        except Exception as e:
-            messages.error(request, f'Ocurrió un error al guardar los cambios: {str(e)}')
-
-    return render(request, 'editar_cliente.html', {'cliente': cliente})
+            # Retornar JSON con success y URL de redirección
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('visualizar_clientes')
+            })
+        else:
+            # Retornar JSON con errores
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        form = EditarClienteForm(instance=cliente)
+    
+    return render(request, 'editar_cliente.html', {'form': form})
 
 
 @login_required
