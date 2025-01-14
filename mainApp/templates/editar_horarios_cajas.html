@@ -1,212 +1,141 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Editar Horarios de Caja{% endblock %}
 {% block content %}
-<html lang="en">
+<!DOCTYPE html>
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Horarios de Caja</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'editar_horarios_cajas copy.css' %}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editar Horarios de Caja</title>
+  
+  <!-- Se reutiliza la hoja de estilos de agregar_horario_caja.css -->
+  <link rel="stylesheet" href="{% static 'css/agregar_horario_caja.css' %}">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <div class="container-usuario">
-        <div class="icono-reloj">
-            <i class="fa fa-clock-o"></i>
+  <div class="container-horario">
+    <i class="fas fa-clock icon-horario"></i>
+    <h2>Editar Horarios de Caja</h2>
+    <p class="obligatorio-texto">
+      Todos los campos con <span class="required">*</span> son obligatorios.
+    </p>
+
+    <!-- Alertas globales para mensajes de error y éxito -->
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+
+    <!-- Formulario principal -->
+    <form id="form-editar-horario" method="POST" action="{% url 'editar_horarios_cajas' punto_pago.puntopagoid %}">
+      {% csrf_token %}
+
+      <!-- Autocompletar Sucursal -->
+      <div class="form-group-horario">
+        <label>
+          Sucursal <span class="required">*</span>
+        </label>
+        <input type="text" id="id_sucursal_autocomplete" name="sucursal_autocomplete" class="form-control" placeholder="Escriba para buscar sucursal..." autocomplete="off" value="{{ sucursal.nombre }}">
+        <input type="hidden" id="id_sucursalid" name="sucursalid" value="{{ sucursal.sucursalid }}">
+        <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
+        <div class="field-error" id="error-id_sucursalid"></div>
+      </div>
+      
+      <!-- Autocompletar Punto de Pago -->
+      <div class="form-group-horario">
+        <label>
+          Punto de Pago <span class="required">*</span>
+        </label>
+        <input type="text" id="id_puntopago_autocomplete" name="puntopago_autocomplete" class="form-control" placeholder="Escriba para buscar punto de pago..." autocomplete="off" value="{{ punto_pago.nombre }}">
+        <input type="hidden" id="id_puntopagoid" name="puntopagoid" value="{{ punto_pago.puntopagoid }}">
+        <div class="autocomplete-results" id="puntopago-autocomplete-results"></div>
+        <div class="field-error" id="error-id_puntopagoid"></div>
+      </div>
+      
+      <!-- Sección de Días -->
+      <div class="form-group-horario">
+        <label>
+          Días <span class="required">*</span>
+        </label>
+        <div class="days-container">
+          <button type="button" class="day-button" data-day="Lun">Lun</button>
+          <button type="button" class="day-button" data-day="Mar">Mar</button>
+          <button type="button" class="day-button" data-day="Mie">Mie</button>
+          <button type="button" class="day-button" data-day="Jue">Jue</button>
+          <button type="button" class="day-button" data-day="Vie">Vie</button>
+          <button type="button" class="day-button" data-day="Sab">Sab</button>
+          <button type="button" class="day-button" data-day="Dom">Dom</button>
         </div>
-        <h2>Editar Horarios de Caja</h2>
-        <div class="alert alert-error" id="error-message" style="display: none;">
-            Ocurrió un error al guardar los cambios.
-        </div>
-        <div class="alert alert-success" id="success-message" style="display: none;">
-            Los cambios se guardaron correctamente.
-        </div>
-
-        <form id="form-editar-horarios" method="post">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal" name="sucursal" disabled>
-                    <option value="{{ sucursal.sucursalid }}" selected>{{ sucursal.nombre }}</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="punto_pago">Punto de Pago</label>
-                <select id="punto_pago" name="punto_pago" disabled>
-                    <option>{{ punto_pago.nombre }}</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Días</label> <!-- Título agregado -->
-                <div class="days-container">
-                    <button type="button" class="day-button" data-dia="Lun">Lun</button>
-                    <button type="button" class="day-button" data-dia="Mar">Mar</button>
-                    <button type="button" class="day-button" data-dia="Mie">Mie</button>
-                    <button type="button" class="day-button" data-dia="Jue">Jue</button>
-                    <button type="button" class="day-button" data-dia="Vie">Vie</button>
-                    <button type="button" class="day-button" data-dia="Sab">Sab</button>
-                    <button type="button" class="day-button" data-dia="Dom">Dom</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="hora_apertura">Hora de Apertura</label>
-                <input type="time" id="hora_apertura" name="hora_apertura">
-            </div>
-
-            <div class="form-group">
-                <label for="hora_cierre">Hora de Cierre</label>
-                <input type="time" id="hora_cierre" name="hora_cierre">
-            </div>
-
-            <button type="button" id="agregar-horario" class="btn-agregar-temporal">Agregar Horario</button>
-
-            <div class="horarios-temp-container">
-                <table class="horarios-temp">
-                    <thead>
-                        <tr>
-                            <th>Día</th>
-                            <th>Hora de Apertura</th>
-                            <th>Hora de Cierre</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-horarios">
-                        {% for horario in horarios %}
-                        <tr data-dia="{{ horario.dia_semana }}">
-                            <td>{{ horario.dia_semana }}</td>
-                            <td><input type="time" name="horarios[{{ forloop.counter0 }}][hora_apertura]" value="{{ horario.horaapertura|time:'H:i' }}"></td>
-                            <td><input type="time" name="horarios[{{ forloop.counter0 }}][hora_cierre]" value="{{ horario.horacierre|time:'H:i' }}"></td>
-                            <td><button type="button" class="btn-eliminar-horario"><i class="fa fa-trash"></i></button></td>
-                            <input type="hidden" name="horarios[{{ forloop.counter0 }}][dia]" value="{{ horario.dia_semana }}">
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <button type="submit" class="btn-guardar">Guardar Cambios</button>
-        </form>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const form = document.getElementById('form-editar-horarios');
-            const tablaHorarios = document.getElementById('tabla-horarios');
-
-            // Marcar los días ya seleccionados como inactivos
-            const diasSeleccionados = Array.from(document.querySelectorAll('#tabla-horarios tr')).map(row => row.getAttribute('data-dia'));
-            diasSeleccionados.forEach(dia => {
-                const button = document.querySelector(`.day-button[data-dia="${dia}"]`);
-                if (button) {
-                    button.disabled = true;
-                    button.classList.add('inactive');
-                }
-            });
-
-            // Evento para agregar horarios
-            document.getElementById('agregar-horario').addEventListener('click', function () {
-                const selectedButtons = document.querySelectorAll('.day-button.active');
-                const horaApertura = document.getElementById('hora_apertura').value;
-                const horaCierre = document.getElementById('hora_cierre').value;
-
-                if (selectedButtons.length === 0 || !horaApertura || !horaCierre) {
-                    alert('Debe llenar todos los campos.');
-                    return;
-                }
-
-                selectedButtons.forEach(button => {
-                    const dia = button.getAttribute('data-dia');
-                    const rowCount = tablaHorarios.rows.length;
-                    const row = document.createElement('tr');
-                    row.setAttribute('data-dia', dia);
-                    row.innerHTML = `
-                        <td>${dia}</td>
-                        <td><input type="time" name="horarios[${rowCount}][hora_apertura]" value="${horaApertura}"></td>
-                        <td><input type="time" name="horarios[${rowCount}][hora_cierre]" value="${horaCierre}"></td>
-                        <td><button type="button" class="btn-eliminar-horario"><i class="fa fa-trash"></i></button></td>
-                        <input type="hidden" name="horarios[${rowCount}][dia]" value="${dia}">
-                    `;
-                    tablaHorarios.appendChild(row);
-
-                    // Desactivar el botón del día seleccionado
-                    button.disabled = true;
-                    button.classList.add('inactive');
-                    button.classList.remove('active');
-                });
-            });
-
-            // Evento para eliminar horarios
-            tablaHorarios.addEventListener('click', function (event) {
-                if (event.target.closest('.btn-eliminar-horario')) {
-                    if (confirm("¿Está seguro que desea eliminar este horario?")) {
-                        const row = event.target.closest('tr');
-                        const dia = row.getAttribute('data-dia');
-                        row.remove();
-
-                        // Reactivar el botón del día eliminado
-                        const button = document.querySelector(`.day-button[data-dia="${dia}"]`);
-                        if (button) {
-                            button.disabled = false;
-                            button.classList.remove('inactive');
-                        }
-                    }
-                }
-            });
-
-            // Evento para marcar los botones de días como activos
-            const dayButtons = document.querySelectorAll('.day-button');
-            dayButtons.forEach(button => {
-                button.addEventListener('click', function () {
-                    button.classList.toggle('active');
-                });
-            });
-
-            form.addEventListener('submit', function (event) {
-                event.preventDefault();
-
-                const horarios = Array.from(tablaHorarios.querySelectorAll('tr')).map(row => {
-                    return {
-                        dia: row.querySelector('input[name*="[dia]"]').value,
-                        hora_apertura: row.querySelector('input[name*="[hora_apertura]"]').value,
-                        hora_cierre: row.querySelector('input[name*="[hora_cierre]"]').value,
-                    };
-                });
-
-                fetch(form.action, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}',
-                    },
-                    body: JSON.stringify({ horarios: horarios }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('success-message').style.display = 'block';
-                        setTimeout(() => {
-                            window.location.href = "{% url 'visualizar_horarios_cajas' %}";
-                        }, 50);
-                    } else {
-                        const errorMessage = document.getElementById('error-message');
-                        errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + data.error;
-                        errorMessage.style.display = 'block';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    const errorMessage = document.getElementById('error-message');
-                    errorMessage.textContent = 'Ocurrió un error al guardar los cambios: ' + error;
-                    errorMessage.style.display = 'block';
-                });
-            });
-        });
-    </script>
+        <!-- Se asume que el campo hidden para dia_semana se renderiza desde el form -->
+        {{ form.dia_semana }}
+        <div class="field-error" id="error-id_dia_semana"></div>
+      </div>
+      
+      <!-- Hora de Apertura -->
+      <div class="form-group-horario">
+        <label>
+          Hora de Apertura <span class="required">*</span>
+        </label>
+        <input type="time" id="hora_apertura" name="hora_apertura" class="form-control">
+        <div class="field-error" id="error-id_horaapertura"></div>
+      </div>
+      
+      <!-- Hora de Cierre -->
+      <div class="form-group-horario">
+        <label>
+          Hora de Cierre <span class="required">*</span>
+        </label>
+        <input type="time" id="hora_cierre" name="hora_cierre" class="form-control">
+        <div class="field-error" id="error-id_horacierre"></div>
+      </div>
+      
+      <!-- Botón para "Listar" el horario -->
+      <button type="button" class="btn-agregar-temporal" id="btn-agregar-horario">
+        Listar Horario
+      </button>
+      
+      <!-- Tabla de Horarios (nuevos y existentes) -->
+      <div class="horarios-temp-container">
+        <table class="horarios-temp">
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Hora de Apertura</th>
+              <th>Hora de Cierre</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-horarios">
+            {% for horario in horarios %}
+            <tr data-dia="{{ horario.dia_semana }}">
+              <td>{{ horario.dia_semana }}</td>
+              <!-- Los inputs no llevan readonly para permitir editar -->
+              <td><input type="time" value="{{ horario.horaapertura|time:'H:i' }}"></td>
+              <td><input type="time" value="{{ horario.horacierre|time:'H:i' }}"></td>
+              <td>
+                <button type="button" class="btn-eliminar">
+                  <i class="fa fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Botón final "Guardar Cambios" -->
+      <button type="submit" class="btn-guardar">Guardar Cambios</button>
+    </form>
+  </div>
+  
+  <!-- Rutas para autocompletar -->
+  <script>
+    var sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete_horariocaja' %}";
+    var puntopagoAutocompleteUrl = "{% url 'puntopago_autocomplete' %}";
+  </script>
+  <!-- Incluir el archivo JavaScript para la lógica de edición -->
+  <script src="{% static 'javascript/editar_horarios_cajas.js' %}"></script>
 </body>
 </html>
 {% endblock %}

@@ -77,6 +77,7 @@ urlpatterns = [
     path('eliminar_horario/<int:horario_id>/', views.eliminar_horario_view, name='eliminar_horario'),
 
     path('agregar_horario_caja/', views.agregar_horario_caja_view, name='agregar_horario_caja'),
+    path('sucursales_horariocaja_autocomplete/', views.sucursal_autocomplete_horariocaja, name='sucursal_autocomplete_horariocaja'),
     path('puntopago-autocomplete/', views.puntopago_autocomplete, name='puntopago_autocomplete'),
     path('visualizar_horarios_cajas/', views.visualizar_horarios_cajas_view, name='visualizar_horarios_cajas'),
     path('eliminar_horario_caja/<int:horario_id>/', views.eliminar_horario_caja_view, name='eliminar_horario_caja'),

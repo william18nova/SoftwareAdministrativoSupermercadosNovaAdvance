@@ -31,7 +31,8 @@ from .forms import (
     UsuarioForm,
     EditarCategoriaForm,
     EditarClienteForm,
-    EditarEmpleadoForm
+    EditarEmpleadoForm,
+    EditarHorarioCajaForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1398,15 +1399,6 @@ def sucursal_autocomplete(request):
     })
 
 
-@login_required
-def sucursal_autocomplete_eliminar(request):
-    """
-    Nota: si alguna vista estaba usando otra función distinta de sucursal_autocomplete,
-    puedes redirigirla o eliminarla. Aquí dejamos una referencia vacía a modo de ejemplo,
-    pero lo ideal es eliminar la función duplicada totalmente del código.
-    """
-    return JsonResponse({'error': 'Función no utilizada.'}, status=404)
-
 
 @login_required
 def visualizar_empleados_view(request):
@@ -1619,85 +1611,147 @@ def agregar_horario_caja_view(request):
 
 
 @login_required
-def puntopago_autocomplete(request):
+def sucursal_autocomplete_horariocaja(request):
+    """
+    Autocomplete para Sucursal que tengan al menos un Punto de Pago
+    que aún NO tenga un horario asignado (HorarioCaja).
+    Incluye paginación y filtro por 'term' (búsqueda).
+    """
+    # 1. Obtener parámetros de búsqueda y paginación
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '50').strip()
+
+    # 2. Convertir 'page' a entero seguro
     try:
-        term = request.GET.get('term', '').strip()
-        page = request.GET.get('page', '1').strip()
-        per_page = 50  # Número de resultados por página
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
 
-        try:
-            page = int(page)
-            if page < 1:
-                page = 1
-        except ValueError:
-            logger.warning(f"Valor de 'page' no válido: {page}. Estableciendo a 1.")
-            page = 1
+    # 3. Convertir 'per_page' a entero seguro
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        per_page = 50
+    if per_page < 1:
+        per_page = 50
 
-        start = (page - 1) * per_page
-        end = start + per_page
+    start = (page - 1) * per_page
+    end = start + per_page
 
-        sucursal_id = request.GET.get('sucursal_id', None)
-        logger.debug(f"Received sucursal_id: {sucursal_id}")
-
-        if not sucursal_id:
-            logger.warning("No se proporcionó un ID de sucursal.")
-            return JsonResponse({
-                'results': [],
-                'has_more': False,
-                'error': 'No se proporcionó un ID de sucursal.'
-            })
-
-        try:
-            sucursal_id = int(sucursal_id)
-        except ValueError:
-            logger.error(f"sucursal_id no es un entero válido: {sucursal_id}")
-            return JsonResponse({
-                'results': [],
-                'has_more': False,
-                'error': 'ID de sucursal inválido.'
-            })
-
-        try:
-            sucursal = Sucursal.objects.get(pk=sucursal_id)
-        except Sucursal.DoesNotExist:
-            logger.error(f"Sucursal con ID {sucursal_id} no existe.")
-            return JsonResponse({
-                'results': [],
-                'has_more': False,
-                'error': 'Sucursal no encontrada.'
-            })
-
-        puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal).annotate(
-            tiene_horario=Exists(
-                HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
+    # 4. QuerySet base:
+    #    Filtramos Sucursales que tengan AL MENOS 1 punto de pago SIN horario.
+    #    - Para ello, usamos un Count en PuntosPago (con horarios_caja__isnull=True)
+    #      y filtramos las sucursales que tienen count_pp_sin_horario > 0
+    qs = (
+        Sucursal.objects
+        .annotate(
+            # Contar los PuntosPago que no tengan horarios
+            count_pp_sin_horario=Count(
+                'puntospago',
+                filter=Q(puntospago__horarios_caja__isnull=True),
+                distinct=True
             )
-        ).exclude(tiene_horario=True)
+        )
+        .filter(count_pp_sin_horario__gt=0)
+    )
 
-        if term:
-            puntos_pago = puntos_pago.filter(nombre__icontains=term)
+    # 5. Filtro por 'term' si viene
+    if term:
+        qs = qs.filter(nombre__icontains=term)
 
-        total_results = puntos_pago.count()
-        puntos_pago = puntos_pago[start:end]
+    # 6. Ordenar por nombre
+    qs = qs.order_by('nombre')
 
-        results = []
-        for punto in puntos_pago:
-            results.append({
-                'id': punto.pk,
-                'text': punto.nombre,
-            })
+    # 7. Paginación
+    total_results = qs.count()
+    qs = qs[start:end]
 
-        return JsonResponse({
-            'results': results,
-            'has_more': end < total_results,
+    # 8. Construir results para el autocomplete
+    results = []
+    for sucursal in qs:
+        results.append({
+            'id': sucursal.pk,
+            'text': sucursal.nombre,
         })
 
-    except Exception as e:
-        logger.exception("Error inesperado en puntopago_autocomplete")
+    # 9. Saber si hay más
+    has_more = end < total_results
+
+    # 10. Respuesta JSON
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
+    })
+
+@login_required
+def puntopago_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page = 50
+
+    # Validar y convertir página a entero
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Tomar la sucursal
+    sucursal_id_str = request.GET.get('sucursal_id', '')
+    if not sucursal_id_str:
         return JsonResponse({
             'results': [],
             'has_more': False,
-            'error': 'Ocurrió un error interno del servidor.'
-        }, status=500)
+            'error': 'No se proporcionó un ID de sucursal.'
+        })
+
+    try:
+        sucursal_id = int(sucursal_id_str)
+        sucursal = Sucursal.objects.get(pk=sucursal_id)
+    except (ValueError, Sucursal.DoesNotExist):
+        return JsonResponse({
+            'results': [],
+            'has_more': False,
+            'error': 'Sucursal no válida o no encontrada.'
+        })
+
+    # Filtrar PuntosPago sin horario
+    puntos_pago = (
+        PuntosPago.objects
+        .filter(sucursalid=sucursal)
+        .annotate(
+            tiene_horario=Exists(
+                HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
+            )
+        )
+        .exclude(tiene_horario=True)
+    )
+
+    # Filtro por término
+    if term:
+        puntos_pago = puntos_pago.filter(nombre__icontains=term)
+
+    total_results = puntos_pago.count()
+    puntos_pago = puntos_pago[start:end]
+
+    results = []
+    for pp in puntos_pago:
+        results.append({
+            'id': pp.pk,      # o pp.puntopagoid
+            'text': pp.nombre
+        })
+
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
 
 
 @login_required
@@ -1760,43 +1814,92 @@ def obtener_puntos_pago_con_horarios(request):
 
 @login_required
 def editar_horarios_cajas_view(request, puntopagoid):
+    """
+    Vista para editar (reemplazar) los horarios de una Caja en particular (punto_pago),
+    PERMITIENDO CAMBIAR a otra Sucursal y/o Punto de Pago que no tenga horario.
+    
+    GET:
+      - Muestra la página con los horarios ya existentes del puntopagoid actual.
+      - Muestra, en el input de Sucursal/Punto de Pago, la sucursal/punto de pago actual,
+        pero no "disabled" (para que el usuario pueda cambiarlos vía autocomplete).
+    POST (JSON):
+      {
+        "sucursalid": <ID de la sucursal elegida>,
+        "puntopagoid": <ID del punto de pago elegido>,
+        "horarios": [
+           {
+              "dia": "Lun",
+              "hora_apertura": "08:00",
+              "hora_cierre": "12:00"
+           },
+           ...
+        ]
+      }
+    """
+    punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
+    sucursal = punto_pago.sucursalid
+    horarios_existentes = HorarioCaja.objects.filter(puntopagoid=punto_pago)
+
     if request.method == 'POST':
+        # Se asume que viene JSON en request.body:
         try:
             data = json.loads(request.body)
-            horarios = data.get('horarios', [])
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'JSON inválido.'}, status=400)
 
-            punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
-            HorarioCaja.objects.filter(puntopagoid=puntopagoid).delete()
-            for horario in horarios:
-                dia = horario['dia']
-                hora_apertura = horario['hora_apertura']
-                hora_cierre = horario['hora_cierre']
-                HorarioCaja.objects.create(
-                    puntopagoid=puntopagoid,
-                    dia_semana=dia,
-                    horaapertura=hora_apertura,
-                    horacierre=hora_cierre
-                )
+        sucursal_id = data.get('sucursalid')
+        nuevo_puntopago_id = data.get('puntopagoid')
+        horarios_list = data.get('horarios', [])
 
-            messages.success(
-                request,
-                f'Se ha editado correctamente la caja del punto de pago {punto_pago.nombre} '
-                f'de la sucursal {punto_pago.sucursalid.nombre}'
-            )
-            return JsonResponse({'success': True})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+        # Emulamos un POST dict para validaciones básicas
+        form_data = {
+            'sucursalid': sucursal_id,
+            'puntopagoid': nuevo_puntopago_id,
+            'dia_semana': '',    # Evitamos error si el form lo requiere
+            'horaapertura': '',  # igual
+            'horacierre': '',
+        }
+        form = EditarHorarioCajaForm(data=form_data, horarios_present=bool(horarios_list))
+        if form.is_valid():
+            try:
+                # 1) Borrar los horarios antiguos del puntopago original
+                HorarioCaja.objects.filter(puntopagoid=puntopagoid).delete()
 
-    else:
-        punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
-        sucursal = punto_pago.sucursalid
-        horarios = HorarioCaja.objects.filter(puntopagoid=puntopagoid)
+                # 2) Actualizar el punto_pago para que apunte a la nueva sucursal/puntopago (si es diferente)
+                #    OJO: si vas a permitir cambiar la sucursal del PUNTO DE PAGO en la BD,
+                #         necesitarías hacer algo como:
+                # punto_pago.sucursalid_id = sucursal_id
+                # punto_pago.nombre        = (puedes cambiar si quieres)
+                # punto_pago.save()
+                #
+                # PERO usualmente un PuntosPago no se "mueve" de sucursal, sino que se crea uno nuevo.
+                # En todo caso, si solamente actualizas la ForeignKey, se hace así:
+                punto_pago.sucursalid_id = sucursal_id
+                punto_pago.save(update_fields=['sucursalid'])
 
-        return render(request, 'editar_horarios_cajas.html', {
-            'punto_pago': punto_pago,
-            'horarios': horarios,
-            'sucursal': sucursal
-        })
+                # 3) Insertar los nuevos horarios en LA caja elegida (nuevo_puntopago_id)
+                for item in horarios_list:
+                    HorarioCaja.objects.create(
+                        puntopagoid_id=nuevo_puntopago_id,
+                        dia_semana=item['dia'],
+                        horaapertura=item['hora_apertura'],
+                        horacierre=item['hora_cierre']
+                    )
+
+                messages.success(request, f'Horarios de la caja en "{punto_pago.nombre}" editados exitosamente.')
+                return JsonResponse({'success': True})
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': str(e)})
+        else:
+            errors_json = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors_json})
+    
+    # GET => render
+    return render(request, 'editar_horarios_cajas.html', {
+        'punto_pago': punto_pago,
+        'sucursal': sucursal,
+        'horarios': horarios_existentes,
+    })
 
 
 def agregar_cliente(request):

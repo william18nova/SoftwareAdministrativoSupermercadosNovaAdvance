@@ -708,6 +708,50 @@ class HorarioCajaForm(forms.ModelForm):
 
         return cleaned_data
     
+class EditarHorarioCajaForm(forms.Form):
+    """
+    Formulario genérico para validar que la sucursal y el punto de pago sean válidos.
+    Se valida que el ID de la sucursal y del punto de pago sean dígitos y que existan.
+    """
+    sucursalid = forms.CharField(required=True)
+    puntopagoid = forms.CharField(required=True)
+    
+    # Se definen estos campos para evitar errores en la validación (aunque no se usen directamente)
+    dia_semana = forms.CharField(required=False)
+    horaapertura = forms.TimeField(required=False)
+    horacierre = forms.TimeField(required=False)
+
+    def __init__(self, *args, horarios_present=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.horarios_present = horarios_present
+
+    def clean_sucursalid(self):
+        s_id = self.cleaned_data.get('sucursalid')
+        if not s_id.isdigit():
+            raise forms.ValidationError('ID de sucursal inválido.')
+        try:
+            Sucursal.objects.get(pk=s_id)
+        except Sucursal.DoesNotExist:
+            raise forms.ValidationError('La sucursal no existe.')
+        return s_id
+
+    def clean_puntopagoid(self):
+        p_id = self.cleaned_data.get('puntopagoid')
+        if not p_id.isdigit():
+            raise forms.ValidationError('ID de punto de pago inválido.')
+        try:
+            PuntosPago.objects.get(pk=p_id)
+        except PuntosPago.DoesNotExist:
+            raise forms.ValidationError('El punto de pago no existe.')
+        return p_id
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Aquí podrías agregar validaciones adicionales según tu lógica (por ejemplo, que el 
+        # punto de pago pertenezca a la sucursal) si lo consideras necesario.
+        return cleaned_data
+
+    
 class SucursalForm(forms.ModelForm):
     class Meta:
         model = Sucursal

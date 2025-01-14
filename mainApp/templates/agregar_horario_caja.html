@@ -1,9 +1,8 @@
-<!-- agregar_horario_caja.html -->
+<!DOCTYPE html>
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Agregar Horario de Caja{% endblock %}
 {% block content %}
-<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -162,7 +161,12 @@
 
     <!-- Variables y rutas para autocompletar (sucursal y puntopago) -->
     <script type="text/javascript">
-        var sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete' %}";
+        /** 
+         *  AQUI el cambio IMPORTANTE:
+         *  Usamos la NUEVA vista: 'sucursal_autocomplete_horariocaja'
+         *  en vez de 'sucursal_autocomplete' 
+         **/
+        var sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete_horariocaja' %}";  
         var puntopagoAutocompleteUrl = "{% url 'puntopago_autocomplete' %}";
     </script>
 
