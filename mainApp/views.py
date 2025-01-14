@@ -1488,6 +1488,67 @@ def agregar_horario_view(request):
 
     return render(request, 'agregar_horario.html', {'form': form})
 
+def horario_sucursal_autocomplete(request):
+    """
+    Autocomplete para Sucursal: muestra solo aquellas sucursales que NO 
+    tienen horarios establecidos (en el modelo HorariosNegocio), 
+    con paginación y soporte para 'term'.
+    
+    Se asume que en el modelo Sucursal la relación con HorariosNegocio 
+    tiene el related name "horariosnegocio". Ajusta este valor en caso de ser diferente.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '50').strip()
+
+    # Convertir 'page'
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
+
+    # Convertir 'per_page'
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        per_page = 50
+    if per_page < 1:
+        per_page = 50
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Filtrar sucursales que NO tengan ningún horario asignado
+    qs = Sucursal.objects.filter(horariosnegocio__isnull=True)
+
+    # Filtro por 'term'
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    # Ordenar por nombre
+    qs = qs.order_by('nombre')
+
+    # Paginación
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    # Construir results para el autocomplete
+    results = []
+    for sucursal in qs:
+        results.append({
+            'id': sucursal.pk,
+            'text': sucursal.nombre,
+        })
+
+    has_more = end < total_results
+
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
+    })
+
 
 @login_required
 def visualizar_horarios_view(request):

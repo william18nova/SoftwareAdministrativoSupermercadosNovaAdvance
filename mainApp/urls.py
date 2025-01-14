@@ -72,6 +72,7 @@ urlpatterns = [
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
 
     path('agregar_horario/', views.agregar_horario_view, name='agregar_horario'),
+    path('horario-sucursal-autocomplete/', views.horario_sucursal_autocomplete, name='horario_sucursal_autocomplete'),
     path('visualizar_horarios/', views.visualizar_horarios_view, name='visualizar_horarios'),
     path('editar_horarios/<int:sucursal_id>/', views.editar_horarios_view, name='editar_horarios'),
     path('eliminar_horario/<int:horario_id>/', views.eliminar_horario_view, name='eliminar_horario'),
