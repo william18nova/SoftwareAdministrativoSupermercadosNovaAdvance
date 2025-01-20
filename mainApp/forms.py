@@ -617,6 +617,49 @@ class HorariosNegocioForm(forms.ModelForm):
 
         return cleaned_data
 
+class EditarHorariosSucursalForm(forms.Form):
+    """
+    Formulario para editar horarios de una sucursal.
+    Usado principalmente para validar la información básica
+    que llega vía AJAX (JSON).
+    """
+    # Campo autocompletado: si deseas permitir cambiar de sucursal
+    sucursalid = forms.CharField(required=True)
+    
+    # Campos "dummy" para evitar errores si tu plantilla envía algo extra.
+    dia_semana = forms.CharField(required=False)
+    horaapertura = forms.TimeField(required=False)
+    horacierre = forms.TimeField(required=False)
+
+    def __init__(self, *args, horarios_present=False, **kwargs):
+        """
+        'horarios_present' indica si en el POST (JSON) venía la lista de horarios.
+        Podrías usarlo para validaciones personalizadas.
+        """
+        super().__init__(*args, **kwargs)
+        self.horarios_present = horarios_present
+
+    def clean_sucursalid(self):
+        s_id = self.cleaned_data.get('sucursalid')
+        # Valida que sea dígito (opcional, si tus PK son numéricos)
+        if not s_id.isdigit():
+            raise forms.ValidationError('ID de sucursal inválido.')
+        # Valida que la sucursal exista
+        try:
+            Sucursal.objects.get(pk=s_id)
+        except Sucursal.DoesNotExist:
+            raise forms.ValidationError('La sucursal no existe.')
+        return s_id
+
+    def clean(self):
+        """
+        Aquí podrías agregar validaciones adicionales:
+         - Que existan horarios
+         - Que las horas sean correctas, etc.
+        """
+        cleaned_data = super().clean()
+        return cleaned_data
+
 class HorarioCajaForm(forms.ModelForm):
     puntopago_autocomplete = forms.CharField(
         required=True,
