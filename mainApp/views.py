@@ -32,7 +32,9 @@ from .forms import (
     EditarCategoriaForm,
     EditarClienteForm,
     EditarEmpleadoForm,
-    EditarHorarioCajaForm
+    EditarHorarioCajaForm,
+    EditarHorariosSucursalForm,
+    EditarInventarioForm,
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -522,37 +524,216 @@ def visualizar_inventarios_view(request):
 
 @login_required
 def editar_inventario_view(request, sucursal_id):
-    sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
-    inventarios = Inventario.objects.filter(sucursalid=sucursal)
-    productos = Producto.objects.exclude(inventario__sucursalid=sucursal)
+    sucursal_original = get_object_or_404(Sucursal, pk=sucursal_id)
+    inventarios_existentes = (Inventario.objects
+                              .filter(sucursalid=sucursal_original)
+                              .select_related('productoid')
+                              .order_by('productoid__nombre'))
 
     if request.method == 'POST':
-        for inventario in inventarios:
-            cantidad = request.POST.get(f'cantidad_{inventario.inventarioid}')
-            if cantidad:
-                inventario.cantidad = cantidad
-                inventario.save()
+        form = EditarInventarioForm(request.POST)
+        if form.is_valid():
+            nueva_sucursal = form.cleaned_data['sucursal']
+            inventarios_str = form.cleaned_data['inventarios_temp']
 
-        nuevos_productos = request.POST.getlist('nuevo_producto[]')
-        nuevas_cantidades = request.POST.getlist('nueva_cantidad[]')
-        for producto_id, cantidad in zip(nuevos_productos, nuevas_cantidades):
-            producto = get_object_or_404(Producto, pk=producto_id)
-            Inventario.objects.create(
-                productoid=producto,
-                sucursalid=sucursal,
-                cantidad=cantidad
+            # Parsear JSON
+            try:
+                inventarios_data = json.loads(inventarios_str) if inventarios_str else []
+            except ValueError:
+                inventarios_data = []
+
+            # Si la nueva sucursal es distinta, borramos inventario viejo
+            if nueva_sucursal != sucursal_original:
+                Inventario.objects.filter(sucursalid=sucursal_original).delete()
+
+            # Diccionario { productId -> cantidad }
+            nuevo_dic = {}
+            for item in inventarios_data:
+                pid = item.get('productId')
+                cant = item.get('cantidad')
+                if pid and cant is not None:
+                    nuevo_dic[str(pid)] = int(cant)
+
+            # Inventarios actuales en la nueva sucursal
+            inv_map = {
+                str(inv.productoid_id): inv
+                for inv in Inventario.objects.filter(sucursalid=nueva_sucursal)
+            }
+
+            # Actualizar / Eliminar
+            for prod_str, inv_obj in inv_map.items():
+                if prod_str in nuevo_dic:
+                    inv_obj.cantidad = nuevo_dic[prod_str]
+                    inv_obj.save()
+                    del nuevo_dic[prod_str]
+                else:
+                    inv_obj.delete()
+
+            # Crear los nuevos
+            for prod_str, cant in nuevo_dic.items():
+                prod_id = int(prod_str)
+                producto = get_object_or_404(Producto, pk=prod_id)
+                Inventario.objects.create(
+                    productoid=producto,
+                    sucursalid=nueva_sucursal,
+                    cantidad=cant
+                )
+
+            # Guardamos mensaje en la sesión (para que aparezca en la siguiente vista)
+            messages.success(
+                request,
+                f'Inventario de la sucursal "{nueva_sucursal.nombre}" se ha actualizado correctamente.'
             )
+            # Retornamos la URL de redirección
+            redirect_url = reverse('visualizar_inventarios')
+            return JsonResponse({'success': True, 'redirect_url': redirect_url})
+        else:
+            # Errores
+            errors = form.errors.get_json_data()
+            processed_errors = {}
+            for field, ferrors in errors.items():
+                processed_errors[field] = [{'message': e['message']} for e in ferrors]
+            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
+    else:
+        # GET => pre-cargamos la sucursal
+        form = EditarInventarioForm(initial={
+            'sucursal': sucursal_original.sucursalid,
+            'sucursal_autocomplete': sucursal_original.nombre,
+        })
 
-        messages.success(
-            request,
-            f'Inventario de la sucursal {sucursal.nombre} actualizado exitosamente.'
-        )
-        return redirect('visualizar_inventarios')
+    return render(
+        request,
+        'editar_inventario.html',
+        {
+            'form': form,
+            'sucursal': sucursal_original,
+            'inventarios': inventarios_existentes,
+        }
+    )
 
-    return render(request, 'editar_inventario.html', {
-        'sucursal': sucursal,
-        'inventarios': inventarios,
-        'productos': productos,
+@login_required
+def sucursal_inventario_autocomplete_editar(request):
+    """
+    Autocomplete que:
+      - Incluye SIEMPRE la sucursal actual (enviada como 'current_sucursal_id'),
+        aunque ya tenga inventarios.
+      - Incluye también las sucursales que NO tengan inventario (inventario__isnull=True).
+      - Filtra por 'term'.
+      - Evita duplicados con .distinct().
+    """
+    term = request.GET.get('term', '').strip()
+    current_sucursal_str = request.GET.get('current_sucursal_id', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '50').strip()
+
+    # Manejo de page
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
+
+    # Manejo de per_page
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        per_page = 50
+    if per_page < 1:
+        per_page = 50
+
+    # Convertir sucursal actual
+    try:
+        current_suc_id = int(current_sucursal_str)
+    except ValueError:
+        current_suc_id = None
+
+    # Query base
+    if current_suc_id:
+        # OR para la sucursal actual + las que no tienen inventario
+        qs = Sucursal.objects.filter(
+            Q(pk=current_suc_id) | Q(inventario__isnull=True)
+        ).distinct()
+    else:
+        qs = Sucursal.objects.filter(inventario__isnull=True).distinct()
+
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    qs = qs.order_by('nombre')
+
+    # Paginación
+    start = (page - 1) * per_page
+    end = start + per_page
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    # Construir results
+    results = []
+    for s in qs:
+        results.append({
+            'id': s.pk,
+            'text': s.nombre
+        })
+
+    has_more = end < total_results
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more
+    })
+
+@login_required
+def producto_inventario_autocomplete_editar(request):
+    """
+    Autocomplete para productos en edición de inventario.
+    Recibe 'excluded' (IDs de productos ya listados).
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    excluded_str = request.GET.get('excluded', '').strip()
+    per_page = 50  # Ajusta el número de resultados por página si quieres
+
+    # page
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    qs = Producto.objects.all().order_by('nombre')
+
+    # Excluir productos cuyos IDs están en 'excluded'
+    excluded_ids = []
+    if excluded_str:
+        try:
+            excluded_ids = [int(x) for x in excluded_str.split(',') if x.isdigit()]
+        except:
+            pass
+    if excluded_ids:
+        qs = qs.exclude(productoid__in=excluded_ids)
+
+    # Filtro por 'term'
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for prod in qs:
+        results.append({
+            'id': prod.productoid,
+            'text': prod.nombre,
+        })
+
+    has_more = end < total_results
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
     })
 
 

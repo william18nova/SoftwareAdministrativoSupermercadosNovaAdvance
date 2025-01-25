@@ -912,6 +912,7 @@ class ProductoForm(forms.ModelForm):
             raise forms.ValidationError('El código de barras ya está registrado.')
         return codigo_de_barras
     
+    
 class ProveedorForm(forms.ModelForm):
     nombre = forms.CharField(
         max_length=100,
@@ -1114,6 +1115,45 @@ class InventarioForm(forms.Form):
             self.add_error('cantidad', 'La cantidad debe ser mayor que 0.')
 
         return cleaned_data
+    
+class EditarInventarioForm(forms.Form):
+    """
+    Formulario para editar el inventario de una sucursal con autocomplete.
+    """
+    # Campo autocompletado de sucursal
+    sucursal_autocomplete = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar sucursal...',
+            'autocomplete': 'off',
+        })
+    )
+    # Campo hidden para la ID de la sucursal
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.all(),  # o .none() y luego sobreescribir en la vista
+        widget=forms.HiddenInput(),
+        required=True
+    )
+
+    # Campo oculto con la lista final de productos/cantidades en JSON
+    inventarios_temp = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
+
+    def clean_sucursal(self):
+        suc = self.cleaned_data.get('sucursal')
+        if not suc:
+            raise forms.ValidationError('Debe seleccionar una sucursal.')
+        return suc
+
+    def clean_inventarios_temp(self):
+        # Podrías validar que sea JSON, etc. Por ahora, lo dejas pasar.
+        data = self.cleaned_data.get('inventarios_temp', '')
+        return data
+    
+
     
 class PreciosProveedorForm(forms.Form):
     """
