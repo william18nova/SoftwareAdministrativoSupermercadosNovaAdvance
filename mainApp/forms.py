@@ -900,18 +900,31 @@ class ProductoForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        # Recibir 'instance' para editar
+        super().__init__(*args, **kwargs)
+        self.instance = kwargs.get('instance', None)
+
     def clean_nombre(self):
         nombre = self.cleaned_data.get('nombre')
-        if Producto.objects.filter(nombre__iexact=nombre).exists():
+        qs = Producto.objects.filter(nombre__iexact=nombre)
+        if self.instance:
+            qs = qs.exclude(productoid=self.instance.productoid)
+        if qs.exists():
             raise forms.ValidationError('El nombre del producto ya está registrado.')
         return nombre
 
     def clean_codigo_de_barras(self):
         codigo_de_barras = self.cleaned_data.get('codigo_de_barras')
-        if codigo_de_barras and Producto.objects.filter(codigo_de_barras=codigo_de_barras).exists():
-            raise forms.ValidationError('El código de barras ya está registrado.')
+        if codigo_de_barras:
+            qs = Producto.objects.filter(codigo_de_barras=codigo_de_barras)
+            if self.instance:
+                qs = qs.exclude(productoid=self.instance.productoid)
+            if qs.exists():
+                raise forms.ValidationError('El código de barras ya está registrado.')
         return codigo_de_barras
-    
+
+
     
 class ProveedorForm(forms.ModelForm):
     nombre = forms.CharField(

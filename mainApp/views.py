@@ -261,50 +261,41 @@ def eliminar_producto(request, producto_id):
 
 @login_required
 def editar_producto_view(request, producto_id):
+    """
+    Permite editar un producto existente.
+    - Utiliza ProductoForm para manejar la edición.
+    - Responde con JSON para solicitudes AJAX.
+    - Redirige a visualizar_productos tras un guardado exitoso.
+    """
     producto = get_object_or_404(Producto, productoid=producto_id)
+    categorias = Categoria.objects.all()
+    
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion')
-        precio = request.POST.get('precio')
-        categoria_id = request.POST.get('categoria')
-        codigo_de_barras = request.POST.get('codigo_de_barras')
-        iva = request.POST.get('iva')
-
-        if not nombre:
-            messages.error(request, 'El Nombre es un campo obligatorio.')
-            return render(
+        form = ProductoForm(request.POST, instance=producto)
+        if form.is_valid():
+            form.save()
+            # Guardar mensaje de éxito en la sesión
+            messages.success(
                 request,
-                'editar_producto.html',
-                {'producto': producto, 'categorias': Categoria.objects.all()}
+                f'Producto actualizado exitosamente: '
+                f'Nombre="{producto.nombre}", Descripción="{producto.descripcion}", Precio="{producto.precio}", '
+                f'Categoría="{producto.categoria.nombre if producto.categoria else "Sin categoría"}"'
             )
-
-        if Producto.objects.filter(nombre=nombre).exclude(productoid=producto_id).exists():
-            messages.error(request, 'El Nombre del producto ya está registrado.')
-            return render(
-                request,
-                'editar_producto.html',
-                {'producto': producto, 'categorias': Categoria.objects.all()}
-            )
-
-        producto.nombre = nombre
-        producto.descripcion = descripcion
-        producto.precio = precio
-        producto.categoria_id = categoria_id if categoria_id else None
-        producto.codigo_de_barras = codigo_de_barras
-        producto.iva = iva
-        producto.save()
-        messages.success(
-            request,
-            f'Producto actualizado exitosamente: '
-            f'Nombre={nombre}, Descripción={descripcion}, Precio={precio}, '
-            f'Categoría={producto.categoria.nombre if producto.categoria else "Sin categoría"}'
-        )
-        return redirect('visualizar_productos')
-
+            # Obtener la URL de redirección
+            redirect_url = reverse('visualizar_productos')
+            return JsonResponse({'success': True, 'redirect_url': redirect_url})
+        else:
+            # Retornar errores del formulario en formato JSON
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        # Solicitud GET: inicializar el formulario con datos del producto
+        form = ProductoForm(instance=producto)
+    
     return render(
         request,
         'editar_producto.html',
-        {'producto': producto, 'categorias': Categoria.objects.all()}
+        {'form': form, 'categorias': categorias, 'producto': producto},
     )
 
 
