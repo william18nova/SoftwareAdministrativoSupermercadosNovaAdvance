@@ -35,6 +35,7 @@ from .forms import (
     EditarHorarioCajaForm,
     EditarHorariosSucursalForm,
     EditarInventarioForm,
+    EditarPreciosProveedorForm,
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1000,39 +1001,102 @@ def eliminar_precio_proveedor_view(request, id):
 @login_required
 def editar_productos_precios_proveedor_view(request, proveedor_id):
     proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
-    productos_precios = PreciosProveedor.objects.filter(proveedorid=proveedor)
-    productos_existentes = list(productos_precios.values_list('productoid', flat=True))
-    productos = Producto.objects.all()
-
+    
     if request.method == 'POST':
-        nuevos_productos_ids = request.POST.getlist('producto[]')
-        nuevos_precios = request.POST.getlist('precio[]')
+        form = EditarPreciosProveedorForm(request.POST)
+        if form.is_valid():
+            # 1. Cargamos el JSON de precios_temp
+            precios_temp_str = form.cleaned_data.get('precios_temp', '')
+            try:
+                precios_data = json.loads(precios_temp_str) if precios_temp_str else []
+            except ValueError:
+                precios_data = []
 
-        nuevos_productos_ids = [pid for pid in nuevos_productos_ids if pid]
-        nuevos_precios = [precio for precio in nuevos_precios if precio]
+            # 2. Convertimos a dict => { str(productId): 'price' }
+            nuevos_dict = {}
+            for item in precios_data:
+                pid = item.get('productId')
+                price = item.get('price')
+                if pid and price is not None:
+                    nuevos_dict[str(pid)] = price
 
-        # Eliminar productos que no estén en la nueva lista
-        PreciosProveedor.objects.filter(proveedorid=proveedor).exclude(productoid__in=nuevos_productos_ids).delete()
+            # 3. Obtener todos los PreciosProveedor actuales de este proveedor en una sola consulta
+            existentes_qs = PreciosProveedor.objects.filter(proveedorid=proveedor)
+            existentes_map = { str(pp.productoid_id): pp for pp in existentes_qs }
 
-        # Actualizar o crear registros
-        for producto_id, precio in zip(nuevos_productos_ids, nuevos_precios):
-            if producto_id and precio:
-                producto = get_object_or_404(Producto, pk=producto_id)
-                PreciosProveedor.objects.update_or_create(
-                    productoid=producto,
-                    proveedorid=proveedor,
-                    defaults={'precio': precio}
-                )
+            # Preparar listas para bulk operations
+            a_crear = []     # Lista de PreciosProveedor (nuevos)
+            a_actualizar = []# Lista de PreciosProveedor (existen, hay que actualizar)
+            
+            # 4. Revisar cada productId en nuevos_dict
+            nuevos_product_ids = set(nuevos_dict.keys())
 
-        messages.success(request, 'Productos y precios actualizados exitosamente para el proveedor.')
-        return redirect('visualizar_productos_precios_proveedores')
+            for product_id_str in nuevos_product_ids:
+                if product_id_str in existentes_map:
+                    # Ya existe => actualizar
+                    obj = existentes_map[product_id_str]
+                    nuevo_precio = Decimal(nuevos_dict[product_id_str])
+                    if obj.precio != nuevo_precio:
+                        obj.precio = nuevo_precio
+                        a_actualizar.append(obj)
+                    # Eliminamos de existentes_map para no borrarlo después
+                    del existentes_map[product_id_str]
+                else:
+                    # No existe => crear
+                    producto_id_int = int(product_id_str)
+                    nuevo_precio = Decimal(nuevos_dict[product_id_str])
+                    a_crear.append(
+                        PreciosProveedor(
+                            proveedorid=proveedor,
+                            productoid_id=producto_id_int,
+                            precio=nuevo_precio
+                        )
+                    )
 
-    return render(request, 'editar_productos_precios_proveedor.html', {
-        'proveedor': proveedor,
-        'productos_precios': productos_precios,
-        'productos': productos,
-        'productos_existentes': productos_existentes,
-    })
+            # 5. Los objetos que quedan en existentes_map son los que ya no existen en el JSON => borrar
+            # Si deseas la misma lógica de "eliminar lo que no aparece", puedes hacerlo:
+            a_borrar_ids = [pp.pk for pid, pp in existentes_map.items()]
+            
+            # 6. Ejecutar las operaciones en bloque:
+            #  6a) Borrar
+            if a_borrar_ids:
+                PreciosProveedor.objects.filter(pk__in=a_borrar_ids).delete()
+            
+            #  6b) Crear
+            if a_crear:
+                PreciosProveedor.objects.bulk_create(a_crear)
+
+            #  6c) Actualizar
+            if a_actualizar:
+                PreciosProveedor.objects.bulk_update(a_actualizar, ['precio'])
+            
+            messages.success(request, f'Productos y precios actualizados exitosamente para el proveedor {proveedor.nombre}.')
+            redirect_url = reverse('visualizar_productos_precios_proveedores')
+            return JsonResponse({'success': True, 'redirect_url': redirect_url})
+        else:
+            errors = form.errors.as_json()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        # GET => cargar formulario y productos existentes
+        form = EditarPreciosProveedorForm(initial={
+            'proveedor': proveedor.pk,
+            'proveedor_autocomplete': proveedor.nombre,
+        })
+        # Construimos la lista para JS
+        existentes = PreciosProveedor.objects.filter(proveedorid=proveedor).select_related('productoid')
+        productos_existentes = []
+        for pp in existentes:
+            productos_existentes.append({
+                'productId': pp.productoid.productoid,
+                'productName': pp.productoid.nombre,
+                'price': str(pp.precio),
+            })
+        
+        return render(request, 'editar_productos_precios_proveedor.html', {
+            'form': form,
+            'proveedor': proveedor,
+            'productos_existentes_json': json.dumps(productos_existentes),
+        })
 
 
 @login_required

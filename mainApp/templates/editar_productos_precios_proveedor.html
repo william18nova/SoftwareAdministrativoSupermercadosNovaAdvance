@@ -1,132 +1,126 @@
-<!DOCTYPE html>
+<!-- editar_productos_precios_proveedor.html -->
+
 {% extends 'base.html' %}
-{% block title %}Editar Productos y Precios del Proveedor{% endblock %}
+{% load static %}
+{% block title %}Editar Precios de Proveedor{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Productos y Precios del Proveedor</title>
-    {% load static %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'editar_productos_precios_proveedor.css' %}">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            const table = $('#productos-precios-list').DataTable({
-                paging: false,
-                searching: true,
-                info: false,
-                language: {
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay productos para mostrar",
-                },
-            });
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editar Precios de Proveedor</title>
 
-            function mostrarMensaje(mensaje, clase) {
-                const alertasExistentes = document.querySelectorAll('.alert');
-                alertasExistentes.forEach(alerta => alerta.remove());
+  <!-- Font Awesome para íconos (opcional) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 
-                const mensajeDiv = document.createElement('div');
-                mensajeDiv.className = `alert ${clase}`;
-                mensajeDiv.textContent = mensaje;
-                const titulo = document.querySelector('h2');
-                titulo.insertAdjacentElement('afterend', mensajeDiv);
-            }
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css"/>
 
-            function agregarProducto() {
-                const productoSelect = $('#producto');
-                const precioInput = $('#nuevo-precio');  // Cambié el ID aquí
-                const productoNombre = productoSelect.find('option:selected').text();
-                const productoId = productoSelect.val();
-                const precio = precioInput.val();
+  <!-- Reutilizamos el mismo CSS de agregar para mantener la consistencia -->
+  <link rel="stylesheet" href="{% static 'css/agregar_productos_precios_proveedor.css' %}" />
 
-                if (productoId && precio) {
-                    const rowHtml = `
-                        <tr>
-                            <td>${productoNombre}<input type="hidden" name="producto[]" value="${productoId}"></td>
-                            <td><input type="number" name="precio[]" value="${precio}" step="0.01"></td>
-                            <td class="text-center"><button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '${productoId}')"><i class="fas fa-trash-alt"></i></button></td>
-                        </tr>
-                    `;
-                    $('#productos-precios-list tbody').append(rowHtml);
-                    productoSelect.find(`option[value="${productoId}"]`).hide();
-                    productoSelect.val('');
-                    precioInput.val('');
-                } else {
-                    mostrarMensaje('Por favor, selecciona un producto y completa el precio.', 'alert-error');
-                }
-            }
-
-            window.eliminarProducto = function(button, productId) {
-                const row = $(button).closest('tr');
-                $('#producto').find(`option[value="${productId}"]`).show();
-                row.remove();
-            }
-
-            $('#agregarProductoBtn').on('click', agregarProducto);
-        });
-    </script>
+  <!-- jQuery y DataTables JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <i class="fas fa-truck icon"></i> <!-- Ícono de proveedor -->
-        <h2>Editar Productos y Precios del Proveedor: {{ proveedor.nombre }}</h2>
-        <form id="productosPreciosForm" method="POST">
-            {% csrf_token %}
-            <div id="productos-container">
-                <div class="form-group">
-                    <label for="producto">Producto</label>
-                    <select id="producto" class="producto" name="producto[]">
-                        <option value="">Seleccionar producto</option>
-                        {% for producto in productos %}
-                            <option value="{{ producto.productoid }}" {% if producto.productoid in productos_existentes %}disabled{% endif %}>{{ producto.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                    <label for="precio">Precio</label>
-                    <input type="number" id="nuevo-precio" name="precio[]" step="0.01">  <!-- Cambié el ID aquí -->
-                </div>
-            </div>
-            <button type="button" class="btn-agregar-producto" id="agregarProductoBtn">Agregar Producto</button>
-            <div class="table-container">
-                <table id="productos-precios-list" class="table display">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Precio</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for precio in productos_precios %}
-                        <tr>
-                            <td>{{ precio.productoid.nombre }}<input type="hidden" name="producto[]" value="{{ precio.productoid.productoid }}"></td>
-                            <td><input type="number" name="precio[]" value="{{ precio.precio }}" step="0.01"></td>
-                            <td class="text-center">
-                                <button type="button" class="btn-eliminar" onclick="eliminarProducto(this, '{{ precio.productoid.productoid }}')"><i class="fas fa-trash-alt"></i></button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="btn-container">
-                <input type="submit" value="Actualizar" class="btn-editar-inventario">
-            </div>
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </form>
+  <div class="container-precios-proveedor">
+    <!-- Ícono de Proveedor -->
+    <i class="fas fa-truck icon-proveedor"></i>
+    <h2>Editar Precios de Proveedor</h2>
+    <p class="obligatorio-texto">
+      Todos los campos con <span class="required">*</span> son obligatorios.
+    </p>
+
+    <!-- Mensaje de éxito (por si se quiere mostrar algo local, o si se redirige a otra vista) -->
+    <div id="success-message" class="alert alert-success" style="display: none;">
+      <i class="fas fa-check-circle"></i> Productos y precios actualizados exitosamente.
     </div>
+
+    <!-- Mensajes de error -->
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+
+    <!-- Formulario -->
+    <form id="preciosForm" action="{% url 'editar_productos_precios_proveedor' proveedor.pk %}" method="POST">
+      {% csrf_token %}
+      
+      <!-- Campo Proveedor (autocomplete) (deshabilitado si no quieres cambiarlo) -->
+      <div class="form-group-precio">
+        <label for="id_proveedor_autocomplete">
+          Proveedor <span class="required">*</span>
+        </label>
+        {{ form.proveedor_autocomplete }}
+        {{ form.proveedor }}
+        <div class="autocomplete-results" id="proveedor-autocomplete-results"></div>
+        <div class="field-error" id="error-id_proveedor"></div>
+      </div>
+
+      <!-- Campo Producto Autocompletar -->
+      <div class="form-group-precio">
+        <label for="id_producto_autocomplete">
+          Producto <span class="required">*</span>
+        </label>
+        {{ form.producto_autocomplete }}
+        {{ form.productoid }}
+        <div class="autocomplete-results" id="producto-autocomplete-results"></div>
+        <div class="field-error" id="error-id_productoid"></div>
+      </div>
+
+      <!-- Campo Precio -->
+      <div class="form-group-precio">
+        <label for="id_precio">
+          Precio <span class="required">*</span>
+        </label>
+        {{ form.precio }}
+        <div class="field-error" id="error-id_precio"></div>
+      </div>
+
+      <!-- Botón para añadir producto a la lista temporal -->
+      <div class="form-group-precio">
+        <button type="button" class="btn-agregar-precio" id="agregarProductoBtn">
+          Agregar/Actualizar Producto
+        </button>
+      </div>
+
+      <!-- Tabla con DataTable -->
+      <div class="table-container-precio">
+        <table id="productos-list" class="table display">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Precio</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="productos-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Campo oculto para precios temporales -->
+      {{ form.precios_temp }}
+      <div class="field-error" id="error-id_precios_temp"></div>
+
+      <!-- Botón de Envío final -->
+      <div class="form-group-precio">
+        <button type="submit" class="btn-guardar-precio">
+          Guardar Cambios
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Pasamos la URL de autocompletar al JavaScript -->
+  <script type="text/javascript">
+    var proveedorAutocompleteUrl = "{% url 'proveedor_precios_autocomplete' %}";
+    var productoPreciosAutocompleteUrl = "{% url 'producto_precios_autocomplete' %}";
+    
+    // Cargamos los productos existentes desde la vista:
+    var existingProducts = {{ productos_existentes_json|safe }};
+  </script>
+
+  <!-- JS para autocompletado y manejo DataTable (versión de editar) -->
+  <script src="{% static 'javascript/editar_precios_proveedor.js' %}"></script>
 </body>
 </html>
 {% endblock %}
