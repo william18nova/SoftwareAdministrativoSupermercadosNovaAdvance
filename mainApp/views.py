@@ -36,6 +36,7 @@ from .forms import (
     EditarHorariosSucursalForm,
     EditarInventarioForm,
     EditarPreciosProveedorForm,
+    EditarProveedorForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -777,28 +778,30 @@ def eliminar_proveedor(request, proveedor_id):
 @login_required
 def editar_proveedor_view(request, proveedor_id):
     proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        empresa = request.POST.get('empresa')
-        telefono = request.POST.get('telefono')
-        email = request.POST.get('email')
-        direccion = request.POST.get('direccion')
+        form = EditarProveedorForm(request.POST, instance=proveedor)
+        if form.is_valid():
+            form.save()
+            # Aquí guardamos el mensaje de éxito en el "message framework"
+            messages.success(request, 'Proveedor actualizado exitosamente.')
 
-        if not nombre or not empresa or not telefono or not email or not direccion:
-            messages.error(request, 'Todos los campos son obligatorios.')
-        elif Proveedor.objects.exclude(pk=proveedor_id).filter(nombre=nombre).exists():
-            messages.error(request, 'Ya existe un proveedor con ese nombre.')
+            # Devolvemos JSON con la URL a donde redirigir
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('visualizar_proveedores'),
+            })
         else:
-            proveedor.nombre = nombre
-            proveedor.empresa = empresa
-            proveedor.telefono = telefono
-            proveedor.email = email
-            proveedor.direccion = direccion
-            proveedor.save()
-            messages.success(request, 'El proveedor ha sido actualizado exitosamente.')
-            return redirect('visualizar_proveedores')
+            errors = form.errors.get_json_data()
+            return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+    else:
+        form = EditarProveedorForm(instance=proveedor)
 
-    return render(request, 'editar_proveedor.html', {'proveedor': proveedor})
+    return render(request, 'editar_proveedor.html', {
+        'form': form,
+        'proveedor': proveedor,
+    })
+
 
 
 @login_required

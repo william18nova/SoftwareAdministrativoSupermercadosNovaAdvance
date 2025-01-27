@@ -1013,6 +1013,65 @@ class ProveedorForm(forms.ModelForm):
             raise forms.ValidationError('El teléfono debe contener solo dígitos.')
         return telefono
     
+
+class EditarProveedorForm(forms.ModelForm):
+    """
+    Form para editar un proveedor (con la misma lógica de validación que el de agregar).
+    """
+    class Meta:
+        model = Proveedor
+        fields = ['nombre', 'empresa', 'telefono', 'email', 'direccion']
+        labels = {
+            'nombre': 'Nombre',
+            'empresa': 'Empresa',
+            'telefono': 'Teléfono',
+            'email': 'Email',
+            'direccion': 'Dirección',
+        }
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el nombre del proveedor',
+                'required': 'required'
+            }),
+            'empresa': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa la empresa',
+                'required': 'required'
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el teléfono',
+                'required': 'required'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa el correo electrónico'
+            }),
+            'direccion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ingresa la dirección',
+                'rows': 3
+            }),
+        }
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data['nombre']
+        # Evitar duplicados con otros proveedores
+        qs = (Proveedor.objects
+             .exclude(pk=self.instance.pk)  # excluye al actual
+             .filter(nombre__iexact=nombre))
+        if qs.exists():
+            raise forms.ValidationError('Ya existe un proveedor con este nombre.')
+        return nombre
+
+    def clean_telefono(self):
+        telefono = self.cleaned_data['telefono']
+        if not telefono.isdigit():
+            raise forms.ValidationError('El teléfono debe contener solo dígitos.')
+        return telefono
+
+    
 class RolForm(forms.ModelForm):
     nombre = forms.CharField(
         max_length=50,

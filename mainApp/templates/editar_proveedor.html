@@ -1,57 +1,90 @@
-<!DOCTYPE html>
+<!-- templates/editar_proveedor.html -->
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Editar Proveedor{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Proveedor</title>
-    {% load static %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'editar_proveedor copy.css' %}">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editar Proveedor</title>
+
+  <!-- CSS: puede ser el mismo que "agregar_proveedor.css" -->
+  <link rel="stylesheet" href="{% static 'css/agregar_proveedor.css' %}"/>
+  <!-- Font Awesome (iconos) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <i class="fas fa-truck icon"></i> <!-- Ícono de proveedor -->
-        <h2>Editar Proveedor</h2>
-        <form method="post">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" value="{{ proveedor.nombre }}" required>
-            </div>
-            <div class="form-group">
-                <label for="empresa">Empresa</label>
-                <input type="text" id="empresa" name="empresa" value="{{ proveedor.empresa }}" required>
-            </div>
-            <div class="form-group">
-                <label for="telefono">Teléfono</label>
-                <input type="text" id="telefono" name="telefono" value="{{ proveedor.telefono }}" required>
-            </div>
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" value="{{ proveedor.email }}" required>
-            </div>
-            <div class="form-group">
-                <label for="direccion">Dirección</label>
-                <textarea id="direccion" name="direccion" required>{{ proveedor.direccion }}</textarea>
-            </div>
-            <div class="form-group">
-                <input type="submit" value="Actualizar Proveedor">
-            </div>
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </form>
+  <div class="container-proveedor">
+    <i class="fas fa-truck icon-proveedor"></i>
+    <h2>Editar Proveedor</h2>
+    <p class="obligatorio-texto">
+      Todos los campos con <span class="required">*</span> son obligatorios.
+    </p>
+
+    <!-- Alertas globales (no usaremos el éxito aquí, sino al redirigir) -->
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+    <div id="success-message" class="alert alert-success" style="display: none;">
+      <i class="fas fa-check-circle"></i> <span id="success-text"></span>
     </div>
+
+    <form id="form-editar-proveedor"
+          action="{% url 'editar_proveedor' proveedor.pk %}" method="POST">
+      {% csrf_token %}
+
+      <!-- Campos del form -->
+      <div class="form-group-proveedor">
+        <label for="{{ form.nombre.id_for_label }}">
+          {{ form.nombre.label }} <span class="required">*</span>
+        </label>
+        {{ form.nombre }}
+        <div class="field-error" id="error-id_nombre"></div>
+      </div>
+
+      <div class="form-group-proveedor">
+        <label for="{{ form.empresa.id_for_label }}">
+          {{ form.empresa.label }} <span class="required">*</span>
+        </label>
+        {{ form.empresa }}
+        <div class="field-error" id="error-id_empresa"></div>
+      </div>
+
+      <div class="form-group-proveedor">
+        <label for="{{ form.telefono.id_for_label }}">
+          {{ form.telefono.label }} <span class="required">*</span>
+        </label>
+        {{ form.telefono }}
+        <div class="field-error" id="error-id_telefono"></div>
+      </div>
+
+      <div class="form-group-proveedor">
+        <label for="{{ form.email.id_for_label }}">
+          {{ form.email.label }}
+        </label>
+        {{ form.email }}
+        <div class="field-error" id="error-id_email"></div>
+      </div>
+
+      <div class="form-group-proveedor">
+        <label for="{{ form.direccion.id_for_label }}">
+          {{ form.direccion.label }}
+        </label>
+        {{ form.direccion }}
+        <div class="field-error" id="error-id_direccion"></div>
+      </div>
+
+      <!-- Botón de Guardar -->
+      <div class="form-group-proveedor">
+        <button type="submit" class="btn-agregar-proveedor">
+          Actualizar Proveedor
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- JS -->
+  <script src="{% static 'javascript/editar_proveedor.js' %}"></script>
 </body>
 </html>
 {% endblock %}
-
