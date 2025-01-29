@@ -38,6 +38,7 @@ from .forms import (
     EditarPreciosProveedorForm,
     EditarProveedorForm,
     PuntosPagoEditarForm,
+    RolEditarForm,
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1490,27 +1491,39 @@ def visualizar_roles_view(request):
     return render(request, 'visualizar_roles.html', {'roles': roles})
 
 
-@login_required
 def editar_rol_view(request, rol_id):
+    """
+    Vista para editar un Rol con AJAX. 
+    Si todo va bien, redirige a visualizar_roles al final.
+    """
     rol = get_object_or_404(Rol, pk=rol_id)
-    
+
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        descripcion = request.POST.get('descripcion')
-        
-        if nombre and nombre != rol.nombre:
-            if Rol.objects.filter(nombre=nombre).exclude(pk=rol_id).exists():
-                messages.error(request, 'Ya existe un rol con ese nombre.')
-                return redirect('editar_rol', rol_id=rol_id)
-        
-        rol.nombre = nombre
-        rol.descripcion = descripcion
-        rol.save()
-        
-        messages.success(request, f'Rol "{rol.nombre}" actualizado correctamente.')
-        return redirect('visualizar_roles')
-    
-    return render(request, 'editar_rol.html', {'rol': rol})
+        form = RolEditarForm(request.POST, instance=rol)
+        if form.is_valid():
+            form.save()
+            # Mensaje de éxito con Django messages
+            messages.success(request, f'Rol "{rol.nombre}" actualizado correctamente.')
+            
+            # Devolvemos JSON indicando que todo salió bien y la URL a la que redirigir
+            return JsonResponse({
+                'success': True, 
+                'redirect_url': reverse('visualizar_roles')
+            })
+        else:
+            errors_json = form.errors.as_json()
+            return JsonResponse({
+                'success': False, 
+                'errors': errors_json
+            })
+    else:
+        # GET
+        form = RolEditarForm(instance=rol)
+
+    return render(request, 'editar_rol.html', {
+        'form': form,
+        'rol': rol,
+    })
 
 
 @login_required

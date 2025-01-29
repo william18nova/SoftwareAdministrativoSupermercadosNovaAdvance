@@ -1110,6 +1110,62 @@ class RolForm(forms.ModelForm):
         if Rol.objects.filter(nombre__iexact=nombre).exists():
             raise forms.ValidationError('Ya existe un rol con ese nombre.')
         return nombre
+    
+class RolEditarForm(forms.ModelForm):
+    """
+    Form para Editar Rol (similar a RolForm, pero permite
+    usar el mismo nombre del rol sin considerarlo duplicado
+    si no ha cambiado).
+    """
+    nombre = forms.CharField(
+        max_length=50,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$',
+                message='El nombre del rol solo debe contener letras y espacios.'
+            )
+        ],
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el nombre del rol',
+            'required': 'required'
+        })
+    )
+    descripcion = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa la descripción del rol',
+            'rows': 4
+        }),
+        required=False
+    )
+
+    class Meta:
+        model = Rol
+        fields = ['nombre', 'descripcion']
+        labels = {
+            'nombre': 'Nombre del Rol',
+            'descripcion': 'Descripción',
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.instance = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_nombre(self):
+        """
+        Permite el mismo nombre si no ha cambiado.
+        Si cambió, verificamos duplicados.
+        """
+        nombre = self.cleaned_data.get('nombre')
+        if self.instance and self.instance.nombre.lower() == nombre.lower():
+            # El usuario no cambió el nombre, no chequeamos duplicado.
+            return nombre
+        # Si cambió, comprobamos que no exista.
+        if Rol.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError('Ya existe un rol con ese nombre.')
+        return nombre
 
 class InventarioForm(forms.Form):
     """
