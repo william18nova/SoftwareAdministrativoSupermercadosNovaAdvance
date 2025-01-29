@@ -1443,6 +1443,72 @@ class PuntosPagoForm(forms.Form):
         # No forzamos a que “nombre” sea obligatorio, puesto que
         # se agregarán varios nombres en la tabla
         return cleaned_data
+
+class PuntosPagoEditarForm(forms.Form):
+    """
+    Form para 'Editar Puntos de Pago': permite elegir/editar
+    la Sucursal con un autocomplete y validamos que la sucursal sea válida.
+    """
+    # Nuevo campo de autocomplete (mostrará la sucursal actual y permitirá cambiarla)
+    sucursal_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Escriba para buscar sucursal...',
+            'autocomplete': 'off',
+        })
+    )
+    
+    # Sucursal oculta donde guardamos el ID resultante del autocomplete
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.none(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+
+    # Campos opcionales (usados en la parte superior del form para agregar un punto)
+    nombre = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nombre del punto de pago...',
+        })
+    )
+    descripcion = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Descripción (opcional)...',
+        })
+    )
+    dinerocaja = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Dinero en caja...',
+            'min': '0.00',
+            'step': '0.01'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        # Podemos recibir por kwargs un 'initial_sucursal_id'
+        # o simplemente usar initial['sucursal'].
+        super().__init__(*args, **kwargs)
+
+        # Permitimos "todas" las sucursales, ya que la vista
+        # se encargará de filtrar en el autocomplete.
+        self.fields['sucursal'].queryset = Sucursal.objects.all()
+
+        # Si existe un initial con 'sucursal_autocomplete' (nombre)
+        # o 'sucursal', se puede prefijar. La vista lo hará.
+
+    def clean(self):
+        cleaned_data = super().clean()
+        sucursal_obj = cleaned_data.get('sucursal')
+        if not sucursal_obj:
+            self.add_error('sucursal', 'Sucursal no válida.')
+        return cleaned_data
     
 class UsuarioForm(forms.Form):
     """

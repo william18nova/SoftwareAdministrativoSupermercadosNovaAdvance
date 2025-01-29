@@ -244,11 +244,12 @@ body::before {
     overflow-x: auto;
 }
 
+/* Usamos table-layout: fixed para que las celdas conserven sus proporciones */
 .table-container-punto-pago .table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
-    table-layout: fixed;
+    table-layout: fixed; /* importante */
 }
 
 .table-container-punto-pago .table th,
@@ -256,16 +257,49 @@ body::before {
     padding: 10px;
     border: 1px solid #ddd;
     word-wrap: break-word;
+    /* Evita que se expanda más de la cuenta */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+/* Cabecera */
 .table-container-punto-pago .table th {
     background-color: var(--color-boton);
     color: var(--color-blanco);
 }
 
+/* Celdas del body */
 .table-container-punto-pago .table td {
     background-color: #f9f9f9;
     color: #333;
+}
+
+/* Ajustes para inputs en celdas */
+.table-container-punto-pago .table td input[type="text"],
+.table-container-punto-pago .table td input[type="number"] {
+    width: 100%;               /* que ocupe todo el espacio de la celda */
+    max-width: 100%;           /* no exceder el ancho disponible */
+    box-sizing: border-box;     /* tomar en cuenta el padding y borde */
+    padding: 5px;
+    border: 1px solid var(--color-gris);
+    border-radius: 3px;
+    background-color: var(--color-gris-claro);
+    font-size: 14px;
+    color: #333;
+}
+
+/* Hover y focus en inputs dentro de la tabla */
+.table-container-punto-pago .table td input[type="text"]:hover,
+.table-container-punto-pago .table td input[type="number"]:hover {
+    background-color: #e0e8ff;
+    border-color: var(--color-gris-hover);
+}
+
+.table-container-punto-pago .table td input[type="text"]:focus,
+.table-container-punto-pago .table td input[type="number"]:focus {
+    outline: none;
+    border-color: var(--color-principal);
+    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
 }
 
 /* Botón Eliminar */

@@ -1,126 +1,114 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Editar Puntos de Pago{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Puntos de Pago</title>
-    {% load static %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'editar_puntos_pago.css' %}">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            const table = $('#puntos-pago-list').DataTable({
-                paging: false,
-                searching: true,
-                info: false,
-                language: {
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay puntos de pago para mostrar",
-                },
-            });
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editar Puntos de Pago</title>
 
-            function mostrarMensaje(mensaje, clase) {
-                const alertasExistentes = document.querySelectorAll('.alert');
-                alertasExistentes.forEach(alerta => alerta.remove());
+  <!-- Font Awesome para íconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 
-                const mensajeDiv = document.createElement('div');
-                mensajeDiv.className = `alert ${clase}`;
-                mensajeDiv.textContent = mensaje || 'Operación exitosa';
-                const form = document.querySelector('#puntoPagoForm');
-                form.insertAdjacentElement('beforebegin', mensajeDiv);
-            }
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css"/>
 
-            function agregarPuntoPago() {
-                const nombreInput = $('#nombre');
-                const descripcionInput = $('#descripcion');
-                const nombre = nombreInput.val();
-                const descripcion = descripcionInput.val();
+  <!-- CSS (el mismo que en agregar) -->
+  <link rel="stylesheet" href="{% static 'css/agregar_punto_pago.css' %}" />
 
-                if (nombre) {
-                    const rowHtml = `
-                        <tr>
-                            <td>${nombre}<input type="hidden" name="nombre[]" value="${nombre}"></td>
-                            <td><input type="text" name="descripcion[]" value="${descripcion}"></td>
-                            <td class="text-center"><button type="button" class="btn-eliminar" onclick="eliminarPuntoPago(this)"><i class="fas fa-trash-alt"></i></button></td>
-                        </tr>
-                    `;
-                    $('#puntos-pago-list tbody').append(rowHtml);
-                    nombreInput.val('');
-                    descripcionInput.val('');
-                } else {
-                    mostrarMensaje('Por favor, completa el nombre del punto de pago.', 'alert-error');
-                }
-            }
-
-            window.eliminarPuntoPago = function(button) {
-                if (confirm('¿Estás seguro de que deseas eliminar este punto de pago?')) {
-                    const row = $(button).closest('tr');
-                    row.remove();
-                }
-            }
-
-            $('#agregarPuntoPagoBtn').on('click', agregarPuntoPago);
-        });
-    </script>
+  <!-- jQuery y DataTables JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <i class="fas fa-credit-card icon"></i> <!-- Ícono de punto de pago -->
-        <h2>Editar Puntos de Pago de la Sucursal: {{ sucursal.nombre }}</h2>
-        <form id="puntoPagoForm" method="POST">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre">
-            </div>
-            <div class="form-group">
-                <label for="descripcion">Descripción</label>
-                <input type="text" id="descripcion" name="descripcion">
-            </div>
-            <button type="button" class="btn-agregar-punto-pago" id="agregarPuntoPagoBtn">Agregar Punto de Pago</button>
-            <div class="table-container">
-                <table id="puntos-pago-list" class="table display">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Descripción</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for punto in puntos_pago %}
-                        <tr>
-                            <td>{{ punto.nombre }}<input type="hidden" name="nombre[]" value="{{ punto.nombre }}"></td>
-                            <td><input type="text" name="descripcion[]" value="{{ punto.descripcion }}"></td>
-                            <td class="text-center">
-                                <button type="button" class="btn-eliminar" onclick="eliminarPuntoPago(this)"><i class="fas fa-trash-alt"></i></button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="btn-container">
-                <input type="submit" value="Actualizar" class="btn-editar-puntos-pago">
-            </div>
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </form>
-    </div>
+  <div class="container-punto-pago">
+    <i class="fas fa-credit-card icon-punto-pago"></i>
+    <h2>Editar Puntos de Pago - Sucursal Actual: {{ sucursal.nombre }}</h2>
+    <p class="obligatorio-texto">
+      Todos los campos con <span class="required">*</span> son obligatorios.
+    </p>
+
+    <!-- Alertas globales (JS) -->
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+
+    <!-- Formulario principal -->
+    <form id="puntoPagoForm" action="{% url 'editar_puntos_pago' sucursal.sucursalid %}" method="POST">
+      {% csrf_token %}
+
+      <!-- Autocomplete de Sucursal -->
+      <div class="form-group-punto-pago">
+        <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
+        {{ form.sucursal_autocomplete }} <!-- campo textual -->
+        {{ form.sucursal }}              <!-- campo hidden -->
+        <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
+        <div class="field-error" id="error-id_sucursal"></div>
+      </div>
+
+      <!-- Nombre, descripción y dinero para AGREGAR un nuevo punto (opcional) -->
+      <div class="form-group-punto-pago">
+        <label for="id_nombre">Nombre <span class="required">*</span></label>
+        {{ form.nombre }}
+        <div class="field-error" id="error-id_nombre"></div>
+      </div>
+
+      <div class="form-group-punto-pago">
+        <label for="id_descripcion">Descripción</label>
+        {{ form.descripcion }}
+        <div class="field-error" id="error-id_descripcion"></div>
+      </div>
+
+      <div class="form-group-punto-pago">
+        <label for="id_dinerocaja">Dinero en Caja</label>
+        {{ form.dinerocaja }}
+        <div class="field-error" id="error-id_dinerocaja"></div>
+      </div>
+
+      <!-- Botón Agregar/Actualizar a la Tabla Temporal -->
+      <div class="form-group-punto-pago">
+        <button type="button" class="btn-agregar-punto-pago" id="agregarPuntoPagoBtn">
+          Agregar/Actualizar Punto de Pago
+        </button>
+      </div>
+
+      <!-- Tabla con DataTable -->
+      <div class="table-container-punto-pago">
+        <table id="puntos-pago-list" class="table display">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Dinero en Caja</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="puntos-pago-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Campo oculto para Puntos de Pago temporales -->
+      <input type="hidden" name="puntos_temp" id="id_puntos_temp" />
+
+      <!-- Botón Final -->
+      <div class="form-group-punto-pago">
+        <button type="submit" class="btn-submit-punto-pago">
+          Guardar Cambios
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Puntos de pago existentes inyectados desde views.py -->
+  <script>
+    var existingPuntos = JSON.parse('{{ puntos_json|escapejs }}');
+    // URL para autocomplete. Notar que inyectamos "current_sucursal_id" en la QueryString
+    var sucursalAutocompleteUrl = "{% url 'sucursal_editar_punto_pago_autocomplete' %}?current_sucursal_id={{ sucursal.sucursalid }}";
+  </script>
+
+  <!-- JS específico de esta página -->
+  <script src="{% static 'javascript/editar_punto_pago.js' %}"></script>
 </body>
 </html>
 {% endblock %}

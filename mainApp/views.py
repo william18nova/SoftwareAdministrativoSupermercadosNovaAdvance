@@ -36,7 +36,8 @@ from .forms import (
     EditarHorariosSucursalForm,
     EditarInventarioForm,
     EditarPreciosProveedorForm,
-    EditarProveedorForm
+    EditarProveedorForm,
+    PuntosPagoEditarForm,
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1273,37 +1274,198 @@ def eliminar_punto_pago_view(request, puntopagoid):
 
 @login_required
 def editar_puntos_pago_view(request, sucursal_id):
+    """
+    Vista para EDITAR Puntos de Pago de una sucursal,
+    con autocompletado de sucursal y edición en tabla.
+    """
     sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
-    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id)
+    puntos = PuntosPago.objects.filter(sucursalid=sucursal)
 
     if request.method == 'POST':
-        nuevos_nombres = request.POST.getlist('nombre[]')
-        nuevas_descripciones = request.POST.getlist('descripcion[]')
+        # Tomamos el formulario
+        form = PuntosPagoEditarForm(request.POST, initial={'sucursal': sucursal.sucursalid})
+        if form.is_valid():
+            # Obtenemos la sucursal elegida en el formulario
+            nueva_sucursal = form.cleaned_data['sucursal']
 
-        nuevos_nombres = [nombre for nombre in nuevos_nombres if nombre]
-        nuevas_descripciones = [descripcion for descripcion in nuevas_descripciones]
+            # Tomamos el JSON con los puntos
+            puntos_temp_json = request.POST.get('puntos_temp', '')
+            try:
+                puntos_temp = json.loads(puntos_temp_json)
+            except json.JSONDecodeError:
+                puntos_temp = []
 
-        # Eliminar puntos de pago que ya no están en la nueva lista
-        PuntosPago.objects.filter(sucursalid=sucursal_id).exclude(nombre__in=nuevos_nombres).delete()
+            if not puntos_temp:
+                errors = {
+                    'puntos_temp': [{'message': 'Debe haber al menos un Punto de Pago para guardar.'}]
+                }
+                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
 
-        # Crear o actualizar puntos de pago
-        for nombre, descripcion in zip(nuevos_nombres, nuevas_descripciones):
-            if nombre:
-                PuntosPago.objects.update_or_create(
-                    nombre=nombre,
-                    sucursalid=sucursal,
-                    defaults={'descripcion': descripcion}
-                )
+            # IDs en DB
+            db_ids = set(puntos.values_list('puntopagoid', flat=True))
+            # IDs en la petición
+            new_ids = set(int(p['id']) for p in puntos_temp if p.get('id'))
 
-        messages.success(
-            request,
-            f'Puntos de pago de la sucursal {sucursal.nombre} actualizados exitosamente.'
-        )
-        return redirect('visualizar_puntos_pago')
+            # 1. Eliminar de la base los que ya no estén
+            to_delete_ids = db_ids - new_ids
+            if to_delete_ids:
+                PuntosPago.objects.filter(puntopagoid__in=to_delete_ids).delete()
+
+            # 2. Crear o actualizar
+            for p in puntos_temp:
+                punto_id = p.get('id', None)
+                nombre = p.get('nombre', '').strip()
+                descripcion = p.get('descripcion', '')
+                dinerocaja = p.get('dinerocaja', 0.0)
+
+                if not nombre:
+                    errors = {
+                        'nombre': [{'message': 'El nombre del Punto de Pago es obligatorio.'}]
+                    }
+                    return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+
+                if punto_id:  # actualizar
+                    punto_id = int(punto_id)
+                    pp = PuntosPago.objects.filter(puntopagoid=punto_id).first()
+                    if not pp:
+                        # No existía => crear
+                        if PuntosPago.objects.filter(sucursalid=nueva_sucursal, nombre=nombre).exists():
+                            errors = {
+                                'nombre': [{'message': f'Ya existe un punto de pago con el nombre "{nombre}" en la sucursal.'}]
+                            }
+                            return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+                        PuntosPago.objects.create(
+                            sucursalid=nueva_sucursal,
+                            nombre=nombre,
+                            descripcion=descripcion,
+                            dinerocaja=dinerocaja
+                        )
+                    else:
+                        # Verificar duplicado por nombre (excluyendo el mismo ID)
+                        if PuntosPago.objects.filter(
+                            sucursalid=nueva_sucursal,
+                            nombre=nombre
+                        ).exclude(puntopagoid=punto_id).exists():
+                            errors = {
+                                'nombre': [{'message': f'Ya existe un punto de pago con el nombre "{nombre}" en la sucursal.'}]
+                            }
+                            return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+
+                        # Actualizar
+                        pp.sucursalid = nueva_sucursal
+                        pp.nombre = nombre
+                        pp.descripcion = descripcion
+                        pp.dinerocaja = dinerocaja
+                        pp.save()
+                else:
+                    # Crear nuevo
+                    if PuntosPago.objects.filter(sucursalid=nueva_sucursal, nombre=nombre).exists():
+                        errors = {
+                            'nombre': [{'message': f'Ya existe un punto de pago con el nombre "{nombre}" en la sucursal.'}]
+                        }
+                        return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+                    PuntosPago.objects.create(
+                        sucursalid=nueva_sucursal,
+                        nombre=nombre,
+                        descripcion=descripcion,
+                        dinerocaja=dinerocaja
+                    )
+
+            # Todo salió bien => guardamos un mensaje de éxito
+            messages.success(request, "Puntos de pago actualizados exitosamente.")
+
+            # Enviamos la redirección al front-end (JS)
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('visualizar_puntos_pago')
+            })
+        else:
+            # Error en el form
+            errors = form.errors.get_json_data()
+            processed_errors = {}
+            for field, field_errors in errors.items():
+                processed_errors[field] = [{'message': err['message']} for err in field_errors]
+            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
+
+    else:
+        # GET
+        form = PuntosPagoEditarForm(initial={
+            'sucursal': sucursal.sucursalid,
+            'sucursal_autocomplete': sucursal.nombre,
+        })
+
+    # Convertir dinerocaja (Decimal) a float para JSON
+    puntos_list = list(puntos.values('puntopagoid', 'nombre', 'descripcion', 'dinerocaja'))
+    for p in puntos_list:
+        if p['dinerocaja'] is not None:
+            p['dinerocaja'] = float(p['dinerocaja'])
+        else:
+            p['dinerocaja'] = 0.0
 
     return render(request, 'editar_puntos_pago.html', {
+        'form': form,
         'sucursal': sucursal,
-        'puntos_pago': puntos_pago,
+        'puntos_json': json.dumps(puntos_list),
+    })
+
+@login_required
+def sucursal_editar_punto_pago_autocomplete(request):
+    """
+    Autocomplete para elegir la sucursal al editar Puntos de Pago.
+    Incluirá la sucursal actual (si se pasa 'current_sucursal_id')
+    y las sucursales que no tengan puntos de pago.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '10').strip()
+    current_sucursal_id = request.GET.get('current_sucursal_id', '').strip()
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+        if per_page < 1:
+            per_page = 10
+    except ValueError:
+        per_page = 10
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # 1. QuerySet de sucursales sin puntos de pago
+    qs_sin_pp = (Sucursal.objects
+                 .annotate(count_pp=Count('puntospago'))
+                 .filter(count_pp=0))
+
+    # 2. QuerySet de la sucursal actual (si es un ID válido)
+    qs_actual = Sucursal.objects.filter(pk__exact=current_sucursal_id) if current_sucursal_id.isdigit() else Sucursal.objects.none()
+
+    # 3. OR de ambos => Retorna las sucursales sin PP o la actual
+    qs = (qs_sin_pp | qs_actual).distinct().order_by('nombre')
+
+    # Si 'term' no está vacío, filtramos por nombre
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for suc in qs:
+        results.append({
+            'id': suc.sucursalid,
+            'text': suc.nombre,
+        })
+
+    has_more = end < total_results
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
     })
 
 
