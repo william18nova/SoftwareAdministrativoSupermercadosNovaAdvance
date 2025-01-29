@@ -2388,3 +2388,89 @@ File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\da
                 AND pg_catalog.pg_table_is_visible(c.oid)
         ; args=None; alias=default
 (0.172) SELECT "django_migrations"."id", "django_migrations"."app", "django_migrations"."name", "django_migrations"."applied" FROM "django_migrations"; args=(); alias=default
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\contenttypes\migrations\__init__.py first seen with mtime 1731739623.649715
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\0003_logentry_add_action_flag_choices.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\contenttypes\migrations\0001_initial.py first seen with mtime 1731739623.649715
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\middleware\common.py first seen with mtime 1731739624.981244
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\__init__.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0001_initial.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\0002_logentry_remove_auto_add.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0011_update_proxy_permissions.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0005_alter_user_last_login_null.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0003_alter_user_email_max_length.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\NovaSoft\wsgi.py first seen with mtime 1735878956.740709
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\recorder.py first seen with mtime 1731739624.8859253
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\backends\base.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\cache\backends\locmem.py first seen with mtime 1731739624.7886438
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\encodings\idna.py first seen with mtime 1727773420.0
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\middleware\clickjacking.py first seen with mtime 1731739624.981244
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0009_alter_user_last_name_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\loader.py first seen with mtime 1731739624.880226
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0007_alter_validators_add_error_messages.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\backends\db.py first seen with mtime 1731739624.4859767
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\stringprep.py first seen with mtime 1727773420.0
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0004_alter_user_username_opts.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\compiler.py first seen with mtime 1731739624.9159627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\migrations\0001_initial.py first seen with mtime 1731739624.6190653
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0008_alter_user_username_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0006_require_contenttypes_0002.py first seen with mtime 1731739623.4189668
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\migrations\__init__.py first seen with mtime 1731739624.6190653
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\backends\__init__.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\__init__.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\middleware.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\exceptions.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\defaults.py first seen with mtime 1731739625.2375877
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0010_alter_group_name_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\migrations\__init__.py first seen with mtime 1735878957.0867627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\conf\urls\__init__.py first seen with mtime 1731739622.6469953
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\migrations\0001_initial.py first seen with mtime 1735878957.0867627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\middleware.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\migrations\0002_alter_horariocaja_puntopagoid.py first seen with mtime 1735878957.0867627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0002_alter_permission_name_max_length.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\executor.py first seen with mtime 1731739624.880226
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0012_alter_user_first_name_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\graph.py first seen with mtime 1731739624.880226
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\contenttypes\migrations\0002_remove_content_type_name.py first seen with mtime 1731739623.649715
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\0001_initial.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\storage\cookie.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\storage\session.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\storage\fallback.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\serializers.py first seen with mtime 1731739624.4798634
+(0.109) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-01-28T22:05:13.530963'::timestamp AND "django_session"."session_key" = 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e') LIMIT 21; args=(datetime.datetime(2025, 1, 28, 22, 5, 13, 530963), 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'); alias=default
+(0.109) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.110) SELECT "sucursales"."sucursalid", "sucursales"."nombre", "sucursales"."direccion", "sucursales"."telefono" FROM "sucursales" WHERE "sucursales"."sucursalid" = 6 LIMIT 21; args=(6,); alias=default
+(0.110) SELECT "puntospago"."puntopagoid", "puntospago"."nombre", "puntospago"."descripcion", "puntospago"."dinerocaja" FROM "puntospago" WHERE "puntospago"."sucursalid" = 6; args=(6,); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.219) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tcyOA:qk77j5fp7mbBl3usfXdPqfvVWyeMhYRaWdTgldV7TIY', "expire_date" = '2025-02-11T22:05:14.906732'::timestamp WHERE "django_session"."session_key" = 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tcyOA:qk77j5fp7mbBl3usfXdPqfvVWyeMhYRaWdTgldV7TIY', datetime.datetime(2025, 2, 11, 22, 5, 14, 906732), 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'); alias=default
+(0.109) COMMIT; args=None; alias=default
+"GET /editar-puntos-pago/6/ HTTP/1.1" 200 5317
+"GET /static/css/agregar_punto_pago.css HTTP/1.1" 304 0
+"GET /static/javascript/editar_punto_pago.js HTTP/1.1" 200 14548
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\conf\locale\en\__init__.py first seen with mtime 1731739622.4435546
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\context_processors.py first seen with mtime 1731739624.2068737
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\conf\locale\en\formats.py first seen with mtime 1731739622.4435546
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\staticfiles\storage.py first seen with mtime 1731739624.7766397
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\context_processors.py first seen with mtime 1731739623.2495396
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\context_processors.py first seen with mtime 1731739624.9887834
+(0.109) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-01-28T22:05:24.038486'::timestamp AND "django_session"."session_key" = 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e') LIMIT 21; args=(datetime.datetime(2025, 1, 28, 22, 5, 24, 38486), 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'); alias=default
+(0.109) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.110) SELECT "sucursales"."sucursalid", "sucursales"."nombre", "sucursales"."direccion", "sucursales"."telefono" FROM "sucursales" WHERE "sucursales"."sucursalid" = 6 LIMIT 21; args=(6,); alias=default
+(0.109) SELECT "sucursales"."sucursalid", "sucursales"."nombre", "sucursales"."direccion", "sucursales"."telefono" FROM "sucursales" WHERE "sucursales"."sucursalid" = 6 LIMIT 21; args=(6,); alias=default
+(0.125) SELECT "puntospago"."puntopagoid" FROM "puntospago" WHERE "puntospago"."sucursalid" = 6; args=(6,); alias=default
+(0.109) SELECT "puntospago"."puntopagoid", "puntospago"."sucursalid", "puntospago"."nombre", "puntospago"."descripcion", "puntospago"."dinerocaja" FROM "puntospago" WHERE "puntospago"."puntopagoid" = 17 ORDER BY "puntospago"."puntopagoid" ASC LIMIT 1; args=(17,); alias=default
+(0.110) SELECT 1 AS "a" FROM "puntospago" WHERE ("puntospago"."nombre" = 'Caja 6' AND "puntospago"."sucursalid" = 6 AND NOT ("puntospago"."puntopagoid" = 17)) LIMIT 1; args=(1, 'Caja 6', 6, 17); alias=default
+(0.125) UPDATE "puntospago" SET "sucursalid" = 6, "nombre" = 'Caja 6', "descripcion" = 'Punto de pago principal', "dinerocaja" = 100000 WHERE "puntospago"."puntopagoid" = 17; args=(6, 'Caja 6', 'Punto de pago principal', Decimal('100000'), 17); alias=default
+(0.109) SELECT "puntospago"."puntopagoid", "puntospago"."sucursalid", "puntospago"."nombre", "puntospago"."descripcion", "puntospago"."dinerocaja" FROM "puntospago" WHERE "puntospago"."puntopagoid" = 18 ORDER BY "puntospago"."puntopagoid" ASC LIMIT 1; args=(18,); alias=default
+(0.110) SELECT 1 AS "a" FROM "puntospago" WHERE ("puntospago"."nombre" = 'Caja 7' AND "puntospago"."sucursalid" = 6 AND NOT ("puntospago"."puntopagoid" = 18)) LIMIT 1; args=(1, 'Caja 7', 6, 18); alias=default
+(0.109) UPDATE "puntospago" SET "sucursalid" = 6, "nombre" = 'Caja 7', "descripcion" = 'Punto de pago principal', "dinerocaja" = 100000 WHERE "puntospago"."puntopagoid" = 18; args=(6, 'Caja 7', 'Punto de pago principal', Decimal('100000'), 18); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.234) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tcyOM:8mW5R1RVrlDjdhMDNdCU_W1xV4YQXdLa1XDwEqngeCw', "expire_date" = '2025-02-11T22:05:26.179127'::timestamp WHERE "django_session"."session_key" = 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tcyOM:8mW5R1RVrlDjdhMDNdCU_W1xV4YQXdLa1XDwEqngeCw', datetime.datetime(2025, 2, 11, 22, 5, 26, 179127), 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'); alias=default
+(0.110) COMMIT; args=None; alias=default
+"POST /editar-puntos-pago/6/ HTTP/1.1" 200 61
+(0.109) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-01-28T22:05:26.530005'::timestamp AND "django_session"."session_key" = 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e') LIMIT 21; args=(datetime.datetime(2025, 1, 28, 22, 5, 26, 530005), 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'); alias=default
+(0.110) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.110) SELECT "sucursales"."sucursalid", "sucursales"."nombre", "sucursales"."direccion", "sucursales"."telefono", COUNT("puntospago"."puntopagoid") AS "punto_count" FROM "sucursales" LEFT OUTER JOIN "puntospago" ON ("sucursales"."sucursalid" = "puntospago"."sucursalid") GROUP BY "sucursales"."sucursalid" HAVING COUNT("puntospago"."puntopagoid") > 0; args=(0,); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.218) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tcyON:yXJP9ZBBkBVwT8f7UmFtuugdoIGeR6RqoMnPug4EA7o', "expire_date" = '2025-02-11T22:05:27.686272'::timestamp WHERE "django_session"."session_key" = 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tcyON:yXJP9ZBBkBVwT8f7UmFtuugdoIGeR6RqoMnPug4EA7o', datetime.datetime(2025, 2, 11, 22, 5, 27, 686272), 'ue0dcyi7txyyk8p5q6fkp18zvaez6p0e'); alias=default
+(0.110) COMMIT; args=None; alias=default
+"GET /visualizar_puntos_pago/ HTTP/1.1" 200 4692
