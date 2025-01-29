@@ -923,6 +923,69 @@ class ProductoForm(forms.ModelForm):
             if qs.exists():
                 raise forms.ValidationError('El código de barras ya está registrado.')
         return codigo_de_barras
+    
+    
+class SucursalEditarForm(forms.ModelForm):
+    class Meta:
+        model = Sucursal
+        fields = ['nombre', 'direccion', 'telefono']
+        labels = {
+            'nombre': 'Nombre',
+            'direccion': 'Dirección',
+            'telefono': 'Teléfono',
+        }
+
+    nombre_validator = RegexValidator(
+        regex=r'^[A-Za-z\s]+$',
+        message='El nombre solo debe contener letras y espacios.'
+    )
+    telefono_validator = RegexValidator(
+        regex=r'^\d{10}$',
+        message='El teléfono debe contener exactamente 10 dígitos.'
+    )
+
+    # Campo nombre
+    nombre = forms.CharField(
+        max_length=100,
+        validators=[nombre_validator],
+        required=True,
+        error_messages={'required': 'El nombre es obligatorio.'}
+    )
+
+    # Campo direccion con placeholder
+    direccion = forms.CharField(
+        required=True,
+        error_messages={'required': 'La dirección es obligatoria.'},
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ingresa la dirección',
+            'class': 'form-control'  # o la clase que uses
+        })
+    )
+
+    # Campo telefono
+    telefono = forms.CharField(
+        required=True,
+        validators=[telefono_validator],
+        error_messages={'required': 'El teléfono es obligatorio.'},
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ingresa el teléfono',
+            'class': 'form-control'
+        })
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.instance = kwargs.get('instance', None)
+        super().__init__(*args, **kwargs)
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get('nombre')
+        if self.instance and self.instance.nombre.lower() == nombre.lower():
+            return nombre
+
+        # Verificamos duplicados si cambió el nombre
+        if Sucursal.objects.filter(nombre__iexact=nombre).exclude(sucursalid=self.instance.sucursalid).exists():
+            raise forms.ValidationError('El nombre de la sucursal ya está registrado.')
+        return nombre
 
 
     

@@ -39,6 +39,7 @@ from .forms import (
     EditarProveedorForm,
     PuntosPagoEditarForm,
     RolEditarForm,
+    SucursalEditarForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -102,30 +103,36 @@ def eliminar_sucursal(request, sucursal_id):
 @login_required
 def editar_sucursal_view(request, sucursal_id):
     sucursal = get_object_or_404(Sucursal, sucursalid=sucursal_id)
+
     if request.method == 'POST':
-        nombre = request.POST.get('nombre')
-        direccion = request.POST.get('direccion')
-        telefono = request.POST.get('telefono')
+        form = SucursalEditarForm(request.POST, instance=sucursal)
 
-        if not nombre:
-            messages.error(request, 'El Nombre es un campo obligatorio.')
-            return render(request, 'editar_sucursal.html', {'sucursal': sucursal})
+        if form.is_valid():
+            form.save()
+            # Mensaje de éxito (para mostrarse en visualizar_sucursales)
+            messages.success(request, f'Sucursal "{sucursal.nombre}" actualizada exitosamente.')
 
-        if Sucursal.objects.filter(nombre=nombre).exclude(sucursalid=sucursal_id).exists():
-            messages.error(request, 'El Nombre de la sucursal ya está registrado.')
-            return render(request, 'editar_sucursal.html', {'sucursal': sucursal})
+            # Retornamos JSON con success y la URL de redirección
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('visualizar_sucursales')  
+            })
+        else:
+            # Devolver errores
+            errors_data = form.errors.get_json_data()
+            return JsonResponse({
+                'success': False,
+                'errors': errors_data
+            })
 
-        sucursal.nombre = nombre
-        sucursal.direccion = direccion
-        sucursal.telefono = telefono
-        sucursal.save()
-        messages.success(
-            request,
-            f'Sucursal actualizada exitosamente: Nombre={nombre}, Dirección={direccion}, Teléfono={telefono}'
-        )
-        return redirect('visualizar_sucursales')
+    else:
+        # GET: renderizamos la plantilla con el form
+        form = SucursalEditarForm(instance=sucursal)
 
-    return render(request, 'editar_sucursal.html', {'sucursal': sucursal})
+    return render(request, 'editar_sucursal.html', {
+        'sucursal': sucursal,
+        'form': form,
+    })
 
 
 @login_required

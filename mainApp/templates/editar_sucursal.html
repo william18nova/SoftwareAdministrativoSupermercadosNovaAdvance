@@ -1,49 +1,66 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Editar Sucursal{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar Sucursal</title>
-    {% load static %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'agregar_sucursal copy.css' %}">
+    <!-- Reusar el mismo CSS de agregar si quieres -->
+    <link rel="stylesheet" href="{% static 'css/agregar_sucursal.css' %}">
 </head>
 <body>
     <div class="container">
         <i class="fas fa-pencil-alt icon"></i> <!-- Ícono de edición -->
         <h2>Editar Sucursal</h2>
+
+        <p class="obligatorio-texto">
+            Todos los campos con <span class="required">*</span> son obligatorios.
+        </p>
+
+        <!-- Divs para mensajes de error/éxito (igual que en agregar) -->
+        <div id="error-message" class="alert alert-error" style="display: none;"></div>
+        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+
+        <!-- Form -->
         <form id="sucursalForm" action="{% url 'editar_sucursal' sucursal.sucursalid %}" method="POST">
             {% csrf_token %}
+            
             <div class="form-group">
-                <label for="nombre">Nombre</label>
-                <input type="text" id="nombre" name="nombre" value="{{ sucursal.nombre }}" required>
+                <label for="{{ form.nombre.id_for_label }}">
+                    Nombre <span class="required">*</span>
+                </label>
+                {{ form.nombre }}
+                <div class="field-error" id="error-id_nombre"></div>
             </div>
+
             <div class="form-group">
-                <label for="direccion">Dirección</label>
-                <input type="text" id="direccion" name="direccion" value="{{ sucursal.direccion }}" required>
+                <label for="{{ form.direccion.id_for_label }}">
+                    Dirección <span class="required">*</span>
+                </label>
+                {{ form.direccion }}
+                <div class="field-error" id="error-id_direccion"></div>
             </div>
+
             <div class="form-group">
-                <label for="telefono">Teléfono</label>
-                <input type="text" id="telefono" name="telefono" value="{{ sucursal.telefono }}" required>
+                <label for="{{ form.telefono.id_for_label }}">
+                    Teléfono <span class="required">*</span>
+                </label>
+                {{ form.telefono }}
+                <div class="field-error" id="error-id_telefono"></div>
             </div>
+
             <div class="form-group">
-                <input type="submit" value="Editar">
+                <button type="submit" class="btn-agregar-sucursal">Guardar Cambios</button>
             </div>
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
         </form>
     </div>
+
+    <!-- JS para manejar AJAX -->
+    <script src="{% static 'javascript/editar_sucursal.js' %}"></script>
 </body>
 </html>
 {% endblock %}
-
