@@ -39,7 +39,8 @@ from .forms import (
     EditarProveedorForm,
     PuntosPagoEditarForm,
     RolEditarForm,
-    SucursalEditarForm
+    SucursalEditarForm,
+    UsuarioEditarForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -1647,27 +1648,54 @@ def visualizar_usuarios_view(request):
 
 @login_required
 def editar_usuario_view(request, usuarioid):
+    """
+    Vista para EDITAR Usuario usando AJAX.
+    - GET: muestra form con los datos actuales.
+    - POST: valida form, si ok => actualiza y retorna JSON con redirect_url.
+    """
     usuario = get_object_or_404(Usuario, pk=usuarioid)
-    roles = Rol.objects.all()
 
     if request.method == 'POST':
-        usuario.nombreusuario = request.POST['nombreusuario']
-        contraseña = request.POST['contraseña']
-        confirmar_contraseña = request.POST['confirmar_contraseña']
-        usuario.rolid = Rol.objects.get(pk=request.POST['rolid'])
+        form = UsuarioEditarForm(request.POST, instance=usuario)
+        if form.is_valid():
+            cd = form.cleaned_data
+            # 1. Rol
+            rol_obj = cd['rolid']
+            usuario.rolid = rol_obj.pk  # asumiendo que rolid en Usuario es un int
 
-        if contraseña:
-            if contraseña == confirmar_contraseña:
-                usuario.contraseña = contraseña
-            else:
-                messages.error(request, 'Las contraseñas no coinciden.')
-                return redirect('editar_usuario', usuarioid=usuarioid)
+            # 2. nombreusuario (si cambió, el form ya verificó duplicado)
+            usuario.nombreusuario = cd['nombreusuario']
 
-        usuario.save()
-        messages.success(request, 'Usuario actualizado exitosamente.')
-        return redirect('visualizar_usuarios')
+            # 3. Contraseña (si la ingresaron)
+            password = cd['contraseña']
+            if password:
+                # Cambiamos la contraseña
+                usuario.set_password(password)
+            
+            usuario.save()
 
-    return render(request, 'editar_usuario.html', {'usuario': usuario, 'roles': roles})
+            # Guardar mensaje de éxito y retornar JSON
+            messages.success(request, f'Usuario "{usuario.nombreusuario}" actualizado exitosamente.')
+            return JsonResponse({
+                'success': True,
+                'redirect_url': reverse('visualizar_usuarios')
+            })
+        else:
+            # Retornar errores
+            errors_dict = form.errors.get_json_data()  
+            # Pasarlo a un JSON string si quieres
+            return JsonResponse({
+                'success': False,
+                'errors': json.dumps(errors_dict)
+            })
+    else:
+        # GET
+        form = UsuarioEditarForm(instance=usuario)
+
+    return render(request, 'editar_usuario.html', {
+        'form': form,
+        'usuario': usuario
+    })
 
 
 @login_required

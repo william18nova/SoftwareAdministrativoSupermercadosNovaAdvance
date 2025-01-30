@@ -1,78 +1,85 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Editar Usuario{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Usuario</title>
-    {% load static %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'editar_usuario copy.css' %}">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editar Usuario</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <link rel="stylesheet" href="{% static 'css/agregar_usuario.css' %}">
 </head>
 <body>
-    <div class="container-usuario">
-        <i class="fas fa-user-edit icon-usuario"></i> <!-- Ícono de editar usuario -->
-        <h2>Editar Usuario</h2>
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-        <form method="POST" action="{% url 'editar_usuario' usuario.usuarioid %}">
-            {% csrf_token %}
-            <div class="form-group-usuario">
-                <label for="nombreusuario">Nombre de Usuario</label>
-                <input type="text" id="nombreusuario" name="nombreusuario" value="{{ usuario.nombreusuario }}" required>
-            </div>
-            <div class="form-group-usuario">
-                <label for="contraseña">Contraseña</label>
-                <div class="input-container">
-                    <input type="password" id="contraseña" name="contraseña" placeholder="Dejar en blanco para mantener la actual">
-                    <i class="fas fa-eye toggle-password" onclick="togglePassword('contraseña')"></i>
-                </div>
-            </div>
-            <div class="form-group-usuario">
-                <label for="confirmar_contraseña">Confirmar Contraseña</label>
-                <div class="input-container">
-                    <input type="password" id="confirmar_contraseña" name="confirmar_contraseña" placeholder="Dejar en blanco para mantener la actual">
-                    <i class="fas fa-eye toggle-password" onclick="togglePassword('confirmar_contraseña')"></i>
-                </div>
-            </div>
-            <div class="form-group-usuario">
-                <label for="rolid">Rol</label>
-                <select id="rolid" name="rolid" required>
-                    <option value="">Seleccionar rol</option>
-                    {% for rol in roles %}
-                        <option value="{{ rol.rolid }}" {% if usuario.rolid_id == rol.rolid %}selected{% endif %}>{{ rol.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group-usuario">
-                <button type="submit" class="btn-guardar-usuario">Guardar Cambios</button>
-            </div>
-        </form>
-    </div>
-    <script>
-        function togglePassword(id) {
-            var input = document.getElementById(id);
-            var icon = input.nextElementSibling;
-            if (input.type === "password") {
-                input.type = "text";
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                input.type = "password";
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
-            }
-        }
-    </script>
+  <div class="container-usuario">
+    <i class="fas fa-user-edit icon-usuario"></i>
+    <h2>Editar Usuario</h2>
+    <p class="obligatorio-texto">
+      Los campos con <span class="required">*</span> son obligatorios.
+      Si dejas la contraseña en blanco, permanecerá sin cambios.
+    </p>
+
+    <!-- Mensajes globales (JS) -->
+    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+
+    <!-- Form -->
+    <form id="usuarioForm" action="{% url 'editar_usuario' usuario.usuarioid %}" method="POST">
+      {% csrf_token %}
+      
+      <!-- Campo Autocomplete de Rol + Hidden rolid -->
+      <div class="form-group-usuario">
+        <label for="id_rol_autocomplete">Rol <span class="required">*</span></label>
+        {{ form.rol_autocomplete }}
+        {{ form.rolid }}
+        <div class="autocomplete-results" id="rol-autocomplete-results"></div>
+        <div class="field-error" id="error-id_rolid"></div>
+      </div>
+
+      <!-- Nombre de usuario -->
+      <div class="form-group-usuario">
+        <label for="id_nombreusuario">Nombre de Usuario <span class="required">*</span></label>
+        {{ form.nombreusuario }}
+        <div class="field-error" id="error-id_nombreusuario"></div>
+      </div>
+
+      <!-- Contraseña -->
+      <div class="form-group-usuario">
+        <label for="id_contraseña">Contraseña</label>
+        <div class="input-container">
+          {{ form.contraseña }}
+          <i class="fas fa-eye toggle-password" onclick="togglePassword('id_contraseña')"></i>
+        </div>
+        <div class="field-error" id="error-id_contraseña"></div>
+      </div>
+
+      <!-- Confirmar Contraseña -->
+      <div class="form-group-usuario">
+        <label for="id_confirmar_contraseña">Confirmar Contraseña</label>
+        <div class="input-container">
+          {{ form.confirmar_contraseña }}
+          <i class="fas fa-eye toggle-password" onclick="togglePassword('id_confirmar_contraseña')"></i>
+        </div>
+        <div class="field-error" id="error-id_confirmar_contraseña"></div>
+      </div>
+
+      <div class="form-group-usuario">
+        <button type="submit" class="btn-agregar-usuario">
+          Guardar Cambios
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Autocomplete URL -->
+  <script>
+    var rolAutocompleteUrl = "{% url 'rol_autocomplete' %}";
+  </script>
+
+  <!-- JS para AJAX y autocomplete -->
+  <script src="{% static 'javascript/editar_usuario.js' %}"></script>
 </body>
 </html>
 {% endblock %}
