@@ -25106,3 +25106,143 @@ File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\da
                 AND pg_catalog.pg_table_is_visible(c.oid)
         ; args=None; alias=default
 (0.125) SELECT "django_migrations"."id", "django_migrations"."app", "django_migrations"."name", "django_migrations"."applied" FROM "django_migrations"; args=(); alias=default
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\graph.py first seen with mtime 1731739624.880226
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0005_alter_user_last_login_null.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\migrations\__init__.py first seen with mtime 1731739624.6190653
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\contenttypes\migrations\0002_remove_content_type_name.py first seen with mtime 1731739623.649715
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\middleware\common.py first seen with mtime 1731739624.981244
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\0002_logentry_remove_auto_add.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\contenttypes\migrations\0001_initial.py first seen with mtime 1731739623.649715
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\backends\__init__.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\migrations\__init__.py first seen with mtime 1735878957.0867627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0010_alter_group_name_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0009_alter_user_last_name_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\cache\backends\locmem.py first seen with mtime 1731739624.7886438
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\__init__.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\contenttypes\migrations\__init__.py first seen with mtime 1731739623.649715
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\middleware\clickjacking.py first seen with mtime 1731739624.981244
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\executor.py first seen with mtime 1731739624.880226
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\recorder.py first seen with mtime 1731739624.8859253
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\conf\urls\__init__.py first seen with mtime 1731739622.6469953
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0006_require_contenttypes_0002.py first seen with mtime 1731739623.4189668
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0001_initial.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0004_alter_user_username_opts.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\migrations\0001_initial.py first seen with mtime 1731739624.6190653
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\migrations\0002_alter_horariocaja_puntopagoid.py first seen with mtime 1735878957.0867627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\migrations\loader.py first seen with mtime 1731739624.880226
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\migrations\0001_initial.py first seen with mtime 1735878957.0867627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\0003_logentry_add_action_flag_choices.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\middleware.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\exceptions.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\defaults.py first seen with mtime 1731739625.2375877
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\admin\migrations\0001_initial.py first seen with mtime 1731739622.940451
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\backends\base.py first seen with mtime 1731739624.4798634
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\compiler.py first seen with mtime 1731739624.9159627
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0008_alter_user_username_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0012_alter_user_first_name_max_length.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0011_update_proxy_permissions.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\__init__.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0007_alter_validators_add_error_messages.py first seen with mtime 1731739623.4192743
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0002_alter_permission_name_max_length.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\migrations\0003_alter_user_email_max_length.py first seen with mtime 1731739623.4132893
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\middleware.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\backends\db.py first seen with mtime 1731739624.4859767
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\NovaSoft\wsgi.py first seen with mtime 1735878956.740709
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\encodings\idna.py first seen with mtime 1727773420.0
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\stringprep.py first seen with mtime 1727773420.0
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_categorias.html previous mtime: 1738817731.9201374, current mtime: 1738818399.278199
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_categorias.html notified as changed. Signal results: [(<function template_changed at 0x000001B109DD5A80>, True), (<function translation_file_changed at 0x000001B10ADD3A60>, None)].
+"GET /visualizar_categorias/ HTTP/1.1" 302 0
+"GET /?next=/visualizar_categorias/ HTTP/1.1" 200 1392
+"GET /static/login.css HTTP/1.1" 200 2876
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\staticfiles\storage.py first seen with mtime 1731739624.7766397
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\storage\session.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\storage\cookie.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\context_processors.py first seen with mtime 1731739624.2068737
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\context_processors.py first seen with mtime 1731739623.2495396
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\context_processors.py first seen with mtime 1731739624.9887834
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\messages\storage\fallback.py first seen with mtime 1731739624.2072644
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\sessions\serializers.py first seen with mtime 1731739624.4798634
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 1479128
+(0.110) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."nombreusuario" = 'admin' LIMIT 21; args=('admin',); alias=default
+(0.719) SELECT 1 AS "a" FROM "django_session" WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze' LIMIT 1; args=(1, '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.234) INSERT INTO "django_session" ("session_key", "session_data", "expire_date") VALUES ('3ns2gpvmkmguj6xt44qfxw2hw4lperze', 'e30:1tfu6w:Qy89wuSxNXazEoJWzH68ppQgbqau05h7522yOwFBlHI', '2025-02-20T00:07:34.823681'::timestamp); args=('3ns2gpvmkmguj6xt44qfxw2hw4lperze', 'e30:1tfu6w:Qy89wuSxNXazEoJWzH68ppQgbqau05h7522yOwFBlHI', datetime.datetime(2025, 2, 20, 0, 7, 34, 823681)); alias=default
+(0.125) COMMIT; args=None; alias=default
+(0.125) UPDATE "usuarios" SET "last_login" = '2025-02-06T00:07:35.186717'::timestamp WHERE "usuarios"."usuarioid" = 1; args=(datetime.datetime(2025, 2, 6, 0, 7, 35, 186717), 1); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.250) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu6x:VGv7m2kIQ6MEJJSdegU0jZofoE8MekmPn8OU4Pbd4dk', "expire_date" = '2025-02-20T00:07:35.306965'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu6x:VGv7m2kIQ6MEJJSdegU0jZofoE8MekmPn8OU4Pbd4dk', datetime.datetime(2025, 2, 20, 0, 7, 35, 306965), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.125) COMMIT; args=None; alias=default
+"POST / HTTP/1.1" 302 0
+(0.110) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:07:35.677215'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 7, 35, 677215), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.125) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.234) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu6y:e7WH3WWWFx-ebhX-KwyNoFoCxa3GLgqhZHEgIxm1wUM', "expire_date" = '2025-02-20T00:07:36.780379'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu6y:e7WH3WWWFx-ebhX-KwyNoFoCxa3GLgqhZHEgIxm1wUM', datetime.datetime(2025, 2, 20, 0, 7, 36, 780379), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.110) COMMIT; args=None; alias=default
+"GET /home/ HTTP/1.1" 200 1073
+"GET /static/homePage.css HTTP/1.1" 200 1621
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3387998
+(0.110) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:07:39.538049'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 7, 39, 538049), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.125) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.109) SELECT "categorias"."categoriaid", "categorias"."nombre", "categorias"."descripcion" FROM "categorias" ORDER BY "categorias"."nombre" ASC; args=(); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.235) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu72:Vp8uDY_H_VD32kMgP47fPeqBTuGFIdotELK1qkXulm4', "expire_date" = '2025-02-20T00:07:40.889954'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu72:Vp8uDY_H_VD32kMgP47fPeqBTuGFIdotELK1qkXulm4', datetime.datetime(2025, 2, 20, 0, 7, 40, 889954), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.109) COMMIT; args=None; alias=default
+"GET /visualizar_categorias/ HTTP/1.1" 200 17443
+"GET /static/javascript/visualizar_categorias.js HTTP/1.1" 200 986
+"GET /static/css/visualizar_categorias.css HTTP/1.1" 404 1901
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\conf\locale\en\__init__.py first seen with mtime 1731739622.4435546
+File C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\conf\locale\en\formats.py first seen with mtime 1731739622.4435546
+(0.110) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:08:01.914179'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 8, 1, 914179), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.109) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.125) SELECT "categorias"."categoriaid", "categorias"."nombre", "categorias"."descripcion" FROM "categorias" ORDER BY "categorias"."nombre" ASC; args=(); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.234) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu7P:zqNXTagT_gZy657ZX1SFTpxscJwW5afje7SXNVgr6tM', "expire_date" = '2025-02-20T00:08:03.188772'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu7P:zqNXTagT_gZy657ZX1SFTpxscJwW5afje7SXNVgr6tM', datetime.datetime(2025, 2, 20, 0, 8, 3, 188772), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.141) COMMIT; args=None; alias=default
+"GET /visualizar_categorias/ HTTP/1.1" 200 17443
+"GET /static/javascript/visualizar_categorias.js HTTP/1.1" 304 0
+"GET /static/css/visualizar_categorias.css HTTP/1.1" 404 1901
+(0.125) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:08:05.179506'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 8, 5, 179506), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.125) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.141) SELECT "categorias"."categoriaid", "categorias"."nombre", "categorias"."descripcion" FROM "categorias" ORDER BY "categorias"."nombre" ASC; args=(); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.250) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu7S:g6678l3JvISQAIz3oBYAk2hXO7XNggQJO0Sbz0avF-U', "expire_date" = '2025-02-20T00:08:06.439077'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu7S:g6678l3JvISQAIz3oBYAk2hXO7XNggQJO0Sbz0avF-U', datetime.datetime(2025, 2, 20, 0, 8, 6, 439077), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.125) COMMIT; args=None; alias=default
+"GET /visualizar_categorias/ HTTP/1.1" 200 17443
+"GET /static/css/visualizar_categorias.css HTTP/1.1" 404 1901
+(0.125) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:08:33.728660'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 8, 33, 728660), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.110) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.125) SELECT "categorias"."categoriaid", "categorias"."nombre", "categorias"."descripcion" FROM "categorias" ORDER BY "categorias"."nombre" ASC; args=(); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.218) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu7v:b4rksviAEDxvSB6iUX53aQcSm_9vTDrzz2obVMa9vnQ', "expire_date" = '2025-02-20T00:08:35.072637'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu7v:b4rksviAEDxvSB6iUX53aQcSm_9vTDrzz2obVMa9vnQ', datetime.datetime(2025, 2, 20, 0, 8, 35, 72637), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.157) COMMIT; args=None; alias=default
+"GET /visualizar_categorias/ HTTP/1.1" 200 17443
+"GET /static/css/visualizar_categorias.css HTTP/1.1" 200 3092
+"GET /static/javascript/visualizar_categorias.js HTTP/1.1" 304 0
+(0.125) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:08:49.192700'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 8, 49, 192700), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.109) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.109) SELECT "categorias"."categoriaid", "categorias"."nombre", "categorias"."descripcion" FROM "categorias" WHERE "categorias"."categoriaid" = 3 LIMIT 21; args=(3,); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.250) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu8B:Zq0i-RELVmiog3TMkSFIsms8QPxfoDNpnnUKepqs7Ik', "expire_date" = '2025-02-20T00:08:51.654773'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu8B:Zq0i-RELVmiog3TMkSFIsms8QPxfoDNpnnUKepqs7Ik', datetime.datetime(2025, 2, 20, 0, 8, 51, 654773), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.140) COMMIT; args=None; alias=default
+"GET /categorias/editar/3/ HTTP/1.1" 200 2239
+"GET /static/css/agregar_categoria.css HTTP/1.1" 200 5480
+"GET /static/javascript/editar_categorias.js HTTP/1.1" 200 3116
+(0.125) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:08:57.623013'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 8, 57, 623013), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.125) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.235) SELECT "categorias"."categoriaid", "categorias"."nombre", "categorias"."descripcion" FROM "categorias" WHERE "categorias"."categoriaid" = 3 LIMIT 21; args=(3,); alias=default
+(0.125) SELECT 1 AS "a" FROM "categorias" WHERE (UPPER("categorias"."nombre"::text) = UPPER('Peoductos Postobon') AND NOT ("categorias"."categoriaid" = 3)) LIMIT 1; args=(1, 'Peoductos Postobon', 3); alias=default
+(0.109) UPDATE "categorias" SET "nombre" = 'Peoductos Postobon', "descripcion" = '' WHERE "categorias"."categoriaid" = 3; args=('Peoductos Postobon', '', 3); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.250) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu8J:pryBeRTpGtg65IH5Dp3LFe4Np2aAambeRkJoKSiW_TY', "expire_date" = '2025-02-20T00:08:59.307253'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu8J:pryBeRTpGtg65IH5Dp3LFe4Np2aAambeRkJoKSiW_TY', datetime.datetime(2025, 2, 20, 0, 8, 59, 307253), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.109) COMMIT; args=None; alias=default
+"POST /categorias/editar/3/ HTTP/1.1" 200 60
+(0.125) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-06T00:08:59.702260'::timestamp AND "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze') LIMIT 21; args=(datetime.datetime(2025, 2, 6, 0, 8, 59, 702260), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.125) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.140) SELECT "categorias"."categoriaid", "categorias"."nombre", "categorias"."descripcion" FROM "categorias" ORDER BY "categorias"."nombre" ASC; args=(); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.235) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu8L:VsIhglKRXAVEUwhUF6V3dYGbmb8xT5ACeECG-tL-4jI', "expire_date" = '2025-02-20T00:09:01.010384'::timestamp WHERE "django_session"."session_key" = '3ns2gpvmkmguj6xt44qfxw2hw4lperze'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1tfu8L:VsIhglKRXAVEUwhUF6V3dYGbmb8xT5ACeECG-tL-4jI', datetime.datetime(2025, 2, 20, 0, 9, 1, 10384), '3ns2gpvmkmguj6xt44qfxw2hw4lperze'); alias=default
+(0.110) COMMIT; args=None; alias=default
+"GET /visualizar_categorias/ HTTP/1.1" 200 17729
+"GET /static/css/visualizar_categorias.css HTTP/1.1" 304 0
+"GET /static/javascript/visualizar_categorias.js HTTP/1.1" 304 0

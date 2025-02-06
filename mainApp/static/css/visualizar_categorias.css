@@ -1,7 +1,37 @@
+/* =============================================================================
+   Visualizar Categorías - Estilos
+============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   Importación de fuentes y variables globales
+--------------------------------------------------------------------------- */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-rojo: #ff0000;
+    --color-verde: #3c763d;
+    --color-gris-claro: #f0f8ff;
+    --color-gris: #ccc;
+    --color-gris-hover: #aaa;
+    --color-boton: #3b5998;
+    --color-boton-hover: #2b467d;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Reset básico y estilos del cuerpo
+--------------------------------------------------------------------------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
-    font-family: 'Roboto', Arial, sans-serif;
+    font-family: var(--fuente-principal);
     background: linear-gradient(to bottom right, #ADD8E6, #005091);
     margin: 0;
     padding: 0;
@@ -12,6 +42,9 @@ body {
     overflow: auto;
 }
 
+/* ---------------------------------------------------------------------------
+   Contenedor principal
+--------------------------------------------------------------------------- */
 .container {
     max-width: 1200px;
     width: 100%;
@@ -22,18 +55,24 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* ---------------------------------------------------------------------------
+   Titulado y encabezados
+--------------------------------------------------------------------------- */
 h2 {
     text-align: center;
     margin-bottom: 20px;
     color: #333;
 }
 
-/* DataTables Styling */
+/* ---------------------------------------------------------------------------
+   Estilos para DataTables
+--------------------------------------------------------------------------- */
 table.display {
     width: 100%;
     border-collapse: collapse;
 }
 
+/* Cabecera de la tabla */
 table.display thead {
     background-color: #007bff;
     color: #fff;
@@ -44,6 +83,7 @@ table.display thead th {
     text-align: left;
 }
 
+/* Filas y celdas del cuerpo */
 table.display tbody tr {
     border-bottom: 1px solid #ddd;
 }
@@ -58,7 +98,9 @@ table.display tbody td {
     vertical-align: middle;
 }
 
-/* Column de Acciones */
+/* ---------------------------------------------------------------------------
+   Columna de Acciones y botones
+--------------------------------------------------------------------------- */
 .actions-cell {
     display: flex;
     gap: 10px;
@@ -72,7 +114,6 @@ table.display tbody td {
     gap: 10px;
 }
 
-/* Botón Styles */
 .btn {
     border: none;
     padding: 5px 10px;
@@ -95,7 +136,9 @@ table.display tbody td {
     font-size: 15px;
 }
 
-/* Mensajes globales */
+/* ---------------------------------------------------------------------------
+   Mensajes globales
+--------------------------------------------------------------------------- */
 .messages {
     margin-bottom: 20px;
 }
@@ -117,7 +160,9 @@ table.display tbody td {
     color: #a94442;
 }
 
-/* Responsividad */
+/* ---------------------------------------------------------------------------
+   Responsividad
+--------------------------------------------------------------------------- */
 @media (min-width: 769px) {
     table.display tbody td:nth-child(1) {
         width: 35%;
@@ -134,9 +179,11 @@ table.display tbody td {
     .container {
         padding: 10px;
     }
+    /* Ocultar cabecera en dispositivos pequeños */
     table.display thead {
         display: none;
     }
+    /* Convertir cada fila en bloque para mayor legibilidad */
     table.display tbody tr {
         display: block;
         margin-bottom: 10px;
@@ -150,6 +197,7 @@ table.display tbody td {
         position: relative;
         border-bottom: 1px solid #ddd;
     }
+    /* Mostrar etiqueta en cada celda mediante el atributo data-label */
     table.display tbody td::before {
         content: attr(data-label);
         font-weight: bold;
