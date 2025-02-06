@@ -1850,7 +1850,7 @@ def sucursal_autocomplete(request):
 
 @login_required
 def visualizar_empleados_view(request):
-    empleados = Empleado.objects.all()
+    empleados = Empleado.objects.all().order_by('nombre')
     return render(request, 'visualizar_empleados.html', {'empleados': empleados})
 
 
