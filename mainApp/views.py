@@ -2540,7 +2540,7 @@ def agregar_cliente(request):
 
 @login_required
 def visualizar_clientes(request):
-    clientes = Cliente.objects.all()
+    clientes = Cliente.objects.all().order_by('nombre')  # Se ordena por nombre (opcional)
     return render(request, 'visualizar_clientes.html', {'clientes': clientes})
 
 

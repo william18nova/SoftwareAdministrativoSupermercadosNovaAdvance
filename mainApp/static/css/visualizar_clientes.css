@@ -1,0 +1,207 @@
+/* =============================================================================
+   Visualizar Clientes - Estilos
+============================================================================= */
+
+/* ---------------------------------------------------------------------------
+   Importación de fuente y variables globales
+--------------------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+:root {
+    --color-principal: #005091;
+    --color-secundario: #ADD8E6;
+    --color-blanco: #ffffff;
+    --color-rojo: #ff0000;
+    --color-verde: #3c763d;
+    --fuente-principal: 'Roboto', Arial, sans-serif;
+}
+
+/* ---------------------------------------------------------------------------
+   Reset y estilos base para el cuerpo
+--------------------------------------------------------------------------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--fuente-principal);
+    background: linear-gradient(to bottom right, #ADD8E6, #005091);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Contenedor principal
+--------------------------------------------------------------------------- */
+.container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 20px;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ---------------------------------------------------------------------------
+   Títulos y mensajes
+--------------------------------------------------------------------------- */
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.messages {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.alert-error {
+    background-color: #f2dede;
+    color: #a94442;
+}
+
+/* ---------------------------------------------------------------------------
+   Estilos de la tabla (DataTables)
+--------------------------------------------------------------------------- */
+table.display {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table.display thead {
+    background-color: #007bff;
+    color: #fff;
+}
+
+table.display thead th {
+    padding: 10px;
+    text-align: left;
+}
+
+table.display tbody tr {
+    border-bottom: 1px solid #ddd;
+}
+
+table.display tbody tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table.display tbody td {
+    padding: 10px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+/* ---------------------------------------------------------------------------
+   Columna de Acciones y botones
+--------------------------------------------------------------------------- */
+.actions-cell {
+    text-align: center;
+    width: 100px;
+}
+
+.actions-cell .btn-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+}
+
+.btn {
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin: 2px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+}
+
+.btn.editar {
+    background-color: #ffc107;
+    color: #fff;
+}
+
+.btn.borrar {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+/* ---------------------------------------------------------------------------
+   Responsividad
+--------------------------------------------------------------------------- */
+@media (min-width: 769px) {
+    table.display tbody td:nth-child(1) {
+        width: 20%;
+    }
+    table.display tbody td:nth-child(2) {
+        width: 20%;
+    }
+    table.display tbody td:nth-child(3) {
+        width: 15%;
+    }
+    table.display tbody td:nth-child(4) {
+        width: 20%;
+    }
+    table.display tbody td:nth-child(5) {
+        width: 15%;
+    }
+    table.display tbody td:nth-child(6) {
+        width: 10%;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    table.display thead {
+        display: none;
+    }
+    table.display tbody tr {
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    table.display tbody td {
+        display: block;
+        text-align: left;
+        padding-left: 10px;
+        position: relative;
+        border-bottom: 1px solid #ddd;
+    }
+    table.display tbody td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+    }
+    .actions-cell {
+        width: auto;
+    }
+}
