@@ -20,7 +20,6 @@ body {
     background-color: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
 }
 
 h2 {
@@ -29,73 +28,74 @@ h2 {
     color: #333;
 }
 
-table {
+/* DataTables Styling */
+table.display {
     width: 100%;
     border-collapse: collapse;
 }
 
-table thead {
+table.display thead {
     background-color: #007bff;
-    color: white;
+    color: #fff;
 }
 
-table thead th {
+table.display thead th {
     padding: 10px;
     text-align: left;
 }
 
-table tbody tr {
+table.display tbody tr {
     border-bottom: 1px solid #ddd;
 }
 
-table tbody tr:nth-child(even) {
+table.display tbody tr:nth-child(even) {
     background-color: #f2f2f2;
 }
 
-table tbody td {
+table.display tbody td {
     padding: 10px;
-    min-height: 50px;
-    position: relative;
-    word-wrap: break-word;
     text-align: left;
     vertical-align: middle;
-    white-space: normal;
 }
 
+/* Column de Acciones */
 .actions-cell {
-    text-align: left; /* Alinear a la izquierda */
     display: flex;
-    gap: 10px; /* Espacio entre botones */
-    justify-content: center; /* Centrar en la vista de escritorio */
-    align-items: left; /* Centrar verticalmente */
-    width: 100px; /* Ajustar el ancho para que sea un poco más que el de los dos botones */
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    width: 100px;
 }
 
-.actions-cell form,
-.actions-cell a {
-    display: inline-block;
+.btn-container {
+    display: flex;
+    gap: 10px;
 }
 
+/* Botón Styles */
 .btn {
     border: none;
     padding: 5px 10px;
     border-radius: 5px;
-    margin: 2px;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .btn.editar {
     background-color: #ffc107;
-    color: white;
+    color: #fff;
     font-size: 15px;
 }
 
 .btn.borrar {
     background-color: #dc3545;
-    color: white;
+    color: #fff;
     font-size: 15px;
 }
 
+/* Mensajes globales */
 .messages {
     margin-bottom: 20px;
 }
@@ -104,6 +104,7 @@ table tbody td {
     padding: 10px;
     border-radius: 5px;
     margin-bottom: 10px;
+    text-align: center;
 }
 
 .alert-success {
@@ -111,75 +112,52 @@ table tbody td {
     color: #155724;
 }
 
-/* Ajuste del ancho de las columnas para la vista de escritorio */
-@media (min-width: 769px) {
-    table tbody td:nth-child(1) {
-        width: 35%; /* Ancho aumentado para la columna de nombre */
-    }
-    table tbody td:nth-child(2) {
-        width: 55%; /* Ancho aumentado para la columna de descripción */
-    }
-    table tbody td:nth-child(3) {
-        width: 100px; /* Ancho ajustado para la columna de acciones */
-    }
+.alert-error {
+    background-color: #f2dede;
+    color: #a94442;
+}
 
-    .actions-cell {
-        display: flex;
-        gap: 10px;
-        justify-content: center; /* Centrar horizontalmente */
-        align-items: center; /* Centrar verticalmente */
-        flex-direction: row; /* Asegurar que los botones estén en una fila */
+/* Responsividad */
+@media (min-width: 769px) {
+    table.display tbody td:nth-child(1) {
+        width: 35%;
+    }
+    table.display tbody td:nth-child(2) {
+        width: 55%;
+    }
+    table.display tbody td:nth-child(3) {
+        width: 100px;
     }
 }
 
-/* Responsiveness */
 @media (max-width: 768px) {
     .container {
         padding: 10px;
     }
-
-    table {
-        border: 0;
-    }
-
-    table thead {
+    table.display thead {
         display: none;
     }
-
-    table tbody tr {
+    table.display tbody tr {
         display: block;
         margin-bottom: 10px;
         border: 1px solid #ddd;
         border-radius: 5px;
     }
-
-    table tbody td {
+    table.display tbody td {
         display: block;
         text-align: left;
         padding-left: 10px;
         position: relative;
         border-bottom: 1px solid #ddd;
-        word-break: break-word;
     }
-
-    table tbody td::before {
+    table.display tbody td::before {
         content: attr(data-label);
-        display: block;
         font-weight: bold;
+        display: block;
         margin-bottom: 5px;
     }
-
-    table tbody td:last-child {
-        border-bottom: 0;
-    }
-
     .actions-cell {
-        justify-content: flex-start;
-        flex-direction: column; /* Colocar botones en columna en dispositivos móviles */
-    }
-
-    .btn-container {
-        display: flex;
-        gap: 10px;
+        width: auto;
+        flex-direction: column;
     }
 }

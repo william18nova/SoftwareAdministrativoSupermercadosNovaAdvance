@@ -158,11 +158,10 @@ def agregar_categoria_view(request):
 
 @login_required
 def visualizar_categorias_view(request):
-    categorias = Categoria.objects.all()
+    categorias = Categoria.objects.all().order_by('nombre')
     return render(request, 'visualizar_categorias.html', {
         'categorias': categorias
     })
-
 
 @login_required
 def eliminar_categoria(request, categoria_id):

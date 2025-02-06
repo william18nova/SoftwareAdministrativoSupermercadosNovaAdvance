@@ -1,33 +1,19 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Visualizar Categorías{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Categorías</title>
-    {% load static %}
+    <!-- Font Awesome para íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_categoria.css' %}">
+    <!-- Archivo CSS propio -->
+    <link rel="stylesheet" href="{% static 'css/visualizar_categorias.css' %}">
+    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#categoriasTable').DataTable();
-
-            $('.btn-borrar').on('click', function(event) {
-                event.preventDefault();
-                const form = $(this).closest('form');
-                const categoriaNombre = $(this).closest('tr').find('td:first').text();
-                
-                if (confirm(`¿Estás seguro de que deseas eliminar la categoría "${categoriaNombre}"?`)) {
-                    form.submit();
-                }
-            });
-        });
-    </script>
 </head>
 <body>
     <div class="container">
@@ -56,10 +42,14 @@
                     <td data-label="Descripción">{{ categoria.descripcion }}</td>
                     <td data-label="Acciones" class="actions-cell">
                         <div class="btn-container">
-                            <a href="{% url 'editar_categoria' categoria.categoriaid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                            <button type="button" class="btn borrar" onclick="confirmarEliminacion('{{ categoria.categoriaid }}', '{{ categoria.nombre }}')"><i class="fas fa-trash-alt"></i></button>
+                            <a href="{% url 'editar_categoria' categoria.categoriaid %}" class="btn editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn borrar" data-categoriaid="{{ categoria.categoriaid }}" data-categorianombre="{{ categoria.nombre }}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </div>
-                        <form id="eliminar-form-{{ categoria.categoriaid }}" action="{% url 'eliminar_categoria' categoria.categoriaid %}" method="post" style="display:none;">
+                        <form id="eliminar-form-{{ categoria.categoriaid }}" action="{% url 'eliminar_categoria' categoria.categoriaid %}" method="post" style="display: none;">
                             {% csrf_token %}
                         </form>
                     </td>
@@ -68,13 +58,12 @@
             </tbody>
         </table>
     </div>
-    <script>
-        function confirmarEliminacion(categoriaId, categoriaNombre) {
-            if (confirm(`¿Estás seguro de que deseas eliminar la categoría "${categoriaNombre}"?`)) {
-                document.getElementById(`eliminar-form-${categoriaId}`).submit();
-            }
-        }
-    </script>
+
+    <!-- Cargar jQuery y DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <!-- Archivo JavaScript propio -->
+    <script src="{% static 'javascript/visualizar_categorias.js' %}"></script>
 </body>
 </html>
 {% endblock %}
