@@ -44112,3 +44112,19 @@ django.template.base.VariableDoesNotExist: Failed lookup for key [name] in <URLR
 (0.110) COMMIT; args=None; alias=default
 "POST /visualizar_horarios/ HTTP/1.1" 200 5892
 "GET /static/css/visualizar_horarios.css HTTP/1.1" 200 5653
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_horarios.html previous mtime: 1739162975.4325893, current mtime: 1739164131.818648
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_horarios.html notified as changed. Signal results: [(<function template_changed at 0x00000215AADD5A80>, True), (<function translation_file_changed at 0x00000215ABDD3A60>, None)].
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_horarios.html previous mtime: 1739164131.818648, current mtime: 1739164139.9284961
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_horarios.html notified as changed. Signal results: [(<function template_changed at 0x00000215AADD5A80>, True), (<function translation_file_changed at 0x00000215ABDD3A60>, None)].
+File C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_horarios.html previous mtime: 1739164139.9284961, current mtime: 1739164147.6459064
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\templates\visualizar_horarios.html notified as changed. Signal results: [(<function template_changed at 0x00000215AADD5A80>, True), (<function translation_file_changed at 0x00000215ABDD3A60>, None)].
+(0.141) SELECT "django_session"."session_key", "django_session"."session_data", "django_session"."expire_date" FROM "django_session" WHERE ("django_session"."expire_date" > '2025-02-10T00:09:09.736593'::timestamp AND "django_session"."session_key" = 'xuie2vs7f0xk0kuvi7ztmxfp22c8x1c0') LIMIT 21; args=(datetime.datetime(2025, 2, 10, 0, 9, 9, 736593), 'xuie2vs7f0xk0kuvi7ztmxfp22c8x1c0'); alias=default
+(0.125) SELECT "usuarios"."is_superuser", "usuarios"."usuarioid", "usuarios"."nombreusuario", "usuarios"."contraseña", "usuarios"."rolid", "usuarios"."last_login", "usuarios"."is_active", "usuarios"."is_staff" FROM "usuarios" WHERE "usuarios"."usuarioid" = 1 LIMIT 21; args=(1,); alias=default
+(0.125) SELECT "sucursales"."sucursalid", "sucursales"."nombre", "sucursales"."direccion", "sucursales"."telefono" FROM "sucursales" WHERE "sucursales"."sucursalid" = 3 LIMIT 21; args=(3,); alias=default
+(0.140) SELECT "horariosnegocio"."horarioid", "horariosnegocio"."dia_semana", "horariosnegocio"."horaapertura", "horariosnegocio"."horacierre", "horariosnegocio"."sucursalid" FROM "horariosnegocio" WHERE "horariosnegocio"."sucursalid" = 3; args=(3,); alias=default
+(0.000) BEGIN; args=None; alias=default
+(0.250) UPDATE "django_session" SET "session_data" = '.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1thM2h:4QkvX58ytcrvTz3rvabcjVk-mNTv1hh2lG9B9fbwASg', "expire_date" = '2025-02-24T00:09:11.617616'::timestamp WHERE "django_session"."session_key" = 'xuie2vs7f0xk0kuvi7ztmxfp22c8x1c0'; args=('.eJxVjDsOwjAQBe_iGlnxbxNT0nMGy7te4wCypTipEHeHSCmgfTPzXiLEbS1h67yEOYmzUOL0u2GkB9cdpHustyap1XWZUe6KPGiX15b4eTncv4MSe_nW7PRICoybgLwCNSEMDDGTAZ_J-iFB9tkConIw-kTIxKQoO521ASveH9mSOBk:1thM2h:4QkvX58ytcrvTz3rvabcjVk-mNTv1hh2lG9B9fbwASg', datetime.datetime(2025, 2, 24, 0, 9, 11, 617616), 'xuie2vs7f0xk0kuvi7ztmxfp22c8x1c0'); alias=default
+(0.125) COMMIT; args=None; alias=default
+"POST /visualizar_horarios/ HTTP/1.1" 200 5865
+"GET /static/css/visualizar_horarios.css HTTP/1.1" 304 0
+"GET /static/javascript/visualizar_horarios.js HTTP/1.1" 304 0

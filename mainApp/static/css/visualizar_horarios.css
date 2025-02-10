@@ -170,6 +170,11 @@ body {
     width: 115px;
 }
 
+table.display thead {
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+}
+
 /* Acciones y Botones */
 .actions-cell {
     display: flex;

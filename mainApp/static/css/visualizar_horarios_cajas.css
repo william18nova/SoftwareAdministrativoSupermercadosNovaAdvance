@@ -41,7 +41,7 @@ body {
     margin: 20px auto;
 }
 
-/* Títulos y mensajes */
+/* Títulos e ícono */
 .container h2 {
     color: var(--color-blanco);
     margin-bottom: 10px;
@@ -54,6 +54,7 @@ body {
     color: var(--color-blanco);
 }
 
+/* Mensajes */
 .messages-container .alert {
     padding: 15px;
     border-radius: 4px;
@@ -72,7 +73,7 @@ body {
     color: var(--color-rojo);
 }
 
-/* Estilos del formulario (autocompletes) */
+/* Estilos del Formulario (Autocompletar) */
 .form-group {
     margin-bottom: 20px;
     text-align: left;
@@ -131,7 +132,7 @@ body {
     color: var(--color-blanco);
 }
 
-/* Estilos de la tabla (DataTables) */
+/* Estilos de la Tabla (DataTables) */
 .table-container {
     background: #fff;
     padding: 10px;
@@ -144,17 +145,18 @@ body {
 .table {
     width: 100%;
     border-collapse: collapse;
-    text-align: left;
+    text-align: center; /* Centrado en toda la tabla */
 }
 
 .table th, .table td {
     padding: 10px;
     border: 1px solid #ddd;
+    text-align: center; /* Centramos encabezados y celdas */
 }
 
 .table th {
-    background-color: #003366;
-    color: #fff;
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
 }
 
 .table td {
@@ -162,16 +164,22 @@ body {
     color: #333;
 }
 
-.table td.text-center {
-    text-align: center;
+/* Forzar la columna de Acciones a tener ancho fijo de 100px */
+.table th:last-child,
+.table td.actions-cell {
+    width: 100px;
 }
 
-/* Acciones y botones */
+table.display thead {
+    background-color: var(--color-principal);
+    color: var(--color-blanco);
+}
+
+/* Acciones y Botones */
 .actions-cell {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100px;
 }
 
 .btn-container {
@@ -180,7 +188,7 @@ body {
 }
 
 .btn-editar-horarios {
-    background-color: #003366;
+    background-color: var(--color-principal);
     color: var(--color-blanco);
     border: none;
     padding: 12px 20px;
@@ -195,11 +203,6 @@ body {
     font-size: 18px;
     font-family: var(--fuente-principal);
     margin-top: 5px;
-}
-
-table.display thead {
-    background-color: var(--color-principal);
-    color: var(--color-blanco);
 }
 
 .btn-editar-horarios:hover {
@@ -261,5 +264,13 @@ table.display thead {
     .table th, .table td {
         padding: 5px;
         font-size: 14px;
+    }
+    .btn-editar-horarios {
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+    }
+    .alert {
+        padding: 10px;
     }
 }
