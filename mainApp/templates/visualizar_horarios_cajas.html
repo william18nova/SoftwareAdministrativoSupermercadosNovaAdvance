@@ -1,172 +1,114 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Visualizar Horarios de Cajas{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizar Horarios de Cajas</title>
-    {% load static %}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_horarios_cajas copy.css' %}">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            const table = $('#horarios-list').DataTable({
-                paging: false,
-                searching: true,
-                info: false,
-                language: {
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay horarios para mostrar",
-                },
-            });
-
-            function mostrarMensaje(mensaje, clase) {
-                const alertasExistentes = document.querySelectorAll('.alert');
-                alertasExistentes.forEach(alerta => alerta.remove());
-
-                const mensajeDiv = document.createElement('div');
-                mensajeDiv.className = `alert ${clase}`;
-                mensajeDiv.textContent = mensaje;
-                const container = document.querySelector('.messages-container');
-                container.insertAdjacentElement('afterbegin', mensajeDiv);
-            }
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const mensaje = urlParams.get('mensaje');
-            const clase = urlParams.get('clase');
-            if (mensaje && clase) {
-                mostrarMensaje(mensaje, clase);
-            }
-
-            $('#horarios-list').on('click', '.btn-eliminar', function(event) {
-                event.preventDefault();
-                const button = $(this);
-                const id = button.data('id');
-                const row = button.closest('tr');
-
-                if (confirm('¿Estás seguro de que deseas eliminar este horario?')) {
-                    const url = '{% url "eliminar_horario_caja" 0 %}'.replace('0', id);
-                    $.ajax({
-                        url: url,
-                        type: 'POST',
-                        data: {
-                            csrfmiddlewaretoken: '{{ csrf_token }}'
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                table.row(row).remove().draw(false);
-                                mostrarMensaje(response.message, 'alert-success');
-                            } else {
-                                mostrarMensaje(response.message, 'alert-error');
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.log(xhr.responseText);
-                            mostrarMensaje('Ocurrió un error al eliminar el horario: ' + xhr.responseText, 'alert-error');
-                        }
-                    });
-                }
-            });
-
-            $('#sucursal').on('change', function() {
-                const sucursalId = $(this).val();
-                $('#punto_pago').prop('disabled', true);
-                $('#horarios-list').closest('.table-container').hide();
-                $.ajax({
-                    url: '{% url "obtener_puntos_pago_con_horarios" %}',
-                    data: {
-                        sucursal_id: sucursalId
-                    },
-                    success: function(response) {
-                        $('#punto_pago').html(response);
-                        $('#punto_pago').prop('disabled', false);
-                    }
-                });
-            });
-
-            $('#punto_pago').on('change', function() {
-                const form = $('#sucursalForm');
-                form.submit();
-            });
-        });
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualizar Horarios de Cajas</title>
+  <!-- Font Awesome para íconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- DataTables CSS (versión 1.11.5) -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+  <!-- Archivo CSS Propio (usa el diseño que proporcionaste) -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_horarios_cajas.css' %}">
 </head>
 <body>
-    <div class="container">
-        <i class="fas fa-clock icon"></i>
-        <h2>Visualizar Horarios de Cajas</h2>
-        <div class="messages-container">
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
-        <form id="sucursalForm" method="POST" action="{% url 'visualizar_horarios_cajas' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal" name="sucursal" required>
-                    <option value="">Seleccionar sucursal</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}" {% if sucursal_seleccionada and sucursal.sucursalid == sucursal_seleccionada.sucursalid %}selected{% endif %}>{{ sucursal.nombre }}</option>
-                    {% endfor %}
-                </select>
+  <div class="container">
+    <i class="fas fa-clock icon"></i>
+    <h2>Visualizar Horarios de Cajas</h2>
+    
+    <!-- Contenedor de mensajes globales -->
+    <div class="messages-container">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+              {{ message }}
             </div>
-            <div class="form-group">
-                <label for="punto_pago">Punto de Pago</label>
-                <select id="punto_pago" name="punto_pago" required {% if not sucursal_seleccionada %}disabled{% endif %}>
-                    <option value="">Seleccionar punto de pago</option>
-                    {% if puntos_pago %}
-                        {% for punto in puntos_pago %}
-                            <option value="{{ punto.puntopagoid }}" {% if punto_pago_seleccionado and punto.puntopagoid == punto_pago_seleccionado.puntopagoid %}selected{% endif %}>{{ punto.nombre }}</option>
-                        {% endfor %}
-                    {% endif %}
-                </select>
-            </div>
-            {% if punto_pago_seleccionado %}
-                <div class="btn-container">
-                    <a href="{% url 'editar_horarios_cajas' punto_pago_seleccionado.puntopagoid %}" class="btn-editar-horarios">Editar Horarios</a>
-                </div>
-            {% endif %}
-        </form>
-        {% if punto_pago_seleccionado %}
-        <div class="table-container">
-            <table id="horarios-list" class="table display">
-                <thead>
-                    <tr>
-                        <th>Día</th>
-                        <th>Hora de Apertura</th>
-                        <th>Hora de Cierre</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for horario in horarios %}
-                    <tr>
-                        <td>{{ horario.dia_semana }}</td>
-                        <td>{{ horario.horaapertura }}</td>
-                        <td>{{ horario.horacierre }}</td>
-                        <td class="text-center">
-                            <button type="button" class="btn-eliminar" data-id="{{ horario.pk }}"><i class="fas fa-trash-alt"></i></button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+          {% endfor %}
         </div>
-        {% endif %}
+      {% endif %}
     </div>
+    
+    <!-- Formulario para filtrar por Sucursal y Punto de Pago -->
+    <form id="sucursalForm" method="POST" action="{% url 'visualizar_horarios_cajas' %}">
+      {% csrf_token %}
+      
+      <!-- Autocomplete para Sucursal -->
+      <div class="form-group">
+        <label for="id_sucursal_autocomplete">Sucursal</label>
+        <input type="text" id="id_sucursal_autocomplete" class="form-control" placeholder="Escriba para buscar sucursal..." 
+               value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.nombre }}{% endif %}">
+        <input type="hidden" id="id_sucursal" name="sucursal" value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.sucursalid }}{% endif %}">
+        <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
+      </div>
+      
+      <!-- Autocomplete para Punto de Pago -->
+      <div class="form-group">
+        <label for="id_punto_pago_autocomplete">Punto de Pago</label>
+        <input type="text" id="id_punto_pago_autocomplete" class="form-control" placeholder="Escriba para buscar punto de pago..."
+               {% if not sucursal_seleccionada %}disabled{% endif %}
+               value="{% if punto_pago_seleccionado %}{{ punto_pago_seleccionado.nombre }}{% endif %}">
+        <input type="hidden" id="id_punto_pago" name="punto_pago" value="{% if punto_pago_seleccionado %}{{ punto_pago_seleccionado.puntopagoid }}{% endif %}">
+        <div class="autocomplete-results" id="punto-pago-autocomplete-results"></div>
+      </div>
+    </form>
+    
+    {% if punto_pago_seleccionado %}
+      <!-- Botón para editar horarios -->
+      <div class="btn-container">
+        <a href="{% url 'editar_horarios_cajas' punto_pago_seleccionado.puntopagoid %}" class="btn-editar-horarios">
+          Editar Horarios
+        </a>
+      </div>
+      
+      <!-- Tabla de Horarios -->
+      <div class="table-container">
+        <table id="horarios-list" class="display">
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Hora de Apertura</th>
+              <th>Hora de Cierre</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for horario in horarios %}
+            <tr>
+              <td data-label="Día">{{ horario.dia_semana }}</td>
+              <td data-label="Hora de Apertura">{{ horario.horaapertura }}</td>
+              <td data-label="Hora de Cierre">{{ horario.horacierre }}</td>
+              <td data-label="Acciones" class="actions-cell">
+                <button type="button" class="btn-eliminar" data-id="{{ horario.pk }}">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Inyección de URL para autocompletar y eliminación -->
+  <script>
+    var sucursalAutocompleteUrl = "{% url 'sucursal_horarios_autocomplete' %}";
+    var puntoPagoAutocompleteUrl = "{% url 'puntopago_horarios_autocomplete' %}";
+    // Definimos el patrón para eliminar un horario usando 999999 como marcador (valor dummy)
+    var eliminarHorarioUrlPattern = "{% url 'eliminar_horario_caja' 999999 %}";
+  </script>
+  
+  <!-- Cargar jQuery (si no se carga en base.html, inclúyelo aquí) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+  <!-- Cargar DataTables JS (versión 1.11.5) -->
+  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+  <!-- Archivo JS propio para Visualizar Horarios de Cajas -->
+  <script src="{% static 'javascript/visualizar_horarios_cajas.js' %}"></script>
 </body>
 </html>
 {% endblock %}
