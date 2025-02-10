@@ -2016,6 +2016,48 @@ def visualizar_horarios_view(request):
         'sucursal_seleccionada': sucursal_seleccionada,
         'horarios': horarios,
     })
+    
+@login_required
+def visualizar_horarios_sucursal_autocomplete(request):
+    """
+    Autocomplete para filtrar sucursales que tienen horarios (es decir, que tienen al menos un HorariosNegocio).
+    Permite buscar por 'term' y usa paginación con 'page' y 'per_page'.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '50').strip()
+
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        per_page = 50
+    if per_page < 1:
+        per_page = 50
+
+    qs = Sucursal.objects.filter(horariosnegocio__isnull=False).distinct()
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+    qs = qs.order_by('nombre')
+
+    total_results = qs.count()
+    start = (page - 1) * per_page
+    end = start + per_page
+    qs = qs[start:end]
+
+    results = [{'id': suc.sucursalid, 'text': suc.nombre} for suc in qs]
+    has_more = end < total_results
+
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
+    })
 
 
 @login_required
