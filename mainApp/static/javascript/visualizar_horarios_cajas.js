@@ -2,9 +2,6 @@ jQuery(document).ready(function($) {
   console.log("jQuery version:", $.fn.jquery);
   console.log("DataTable type:", typeof $.fn.DataTable); // Debe ser "function"
 
-  // Obtener el formulario
-  const form = document.getElementById('sucursalForm');
-
   // Inicializar DataTable para la tabla de horarios (si existe)
   if ($('#horarios-list').length) {
     if (typeof $.fn.DataTable === "function") {
@@ -12,6 +9,7 @@ jQuery(document).ready(function($) {
         paging: false,
         searching: true,
         info: false,
+        ordering: false,  // Deshabilita el ordenamiento (y sus flechitas)
         language: {
           search: "Buscar:",
           zeroRecords: "No se encontraron resultados",
@@ -24,6 +22,9 @@ jQuery(document).ready(function($) {
   } else {
     console.warn("El elemento #horarios-list no se encontró en el DOM.");
   }
+
+  // Obtener el formulario
+  const form = document.getElementById('sucursalForm');
 
   /* =========================
      Autocomplete de Sucursal

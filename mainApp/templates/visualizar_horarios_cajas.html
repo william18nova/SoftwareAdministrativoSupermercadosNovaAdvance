@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <!-- DataTables CSS (versión 1.11.5) -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-  <!-- Archivo CSS Propio (usa el diseño que proporcionaste) -->
+  <!-- Archivo CSS Propio -->
   <link rel="stylesheet" href="{% static 'css/visualizar_horarios_cajas.css' %}">
 </head>
 <body>
@@ -33,26 +33,27 @@
       {% endif %}
     </div>
     
-    <!-- Formulario para filtrar por Sucursal y Punto de Pago -->
+    <!-- Formulario para filtrar por Sucursal y Punto de Pago (Autocompletar) -->
     <form id="sucursalForm" method="POST" action="{% url 'visualizar_horarios_cajas' %}">
       {% csrf_token %}
-      
-      <!-- Autocomplete para Sucursal -->
       <div class="form-group">
         <label for="id_sucursal_autocomplete">Sucursal</label>
-        <input type="text" id="id_sucursal_autocomplete" class="form-control" placeholder="Escriba para buscar sucursal..." 
+        <input type="text" id="id_sucursal_autocomplete" class="form-control" 
+               placeholder="Escriba para buscar sucursal..."
                value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.nombre }}{% endif %}">
-        <input type="hidden" id="id_sucursal" name="sucursal" value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.sucursalid }}{% endif %}">
+        <input type="hidden" id="id_sucursal" name="sucursal" 
+               value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.sucursalid }}{% endif %}">
         <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
       </div>
       
-      <!-- Autocomplete para Punto de Pago -->
       <div class="form-group">
         <label for="id_punto_pago_autocomplete">Punto de Pago</label>
-        <input type="text" id="id_punto_pago_autocomplete" class="form-control" placeholder="Escriba para buscar punto de pago..."
+        <input type="text" id="id_punto_pago_autocomplete" class="form-control" 
+               placeholder="Escriba para buscar punto de pago..."
                {% if not sucursal_seleccionada %}disabled{% endif %}
                value="{% if punto_pago_seleccionado %}{{ punto_pago_seleccionado.nombre }}{% endif %}">
-        <input type="hidden" id="id_punto_pago" name="punto_pago" value="{% if punto_pago_seleccionado %}{{ punto_pago_seleccionado.puntopagoid }}{% endif %}">
+        <input type="hidden" id="id_punto_pago" name="punto_pago" 
+               value="{% if punto_pago_seleccionado %}{{ punto_pago_seleccionado.puntopagoid }}{% endif %}">
         <div class="autocomplete-results" id="punto-pago-autocomplete-results"></div>
       </div>
     </form>
@@ -67,7 +68,7 @@
       
       <!-- Tabla de Horarios -->
       <div class="table-container">
-        <table id="horarios-list" class="display">
+        <table id="horarios-list" class="table display">
           <thead>
             <tr>
               <th>Día</th>
@@ -82,8 +83,8 @@
               <td data-label="Día">{{ horario.dia_semana }}</td>
               <td data-label="Hora de Apertura">{{ horario.horaapertura }}</td>
               <td data-label="Hora de Cierre">{{ horario.horacierre }}</td>
-              <td data-label="Acciones" class="actions-cell">
-                <button type="button" class="btn-eliminar" data-id="{{ horario.pk }}">
+              <td data-label="Acciones" class="text-center">
+                <button type="button" class="btn-eliminar" data-id="{{ horario.horarioid }}">
                   <i class="fas fa-trash-alt"></i>
                 </button>
               </td>
@@ -94,16 +95,15 @@
       </div>
     {% endif %}
   </div>
-
+  
   <!-- Inyección de URL para autocompletar y eliminación -->
   <script>
-    var sucursalAutocompleteUrl = "{% url 'sucursal_horarios_autocomplete' %}";
+    var sucursalAutocompleteUrl = "{% url 'visualizar_horarios_sucursal_autocomplete' %}";
     var puntoPagoAutocompleteUrl = "{% url 'puntopago_horarios_autocomplete' %}";
-    // Definimos el patrón para eliminar un horario usando 999999 como marcador (valor dummy)
     var eliminarHorarioUrlPattern = "{% url 'eliminar_horario_caja' 999999 %}";
   </script>
   
-  <!-- Cargar jQuery (si no se carga en base.html, inclúyelo aquí) -->
+  <!-- Cargar jQuery (si no se carga en base.html) -->
   <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
   <!-- Cargar DataTables JS (versión 1.11.5) -->
   <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
