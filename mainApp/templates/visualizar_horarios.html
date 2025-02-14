@@ -10,7 +10,7 @@
   <title>Visualizar Horarios</title>
   <!-- Font Awesome para íconos -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <!-- DataTables CSS (versión 1.11.5) -->
+  <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
   <!-- Archivo CSS Propio -->
   <link rel="stylesheet" href="{% static 'css/visualizar_horarios.css' %}">
@@ -20,7 +20,7 @@
     <i class="fas fa-clock icon"></i>
     <h2>Visualizar Horarios</h2>
     
-    <!-- Contenedor de mensajes globales -->
+    <!-- Mensajes globales -->
     <div class="messages-container">
       {% if messages %}
         <div class="messages">
@@ -33,7 +33,7 @@
       {% endif %}
     </div>
     
-    <!-- Formulario para filtrar por Sucursal (Autocompletar) -->
+    <!-- Formulario de filtrado (Autocompletar Sucursal) -->
     <form id="sucursalForm" method="POST" action="{% url 'visualizar_horarios' %}">
       {% csrf_token %}
       <div class="form-group">
@@ -41,7 +41,8 @@
         <input type="text" id="id_sucursal_autocomplete" class="form-control"
                placeholder="Escriba para buscar sucursal..."
                value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.nombre }}{% endif %}">
-        <input type="hidden" id="id_sucursal" name="sucursal" value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.sucursalid }}{% endif %}">
+        <input type="hidden" id="id_sucursal" name="sucursal"
+               value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.sucursalid }}{% endif %}">
         <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
       </div>
     </form>
@@ -62,7 +63,7 @@
               <th>Día</th>
               <th>Hora de Apertura</th>
               <th>Hora de Cierre</th>
-              <th style="width: 100px;">Acciones</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -71,7 +72,7 @@
               <td data-label="Día">{{ horario.dia_semana }}</td>
               <td data-label="Hora de Apertura">{{ horario.horaapertura }}</td>
               <td data-label="Hora de Cierre">{{ horario.horacierre }}</td>
-              <td data-label="Acciones" class="actions-cell">
+              <td data-label="Acciones" class="text-center">
                 <button type="button" class="btn-eliminar" data-id="{{ horario.horarioid }}">
                   <i class="fas fa-trash-alt"></i>
                 </button>
@@ -83,17 +84,16 @@
       </div>
     {% endif %}
   </div>
-
-  <!-- Inyección de URL para autocomplete y eliminación -->
+  
+  <!-- Inyección de URLs para autocomplete y eliminación -->
   <script>
     var sucursalAutocompleteUrl = "{% url 'visualizar_horarios_sucursal_autocomplete' %}";
-    // Usamos 999999 como valor dummy; en el JS se reemplaza por el ID real
+    var puntoPagoAutocompleteUrl = "{% url 'puntopago_horarios_autocomplete' %}";
     var eliminarHorarioUrlPattern = "{% url 'eliminar_horario_caja' 999999 %}";
   </script>
   
-  <!-- Cargar jQuery (si no se carga en base.html) -->
+  <!-- jQuery y DataTables -->
   <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-  <!-- Cargar DataTables JS (versión 1.11.5) -->
   <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
   <!-- Archivo JS propio -->
   <script src="{% static 'javascript/visualizar_horarios.js' %}"></script>

@@ -1,162 +1,128 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* Variables Globales */
-:root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
-    --color-rojo: #ff0000;
-    --color-verde: #3c763d;
-    --color-gris: #ccc;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
-}
-
-/* Reset básico y estilos del body */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-
 body {
-    font-family: var(--fuente-principal);
-    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+    margin: 0;
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: auto;
-    position: relative;
+    background: linear-gradient(to bottom right, #ADD8E6, #005091);
+    font-family: 'Roboto', Arial, sans-serif;
+    text-align: center;
+    color: white;
+    overflow: auto; /* Permitir scroll en todo el body */
 }
 
-/* Contenedor principal */
 .container {
     background: rgba(255, 255, 255, 0.1);
     padding: 40px;
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    width: 90%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 100%;
     max-width: 800px;
     text-align: center;
-    margin: 20px auto;
+    position: relative;
+    box-sizing: border-box; /* Asegura que el padding se incluya en el ancho total */
 }
 
-/* Títulos e ícono */
 .container h2 {
-    color: var(--color-blanco);
+    color: #ffffff;
     margin-bottom: 10px;
-    font-size: 24px;
 }
 
 .icon {
-    font-size: 90px;
+    font-size: 90px; /* Ajusta este valor para cambiar el tamaño del icono */
     margin-bottom: 5px;
-    color: var(--color-blanco);
+    color: #ffffff;
 }
 
-/* Mensajes */
-.messages-container .alert {
-    padding: 15px;
-    border-radius: 4px;
-    margin-bottom: 20px;
-    text-align: center;
-    font-size: 16px;
-}
-
-.alert-success {
-    background-color: #dff0d8;
-    color: var(--color-verde);
-}
-
-.alert-error {
-    background-color: #f2dede;
-    color: var(--color-rojo);
-}
-
-/* Estilos del Formulario (Autocompletar) */
 .form-group {
-    margin-bottom: 20px;
-    text-align: left;
-    position: relative;
+  margin-bottom: 20px;
+  text-align: left;
+  position: relative;
 }
 
 .form-group label {
     display: block;
     margin-bottom: 5px;
-    color: var(--color-blanco);
+    color: #ffffff;
     font-weight: bold;
 }
 
 .form-group input[type="text"],
 .form-group select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--color-gris);
-    border-radius: 5px;
-    background-color: #f0f8ff;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-gris);
+  border-radius: 5px;
+  background-color: #f0f8ff;
+  font-size: 16px;
+  transition: background-color 0.3s, border-color 0.3s;
 }
 
 .form-group input[type="text"]:focus,
 .form-group select:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0,80,145,0.5);
+  outline: none;
+  border-color: var(--color-principal);
+  box-shadow: 0 0 5px rgba(0,80,145,0.5);
+}
+
+.form-group select:hover {
+    background-color: #e0f8ff;
+    border-color: #aaa;
 }
 
 /* Resultados del Autocomplete */
 .autocomplete-results {
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    right: 0;
-    background-color: #f0f8ff;
-    border: 1px solid var(--color-gris);
-    max-height: 200px;
-    overflow-y: auto;
-    display: none;
-    border-radius: 5px;
-    z-index: 1000;
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background-color: #f0f8ff;
+  border: 1px solid var(--color-gris);
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+  border-radius: 5px;
+  z-index: 1000;
 }
 
 .autocomplete-option {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #333;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #333;
 }
 
 .autocomplete-option:hover {
-    background-color: var(--color-principal);
+    background-color: #3B5998;
     color: var(--color-blanco);
 }
 
-/* Estilos de la Tabla (DataTables) */
 .table-container {
-    background: #fff;
+    background: #ffffff;
     padding: 10px;
     border-radius: 10px;
     margin-top: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    overflow-x: auto;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto; /* Permitir scroll horizontal en la tabla */
 }
 
 .table {
     width: 100%;
     border-collapse: collapse;
-    text-align: center;  /* Centramos el contenido de la tabla */
+    text-align: center;
 }
 
 .table th, .table td {
     padding: 10px;
     border: 1px solid #ddd;
-    text-align: center;  /* Centramos tanto encabezados como celdas */
+    text-align: center;
 }
 
 .table th {
-    background-color: var(--color-principal);
-    color: var(--color-blanco);
+    background-color: #3B5998;
+    color: #fff;
 }
 
 .table td {
@@ -164,22 +130,8 @@ body {
     color: #333;
 }
 
-/* Forzar la columna de Acciones a tener ancho fijo de 100px */
-.table th:last-child,
-.table td.actions-cell {
-    width: 115px;
-}
-
-table.display thead {
-    background-color: var(--color-principal);
-    color: var(--color-blanco);
-}
-
-/* Acciones y Botones */
-.actions-cell {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+.table td.text-center {
+    text-align: center;
 }
 
 .btn-container {
@@ -188,8 +140,8 @@ table.display thead {
 }
 
 .btn-editar-horarios {
-    background-color: var(--color-principal);
-    color: var(--color-blanco);
+    background-color: #3B5998;
+    color: #ffffff;
     border: none;
     padding: 12px 20px;
     cursor: pointer;
@@ -201,17 +153,17 @@ table.display thead {
     text-align: center;
     line-height: 1.5;
     font-size: 18px;
-    font-family: var(--fuente-principal);
+    font-family: 'Roboto', Arial, sans-serif;
     margin-top: 5px;
 }
 
 .btn-editar-horarios:hover {
-    background-color: #002244;
+    background-color: #2b467d;
 }
 
 .btn-eliminar {
     background-color: #e74c3c;
-    color: var(--color-blanco);
+    color: white;
     border: none;
     width: 35px;
     height: 35px;
@@ -223,18 +175,21 @@ table.display thead {
     margin: 0 auto;
 }
 
+.btn-eliminar i {
+    margin-right: 0;
+}
+
 .btn-eliminar:hover {
     background-color: #c0392b;
 }
 
-/* Alertas */
 .alert {
     padding: 15px;
     margin-top: 20px;
     border: 1px solid transparent;
     border-radius: 4px;
     text-align: center;
-    width: calc(100% - 35px);
+    width: calc(100% - 35px); /* Ajusta el ancho de la alerta */
     margin-left: auto;
     margin-right: auto;
 }
@@ -253,24 +208,54 @@ table.display thead {
     margin-bottom: 25px;
 }
 
-/* Responsividad */
+/* Eliminar las flechas de ordenamiento de DataTables */
+table.dataTable thead .sorting,
+table.dataTable thead .sorting_asc,
+table.dataTable thead .sorting_desc {
+    background-image: none !important;
+}
+
+table.dataTable thead .sorting:after,
+table.dataTable thead .sorting_asc:after,
+table.dataTable thead .sorting_desc:after {
+    display: none !important;
+}
+
+/* Responsiveness */
 @media (max-width: 768px) {
     .container {
         padding: 20px;
     }
+
     .table {
-        width: 100%;
+        width: 100%; /* Asegurar que la tabla se ajuste al ancho del contenedor */
     }
+
     .table th, .table td {
         padding: 5px;
-        font-size: 14px;
+        font-size: 14px; /* Ajustar el tamaño de fuente para vista móvil */
     }
+
     .btn-editar-horarios {
         width: 100%;
-        max-width: none;
-        box-sizing: border-box;
+        max-width: none; /* Quitar el ancho máximo en vista móvil */
+        box-sizing: border-box; /* Asegurar que el padding se incluya en el ancho total */
     }
+
     .alert {
         padding: 10px;
+    }
+
+    /* Para que los inputs de autocompletar y el dropdown tengan 100% de ancho */
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .autocomplete-results {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 }
