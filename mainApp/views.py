@@ -523,6 +523,46 @@ def visualizar_inventarios_view(request):
     }
     return render(request, 'visualizar_inventarios.html', context)
 
+@login_required
+def sucursal_con_inventario_autocomplete(request):
+    """
+    Devuelve en JSON las sucursales que tienen inventario para el autocomplete
+    en la vista de Visualizar Inventarios. Se inserta "Inventario Global" como primera opción.
+    Soporta paginación mediante 'term' y 'page'.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page = 10
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    qs = Sucursal.objects.annotate(inventarios_count=Count('inventario')) \
+                         .filter(inventarios_count__gt=0) \
+                         .order_by('nombre')
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+    
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = [{'id': sucursal.sucursalid, 'text': sucursal.nombre} for sucursal in qs]
+    # Si es la primera página, insertar la opción global al inicio
+    if page == 1:
+        results.insert(0, {"id": "global", "text": "Inventario Global"})
+
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
+
 
 @login_required
 def editar_inventario_view(request, sucursal_id):
@@ -741,14 +781,16 @@ def producto_inventario_autocomplete_editar(request):
 
 @login_required
 def eliminar_producto_inventario_view(request, inventario_id):
+    """
+    Función para eliminar un registro de inventario vía AJAX.
+    """
     if request.method == 'POST':
         inventario = get_object_or_404(Inventario, pk=inventario_id)
         producto_nombre = inventario.productoid.nombre
         inventario.delete()
         return JsonResponse({
             'success': True,
-            'message': f'Producto "{producto_nombre}" eliminado exitosamente.',
-            'producto_nombre': producto_nombre
+            'message': f'Producto "{producto_nombre}" eliminado exitosamente.'
         })
     return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
 

@@ -26,6 +26,7 @@ urlpatterns = [
     # Ruta para autocompletar Productos (por ejemplo)
     path('autocomplete/producto_inventario/', views.producto_inventario_autocomplete, name='producto_inventario_autocomplete'),
     path('visualizar_inventarios/', views.visualizar_inventarios_view, name='visualizar_inventarios'),
+    path('autocomplete/sucursal_con_inventario/', views.sucursal_con_inventario_autocomplete, name='sucursal_con_inventario_autocomplete'),
     path('editar_inventario/<int:sucursal_id>/', views.editar_inventario_view, name='editar_inventario'),
     path('autocomplete/sucursal_inventario_editar/', views.sucursal_inventario_autocomplete_editar, name='sucursal_inventario_autocomplete_editar'),
     path('autocomplete/producto_inventario_editar/', views.producto_inventario_autocomplete_editar, name='producto_inventario_autocomplete_editar'),

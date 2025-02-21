@@ -1,72 +1,23 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Visualizar Inventarios{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualizar Inventarios</title>
-    {% load static %}
+    <!-- Font Awesome para íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_inventario copy.css' %}">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <!-- CSS propio -->
+    <link rel="stylesheet" href="{% static 'css/visualizar_inventarios.css' %}">
+    <!-- Variables globales para URLs -->
     <script>
-        $(document).ready(function() {
-            const table = $('#inventarios-list').DataTable({
-                paging: false,
-                searching: true,
-                info: false,
-                language: {
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay productos para mostrar",
-                },
-            });
-
-            // AJAX para eliminar producto con confirmación
-            $('.btn-eliminar').on('click', function(event) {
-                event.preventDefault();
-                const button = $(this);
-                const inventarioId = button.data('inventario-id');
-                const row = button.closest('tr');
-
-                if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
-                    $.ajax({
-                        url: '{% url "eliminar_producto_inventario" inventario_id=0 %}'.replace('0', inventarioId),
-                        type: 'POST',
-                        data: {
-                            csrfmiddlewaretoken: '{{ csrf_token }}'
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                table.row(row).remove().draw(false);
-                                mostrarMensaje(response.message, 'alert-success');
-                            } else {
-                                mostrarMensaje(response.message, 'alert-error');
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            mostrarMensaje('Ocurrió un error al eliminar el producto.', 'alert-error');
-                        }
-                    });
-                }
-            });
-
-            function mostrarMensaje(mensaje, clase) {
-                // Elimina cualquier mensaje de alerta existente
-                const alertasExistentes = document.querySelectorAll('.alert');
-                alertasExistentes.forEach(alerta => alerta.remove());
-
-                const mensajeDiv = document.createElement('div');
-                mensajeDiv.className = 'alert ' + clase;
-                mensajeDiv.textContent = mensaje;
-                const titulo = document.querySelector('h2');
-                titulo.insertAdjacentElement('afterend', mensajeDiv);
-            }
-        });
+        var sucursalAutocompleteUrl = "{% url 'sucursal_con_inventario_autocomplete' %}";
+        var eliminarInventarioUrlPattern = "{% url 'eliminar_producto_inventario' inventario_id=0 %}";
     </script>
 </head>
 <body>
@@ -81,24 +32,23 @@
                 {% endfor %}
             </div>
         {% endif %}
-        <form method="POST">
+
+        <!-- Formulario de filtrado mediante autocomplete -->
+        <form id="sucursalForm" method="POST">
             {% csrf_token %}
             <div class="form-group">
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal" name="sucursal" required onchange="this.form.submit()">
-                    <option value="">Seleccionar sucursal</option>
-                    <option value="global" {% if inventario_global %}selected{% endif %}>Inventario Global</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}" {% if sucursal_seleccionada and sucursal.sucursalid == sucursal_seleccionada.sucursalid %}selected{% endif %}>{{ sucursal.nombre }}</option>
-                    {% endfor %}
-                </select>
-                {% if sucursal_seleccionada %}
-                    <div class="btn-container">
-                        <a href="{% url 'editar_inventario' sucursal_seleccionada.sucursalid %}" class="btn-editar-inventario">Editar Inventario</a>
-                    </div>
-                {% endif %}
+                <label for="id_sucursal_autocomplete">Sucursal</label>
+                <input type="text" id="id_sucursal_autocomplete" class="form-control" placeholder="Escribe para buscar sucursal...">
+                <input type="hidden" id="id_sucursal" name="sucursal" value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.sucursalid }}{% endif %}">
+                <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
             </div>
         </form>
+
+        {% if sucursal_seleccionada %}
+            <div class="btn-container">
+                <a href="{% url 'editar_inventario' sucursal_seleccionada.sucursalid %}" class="btn-editar-inventario">Editar Inventario</a>
+            </div>
+        {% endif %}
 
         {% if inventarios or inventario_global %}
             <div class="table-container">
@@ -116,17 +66,19 @@
                         {% if inventario_global %}
                             {% for item in inventario_global_data %}
                                 <tr>
-                                    <td>{{ item.productoid__nombre }}</td>
-                                    <td>{{ item.total_cantidad }}</td>
+                                    <td data-label="Producto">{{ item.productoid__nombre }}</td>
+                                    <td data-label="Cantidad">{{ item.total_cantidad }}</td>
                                 </tr>
                             {% endfor %}
                         {% else %}
                             {% for inventario in inventarios %}
                                 <tr>
-                                    <td>{{ inventario.productoid.nombre }}</td>
-                                    <td>{{ inventario.cantidad }}</td>
-                                    <td class="text-center">
-                                        <button type="button" class="btn-eliminar" data-inventario-id="{{ inventario.inventarioid }}"><i class="fas fa-trash-alt"></i></button>
+                                    <td data-label="Producto">{{ inventario.productoid.nombre }}</td>
+                                    <td data-label="Cantidad">{{ inventario.cantidad }}</td>
+                                    <td data-label="Acciones" class="text-center">
+                                        <button type="button" class="btn-eliminar" data-inventario-id="{{ inventario.inventarioid }}">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -136,6 +88,12 @@
             </div>
         {% endif %}
     </div>
+
+    <!-- jQuery y DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <!-- JS propio -->
+    <script src="{% static 'javascript/visualizar_inventarios.js' %}"></script>
 </body>
 </html>
 {% endblock %}
