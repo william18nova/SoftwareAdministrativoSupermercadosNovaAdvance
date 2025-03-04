@@ -816,7 +816,6 @@ def visualizar_proveedores_view(request):
     proveedores = Proveedor.objects.all()
     return render(request, 'visualizar_proveedores.html', {'proveedores': proveedores})
 
-
 @login_required
 def eliminar_proveedor(request, proveedor_id):
     proveedor = get_object_or_404(Proveedor, proveedorid=proveedor_id)
@@ -824,6 +823,7 @@ def eliminar_proveedor(request, proveedor_id):
         proveedor.delete()
         messages.success(request, 'El proveedor ha sido eliminado exitosamente.')
         return redirect('visualizar_proveedores')
+    # Si la solicitud no es POST se vuelve a renderizar la página
     return render(request, 'visualizar_proveedores.html', {'proveedores': Proveedor.objects.all()})
 
 

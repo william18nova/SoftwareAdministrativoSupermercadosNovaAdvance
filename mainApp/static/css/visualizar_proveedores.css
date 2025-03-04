@@ -67,13 +67,8 @@ table tbody td {
     display: flex;
     gap: 10px;
     justify-content: flex-start;
-    align-items: left;
+    align-items: center;
     width: 100%;
-}
-
-.actions-cell form,
-.actions-cell a {
-    display: inline-block;
 }
 
 .btn-container {
@@ -88,6 +83,7 @@ table tbody td {
     border-radius: 5px;
     margin: 2px;
     cursor: pointer;
+    display: inline-block;
 }
 
 .btn.editar {
@@ -119,58 +115,33 @@ table tbody td {
     color: #155724;
 }
 
-/* Ajuste del ancho de las columnas para la vista de escritorio */
+/* Ajuste del ancho de columnas en vista de escritorio */
 @media (min-width: 769px) {
-    table tbody td:nth-child(1) {
-        width: 15%;
-    }
-    table tbody td:nth-child(2) {
-        width: 20%;
-    }
-    table tbody td:nth-child(3) {
-        width: 15%;
-    }
-    table tbody td:nth-child(4) {
-        width: 20%;
-    }
-    table tbody td:nth-child(5) {
-        width: 20%;
-    }
-    table tbody td:nth-child(6) {
-        width: 10%;
-    }
-
-    .actions-cell {
-        justify-content: flex-start;
-        flex-direction: row;
-    }
-
-    .btn-container {
-        flex-direction: row;
-    }
+    table tbody td:nth-child(1) { width: 15%; }
+    table tbody td:nth-child(2) { width: 20%; }
+    table tbody td:nth-child(3) { width: 15%; }
+    table tbody td:nth-child(4) { width: 20%; }
+    table tbody td:nth-child(5) { width: 20%; }
+    table tbody td:nth-child(6) { width: 10%; }
 }
 
-/* Responsiveness */
+/* Responsividad */
 @media (max-width: 768px) {
     .container {
         padding: 10px;
     }
-
     table {
         border: 0;
     }
-
     table thead {
         display: none;
     }
-
     table tbody tr {
         display: block;
         margin-bottom: 10px;
         border: 1px solid #ddd;
         border-radius: 5px;
     }
-
     table tbody td {
         display: block;
         text-align: left;
@@ -179,26 +150,20 @@ table tbody td {
         border-bottom: 1px solid #ddd;
         word-break: break-word;
     }
-
     table tbody td::before {
         content: attr(data-label);
         display: block;
         font-weight: bold;
         margin-bottom: 5px;
     }
-
     table tbody td:last-child {
         border-bottom: 0;
     }
-
     .actions-cell {
-        justify-content: flex-start;
         flex-direction: column;
+        justify-content: flex-start;
     }
-
     .btn-container {
-        display: flex;
-        gap: 10px;
         flex-direction: row;
     }
 }
