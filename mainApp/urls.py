@@ -42,6 +42,7 @@ urlpatterns = [
     path('autocomplete/proveedor/', views.proveedor_precios_autocomplete, name='proveedor_precios_autocomplete'),
     path('autocomplete/producto/', views.producto_precios_autocomplete, name='producto_precios_autocomplete'),
     path('visualizar_productos_precios_proveedores/', views.visualizar_productos_precios_proveedores_view, name='visualizar_productos_precios_proveedores'),
+    path('autocomplete/proveedor_con_productos/', views.proveedor_con_productos_autocomplete, name='proveedor_con_productos_autocomplete'),
     path('precios_proveedor/eliminar/<int:id>/', views.eliminar_precio_proveedor_view, name='eliminar_precio_proveedor'),
     path('editar_productos_precios_proveedor/<int:proveedor_id>/', views.editar_productos_precios_proveedor_view, name='editar_productos_precios_proveedor'),
 

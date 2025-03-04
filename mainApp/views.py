@@ -1041,6 +1041,42 @@ def visualizar_productos_precios_proveedores_view(request):
         'proveedor_seleccionado': proveedor_seleccionado,
     })
 
+@login_required
+def proveedor_con_productos_autocomplete(request):
+    """
+    Autocomplete de Proveedores que ya están vinculados con productos,
+    es decir, aquellos que tienen al menos un registro en PreciosProveedor.
+    Soporta paginación y manejo de términos vacíos.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page = 10
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    qs = Proveedor.objects.annotate(product_count=Count('preciosproveedor'))\
+                           .filter(product_count__gt=0)\
+                           .order_by('nombre')
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+    
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = [{'id': prov.proveedorid, 'text': prov.nombre} for prov in qs]
+    return JsonResponse({
+        'results': results,
+        'has_more': end < total_results,
+    })
+
 
 @login_required
 def eliminar_precio_proveedor_view(request, id):

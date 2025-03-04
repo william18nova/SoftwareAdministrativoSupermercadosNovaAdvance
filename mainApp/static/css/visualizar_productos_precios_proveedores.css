@@ -2,7 +2,7 @@
 
 body {
     margin: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -10,7 +10,7 @@ body {
     font-family: 'Roboto', Arial, sans-serif;
     text-align: center;
     color: white;
-    overflow: hidden; /* Evitar el desbordamiento en dispositivos móviles */
+    overflow: auto; /* Permitir desplazamiento en dispositivos móviles */
 }
 
 .container {
@@ -22,8 +22,6 @@ body {
     max-width: 600px;
     text-align: center;
     position: relative;
-    overflow: auto; /* Permitir el desplazamiento dentro del contenedor */
-    max-height: 90vh; /* Ajustar la altura máxima para permitir el desplazamiento */
 }
 
 .container h2 {
@@ -40,6 +38,7 @@ body {
 .form-group {
     margin-bottom: 20px;
     text-align: left;
+    position: relative;
 }
 
 .form-group label {
@@ -49,7 +48,8 @@ body {
     font-weight: bold;
 }
 
-.form-group input[type="text"], .form-group select {
+.form-group select,
+.form-group input[type="text"] {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
@@ -61,66 +61,50 @@ body {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-.form-group input[type="number"] {
+.form-group select:hover {
+    background-color: #e0e8ff;
+    border-color: #aaa;
+}
+
+/* Autocomplete results */
+.autocomplete-results {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background-color: #f0f8ff;
+    border: 1px solid #ccc;
+    max-height: 200px;
+    overflow-y: auto;
+    display: none;
+    border-radius: 5px;
+    z-index: 1000;
+}
+
+.autocomplete-option {
     padding: 10px;
-    border: 1px solid #888;
-    border-radius: 5px;
-    background-color: #e0e8ff;
-    margin: 0 auto;
-    display: block;
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.form-group input[type="number"]:hover {
-    background-color: #d0d8ff;
-    border-color: #777;
-}
-
-.btn-agregar-producto, .btn-agregar-inventario, .btn-editar-inventario {
-    display: block;
-    margin: 20px auto 10px auto; /* Ajuste del margen */
-    padding: 12px;
-    width: 100%; /* Ancho ajustado al 100% en vista móvil */
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
     cursor: pointer;
-    max-width: 200px; /* Ancho máximo en vista de escritorio */
-    text-align: center;
-    text-decoration: none; /* Eliminar la línea debajo del texto */
+    font-size: 16px;
+    color: #333;
 }
 
-.btn-agregar-producto {
-    background-color: #ffffff;
-    color: #000000;
-    border: none;
-}
-
-.btn-agregar-producto:hover {
-    background-color: #e0e8ff;
-}
-
-.btn-agregar-inventario, .btn-editar-inventario {
-    background-color: #003366;
+.autocomplete-option:hover {
+    background-color: #3B5998;
     color: #ffffff;
-    border: none;
 }
 
-.btn-agregar-inventario:hover, .btn-editar-inventario:hover {
-    background-color: #002244;
-}
-
+/* Tabla */
 .table-container {
     background: #ffffff;
     padding: 10px;
     border-radius: 10px;
     margin-top: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
 }
 
 .table {
-    width: 100%; /* Ajustamos el ancho */
+    width: 100%;
     border-collapse: collapse;
     text-align: left;
 }
@@ -131,7 +115,7 @@ body {
 }
 
 .table th {
-    background-color: #003366;
+    background-color: #3B5998;
     color: #fff;
 }
 
@@ -144,17 +128,46 @@ body {
     text-align: center;
 }
 
+/* Botones */
+.btn-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.btn-editar-inventario {
+    background-color: #3B5998;
+    color: #ffffff;
+    border: none;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+    text-decoration: none;
+    display: inline-block;
+    width: 200px;
+    text-align: center;
+    line-height: 1.5;
+    font-size: 18px;
+    font-family: 'Roboto', Arial, sans-serif;
+    margin-top: 5px;
+}
+
+.btn-editar-inventario:hover {
+    background-color: #2b467d;
+}
+
 .btn-eliminar {
     background-color: #e74c3c;
     color: white;
     border: none;
-    padding: 5px 10px;
+    width: 35px;
+    height: 35px;
     cursor: pointer;
     border-radius: 5px;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 auto;
+    margin: 0 auto; /* Centra el botón en su celda */
 }
 
 .btn-eliminar i {
@@ -177,39 +190,46 @@ body {
     color: #a94442;
     background-color: #f2dede;
     border-color: #ebccd1;
-    margin-top: 25px;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .alert-success {
     color: #3c763d;
     background-color: #dff0d8;
     border-color: #d6e9c6;
-    margin-top: 25px;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
-/* Ancho personalizado para el campo de cantidad */
-.ancho-personalizado {
-    width: 96.3%; /* Ajusta este valor según sea necesario */
-}
-
-/* Responsiveness */
+/* Responsiveness sin scroll lateral */
 @media (max-width: 768px) {
     .container {
+        padding: 20px;
+        max-width: 100%;
+    }
+    .table {
+        width: 100%;
+        table-layout: auto;
+    }
+    .table th, .table td {
+        padding: 5px;
+        font-size: 14px;
+    }
+    .btn-editar-inventario {
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+    }
+    .alert {
         padding: 10px;
     }
-
-    .form-group input[type="text"], .form-group select, .form-group input[type="number"] {
+    .form-group select,
+    .form-group input[type="text"] {
         width: 100%;
+        box-sizing: border-box;
     }
-
-    .form-group input[type="number"].ancho-personalizado {
-        width: calc(96.3% - 10px); /* Ajusta este valor según sea necesario para vista móvil */
-    }
-
-    .btn-agregar-producto, .btn-agregar-inventario, .btn-editar-inventario {
-        width: 40%;
-        max-width: none; /* Quitar el ancho máximo en vista móvil */
+    .autocomplete-results {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 }
