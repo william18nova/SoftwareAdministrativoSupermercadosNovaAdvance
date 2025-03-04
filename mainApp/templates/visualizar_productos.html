@@ -1,5 +1,3 @@
-<!-- visualizar_productos.html -->
-
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Visualizar Productos{% endblock %}
@@ -10,17 +8,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Productos</title>
-    {% load static %}
+    <!-- Font Awesome para íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Reutilizar el mismo CSS para estandarización -->
-    <link rel="stylesheet" href="{% static 'css/agregar_producto.css' %}">
+    <!-- Archivo CSS específico para visualizar productos -->
+    <link rel="stylesheet" href="{% static 'css/visualizar_productos.css' %}">
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    <!-- Opcional: Estilos adicionales específicos para visualizar_productos -->
 </head>
 <body>
     <div class="container">
-        <i class="fas fa-list icon"></i>
         <h2>Lista de Productos</h2>
         {% if messages %}
             <div class="messages">
@@ -56,9 +52,14 @@
                     <td data-label="IVA">{{ producto.iva }}</td>
                     <td data-label="Acciones" class="actions-cell">
                         <div class="btn-container">
-                            <a href="{% url 'editar_producto' producto.productoid %}" class="btn editar"><i class="fas fa-pencil-alt"></i></a>
-                            <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
+                            <a href="{% url 'editar_producto' producto.productoid %}" class="btn editar">
+                                <i class="fas fa-pencil-alt"></i>
+                            </a>
+                            <button type="button" class="btn borrar" onclick="confirmDelete(this)">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </div>
+                        <!-- Formulario oculto para enviar la eliminación vía POST -->
                         <form class="delete-form" action="{% url 'eliminar_producto' producto.productoid %}" method="post" style="display:none;">
                             {% csrf_token %}
                         </form>
@@ -68,6 +69,11 @@
             </tbody>
         </table>
     </div>
+    <!-- Cargar jQuery y DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <!-- Archivo JavaScript propio para esta página -->
+    <script src="{% static 'javascript/visualizar_productos.js' %}"></script>
 </body>
 </html>
 {% endblock %}

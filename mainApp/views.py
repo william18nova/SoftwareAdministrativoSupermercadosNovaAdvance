@@ -258,7 +258,6 @@ def visualizar_productos_view(request):
     productos = Producto.objects.all()
     return render(request, 'visualizar_productos.html', {'productos': productos})
 
-
 @login_required
 def eliminar_producto(request, producto_id):
     producto = get_object_or_404(Producto, productoid=producto_id)
@@ -267,7 +266,9 @@ def eliminar_producto(request, producto_id):
         producto.delete()
         messages.success(request, f'El producto "{nombre_producto}" ha sido eliminado exitosamente.')
         return redirect('visualizar_productos')
-    return render(request, 'visualizar_productos.html', {'productos': Producto.objects.all()})
+    # Si no es POST, simplemente se vuelve a renderizar la página
+    productos = Producto.objects.all()
+    return render(request, 'visualizar_productos.html', {'productos': productos})
 
 
 @login_required

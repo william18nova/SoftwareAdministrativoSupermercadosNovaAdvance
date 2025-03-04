@@ -63,23 +63,16 @@ table tbody td {
 }
 
 .actions-cell {
-    text-align: left; /* Alinear a la izquierda */
+    text-align: left;
     display: flex;
-    gap: 10px; /* Espacio entre botones */
-    justify-content: flex-start; /* Alinear a la izquierda */
-    align-items: left; /* Centrar verticalmente */
-    width: 100%; /* Ajustar el ancho para que sea un poco más que el de los dos botones */
-}
-
-.actions-cell form,
-.actions-cell a {
-    display: inline-block;
+    gap: 10px;
+    justify-content: flex-start;
+    align-items: center;
 }
 
 .btn-container {
     display: flex;
-    gap: 10px; /* Espacio entre botones */
-    flex-direction: row; /* Asegurar que los botones estén en una fila */
+    gap: 10px;
 }
 
 .btn {
@@ -88,6 +81,7 @@ table tbody td {
     border-radius: 5px;
     margin: 2px;
     cursor: pointer;
+    display: inline-block;
 }
 
 .btn.editar {
@@ -119,64 +113,35 @@ table tbody td {
     color: #155724;
 }
 
-/* Ajuste del ancho de las columnas para la vista de escritorio */
+/* Ancho de columnas en escritorio */
 @media (min-width: 769px) {
-    table tbody td:nth-child(1) {
-        width: 10%; /* Ajustar ancho para la columna de código */
-    }
-    table tbody td:nth-child(2) {
-        width: 15%; /* Ajustar ancho para la columna de nombre */
-    }
-    table tbody td:nth-child(3) {
-        width: 20%; /* Ajustar ancho para la columna de descripción */
-    }
-    table tbody td:nth-child(4) {
-        width: 10%; /* Ajustar ancho para la columna de precio */
-    }
-    table tbody td:nth-child(5) {
-        width: 15%; /* Ajustar ancho para la columna de categoría */
-    }
-    table tbody td:nth-child(6) {
-        width: 15%; /* Ajustar ancho para la columna de código de barras */
-    }
-    table tbody td:nth-child(7) {
-        width: 10%; /* Ajustar ancho para la columna de IVA */
-    }
-    table tbody td:nth-child(8) {
-        width: 15%; /* Ajustar ancho para la columna de acciones */
-    }
-
-    .actions-cell {
-        justify-content: flex-start; /* Alinear a la izquierda */
-        flex-direction: row; /* Asegurar que los botones estén en una fila */
-    }
-
-    .btn-container {
-        flex-direction: row; /* Asegurar que los botones estén en una fila */
-    }
+    table tbody td:nth-child(1) { width: 10%; }
+    table tbody td:nth-child(2) { width: 15%; }
+    table tbody td:nth-child(3) { width: 20%; }
+    table tbody td:nth-child(4) { width: 10%; }
+    table tbody td:nth-child(5) { width: 15%; }
+    table tbody td:nth-child(6) { width: 15%; }
+    table tbody td:nth-child(7) { width: 10%; }
+    table tbody td:nth-child(8) { width: 15%; }
 }
 
-/* Responsiveness */
+/* Responsividad */
 @media (max-width: 768px) {
     .container {
         padding: 10px;
     }
-
     table {
         border: 0;
     }
-
     table thead {
         display: none;
     }
-
     table tbody tr {
         display: block;
         margin-bottom: 10px;
         border: 1px solid #ddd;
         border-radius: 5px;
     }
-
     table tbody td {
         display: block;
         text-align: left;
@@ -185,26 +150,20 @@ table tbody td {
         border-bottom: 1px solid #ddd;
         word-break: break-word;
     }
-
     table tbody td::before {
         content: attr(data-label);
         display: block;
         font-weight: bold;
         margin-bottom: 5px;
     }
-
     table tbody td:last-child {
         border-bottom: 0;
     }
-
     .actions-cell {
+        flex-direction: column;
         justify-content: flex-start;
-        flex-direction: column; /* Colocar botones en columna en dispositivos móviles */
     }
-
     .btn-container {
-        display: flex;
-        gap: 10px;
-        flex-direction: row; /* Asegurar que los botones estén en una fila */
+        flex-direction: row;
     }
 }
