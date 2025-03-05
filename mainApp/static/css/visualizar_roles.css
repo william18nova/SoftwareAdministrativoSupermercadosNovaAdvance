@@ -130,14 +130,17 @@ table tbody td {
 /* Ajuste del ancho de las columnas para la vista de escritorio */
 @media (min-width: 769px) {
     table tbody td:nth-child(1) {
-        width: 40%;
+        width: 30%;
     }
     table tbody td:nth-child(2) {
-        width: 60%;
+        width: 55%;
+    }
+    table tbody td:nth-child(3) {
+        width: 1%;
     }
 
     .actions-cell {
-        justify-content: left;
+        justify-content: center;
         flex-direction: row;
     }
 

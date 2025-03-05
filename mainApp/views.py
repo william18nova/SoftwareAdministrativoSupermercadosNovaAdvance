@@ -1680,6 +1680,7 @@ def eliminar_rol_view(request, rol_id):
         rol.delete()
         messages.success(request, f'Se eliminó el rol "{nombre_rol}" correctamente.')
         return redirect('visualizar_roles')
+    # Si no es POST, retornamos un JSON de error (o podrías redirigir)
     return JsonResponse({'success': False, 'message': 'Error al eliminar el rol.'})
 
 
