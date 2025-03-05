@@ -1329,6 +1329,7 @@ def sucursal_punto_pago_autocomplete(request):
 
 @login_required
 def visualizar_puntos_pago_view(request):
+    # Obtener sucursales que ya tienen puntos de pago vinculados
     sucursales = Sucursal.objects.annotate(punto_count=Count('puntospago')).filter(punto_count__gt=0)
     puntos_pago = None
     sucursal_seleccionada = None
@@ -1345,7 +1346,6 @@ def visualizar_puntos_pago_view(request):
         'sucursal_seleccionada': sucursal_seleccionada,
     })
 
-
 @login_required
 def eliminar_punto_pago_view(request, puntopagoid):
     if request.method == 'POST':
@@ -1353,10 +1353,70 @@ def eliminar_punto_pago_view(request, puntopagoid):
             punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
             nombre_punto = punto_pago.nombre
             punto_pago.delete()
-            return JsonResponse({'success': True, 'message': f'Punto de pago "{nombre_punto}" eliminado correctamente.'})
+            return JsonResponse({
+                'success': True,
+                'message': f'Punto de pago "{nombre_punto}" eliminado correctamente.'
+            })
         except Exception as e:
-            return JsonResponse({'success': False, 'message': f'Error al eliminar el punto de pago: {str(e)}'})
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al eliminar el punto de pago: {str(e)}'
+            })
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+
+@login_required
+def visualizar_sucursal_punto_pago_autocomplete(request):
+    """
+    Autocomplete para sucursales CON puntos de pago (puntos_count > 0).
+    Paginación + Respuesta JSON.
+    """
+    from django.db.models import Count
+    
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '10').strip()
+
+    try:
+        page = int(page_str)
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+        if per_page < 1:
+            per_page = 10
+    except ValueError:
+        per_page = 10
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Filtrar sucursales que tengan al menos un punto de pago
+    qs = (Sucursal.objects
+          .annotate(puntos_count=Count('puntospago'))
+          .filter(puntos_count__gt=0)
+          .order_by('nombre'))
+
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = []
+    for suc in qs:
+        results.append({
+            'id': suc.sucursalid,
+            'text': suc.nombre,
+        })
+
+    has_more = end < total_results
+    return JsonResponse({
+        'results': results,
+        'has_more': has_more,
+    })
 
 
 @login_required

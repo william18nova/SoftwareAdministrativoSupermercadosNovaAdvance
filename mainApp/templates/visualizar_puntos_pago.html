@@ -1,81 +1,30 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Visualizar Puntos de Pago{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualizar Puntos de Pago</title>
-    {% load static %}
+    <!-- Font Awesome para íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_puntos_pago.css' %}">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <!-- CSS Propio -->
+    <link rel="stylesheet" href="{% static 'css/visualizar_puntos_pago.css' %}">
+    <!-- Variables globales para JavaScript -->
     <script>
-        $(document).ready(function() {
-            const table = $('#puntos-pago-list').DataTable({
-                paging: false,
-                searching: true,
-                info: false,
-                language: {
-                    search: "Buscar:",
-                    zeroRecords: "No se encontraron resultados",
-                    emptyTable: "No hay puntos de pago para mostrar",
-                },
-            });
-
-            function mostrarMensaje(mensaje, clase) {
-                const alertasExistentes = document.querySelectorAll('.alert');
-                alertasExistentes.forEach(alerta => alerta.remove());
-
-                const mensajeDiv = document.createElement('div');
-                mensajeDiv.className = `alert ${clase}`;
-                mensajeDiv.textContent = mensaje;
-                const form = document.querySelector('#sucursalForm');
-                form.insertAdjacentElement('beforebegin', mensajeDiv);
-            }
-
-            $('#puntos-pago-list').on('click', '.btn-eliminar', function(event) {
-                event.preventDefault();
-                const button = $(this);
-                const id = button.data('id');
-                const row = button.closest('tr');
-
-                if (confirm('¿Estás seguro de que deseas eliminar este punto de pago?')) {
-                    $.ajax({
-                        url: '{% url "eliminar_punto_pago" 0 %}'.replace('0', id),
-                        type: 'POST',
-                        data: {
-                            csrfmiddlewaretoken: '{{ csrf_token }}'
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                table.row(row).remove().draw(false);
-                                mostrarMensaje(response.message, 'alert-success');
-                            } else {
-                                mostrarMensaje(response.message, 'alert-error');
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            mostrarMensaje('Ocurrió un error al eliminar el punto de pago.', 'alert-error');
-                        }
-                    });
-                }
-            });
-
-            $('#sucursal').on('change', function() {
-                const form = $('#sucursalForm');
-                form.submit();
-            });
-        });
+        var eliminarPuntoPagoUrlPattern = "{% url 'eliminar_punto_pago' puntopagoid=0 %}";
+        var sucursalAutocompleteUrl = "{% url 'sucursal_punto_pago_autocomplete' %}";
     </script>
 </head>
 <body>
     <div class="container">
-        <i class="fas fa-credit-card icon"></i> <!-- Ícono de punto de pago -->
+        <i class="fas fa-credit-card icon"></i>
         <h2>Visualizar Puntos de Pago</h2>
+
         {% if messages %}
             <div class="messages">
                 {% for message in messages %}
@@ -85,23 +34,43 @@
                 {% endfor %}
             </div>
         {% endif %}
+
+        <!-- Form para filtrar por sucursal con Autocomplete -->
         <form id="sucursalForm" method="POST" action="{% url 'visualizar_puntos_pago' %}">
             {% csrf_token %}
             <div class="form-group">
-                <label for="sucursal">Sucursal</label>
-                <select id="sucursal" name="sucursal" required>
-                    <option value="">Seleccionar sucursal</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}" {% if sucursal_seleccionada and sucursal.sucursalid == sucursal_seleccionada.sucursalid %}selected{% endif %}>{{ sucursal.nombre }}</option>
-                    {% endfor %}
-                </select>
+                <label for="id_sucursal_autocomplete">Sucursal</label>
+                <!-- Input visible para el Autocomplete -->
+                <input
+                    type="text"
+                    id="id_sucursal_autocomplete"
+                    class="form-control"
+                    placeholder="Escribe para buscar sucursal..."
+                    autocomplete="off"
+                >
+                <!-- Input hidden donde se guarda el ID real de la sucursal -->
+                <input
+                    type="hidden"
+                    id="id_sucursal"
+                    name="sucursal"
+                    value="{% if sucursal_seleccionada %}{{ sucursal_seleccionada.sucursalid }}{% endif %}"
+                >
+                <!-- Contenedor para mostrar resultados del autocomplete -->
+                <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
             </div>
+
             {% if sucursal_seleccionada %}
                 <div class="btn-container">
-                    <a href="{% url 'editar_puntos_pago' sucursal_seleccionada.sucursalid %}" class="btn-editar-puntos-pago">Editar Puntos de Pago</a>
+                    <a href="{% url 'editar_puntos_pago' sucursal_seleccionada.sucursalid %}"
+                       class="btn-editar-puntos-pago"
+                    >
+                        Editar Puntos de Pago
+                    </a>
                 </div>
             {% endif %}
         </form>
+
+        <!-- Si se seleccionó una sucursal, se muestra la tabla con los puntos de pago -->
         {% if sucursal_seleccionada %}
         <div class="table-container">
             <table id="puntos-pago-list" class="table display">
@@ -115,10 +84,12 @@
                 <tbody>
                     {% for punto in puntos_pago %}
                     <tr>
-                        <td>{{ punto.nombre }}</td>
-                        <td>{{ punto.descripcion }}</td>
-                        <td class="text-center">
-                            <button type="button" class="btn-eliminar" data-id="{{ punto.puntopagoid }}"><i class="fas fa-trash-alt"></i></button>
+                        <td data-label="Nombre">{{ punto.nombre }}</td>
+                        <td data-label="Descripción">{{ punto.descripcion }}</td>
+                        <td data-label="Acciones" class="text-center">
+                            <button type="button" class="btn-eliminar" data-id="{{ punto.puntopagoid }}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -127,6 +98,12 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- jQuery y DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+    <!-- JavaScript propio -->
+    <script src="{% static 'javascript/visualizar_puntos_pago.js' %}"></script>
 </body>
 </html>
 {% endblock %}
