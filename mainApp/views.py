@@ -90,7 +90,6 @@ def visualizar_sucursales_view(request):
     sucursales = Sucursal.objects.all()
     return render(request, 'visualizar_sucursales.html', {'sucursales': sucursales})
 
-
 @login_required
 def eliminar_sucursal(request, sucursal_id):
     sucursal = get_object_or_404(Sucursal, sucursalid=sucursal_id)
