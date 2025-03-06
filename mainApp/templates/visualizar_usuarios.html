@@ -1,29 +1,19 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Visualizar Usuarios{% endblock %}
 {% block content %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Usuarios</title>
-    {% load static %}
+    <!-- Font Awesome para íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'visualizar_usuarios.css' %}">
+    <!-- CSS Propio -->
+    <link rel="stylesheet" href="{% static 'css/visualizar_usuarios.css' %}">
+    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#usuariosTable').DataTable();
-        });
-
-        function confirmDelete(button) {
-            if (confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
-                $(button).closest('form').submit();
-            }
-        }
-    </script>
 </head>
 <body>
     <div class="container">
@@ -52,9 +42,14 @@
                     <td data-label="Rol">{{ usuario.rolid.nombre }}</td>
                     <td data-label="Acciones" class="actions-cell">
                         <div class="btn-container">
-                            <a href="{% url 'editar_usuario' usuario.usuarioid %}" class="btn editar"><i class="fas fa-edit"></i></a>
-                            <button type="button" class="btn borrar" onclick="confirmDelete(this)"><i class="fas fa-trash-alt"></i></button>
+                            <a href="{% url 'editar_usuario' usuario.usuarioid %}" class="btn editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn borrar" onclick="confirmDelete(this)">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </div>
+                        <!-- Formulario oculto para eliminación -->
                         <form class="delete-form" action="{% url 'eliminar_usuario' usuario.usuarioid %}" method="post" style="display:none;">
                             {% csrf_token %}
                         </form>
@@ -64,6 +59,11 @@
             </tbody>
         </table>
     </div>
+    <!-- jQuery y DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <!-- JavaScript Propio -->
+    <script src="{% static 'javascript/visualizar_usuarios.js' %}"></script>
 </body>
 </html>
 {% endblock %}

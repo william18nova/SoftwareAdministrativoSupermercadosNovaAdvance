@@ -1783,6 +1783,14 @@ def visualizar_usuarios_view(request):
     usuarios = Usuario.objects.all()
     return render(request, 'visualizar_usuarios.html', {'usuarios': usuarios})
 
+@login_required
+def eliminar_usuario_view(request, usuarioid):
+    usuario = get_object_or_404(Usuario, pk=usuarioid)
+    nombre_usuario = usuario.nombreusuario
+    usuario.delete()
+    messages.success(request, f'Usuario "{nombre_usuario}" eliminado exitosamente.')
+    return redirect('visualizar_usuarios')
+
 
 @login_required
 def editar_usuario_view(request, usuarioid):
@@ -1836,13 +1844,6 @@ def editar_usuario_view(request, usuarioid):
     })
 
 
-@login_required
-def eliminar_usuario_view(request, usuarioid):
-    usuario = get_object_or_404(Usuario, pk=usuarioid)
-    nombre_usuario = usuario.nombreusuario
-    usuario.delete()
-    messages.success(request, f'Usuario "{nombre_usuario}" eliminado exitosamente.')
-    return redirect('visualizar_usuarios')
 
 
 @login_required

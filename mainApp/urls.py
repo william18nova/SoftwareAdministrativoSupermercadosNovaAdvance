@@ -85,8 +85,6 @@ urlpatterns = [
     path('eliminar_horario/<int:horario_id>/', views.eliminar_horario_view, name='eliminar_horario'),
 
     path('agregar_horario_caja/', views.agregar_horario_caja_view, name='agregar_horario_caja'),
-    path('sucursales_horariocaja_autocomplete/', views.sucursal_autocomplete_horariocaja, name='sucursal_autocomplete_horariocaja'),
-    path('puntopago-autocomplete/', views.puntopago_autocomplete, name='puntopago_autocomplete'),
     path('visualizar_horarios_cajas/', views.visualizar_horarios_cajas_view, name='visualizar_horarios_cajas'),
     path('autocomplete/sucursal_horarios/', views.sucursal_horarios_autocomplete, name='sucursal_horarios_autocomplete'),
     path('autocomplete/puntopago_horarios/', views.puntopago_horarios_autocomplete, name='puntopago_horarios_autocomplete'),
@@ -100,6 +98,7 @@ urlpatterns = [
     path('eliminar_cliente/<int:clienteid>/', views.eliminar_cliente, name='eliminar_cliente'),
 
     path('generar_venta/', views.generar_venta, name='generar_venta'),
+    path('obtener_puntos_pago/', views.obtener_puntos_pago, name='obtener_puntos_pago'),
     path('buscar_productos/', views.buscar_productos, name='buscar_productos'),
     path('verificar_producto/', views.verificar_producto, name='verificar_producto'),
     path('buscar_producto_por_codigo/', views.buscar_producto_por_codigo, name='buscar_producto_por_codigo'),
