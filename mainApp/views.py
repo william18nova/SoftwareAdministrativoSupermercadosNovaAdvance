@@ -134,6 +134,43 @@ def editar_sucursal_view(request, sucursal_id):
         'form': form,
     })
 
+@login_required
+def puntopago_autocomplete_venta(request):
+    """
+    Autocomplete para Punto de Pago.
+    Permite buscar puntos de pago por nombre, filtrando por la sucursal seleccionada.
+    Soporta paginación con 'term', 'page' y 'per_page'.
+    """
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '50').strip()
+    
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        per_page = 50
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Si se pasa el id de sucursal, filtramos por ella (opcional)
+    sucursal_id = request.GET.get('sucursal_id')
+    qs = PuntosPago.objects.all().order_by('nombre')
+    if sucursal_id and sucursal_id.isdigit():
+        qs = qs.filter(sucursalid__sucursalid=sucursal_id)
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+    
+    total_results = qs.count()
+    qs = qs[start:end]
+    results = [{'id': pp.puntopagoid, 'text': pp.nombre} for pp in qs]
+    has_more = end < total_results
+    return JsonResponse({'results': results, 'has_more': has_more})
+
 
 @login_required
 def agregar_categoria_view(request):
@@ -3056,3 +3093,42 @@ def verificar_pago_nequi(request):
         else:
             return JsonResponse({'success': False})
     return JsonResponse({'success': False})
+
+@login_required
+def puntopago_autocomplete_venta(request):
+    term = request.GET.get('term', '').strip()
+    sucursal_id = request.GET.get('sucursal_id', '').strip()  # Si está vacío, no filtrar por sucursal
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '10').strip()
+
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        per_page = 10
+    if per_page < 1:
+        per_page = 10
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    qs = PuntosPago.objects.all()
+    if sucursal_id:
+        qs = qs.filter(sucursalid__sucursalid=sucursal_id)
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+    
+    qs = qs.order_by('nombre')
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = [{'id': punto.puntopagoid, 'text': punto.nombre} for punto in qs]
+    has_more = end < total_results
+
+    return JsonResponse({'results': results, 'has_more': has_more})

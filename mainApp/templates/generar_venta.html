@@ -11,7 +11,7 @@
     <!-- Font Awesome para íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Hojas de estilo -->
-    <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
+    <link rel="stylesheet" href="{% static 'generar_venta copy.css' %}">
     <link rel="stylesheet" href="{% static 'modal_venta.css' %}">
     <!-- jQuery y jQuery UI -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -19,14 +19,15 @@
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <!-- Quagga para escanear códigos de barras -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-    
-    <!-- Variables globales para el JS (definidas con Django) -->
+    <!-- Variables globales para el JS -->
     <script type="text/javascript">
         var buscarProductosUrl = "{% url 'buscar_productos' %}";
         var buscarClienteUrl = "{% url 'buscar_cliente' %}";
         var buscarProductoPorCodigoUrl = "{% url 'buscar_producto_por_codigo' %}";
         var obtenerPuntosPagoUrl = "{% url 'obtener_puntos_pago' %}";
         var verificarPagoNequiUrl = "{% url 'verificar_pago_nequi' %}";
+        var sucursalAutocompleteUrl = "{% url 'sucursal_punto_pago_autocomplete' %}";
+        var puntopagoAutocompleteUrl = "{% url 'puntopago_autocomplete_venta' %}";
     </script>
 </head>
 <body>
@@ -39,27 +40,17 @@
                 <input type="text" id="cliente_busqueda" name="cliente_busqueda" placeholder="Buscar por nombre o cédula">
                 <input type="hidden" id="cliente_id" name="cliente_id">
             </div>
+            <!-- Autocomplete para Sucursal -->
             <div class="form-group">
-                <label for="sucursal_id">Sucursal:</label>
-                <select id="sucursal_id" name="sucursal_id" required>
-                    <option value="">Seleccione una sucursal</option>
-                    {% for sucursal in sucursales %}
-                        <option value="{{ sucursal.sucursalid }}" {% if selected_sucursal == sucursal.sucursalid %}selected{% endif %}>
-                            {{ sucursal.nombre }}
-                        </option>
-                    {% endfor %}
-                </select>
+                <label for="sucursal_autocomplete">Sucursal:</label>
+                <input type="text" id="sucursal_autocomplete" name="sucursal_autocomplete" placeholder="Buscar sucursal...">
+                <input type="hidden" id="sucursal_id" name="sucursal_id">
             </div>
+            <!-- Autocomplete para Punto de Pago -->
             <div class="form-group">
-                <label for="puntopago_id">Punto de Pago:</label>
-                <select id="puntopago_id" name="puntopago_id" required>
-                    <option value="">Seleccione una sucursal primero</option>
-                    {% for punto in puntos_pago %}
-                        <option value="{{ punto.puntopagoid }}" {% if selected_puntopago == punto.puntopagoid %}selected{% endif %}>
-                            {{ punto.nombre }}
-                        </option>
-                    {% endfor %}
-                </select>
+                <label for="puntopago_autocomplete">Punto de Pago:</label>
+                <input type="text" id="puntopago_autocomplete" name="puntopago_autocomplete" placeholder="Buscar punto de pago...">
+                <input type="hidden" id="puntopago_id" name="puntopago_id">
             </div>
             <div class="form-group">
                 <label for="producto_busqueda_nombre">Nombre del Producto:</label>

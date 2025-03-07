@@ -104,4 +104,5 @@ urlpatterns = [
     path('buscar_producto_por_codigo/', views.buscar_producto_por_codigo, name='buscar_producto_por_codigo'),
     path('buscar_cliente/', views.buscar_cliente, name='buscar_cliente'),
     path('verificar_pago_nequi/', views.verificar_pago_nequi, name='verificar_pago_nequi'),
+    path('autocomplete/puntopago_venta/', views.puntopago_autocomplete_venta, name='puntopago_autocomplete_venta'),
 ]
