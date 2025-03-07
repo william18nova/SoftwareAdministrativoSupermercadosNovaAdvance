@@ -33,12 +33,13 @@ $(document).ready(function() {
         });
     }
 
+    // Al cambiar la sucursal, actualizar el select de punto de pago
     $("#sucursal_id").change(function() {
         sucursalSeleccionada = $(this).val();
         localStorage.setItem('sucursalSeleccionada', sucursalSeleccionada);
         if (sucursalSeleccionada) {
             $.ajax({
-                url: "{% url 'obtener_puntos_pago' %}",
+                url: obtenerPuntosPagoUrl,
                 method: "GET",
                 data: {
                     'sucursal_id': sucursalSeleccionada
@@ -46,11 +47,18 @@ $(document).ready(function() {
                 success: function(response) {
                     var $puntopago = $("#puntopago_id").empty();
                     $puntopago.append(new Option("Seleccione un punto de pago", ""));
-                    response.puntos_pago.forEach(function(punto) {
-                        $puntopago.append(new Option(punto.nombre, punto.puntopagoid));
-                    });
+                    if (response.puntos_pago && response.puntos_pago.length > 0) {
+                        response.puntos_pago.forEach(function(punto) {
+                            $puntopago.append(new Option(punto.nombre, punto.puntopagoid));
+                        });
+                    } else {
+                        $puntopago.append(new Option("No hay puntos de pago", ""));
+                    }
                     habilitarCampos();
-                    $("#puntopago_id").val(localStorage.getItem('puntoPagoSeleccionado')).change();
+                    var storedPP = localStorage.getItem('puntoPagoSeleccionado');
+                    if (storedPP) {
+                        $("#puntopago_id").val(storedPP).change();
+                    }
                 }
             });
         } else {
@@ -75,6 +83,7 @@ $(document).ready(function() {
     function configurarAutocompletar(idCampo, campoBusqueda, labelBusqueda) {
         $(idCampo).autocomplete({
             delay: 0,
+            minLength: 0, // Permite mostrar opciones incluso con input vacío
             source: function(request, response) {
                 $.ajax({
                     url: buscarProductosUrl,
@@ -111,6 +120,9 @@ $(document).ready(function() {
                     }
                 });
             }
+        }).on('focus', function() {
+            // Al hacer focus, disparar búsqueda para mostrar resultados
+            $(this).autocomplete("search", $(this).val());
         }).on('keypress', function(e) {
             if (e.which === 13) {
                 e.preventDefault();
@@ -131,7 +143,7 @@ $(document).ready(function() {
     configurarAutocompletar("#producto_busqueda_codigo_barras", 'codigo_de_barras', 'codigo_de_barras');
 
     document.getElementById('btnEscanear').addEventListener('click', function() {
-        document.getElementById('interactive').style.display = 'block';
+        $("#interactive").show();
         Quagga.init({
             inputStream: {
                 name: "Live",
@@ -163,7 +175,7 @@ $(document).ready(function() {
             var codigo = data.codeResult.code;
             buscarProductoPorCodigo(codigo);
             Quagga.stop();
-            document.getElementById('interactive').style.display = 'none';
+            $("#interactive").hide();
         });
     });
 
@@ -313,7 +325,7 @@ $(document).ready(function() {
             var totalVenta = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
 
             $.ajax({
-                url: "{% url 'verificar_pago_nequi' %}",
+                url: verificarPagoNequiUrl,
                 method: "POST",
                 data: {
                     'total': totalVenta,
@@ -366,6 +378,7 @@ $(document).ready(function() {
     });
 
     $("#cliente_busqueda").autocomplete({
+        minLength: 0,
         source: function(request, response) {
             $.ajax({
                 url: buscarClienteUrl,
@@ -387,6 +400,8 @@ $(document).ready(function() {
         select: function(event, ui) {
             $("#cliente_id").val(ui.item.id);
         }
+    }).on('focus', function() {
+        $(this).autocomplete("search", $(this).val());
     });
 
     $("#buscar-detalles").on("keyup", function() {
@@ -398,7 +413,7 @@ $(document).ready(function() {
 
     if (sucursalSeleccionada) {
         $.ajax({
-            url: "{% url 'obtener_puntos_pago' %}",
+            url: obtenerPuntosPagoUrl,
             method: "GET",
             data: {
                 'sucursal_id': sucursalSeleccionada
@@ -406,10 +421,13 @@ $(document).ready(function() {
             success: function(response) {
                 var $puntopago = $("#puntopago_id").empty();
                 $puntopago.append(new Option("Seleccione un punto de pago", ""));
-                response.puntos_pago.forEach(function(punto) {
-                    var selected = puntoPagoSeleccionado == punto.puntopagoid ? 'selected' : '';
-                    $puntopago.append(new Option(punto.nombre, punto.puntopagoid, false, selected));
-                });
+                if (response.puntos_pago && response.puntos_pago.length > 0) {
+                    response.puntos_pago.forEach(function(punto) {
+                        $puntopago.append(new Option(punto.nombre, punto.puntopagoid));
+                    });
+                } else {
+                    $puntopago.append(new Option("No hay puntos de pago", ""));
+                }
                 habilitarCampos();
                 $("#puntopago_id").val(puntoPagoSeleccionado);
             }

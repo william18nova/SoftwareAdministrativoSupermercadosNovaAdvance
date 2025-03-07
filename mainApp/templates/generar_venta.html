@@ -11,7 +11,7 @@
     <!-- Font Awesome para íconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Hojas de estilo -->
-    <link rel="stylesheet" href="{% static 'generar_venta copy.css' %}">
+    <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
     <link rel="stylesheet" href="{% static 'modal_venta.css' %}">
     <!-- jQuery y jQuery UI -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -19,11 +19,14 @@
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
     <!-- Quagga para escanear códigos de barras -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    
     <!-- Variables globales para el JS (definidas con Django) -->
     <script type="text/javascript">
         var buscarProductosUrl = "{% url 'buscar_productos' %}";
         var buscarClienteUrl = "{% url 'buscar_cliente' %}";
         var buscarProductoPorCodigoUrl = "{% url 'buscar_producto_por_codigo' %}";
+        var obtenerPuntosPagoUrl = "{% url 'obtener_puntos_pago' %}";
+        var verificarPagoNequiUrl = "{% url 'verificar_pago_nequi' %}";
     </script>
 </head>
 <body>
