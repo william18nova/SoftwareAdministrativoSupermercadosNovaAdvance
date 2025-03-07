@@ -1,11 +1,9 @@
 $(document).ready(function() {
-    // VARIABLES GLOBALES DEL CARRITO
-    let productos = [];
-    let cantidades = [];
-    let sucursalSeleccionada = $("#sucursal_id").val();
-    let puntoPagoSeleccionado = $("#puntopago_id").val();
+    var productos = [];
+    var cantidades = [];
+    var sucursalSeleccionada = localStorage.getItem('sucursalSeleccionada') || '{{ selected_sucursal }}';
+    var puntoPagoSeleccionado = localStorage.getItem('puntoPagoSeleccionado') || '{{ selected_puntopago }}';
 
-    // Función para actualizar los campos del producto
     function actualizarCampos(producto) {
         $("#producto_busqueda_nombre").val(producto.nombre);
         $("#producto_busqueda_codigo").val(producto.productoid);
@@ -13,15 +11,13 @@ $(document).ready(function() {
         $("#producto_id").val(producto.productoid);
     }
 
-    // Función para mostrar errores
     function mostrarError(mensaje) {
         alert(mensaje);
     }
 
-    // Buscar producto por algún campo (nombre, código o código de barras)
     function buscarProductoPorCampo(campo, valor) {
         $.ajax({
-            url: "{% url 'buscar_productos' %}",
+            url: buscarProductosUrl,
             method: "GET",
             data: {
                 term: valor,
@@ -37,7 +33,6 @@ $(document).ready(function() {
         });
     }
 
-    // Actualizar sucursal y cargar puntos de pago
     $("#sucursal_id").change(function() {
         sucursalSeleccionada = $(this).val();
         localStorage.setItem('sucursalSeleccionada', sucursalSeleccionada);
@@ -45,32 +40,44 @@ $(document).ready(function() {
             $.ajax({
                 url: "{% url 'obtener_puntos_pago' %}",
                 method: "GET",
-                data: { 'sucursal_id': sucursalSeleccionada },
+                data: {
+                    'sucursal_id': sucursalSeleccionada
+                },
                 success: function(response) {
-                    let $puntopago = $("#puntopago_id").empty();
+                    var $puntopago = $("#puntopago_id").empty();
                     $puntopago.append(new Option("Seleccione un punto de pago", ""));
                     response.puntos_pago.forEach(function(punto) {
                         $puntopago.append(new Option(punto.nombre, punto.puntopagoid));
                     });
+                    habilitarCampos();
+                    $("#puntopago_id").val(localStorage.getItem('puntoPagoSeleccionado')).change();
                 }
             });
         } else {
             $("#puntopago_id").empty().append(new Option("Seleccione una sucursal primero", ""));
+            deshabilitarCampos();
         }
     });
+
+    function habilitarCampos() {
+        $("#producto_busqueda_nombre, #producto_busqueda_codigo, #producto_busqueda_codigo_barras, #cantidad, #agregar-producto").prop("disabled", false);
+    }
+
+    function deshabilitarCampos() {
+        $("#producto_busqueda_nombre, #producto_busqueda_codigo, #producto_busqueda_codigo_barras, #cantidad, #agregar-producto").prop("disabled", true);
+    }
 
     $("#puntopago_id").change(function() {
         puntoPagoSeleccionado = $(this).val();
         localStorage.setItem('puntoPagoSeleccionado', puntoPagoSeleccionado);
     });
 
-    // Configurar autocompletado para búsqueda de producto
-    function configurarAutocompletar(idCampo) {
+    function configurarAutocompletar(idCampo, campoBusqueda, labelBusqueda) {
         $(idCampo).autocomplete({
-            delay: 300,
+            delay: 0,
             source: function(request, response) {
                 $.ajax({
-                    url: "{% url 'buscar_productos' %}",
+                    url: buscarProductosUrl,
                     method: "GET",
                     data: {
                         term: request.term,
@@ -79,10 +86,12 @@ $(document).ready(function() {
                     success: function(data) {
                         response(data.productos.map(function(producto) {
                             return {
-                                label: producto.nombre,
-                                value: producto.nombre,
+                                label: producto[labelBusqueda],
+                                value: producto[campoBusqueda],
                                 id: producto.productoid,
-                                codigo_de_barras: producto.codigo_de_barras
+                                nombre: producto.nombre,
+                                codigo_de_barras: producto.codigo_de_barras,
+                                productoid: producto.productoid
                             };
                         }));
                     }
@@ -90,22 +99,44 @@ $(document).ready(function() {
             },
             select: function(event, ui) {
                 actualizarCampos(ui.item);
+            },
+            open: function() {
+                $(this).data('ui-autocomplete').menu.element.on('keydown', function(e) {
+                    if (e.keyCode === 13) {
+                        var firstItem = $(this).data('ui-autocomplete').menu.element.children().first().data('ui-autocomplete-item');
+                        if (firstItem) {
+                            actualizarCampos(firstItem);
+                            $(this).autocomplete("close");
+                        }
+                    }
+                });
+            }
+        }).on('keypress', function(e) {
+            if (e.which === 13) {
+                e.preventDefault();
+                var autoComplete = $(this).autocomplete("instance");
+                if (autoComplete && autoComplete.menu.active) {
+                    autoComplete.menu.element.children().first().trigger("click");
+                } else {
+                    var valor = $(this).val();
+                    var campo = idCampo.substring(1);
+                    buscarProductoPorCampo(campo, valor);
+                }
             }
         });
     }
 
-    configurarAutocompletar("#producto_busqueda_nombre");
-    configurarAutocompletar("#producto_busqueda_codigo");
-    configurarAutocompletar("#producto_busqueda_codigo_barras");
+    configurarAutocompletar("#producto_busqueda_nombre", 'nombre', 'nombre');
+    configurarAutocompletar("#producto_busqueda_codigo", 'productoid', 'productoid');
+    configurarAutocompletar("#producto_busqueda_codigo_barras", 'codigo_de_barras', 'codigo_de_barras');
 
-    // Configurar Quagga para escanear código de barras
-    $("#btnEscanear").click(function() {
-        $("#interactive").show();
+    document.getElementById('btnEscanear').addEventListener('click', function() {
+        document.getElementById('interactive').style.display = 'block';
         Quagga.init({
             inputStream: {
                 name: "Live",
                 type: "LiveStream",
-                target: $("#interactive")[0],
+                target: document.querySelector('#interactive'),
                 constraints: {
                     width: 640,
                     height: 480,
@@ -115,29 +146,34 @@ $(document).ready(function() {
             decoder: {
                 readers: ["ean_reader"]
             },
-            locate: true
+            locate: true,
+            locator: {
+                patchSize: "medium",
+                halfSample: true
+            }
         }, function(err) {
             if (err) {
-                console.error(err);
+                console.log(err);
                 return;
             }
             Quagga.start();
         });
+
         Quagga.onDetected(function(data) {
             var codigo = data.codeResult.code;
             buscarProductoPorCodigo(codigo);
             Quagga.stop();
-            $("#interactive").hide();
+            document.getElementById('interactive').style.display = 'none';
         });
     });
 
     function buscarProductoPorCodigo(codigo_de_barras) {
         $.ajax({
-            url: "{% url 'buscar_producto_por_codigo' %}",
+            url: buscarProductoPorCodigoUrl,
             method: "GET",
             data: {
-                codigo_de_barras: codigo_de_barras,
-                sucursal_id: sucursalSeleccionada
+                'codigo_de_barras': codigo_de_barras,
+                'sucursal_id': sucursalSeleccionada
             },
             success: function(response) {
                 if (response.exists) {
@@ -149,11 +185,10 @@ $(document).ready(function() {
         });
     }
 
-    // Agregar producto al carrito
     $("#agregar-producto").click(function(e) {
         e.preventDefault();
-        let producto_id = $("#producto_id").val();
-        let cantidad = $("#cantidad").val();
+        var producto_id = $("#producto_id").val();
+        var cantidad = $("#cantidad").val();
         productos.push(producto_id);
         cantidades.push(cantidad);
         $("#productos").val(JSON.stringify(productos));
@@ -163,25 +198,29 @@ $(document).ready(function() {
             url: "{% url 'verificar_producto' %}",
             method: "POST",
             data: {
-                producto_id: producto_id,
-                cantidad: cantidad,
-                sucursal_id: sucursalSeleccionada,
-                csrfmiddlewaretoken: '{{ csrf_token }}'
+                'producto_id': producto_id,
+                'cantidad': cantidad,
+                'sucursal_id': sucursalSeleccionada,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
             },
             success: function(response) {
                 if (response.exists) {
                     if (response.cantidad_disponible >= cantidad) {
+                        var subtotal = response.precio_unitario * cantidad;
                         $("#detalle-productos tbody").prepend(
-                            `<tr>
-                                <td data-id="${producto_id}">${$("#producto_busqueda_nombre").val()}</td>
-                                <td>${cantidad}</td>
-                                <td>${response.precio_unitario_formatted}</td>
-                                <td>${response.subtotal_formatted}</td>
-                                <td class="text-center"><button class="btn btn-danger btn-sm eliminar-producto"><i class="fas fa-trash-alt"></i></button></td>
-                            </tr>`
+                            "<tr>" +
+                            "<td data-id='" + producto_id + "'>" + $("#producto_busqueda_nombre").val() + "</td>" +
+                            "<td>" + cantidad + "</td>" +
+                            "<td>" + response.precio_unitario_formatted + "</td>" +
+                            "<td>" + response.subtotal_formatted + "</td>" +
+                            "<td class='text-center'><button class='btn btn-danger btn-sm eliminar-producto'><i class='fas fa-trash-alt'></i></button></td>" +
+                            "</tr>"
                         );
                         actualizarTotal();
-                        $("#producto_busqueda_nombre, #producto_busqueda_codigo, #producto_busqueda_codigo_barras, #producto_id").val('');
+                        $("#producto_busqueda_nombre").val('');
+                        $("#producto_busqueda_codigo").val('');
+                        $("#producto_busqueda_codigo_barras").val('');
+                        $("#producto_id").val('');
                         $("#cantidad").val(1);
                     } else {
                         mostrarError("Cantidad no disponible. Disponible: " + response.cantidad_disponible);
@@ -193,7 +232,6 @@ $(document).ready(function() {
         });
     });
 
-    // Eliminar producto del carrito
     $("#detalle-productos").on("click", ".eliminar-producto", function() {
         var row = $(this).closest("tr");
         var producto_id = row.find("td:eq(0)").data("id");
@@ -209,15 +247,17 @@ $(document).ready(function() {
     });
 
     function actualizarTotal() {
-        let total = 0;
+        var total = 0;
         $("#detalle-productos tbody tr").each(function() {
-            let subtotal = parseFloat($(this).find("td").eq(3).text().replace(/[^\d.-]/g, ''));
+            var subtotal = parseFloat($(this).find("td").eq(3).text().replace(/[^\d.-]/g, ''));
             total += subtotal;
         });
-        $("#total").text(new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(total));
+        $("#total").text(new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP'
+        }).format(total));
     }
 
-    // Modal de pago
     var modal = document.getElementById("myModal");
     var btnGenerarVenta = document.getElementById("generar-venta");
     var span = document.getElementsByClassName("close")[0];
@@ -252,28 +292,32 @@ $(document).ready(function() {
     });
 
     $("#monto-recibido").on('input', function() {
-        let montoRecibido = parseFloat($(this).val());
-        let total = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
-        let cambio = montoRecibido - total;
+        var montoRecibido = parseFloat($(this).val());
+        var total = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
+        var cambio = montoRecibido - total;
         if (!isNaN(cambio) && cambio >= 0) {
-            $("#cambio").text("Cambio: " + new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(cambio));
+            $("#cambio").text("Cambio: " + new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP'
+            }).format(cambio));
         } else {
             $("#cambio").text('');
         }
     });
 
     confirmarPagoBtn.onclick = function() {
-        let selectedMethod = $("input[name='payment_method']:checked").val();
+        var selectedMethod = $("input[name='payment_method']:checked").val();
         $("#medio_pago").val(selectedMethod);
 
         if (selectedMethod === 'nequi') {
-            let totalVenta = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
+            var totalVenta = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
+
             $.ajax({
                 url: "{% url 'verificar_pago_nequi' %}",
                 method: "POST",
                 data: {
-                    total: totalVenta,
-                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                    'total': totalVenta,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
                 },
                 success: function(response) {
                     if (response.success) {
@@ -288,8 +332,8 @@ $(document).ready(function() {
                 }
             });
         } else if (selectedMethod === 'efectivo') {
-            let montoRecibido = parseFloat($("#monto-recibido").val());
-            let totalVenta = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
+            var montoRecibido = parseFloat($("#monto-recibido").val());
+            var totalVenta = parseFloat($("#total").text().replace(/[^0-9,-]+/g, '').replace(',', '.'));
             if (montoRecibido < totalVenta) {
                 mostrarError("El monto recibido es menor al total de la venta.");
             } else {
@@ -321,13 +365,14 @@ $(document).ready(function() {
         });
     });
 
-    // Autocomplete para Cliente
     $("#cliente_busqueda").autocomplete({
         source: function(request, response) {
             $.ajax({
-                url: "{% url 'buscar_cliente' %}",
+                url: buscarClienteUrl,
                 method: "GET",
-                data: { term: request.term },
+                data: {
+                    'term': request.term
+                },
                 success: function(data) {
                     response(data.clientes.map(function(cliente) {
                         return {
@@ -344,7 +389,6 @@ $(document).ready(function() {
         }
     });
 
-    // Filtrar detalles del carrito
     $("#buscar-detalles").on("keyup", function() {
         var value = $(this).val().toLowerCase();
         $("#detalle-productos tbody tr").filter(function() {
@@ -352,8 +396,26 @@ $(document).ready(function() {
         });
     });
 
-    // Habilitar campos cuando haya sucursal seleccionada
     if (sucursalSeleccionada) {
-        $("#producto_busqueda_nombre, #producto_busqueda_codigo, #producto_busqueda_codigo_barras, #cantidad, #agregar-producto").prop("disabled", false);
+        $.ajax({
+            url: "{% url 'obtener_puntos_pago' %}",
+            method: "GET",
+            data: {
+                'sucursal_id': sucursalSeleccionada
+            },
+            success: function(response) {
+                var $puntopago = $("#puntopago_id").empty();
+                $puntopago.append(new Option("Seleccione un punto de pago", ""));
+                response.puntos_pago.forEach(function(punto) {
+                    var selected = puntoPagoSeleccionado == punto.puntopagoid ? 'selected' : '';
+                    $puntopago.append(new Option(punto.nombre, punto.puntopagoid, false, selected));
+                });
+                habilitarCampos();
+                $("#puntopago_id").val(puntoPagoSeleccionado);
+            }
+        });
     }
+
+    $("#sucursal_id").val(sucursalSeleccionada).change();
+    $("#puntopago_id").val(puntoPagoSeleccionado);
 });
