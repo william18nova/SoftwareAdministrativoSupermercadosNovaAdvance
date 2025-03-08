@@ -1786,70 +1786,47 @@ class UsuarioEditarForm(forms.Form):
                 self.add_error('confirmar_contraseña', 'Las contraseñas no coinciden.')
         return cleaned_data
 
-class VentaForm(forms.Form):
+class GenerarVentaForm(forms.Form):
     cliente_id = forms.IntegerField(required=False)
-    # Estos dos campos ocultos se llenarán mediante los autocompletes
-    sucursal = forms.ModelChoiceField(queryset=Sucursal.objects.all(), required=True, widget=forms.HiddenInput())
-    puntopago = forms.ModelChoiceField(queryset=PuntosPago.objects.all(), required=True, widget=forms.HiddenInput())
-    # Los productos y cantidades se envían en formato JSON (en campos ocultos)
-    productos_json = forms.CharField(required=True, widget=forms.HiddenInput())
-    cantidades_json = forms.CharField(required=True, widget=forms.HiddenInput())
-    medio_pago = forms.ChoiceField(choices=MEDIO_PAGO_CHOICES, required=True)
-    confirmar_nequi = forms.BooleanField(required=False)
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.all(),
+        required=True,
+        label="Sucursal"
+    )
+    puntopago = forms.ModelChoiceField(
+        queryset=PuntosPago.objects.all(),
+        required=True,
+        label="Punto de Pago"
+    )
+    productos = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=False,
+        label="Productos (JSON)"
+    )
+    cantidades = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=False,
+        label="Cantidades (JSON)"
+    )
+    medio_pago = forms.ChoiceField(
+        choices=[('nequi', 'Nequi'), ('efectivo', 'Efectivo'), ('daviplata', 'Daviplata'), ('tarjeta', 'Tarjeta')],
+        widget=forms.HiddenInput(),
+        required=True,
+        label="Medio de Pago"
+    )
 
-    # Estos atributos se asignarán en el clean() para usarlos luego en la vista
-    total = None
-    detalles = None
-
-    def clean(self):
-        cleaned_data = super().clean()
-        productos_json = cleaned_data.get('productos_json')
-        cantidades_json = cleaned_data.get('cantidades_json')
-        sucursal = cleaned_data.get('sucursal')
-
-        if not productos_json or not cantidades_json:
-            raise ValidationError("Debe agregar al menos un producto.")
-
+    def clean_productos(self):
+        data = self.cleaned_data.get('productos', '[]')
         try:
-            productos = json.loads(productos_json)
-            cantidades = json.loads(cantidades_json)
-        except json.JSONDecodeError:
-            raise ValidationError("Error al decodificar los productos o cantidades.")
+            parsed = json.loads(data)
+        except Exception:
+            raise forms.ValidationError("Productos inválidos.")
+        return parsed
 
-        if not productos:
-            raise ValidationError("Debe agregar al menos un producto.")
-
-        if len(productos) != len(cantidades):
-            raise ValidationError("La cantidad de productos y cantidades no coincide.")
-
-        total = Decimal('0.00')
-        detalles = []
-
-        # Verificar que los productos existan y calcular total y detalle
-        productos_obj = Producto.objects.filter(productoid__in=productos)
-        if productos_obj.count() != len(productos):
-            raise ValidationError("Algunos productos no existen.")
-
-        inventarios = Inventario.objects.filter(productoid__in=productos_obj, sucursalid=sucursal)
-        for i, producto in enumerate(productos_obj):
-            try:
-                inventario = inventarios.get(productoid=producto)
-            except Inventario.DoesNotExist:
-                raise ValidationError(f"No existe inventario para {producto.nombre} en la sucursal seleccionada.")
-            cantidad = int(cantidades[i])
-            if cantidad > inventario.cantidad:
-                raise ValidationError(f"No hay suficiente stock de {producto.nombre} en la sucursal seleccionada.")
-            precio_unitario = producto.precio
-            subtotal = precio_unitario * cantidad
-            total += subtotal
-            detalles.append({
-                'producto': producto.nombre,
-                'cantidad': cantidad,
-                'precio_unitario': precio_unitario,
-                'subtotal': subtotal,
-                'productoid': producto.productoid,
-            })
-
-        self.total = total
-        self.detalles = detalles
-        return cleaned_data
+    def clean_cantidades(self):
+        data = self.cleaned_data.get('cantidades', '[]')
+        try:
+            parsed = json.loads(data)
+        except Exception:
+            raise forms.ValidationError("Cantidades inválidas.")
+        return parsed

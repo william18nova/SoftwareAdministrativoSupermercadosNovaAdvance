@@ -40,7 +40,8 @@ from .forms import (
     PuntosPagoEditarForm,
     RolEditarForm,
     SucursalEditarForm,
-    UsuarioEditarForm
+    UsuarioEditarForm,
+    GenerarVentaForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -2918,9 +2919,10 @@ def generar_venta(request):
                     'productoid': producto.productoid
                 })
 
-        except Exception as e:
+        except Exception:
             return JsonResponse({'success': False, 'error': 'Error al procesar los productos.'})
 
+        # Si el pago es con Nequi, esperar confirmación (a menos que ya se haya confirmado)
         if medio_pago == 'nequi' and not request.POST.get('confirmar_nequi'):
             try:
                 script_path = os.path.join(os.path.dirname(__file__), 'nequi_websocket.py')
@@ -2934,6 +2936,7 @@ def generar_venta(request):
 
         return procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, cantidades, medio_pago, detalles, total)
 
+    # GET => mostrar plantilla
     sucursal_id = request.GET.get('sucursal_id')
     puntopago_id = request.GET.get('puntopago_id')
     return render(request, 'generar_venta.html', obtener_contexto(sucursal_id, puntopago_id))
@@ -2944,8 +2947,11 @@ def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, ca
         with transaction.atomic():
             empleado = getattr(request.user, 'empleado', None)
             if empleado is None:
-                messages.error(request, 'El usuario autenticado no tiene un empleado asociado.')
-                return JsonResponse({'success': False, 'message': 'El usuario autenticado no tiene un empleado asociado.'})
+                # Antes se retornaba 'message'
+                return JsonResponse({
+                    'success': False,
+                    'error': 'El usuario autenticado no tiene un empleado asociado.'
+                })
 
             cliente = Cliente.objects.get(pk=cliente_id) if cliente_id else None
             sucursal = Sucursal.objects.get(pk=sucursal_id)
@@ -2978,13 +2984,13 @@ def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, ca
 
             # Si el medio de pago es efectivo, se incrementa el dinero en caja
             if medio_pago.lower() == 'efectivo':
-                from decimal import Decimal  # Asegúrate de tener importado Decimal
-                puntopago.dinerocaja = Decimal(str(puntopago.dinerocaja)) + Decimal(str(total))
+                puntopago.dinerocaja = (puntopago.dinerocaja or 0) + total
                 puntopago.save(update_fields=['dinerocaja'])
 
         return JsonResponse({'success': True, 'sucursal_id': sucursal_id, 'puntopago_id': puntopago_id})
-    except Exception as e:
-        return JsonResponse({'success': False, 'message': 'Error al crear la venta.'})
+    except Exception:
+        # Antes se retornaba 'message'
+        return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
 
 
 def obtener_contexto(sucursal_id=None, puntopago_id=None, detalles=[], total=0):
@@ -3075,7 +3081,7 @@ def buscar_producto_por_codigo(request):
     codigo_de_barras = request.GET.get('codigo_de_barras')
     sucursal_id = request.GET.get('sucursal_id')
     producto = Producto.objects.filter(codigo_de_barras=codigo_de_barras, inventario__sucursalid=sucursal_id).first()
-    if (producto):
+    if producto:
         return JsonResponse({
             'exists': True,
             'producto': {
@@ -3096,13 +3102,14 @@ def verificar_pago_nequi(request):
         if flag:
             return JsonResponse({'success': True})
         else:
-            return JsonResponse({'success': False})
-    return JsonResponse({'success': False})
+            return JsonResponse({'success': False, 'error': 'Pago Nequi no confirmado.'})
+    return JsonResponse({'success': False, 'error': 'Método no permitido.'})
+
 
 @login_required
 def puntopago_autocomplete_venta(request):
     term = request.GET.get('term', '').strip()
-    sucursal_id = request.GET.get('sucursal_id', '').strip()  # Si está vacío, no filtrar por sucursal
+    sucursal_id = request.GET.get('sucursal_id', '').strip()
     page_str = request.GET.get('page', '1').strip()
     per_page_str = request.GET.get('per_page', '10').strip()
 
