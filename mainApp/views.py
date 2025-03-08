@@ -2976,8 +2976,13 @@ def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, ca
                 inventario.cantidad -= detalle['cantidad']
                 inventario.save()
 
-        return JsonResponse({'success': True, 'sucursal_id': sucursal_id, 'puntopago_id': puntopago_id})
+            # Si el medio de pago es efectivo, se incrementa el dinero en caja
+            if medio_pago.lower() == 'efectivo':
+                from decimal import Decimal  # Asegúrate de tener importado Decimal
+                puntopago.dinerocaja = Decimal(str(puntopago.dinerocaja)) + Decimal(str(total))
+                puntopago.save(update_fields=['dinerocaja'])
 
+        return JsonResponse({'success': True, 'sucursal_id': sucursal_id, 'puntopago_id': puntopago_id})
     except Exception as e:
         return JsonResponse({'success': False, 'message': 'Error al crear la venta.'})
 
