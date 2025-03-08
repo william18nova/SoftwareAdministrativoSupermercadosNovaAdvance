@@ -37,13 +37,13 @@ form {
 
 .form-group {
     margin-bottom: 15px;
+    text-align: left;
 }
 
 .form-group label {
     display: block;
     font-weight: bold;
     margin-bottom: 5px;
-    text-align: left;
     color: #ffffff;
 }
 
@@ -75,31 +75,29 @@ form {
     color: #333;
 }
 
-.table {
+/* Tabla de detalles: fondo blanco y sin scroll horizontal */
+#detalle-productos {
     width: 100%;
     margin-bottom: 20px;
     border-collapse: collapse;
+    table-layout: fixed;
     background-color: white;
 }
-
-.table th,
-.table td {
+#detalle-productos th,
+#detalle-productos td {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: left;
     color: #333;
+    word-wrap: break-word;
 }
-
-.table th {
+#detalle-productos th {
     background-color: #3b5998;
     font-weight: bold;
     color: #ffffff;
 }
 
-.text-center {
-    text-align: center;
-}
-
+/* Botones */
 .btn {
     display: inline-block;
     padding: 10px 20px;
@@ -111,17 +109,14 @@ form {
     margin-top: 10px;
     cursor: pointer;
 }
-
 .btn-success {
     background-color: #28a745;
     color: white;
     border: none;
 }
-
 .btn-success:hover {
     background-color: #218838;
 }
-
 .btn-danger {
     background-color: #ff4c4c;
     color: white;
@@ -133,15 +128,12 @@ form {
     height: 40px;
     margin: 0 auto;
 }
-
 .btn-danger i {
     margin-right: 0;
 }
-
 .btn-danger:hover {
     background-color: #e60000;
 }
-
 .btn-primary {
     background-color: #007bff;
     color: white;
@@ -149,11 +141,9 @@ form {
     margin-bottom: 15px;
     margin-top: -10px;
 }
-
 .btn-primary:hover {
     background-color: #0069d9;
 }
-
 .btn-escanear {
     display: block;
     width: 100%;
@@ -165,19 +155,20 @@ form {
     border-radius: 5px;
     cursor: pointer;
 }
-
 .btn-escanear:hover {
     background-color: #2b467d;
 }
 
+/* Estilos para la vista de Quagga (escaneo de código de barras) */
 #interactive.viewport {
     position: relative;
     width: 100%;
-    height: 320px;
+    max-width: 640px;
+    height: 480px;
     overflow: hidden;
     background: #f0f8ff;
     margin-top: 20px;
-    display: none; /* Ocultar inicialmente */
+    display: none;
 }
 
 h3 {
@@ -210,17 +201,21 @@ h3 {
     border-color: #ebccd1;
 }
 
+/* Responsive adjustments */
 @media (max-width: 768px) {
     .container {
         padding: 20px;
     }
-
     .form-group input,
     .form-group select {
         width: 100%;
     }
-
     .alert {
         padding: 10px;
+    }
+    /* Reducir tamaño de fuente en la tabla */
+    #detalle-productos th,
+    #detalle-productos td {
+        font-size: 12px;
     }
 }
