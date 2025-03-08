@@ -105,4 +105,6 @@ urlpatterns = [
     path('buscar_cliente/', views.buscar_cliente, name='buscar_cliente'),
     path('verificar_pago_nequi/', views.verificar_pago_nequi, name='verificar_pago_nequi'),
     path('autocomplete/puntopago_venta/', views.puntopago_autocomplete_venta, name='puntopago_autocomplete_venta'),
+    
+    path('visualizar_ventas/', views.visualizar_ventas_view, name='visualizar_ventas'),
 ]

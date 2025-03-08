@@ -3137,3 +3137,11 @@ def puntopago_autocomplete_venta(request):
     has_more = end < total_results
 
     return JsonResponse({'results': results, 'has_more': has_more})
+
+@login_required
+def visualizar_ventas_view(request):
+    # Se recuperan las ventas con relaciones para evitar consultas repetidas
+    ventas = Venta.objects.select_related(
+        'clienteid', 'empleadoid', 'sucursalid', 'puntopagoid'
+    ).order_by('-fecha', '-hora')
+    return render(request, 'visualizar_ventas.html', {'ventas': ventas})

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Visualizar Ventas{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizar Ventas</title>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <!-- CSS Propio -->
+    <link rel="stylesheet" href="{% static 'css/visualizar_ventas.css' %}">
+    <!-- jQuery y DataTables JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Lista de Ventas</h2>
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <table id="ventasTable" class="display">
+            <thead>
+                <tr>
+                    <th>ID Venta</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Cliente</th>
+                    <th>Empleado</th>
+                    <th>Sucursal</th>
+                    <th>Punto de Pago</th>
+                    <th>Total</th>
+                    <th>Medio de Pago</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td>{{ venta.ventaid }}</td>
+                    <td>{{ venta.fecha }}</td>
+                    <td>{{ venta.hora }}</td>
+                    <td>{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}</td>
+                    <td>{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}</td>
+                    <td>{{ venta.sucursalid.nombre }}</td>
+                    <td>{{ venta.puntopagoid.nombre }}</td>
+                    <td>${{ venta.total|floatformat:2 }}</td>
+                    <td>{{ venta.mediopago }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script src="{% static 'javascript/visualizar_ventas.js' %}"></script>
+</body>
+</html>
+{% endblock %}
