@@ -3143,7 +3143,7 @@ def puntopago_autocomplete_venta(request):
     results = [{'id': punto.puntopagoid, 'text': punto.nombre} for punto in qs]
     has_more = end < total_results
 
-    return JsonResponse({'results': results, 'has_more': has_more})
+    return JsonResponse({'results': results, 'has_more': has_more})  
 
 @login_required
 def visualizar_ventas_view(request):
