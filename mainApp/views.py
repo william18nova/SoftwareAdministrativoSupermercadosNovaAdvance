@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor
 from django.db.models import Count, Sum, Exists, OuterRef, Q
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login as auth_login
@@ -41,7 +41,8 @@ from .forms import (
     RolEditarForm,
     SucursalEditarForm,
     UsuarioEditarForm,
-    GenerarVentaForm
+    GenerarVentaForm,
+    PedidoProveedorForm
 )
 from dal import autocomplete
 from decimal import Decimal
@@ -3152,3 +3153,104 @@ def visualizar_ventas_view(request):
         'clienteid', 'empleadoid', 'sucursalid', 'puntopagoid'
     ).order_by('-fecha', '-hora')
     return render(request, 'visualizar_ventas.html', {'ventas': ventas})
+
+
+
+
+
+
+
+
+
+@login_required
+def agregar_pedido_proveedor_view(request):
+    if request.method == 'POST':
+        form = PedidoProveedorForm(request.POST)
+        if form.is_valid():
+            proveedor = form.cleaned_data['proveedor']
+            sucursal = form.cleaned_data['sucursal']
+            fechaestimadaentrega = form.cleaned_data.get('fechaestimadaentrega')
+            comentario = form.cleaned_data.get('comentario')
+            detalles_json = form.cleaned_data['detalles']
+            try:
+                detalles = json.loads(detalles_json)
+            except json.JSONDecodeError:
+                detalles = []
+            if not detalles:
+                return JsonResponse({
+                    'success': False,
+                    'errors': {'detalles': [{'message': 'Debe agregar al menos un producto.'}]}
+                })
+            # Calcular costo total
+            total_cost = sum(Decimal(str(item.get('preciounitario', '0.00'))) * Decimal(str(item.get('cantidad', 0))) for item in detalles)
+            try:
+                with transaction.atomic():
+                    pedido = PedidoProveedor.objects.create(
+                        proveedorid=proveedor,
+                        sucursalid=sucursal,
+                        fechaestimadaentrega=fechaestimadaentrega,
+                        costototal=total_cost,
+                        comentario=comentario,
+                        estado='En espera'
+                    )
+                    for item in detalles:
+                        productoid = item.get('productoid')
+                        cantidad = item.get('cantidad')
+                        preciounitario = item.get('preciounitario')
+                        if productoid and cantidad and preciounitario:
+                            DetallePedidoProveedor.objects.create(
+                                pedidoid=pedido,
+                                productoid_id=productoid,
+                                cantidad=cantidad,
+                                preciounitario=preciounitario
+                            )
+                return JsonResponse({'success': True})
+            except Exception as e:
+                return JsonResponse({'success': False, 'message': 'Error al guardar el pedido.'})
+        else:
+            errors = form.errors.get_json_data()
+            return JsonResponse({'success': False, 'errors': errors})
+    else:
+        form = PedidoProveedorForm()
+    return render(request, 'agregar_pedido.html', {'form': form})
+
+@login_required
+def visualizar_pedidos_view(request):
+    pedidos = PedidoProveedor.objects.all().order_by('-fechapedido')
+    return render(request, 'visualizar_pedidos.html', {'pedidos': pedidos})
+
+@login_required
+def proveedor_autocomplete(request):
+    term = request.GET.get('term', '').strip()
+    page_str = request.GET.get('page', '1').strip()
+    per_page_str = request.GET.get('per_page', '10').strip()
+
+    try:
+        page = int(page_str)
+    except ValueError:
+        page = 1
+    if page < 1:
+        page = 1
+
+    try:
+        per_page = int(per_page_str)
+    except ValueError:
+        per_page = 10
+    if per_page < 1:
+        per_page = 10
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    # Solo proveedores con al menos un precio asignado
+    qs = Proveedor.objects.annotate(precios_count=Count('preciosproveedor')).filter(precios_count__gt=0)
+    if term:
+        qs = qs.filter(nombre__icontains=term)
+    qs = qs.order_by('nombre')
+    total_results = qs.count()
+    qs = qs[start:end]
+
+    results = [{'id': prov.proveedorid, 'text': prov.nombre} for prov in qs]
+    has_more = end < total_results
+
+    return JsonResponse({'results': results, 'has_more': has_more})

@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from decimal import Decimal
 
 class Sucursal(models.Model):
     sucursalid = models.AutoField(primary_key=True)
@@ -224,3 +225,32 @@ class DetalleVenta(models.Model):
 
     class Meta:
         db_table = 'detallesventas'
+
+class PedidoProveedor(models.Model):
+    pedidoid = models.AutoField(primary_key=True)
+    proveedorid = models.ForeignKey('Proveedor', on_delete=models.CASCADE, db_column='proveedorid')
+    sucursalid = models.ForeignKey('Sucursal', on_delete=models.CASCADE, db_column='sucursalid')
+    fechapedido = models.DateField(auto_now_add=True)
+    fechaestimadaentrega = models.DateField(null=True, blank=True)
+    costototal = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    estado = models.CharField(max_length=50, default='En espera')
+    comentario = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'pedidosproveedor'
+
+    def __str__(self):
+        return f"Pedido {self.pedidoid} - {self.proveedorid.nombre}"
+
+class DetallePedidoProveedor(models.Model):
+    detallepedidoid = models.AutoField(primary_key=True)
+    pedidoid = models.ForeignKey(PedidoProveedor, on_delete=models.CASCADE, db_column='pedidoid')
+    productoid = models.ForeignKey('Producto', on_delete=models.CASCADE, db_column='productoid')
+    cantidad = models.IntegerField()
+    preciounitario = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = 'detallespedidosproveedor'
+
+    def __str__(self):
+        return f"Detalle {self.detallepedidoid} - {self.productoid.nombre}"

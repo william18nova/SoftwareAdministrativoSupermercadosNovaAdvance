@@ -1,13 +1,13 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol, Inventario, PreciosProveedor
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol, Inventario, PreciosProveedor, PedidoProveedor, DetallePedidoProveedor
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from dal import autocomplete
 import json
-from django.db.models import Exists, OuterRef  # Agrega esta línea
+from django.db.models import Exists, OuterRef, Count, Q  # Agrega esta línea
 
 MEDIO_PAGO_CHOICES = (
     ('nequi', 'Nequi'),
@@ -1830,3 +1830,38 @@ class GenerarVentaForm(forms.Form):
         except Exception:
             raise forms.ValidationError("Cantidades inválidas.")
         return parsed
+
+
+
+class PedidoProveedorForm(forms.Form):
+    proveedor_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Buscar proveedor...',
+            'autocomplete': 'off'
+        })
+    )
+    proveedor = forms.ModelChoiceField(
+        queryset=Proveedor.objects.all(),
+        widget=forms.HiddenInput(),
+        required=True
+    )
+    sucursal = forms.ModelChoiceField(
+        queryset=Sucursal.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=True
+    )
+    fechaestimadaentrega = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+    )
+    comentario = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Comentario (opcional)', 'rows': 3})
+    )
+    # Este campo oculto contendrá en JSON los detalles (lista de dicts con productoid, cantidad y preciounitario)
+    detalles = forms.CharField(
+        required=True,
+        widget=forms.HiddenInput()
+    )
