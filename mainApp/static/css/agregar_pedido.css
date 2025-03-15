@@ -12,8 +12,18 @@
   --color-boton: #3b5998;
   --color-boton-hover: #2b467d;
   --fuente-principal: 'Roboto', Arial, sans-serif;
+  --tamanio-icono: 90px;
+
+  /* Ajustes de color para el DatePicker */
 }
 
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fondo general */
 body {
   font-family: var(--fuente-principal);
   background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
@@ -26,41 +36,75 @@ body {
   overflow: auto;
 }
 
-.container-pedido {
-  max-width: 1200px;
-  width: 100%;
-  margin: 20px;
-  padding: 20px;
-  background-color: #fff;
+.container-precios-proveedor {
+  max-width: 700px;
+  width: 90%;
+  margin: 20px auto;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  text-align: center;
+  position: relative;
+  box-sizing: border-box;
+  color: var(--color-blanco);
 }
 
-.container-pedido h2 {
-  text-align: center;
+.container-precios-proveedor h2 {
+  margin-bottom: 10px;
+  font-size: 24px;
+}
+
+.icon-proveedor {
+  font-size: var(--tamanio-icono);
+  margin-bottom: 10px;
+  color: var(--color-blanco);
+}
+
+.obligatorio-texto {
+  font-style: italic;
   margin-bottom: 20px;
-  color: #333;
+  font-size: 14px;
 }
 
-.container-pedido h3 {
+.alert {
+  padding: 15px;
+  margin-top: 20px;
+  border: 1px solid transparent;
+  border-radius: 4px;
   text-align: center;
-  margin-bottom: 15px;
-  color: #333;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.alert-success {
+  color: var(--color-verde);
+  background-color: #dff0d8;
+  border-color: #d6e9c6;
+}
+
+.alert-error {
+  color: var(--color-rojo);
+  background-color: #f2dede;
+  border-color: #ebccd1;
+  position: relative;
+  z-index: 9999;
 }
 
 .form-group-pedido {
   margin-bottom: 15px;
   position: relative;
+  text-align: left;
 }
 
 .form-group-pedido label {
   display: block;
   margin-bottom: 5px;
-  color: #333;
+  color: var(--color-blanco) !important;
   font-weight: bold;
 }
 
+/* Inputs básicos */
 .form-group-pedido input[type="text"],
 .form-group-pedido input[type="number"],
 .form-group-pedido select,
@@ -72,8 +116,68 @@ body {
   background-color: var(--color-gris-claro);
   font-size: 16px;
   color: #333;
+  transition: background-color 0.3s, border-color 0.3s;
 }
 
+.form-group-pedido input[type="text"]:hover,
+.form-group-pedido input[type="number"]:hover,
+.form-group-pedido select:hover,
+.form-group-pedido textarea:hover {
+  background-color: #e0e8ff;
+  border-color: var(--color-gris-hover);
+}
+
+.form-group-pedido input[type="text"]:focus,
+.form-group-pedido input[type="number"]:focus,
+.form-group-pedido select:focus,
+.form-group-pedido textarea:focus {
+  outline: none;
+  border-color: var(--color-principal);
+  box-shadow: 0 0 5px rgba(0,80,145,0.5);
+}
+
+/* Campo de fecha con estilo personalizado */
+.form-group-pedido #id_fechaestimadaentrega {
+  width: 220px;  /* Ajusta el ancho del campo de fecha */
+  border: none;
+  border-bottom: 2px solid var(--color-blanco);
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 16px;
+  color: var(--color-blanco); /* Texto en blanco */
+}
+
+.form-group-pedido #id_fechaestimadaentrega:hover {
+  background: transparent;
+  border-color: var(--color-fecha-borde);
+}
+
+.form-group-pedido #id_fechaestimadaentrega:focus {
+  outline: none;
+  border-bottom: 2px solid var(--color-principal);
+  box-shadow: none;
+}
+
+.form-group-pedido #id_fechaestimadaentrega::placeholder {
+  color: var(--color-blanco); /* Placeholder en blanco */
+}
+
+.form-group-pedido .ui-datepicker-trigger {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.form-group-pedido .ui-datepicker-trigger img {
+  filter: invert(50%) sepia(20%) hue-rotate(90deg) brightness(1.1); 
+  width: 24px;
+  height: 24px;
+}
+
+/* Botones */
 .btn-agregar-pedido,
 .btn-guardar-pedido {
   background-color: var(--color-boton);
@@ -93,6 +197,15 @@ body {
   background-color: var(--color-boton-hover);
 }
 
+#total-valor {
+  margin-bottom: 5px;
+}
+
+#buscador-detalles {
+  margin-top: 10px;
+}
+
+/* Autocomplete results */
 .autocomplete-results {
   position: absolute;
   top: calc(100% + 5px);
@@ -125,6 +238,7 @@ body {
   font-size: 16px;
 }
 
+/* Errores de campo */
 .field-error {
   color: var(--color-rojo);
   font-size: 14px;
@@ -135,66 +249,161 @@ body {
 }
 
 .field-error.visible {
-  display: block;
-  opacity: 1;
+  display: block !important;
+  opacity: 1 !important;
 }
 
+.field-error i {
+  margin-right: 5px;
+}
+
+/* Contenedor de la tabla */
 .table-container-pedido {
   margin-top: 20px;
   margin-bottom: 20px;
-  overflow-x: auto;
+  background-color: #ffffff;
+  padding: 0;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
 }
 
-.table {
+/* DataTables */
+#detalle-productos {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  background-color: #fff;
+}
+
+#detalle-productos thead th,
+#detalle-productos tbody td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  word-wrap: break-word;
+  color: #333;
   text-align: left;
 }
 
-.table thead {
-  background-color: var(--color-boton);
-  color: var(--color-blanco);
+#detalle-productos thead th {
+  background-color: #3b5998;
+  font-weight: bold;
+  color: #ffffff;
 }
 
-.table thead th {
-  padding: 10px;
+/* Columna de Acciones centrada */
+#detalle-productos thead th:nth-child(5),
+#detalle-productos tbody td:nth-child(5) {
+  text-align: center;
 }
 
-.table tbody tr {
-  border-bottom: 1px solid #ddd;
+.btn-eliminar {
+  background-color: #e74c3c;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.3s;
 }
 
-.table tbody tr:nth-child(even) {
-  background-color: #f2f2f2;
+.btn-eliminar:hover {
+  background-color: #c0392b;
 }
 
-.table tbody td {
-  padding: 10px;
-  word-wrap: break-word;
-  vertical-align: middle;
-  white-space: normal;
+/* Estilos del Datepicker de jQuery UI */
+.ui-datepicker {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
-/* Responsividad */
+.ui-datepicker .ui-datepicker-header {
+  background: var(--color-boton);
+  color: #fff;
+  border: none;
+  border-radius: 4px 4px 0 0;
+  padding: 10px 0;
+}
+
+.ui-datepicker .ui-datepicker-title {
+  font-weight: bold;
+  color: #fff;
+}
+
+.ui-datepicker a.ui-state-default {
+  color: #333;
+  text-decoration: none;
+}
+
+.ui-datepicker a.ui-state-hover {
+  background: var(--color-gris-claro);
+}
+
+.ui-datepicker .ui-state-active,
+.ui-datepicker .ui-state-active:hover {
+  background: var(--color-principal) !important;
+  color: #fff !important;
+  border-radius: 4px;
+}
+
+.ui-datepicker .ui-datepicker-prev span,
+.ui-datepicker .ui-datepicker-next span {
+  color: #fff !important;
+}
+
+.ui-datepicker table {
+  width: 100%;
+  font-size: 14px;
+  border-collapse: collapse;
+}
+
+.ui-datepicker th {
+  color: #444;
+  font-weight: 600;
+  padding-bottom: 5px;
+  text-transform: capitalize;
+}
+
+.ui-datepicker td {
+  padding: 3px;
+  text-align: center;
+}
+
+/* Responsivo */
 @media (max-width: 768px) {
-  .container-pedido {
-    padding: 10px;
+  .container-precios-proveedor {
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+    padding: 20px;
   }
+
   .form-group-pedido input,
   .form-group-pedido select,
   .form-group-pedido textarea {
     font-size: 14px;
     padding: 8px;
   }
+
   .btn-agregar-pedido,
   .btn-guardar-pedido {
     font-size: 16px;
     padding: 10px;
   }
-  .table thead th,
-  .table tbody td {
-    font-size: 14px;
-    padding: 8px;
+
+  #detalle-productos thead th,
+  #detalle-productos tbody td {
+    font-size: 12px;
+    padding: 6px;
+  }
+
+  .ui-datepicker {
+    font-size: 13px;
   }
 }

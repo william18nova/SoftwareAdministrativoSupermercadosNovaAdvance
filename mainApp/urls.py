@@ -70,8 +70,7 @@ urlpatterns = [
 
     # Se deja un solo path para sucursal_autocomplete
     path('autocomplete/sucursal/', views.sucursal_autocomplete, name='sucursal_autocomplete'),
-    # Se podría eliminar el duplicado si no se usa:
-    path('sucursal-autocomplete/', views.sucursal_autocomplete, name='sucursal_autocomplete'),
+
 
     path('visualizar_empleados/', views.visualizar_empleados_view, name='visualizar_empleados'),
     path('editar_empleado/<int:empleadoid>/', views.editar_empleado_view, name='editar_empleado'),
@@ -111,5 +110,5 @@ urlpatterns = [
     
     path('agregar_pedido/', views.agregar_pedido_proveedor_view, name='agregar_pedido'),
     path('visualizar_pedidos/', views.visualizar_pedidos_view, name='visualizar_pedidos'),
-    path('autocomplete/proveedor/', views.proveedor_autocomplete, name='proveedor_autocomplete'),
+    path('autocomplete/producto_pedido/', views.producto_pedido_autocomplete, name='producto_pedido_autocomplete'),
 ]

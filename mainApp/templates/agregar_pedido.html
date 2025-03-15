@@ -12,23 +12,23 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css" />
+  <!-- jQuery UI CSS -->
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
   <!-- CSS personalizado -->
   <link rel="stylesheet" href="{% static 'css/agregar_pedido.css' %}" />
-  <!-- jQuery y DataTables JS -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
 </head>
 <body>
-  <div class="container-pedido">
-    <i class="fas fa-truck icon-pedido"></i>
+  <div class="container-precios-proveedor">
+    <i class="fas fa-truck icon-proveedor"></i>
     <h2>Agregar Pedido</h2>
     <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
+    
     <div id="success-message" class="alert alert-success" style="display: none;"></div>
     <div id="error-message" class="alert alert-error" style="display: none;"></div>
+    
     <form id="pedidoForm" action="{% url 'agregar_pedido' %}" method="POST">
       {% csrf_token %}
+      
       <!-- Proveedor Autocomplete -->
       <div class="form-group-pedido">
         <label for="id_proveedor_autocomplete">Proveedor <span class="required">*</span></label>
@@ -37,47 +37,92 @@
         <div class="autocomplete-results" id="proveedor-autocomplete-results"></div>
         <div class="field-error" id="error-id_proveedor"></div>
       </div>
-      <!-- Sucursal -->
+      
+      <!-- Sucursal Autocomplete -->
       <div class="form-group-pedido">
-        <label for="id_sucursal">Sucursal <span class="required">*</span></label>
-        {{ form.sucursal }}
+        <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="id_sucursal_autocomplete" 
+          class="form-control" 
+          placeholder="Buscar sucursal..." 
+          autocomplete="off">
+        <input type="hidden" id="id_sucursal" name="sucursal">
+        <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
         <div class="field-error" id="error-id_sucursal"></div>
       </div>
-      <!-- Fecha estimada de entrega -->
+      
+      <!-- Fecha Estimada de Entrega (type="text" para usar jQuery UI DatePicker) -->
       <div class="form-group-pedido">
         <label for="id_fechaestimadaentrega">Fecha Estimada de Entrega</label>
-        {{ form.fechaestimadaentrega }}
+        <!-- input de tipo text para evitar doble calendario nativo -->
+        <input 
+          type="text" 
+          id="id_fechaestimadaentrega" 
+          name="fechaestimadaentrega" 
+          placeholder="dd/mm/aaaa"
+        />
         <div class="field-error" id="error-id_fechaestimadaentrega"></div>
       </div>
+      
       <!-- Comentario -->
       <div class="form-group-pedido">
         <label for="id_comentario">Comentario</label>
         {{ form.comentario }}
         <div class="field-error" id="error-id_comentario"></div>
       </div>
-      <!-- Sección de productos del pedido -->
-      <h3>Productos del Pedido</h3>
+
       <!-- Autocomplete para Producto -->
       <div class="form-group-pedido">
         <label for="producto_autocomplete">Producto <span class="required">*</span></label>
-        <input type="text" id="producto_autocomplete" class="form-control" placeholder="Buscar producto..." autocomplete="off">
+        <input 
+          type="text" 
+          id="producto_autocomplete" 
+          class="form-control" 
+          placeholder="Buscar producto..." 
+          autocomplete="off"
+        >
         <input type="hidden" id="producto_id" name="producto_id">
         <div class="autocomplete-results" id="producto-autocomplete-results"></div>
         <div class="field-error" id="error-producto"></div>
       </div>
-      <!-- Campo Cantidad -->
+      
+      <!-- Cantidad -->
       <div class="form-group-pedido">
         <label for="cantidad">Cantidad <span class="required">*</span></label>
-        <input type="number" id="cantidad" class="form-control" min="1" value="1">
+        <input 
+          type="number" 
+          id="cantidad" 
+          class="form-control" 
+          min="1" 
+          value="1"
+        >
         <div class="field-error" id="error-cantidad"></div>
       </div>
+      
       <!-- Botón para agregar producto -->
       <div class="form-group-pedido">
         <button type="button" id="agregarProductoPedido" class="btn-agregar-pedido">Agregar Producto</button>
       </div>
+
+      <!-- TOTAL APROXIMADO -->
+      <h3 id="total-aproximado">
+        Total Aproximado: <span id="total-valor">$ 0,00</span>
+      </h3>
+
+      <!-- Barra de búsqueda en el pedido -->
+      <div class="form-group-pedido">
+        <input 
+          type="text" 
+          id="buscador-detalles" 
+          class="form-control" 
+          placeholder="Buscar en el pedido..."
+        >
+      </div>
+
       <!-- Tabla de productos -->
       <div class="table-container-pedido">
-        <table id="productos-pedido" class="table display">
+        <table id="detalle-productos" class="table">
           <thead>
             <tr>
               <th>Producto</th>
@@ -87,24 +132,38 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody id="productos-pedido-body"></tbody>
+          <tbody>
+            <!-- Se llena dinámicamente con DataTables -->
+          </tbody>
         </table>
       </div>
+      
       <!-- Campo oculto para detalles (JSON) -->
       <input type="hidden" name="detalles" id="id_detalles">
+      
       <!-- Botón final -->
       <div class="form-group-pedido">
         <button type="submit" class="btn-guardar-pedido">Guardar Pedido</button>
       </div>
     </form>
   </div>
-
+  
   <!-- Rutas para autocompletar -->
   <script type="text/javascript">
-    var proveedorAutocompleteUrl = "{% url 'proveedor_autocomplete' %}";
-    var productoAutocompleteUrl = "{% url 'producto_precios_autocomplete' %}";
+    var proveedorAutocompleteUrl = "{% url 'proveedor_con_productos_autocomplete' %}";
+    var productoPedidoAutocompleteUrl = "{% url 'producto_pedido_autocomplete' %}";
+    var sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete' %}";
+    var buscarClienteUrl = "{% url 'buscar_cliente' %}";
   </script>
-  <!-- JS para la página de Agregar Pedido -->
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- DataTables -->
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+  <!-- jQuery UI -->
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+  
+  <!-- Script personalizado -->
   <script src="{% static 'javascript/agregar_pedido.js' %}"></script>
 </body>
 </html>

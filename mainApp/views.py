@@ -3219,9 +3219,13 @@ def visualizar_pedidos_view(request):
     pedidos = PedidoProveedor.objects.all().order_by('-fechapedido')
     return render(request, 'visualizar_pedidos.html', {'pedidos': pedidos})
 
+
+
+
 @login_required
-def proveedor_autocomplete(request):
+def producto_pedido_autocomplete(request):
     term = request.GET.get('term', '').strip()
+    proveedor_id = request.GET.get('proveedor_id', '').strip()  # Se espera que se envíe este parámetro
     page_str = request.GET.get('page', '1').strip()
     per_page_str = request.GET.get('per_page', '10').strip()
 
@@ -3242,15 +3246,27 @@ def proveedor_autocomplete(request):
     start = (page - 1) * per_page
     end = start + per_page
 
-    # Solo proveedores con al menos un precio asignado
-    qs = Proveedor.objects.annotate(precios_count=Count('preciosproveedor')).filter(precios_count__gt=0)
+    qs = Producto.objects.all()
+    if proveedor_id:
+        qs = qs.filter(Exists(
+            PreciosProveedor.objects.filter(productoid=OuterRef('pk'), proveedorid=proveedor_id)
+        ))
     if term:
         qs = qs.filter(nombre__icontains=term)
+    
     qs = qs.order_by('nombre')
     total_results = qs.count()
     qs = qs[start:end]
 
-    results = [{'id': prov.proveedorid, 'text': prov.nombre} for prov in qs]
+    results = []
+    for prod in qs:
+        precio_obj = PreciosProveedor.objects.filter(productoid=prod, proveedorid=proveedor_id).first()
+        precio = str(precio_obj.precio) if precio_obj else "0.00"
+        results.append({
+            'id': prod.productoid,
+            'text': prod.nombre,
+            'precio': precio
+        })
     has_more = end < total_results
 
     return JsonResponse({'results': results, 'has_more': has_more})
