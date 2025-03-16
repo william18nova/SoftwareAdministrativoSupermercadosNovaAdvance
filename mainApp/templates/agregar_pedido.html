@@ -41,47 +41,23 @@
       <!-- Sucursal Autocomplete -->
       <div class="form-group-pedido">
         <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
-        <input 
-          type="text" 
-          id="id_sucursal_autocomplete" 
-          class="form-control" 
-          placeholder="Buscar sucursal..." 
-          autocomplete="off">
+        <input type="text" id="id_sucursal_autocomplete" class="form-control" placeholder="Buscar sucursal..." autocomplete="off">
         <input type="hidden" id="id_sucursal" name="sucursal">
         <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
         <div class="field-error" id="error-id_sucursal"></div>
       </div>
       
-      <!-- Fecha Estimada de Entrega (type="text" para usar jQuery UI DatePicker) -->
+      <!-- Fecha Estimada de Entrega -->
       <div class="form-group-pedido">
         <label for="id_fechaestimadaentrega">Fecha Estimada de Entrega</label>
-        <!-- input de tipo text para evitar doble calendario nativo -->
-        <input 
-          type="text" 
-          id="id_fechaestimadaentrega" 
-          name="fechaestimadaentrega" 
-          placeholder="dd/mm/aaaa"
-        />
+        <input type="text" id="id_fechaestimadaentrega" name="fechaestimadaentrega" placeholder="dd/mm/aaaa">
         <div class="field-error" id="error-id_fechaestimadaentrega"></div>
       </div>
       
-      <!-- Comentario -->
-      <div class="form-group-pedido">
-        <label for="id_comentario">Comentario</label>
-        {{ form.comentario }}
-        <div class="field-error" id="error-id_comentario"></div>
-      </div>
-
-      <!-- Autocomplete para Producto -->
+      <!-- Producto Autocomplete -->
       <div class="form-group-pedido">
         <label for="producto_autocomplete">Producto <span class="required">*</span></label>
-        <input 
-          type="text" 
-          id="producto_autocomplete" 
-          class="form-control" 
-          placeholder="Buscar producto..." 
-          autocomplete="off"
-        >
+        <input type="text" id="producto_autocomplete" class="form-control" placeholder="Buscar producto..." autocomplete="off">
         <input type="hidden" id="producto_id" name="producto_id">
         <div class="autocomplete-results" id="producto-autocomplete-results"></div>
         <div class="field-error" id="error-producto"></div>
@@ -90,34 +66,30 @@
       <!-- Cantidad -->
       <div class="form-group-pedido">
         <label for="cantidad">Cantidad <span class="required">*</span></label>
-        <input 
-          type="number" 
-          id="cantidad" 
-          class="form-control" 
-          min="1" 
-          value="1"
-        >
+        <input type="number" id="cantidad" class="form-control" min="1" value="1">
         <div class="field-error" id="error-cantidad"></div>
       </div>
+
+      <!-- Comentario -->
+      <div class="form-group-pedido">
+        <label for="id_comentario">Comentario</label>
+        {{ form.comentario }}
+        <div class="field-error" id="error-id_comentario"></div>
+      </div>
       
-      <!-- Botón para agregar producto -->
+      <!-- Botón Agregar Producto -->
       <div class="form-group-pedido">
         <button type="button" id="agregarProductoPedido" class="btn-agregar-pedido">Agregar Producto</button>
       </div>
 
-      <!-- TOTAL APROXIMADO -->
+      <!-- Total Aproximado -->
       <h3 id="total-aproximado">
         Total Aproximado: <span id="total-valor">$ 0,00</span>
       </h3>
 
-      <!-- Barra de búsqueda en el pedido -->
+      <!-- Barra de búsqueda para filtrar la tabla -->
       <div class="form-group-pedido">
-        <input 
-          type="text" 
-          id="buscador-detalles" 
-          class="form-control" 
-          placeholder="Buscar en el pedido..."
-        >
+        <input type="text" id="buscador-detalles" class="form-control" placeholder="Buscar en el pedido...">
       </div>
 
       <!-- Tabla de productos -->
@@ -133,15 +105,15 @@
             </tr>
           </thead>
           <tbody>
-            <!-- Se llena dinámicamente con DataTables -->
+            <!-- Se llenará dinámicamente con DataTables -->
           </tbody>
         </table>
       </div>
       
-      <!-- Campo oculto para detalles (JSON) -->
+      <!-- Campo oculto para detalles en JSON -->
       <input type="hidden" name="detalles" id="id_detalles">
       
-      <!-- Botón final -->
+      <!-- Botón Guardar Pedido -->
       <div class="form-group-pedido">
         <button type="submit" class="btn-guardar-pedido">Guardar Pedido</button>
       </div>
@@ -162,7 +134,6 @@
   <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
   <!-- jQuery UI -->
   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-  
   <!-- Script personalizado -->
   <script src="{% static 'javascript/agregar_pedido.js' %}"></script>
 </body>

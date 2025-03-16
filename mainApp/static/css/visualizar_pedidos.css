@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+:root {
+  --color-principal: #005091;
+  --color-secundario: #ADD8E6;
+  --color-blanco: #ffffff;
+  --color-gris-claro: #f0f8ff;
+  --color-gris: #ccc;
+  --color-gris-hover: #aaa;
+  --color-boton: #3b5998;
+  --color-boton-hover: #2b467d;
+  --fuente-principal: 'Roboto', Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--fuente-principal);
+  background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+
+/* Contenedor principal */
+.container-pedidos {
+  max-width: 1200px;
+  width: 90%;
+  margin: 20px auto;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  text-align: center;
+  position: relative;
+  box-sizing: border-box;
+  color: var(--color-blanco);
+}
+
+.container-pedidos h2 {
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.buscar-pedidos-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px;
+  border: 1px solid var(--color-gris);
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  color: #333;
+}
+
+/* Contenedor de la tabla */
+.table-container-pedidos {
+  background-color: #ffffff;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: auto;
+}
+
+/* Tabla DataTables */
+#tabla-pedidos {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+}
+
+#tabla-pedidos thead th {
+  background-color: var(--color-boton);
+  color: var(--color-blanco);
+  padding: 10px;
+  text-align: left;
+}
+
+#tabla-pedidos tbody td {
+  border-bottom: 1px solid #ddd;
+  padding: 8px;
+  color: #333;
+}
+
+#tabla-pedidos tbody tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .container-pedidos {
+    padding: 20px;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  #tabla-pedidos thead th,
+  #tabla-pedidos tbody td {
+    font-size: 14px;
+    padding: 6px;
+  }
+
+  .buscar-pedidos-input {
+    max-width: 100%;
+  }
+}

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Visualizar Pedidos{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Visualizar Pedidos</title>
+  <!-- Font Awesome (opcional) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css" />
+  <!-- CSS personalizado -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_pedidos.css' %}" />
+</head>
+<body>
+  <div class="container-pedidos">
+    <h2>Visualizar Pedidos</h2>
+    
+    <!-- Barra de búsqueda externa -->
+    <input type="text" id="buscar-pedidos" class="buscar-pedidos-input" placeholder="Buscar en pedidos...">
+    
+    <div class="table-container-pedidos">
+      <table id="tabla-pedidos" class="display">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Proveedor</th>
+            <th>Sucursal</th>
+            <th>Fecha Pedido</th>
+            <th>Fecha Estimada</th>
+            <th>Costo Total</th>
+            <th>Estado</th>
+            <th>Comentario</th>
+            <!-- Opcional: Acciones -->
+          </tr>
+        </thead>
+        <tbody>
+          {% for pedido in pedidos %}
+            <tr>
+              <td>{{ pedido.pedidoid }}</td>
+              <td>{{ pedido.proveedorid.nombre }}</td>
+              <td>{{ pedido.sucursalid.nombre }}</td>
+              <td>{{ pedido.fechapedido|date:"d/m/Y" }}</td>
+              <td>
+                {% if pedido.fechaestimadaentrega %}
+                  {{ pedido.fechaestimadaentrega|date:"d/m/Y" }}
+                {% else %}
+                  --
+                {% endif %}
+              </td>
+              <td>${{ pedido.costototal }}</td>
+              <td>{{ pedido.estado }}</td>
+              <td>{{ pedido.comentario }}</td>
+              <!-- Si quisieras botones para editar/ver/eliminar:
+              <td class="acciones-td">
+                <button class="btn-ver" data-id="{{ pedido.pedidoid }}">Ver</button>
+                <button class="btn-editar" data-id="{{ pedido.pedidoid }}">Editar</button>
+              </td>
+              -->
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- DataTables -->
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+  <!-- Script personalizado -->
+  <script src="{% static 'javascript/visualizar_pedidos.js' %}"></script>
+</body>
+</html>
+{% endblock %}

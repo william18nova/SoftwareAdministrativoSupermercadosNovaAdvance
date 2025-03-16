@@ -1854,14 +1854,34 @@ class PedidoProveedorForm(forms.Form):
     )
     fechaestimadaentrega = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+        input_formats=['%d/%m/%Y'],  # acepta dd/mm/yyyy
+        widget=forms.TextInput(
+            attrs={
+                'class': 'form-control',
+                'placeholder': 'dd/mm/yyyy'
+            }
+        )
     )
     comentario = forms.CharField(
         required=False,
-        widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Comentario (opcional)', 'rows': 3})
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Comentario (opcional)',
+            'rows': 3
+        })
     )
-    # Este campo oculto contendrá en JSON los detalles (lista de dicts con productoid, cantidad y preciounitario)
     detalles = forms.CharField(
         required=True,
         widget=forms.HiddenInput()
     )
+
+    def clean_fechaestimadaentrega(self):
+        """
+        Si el usuario no ingresa nada, puede quedar en blanco.
+        Si ingresa algo, se valida con el formato dd/mm/yyyy
+        (gracias a input_formats).
+        """
+        data = self.cleaned_data.get('fechaestimadaentrega')
+        # data será un objeto date si pasa la validación
+        # o None si no se ingresó
+        return data

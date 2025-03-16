@@ -111,4 +111,5 @@ urlpatterns = [
     path('agregar_pedido/', views.agregar_pedido_proveedor_view, name='agregar_pedido'),
     path('visualizar_pedidos/', views.visualizar_pedidos_view, name='visualizar_pedidos'),
     path('autocomplete/producto_pedido/', views.producto_pedido_autocomplete, name='producto_pedido_autocomplete'),
+    path('visualizar_pedidos/', views.visualizar_pedidos_view, name='visualizar_pedidos'),
 ]

@@ -3162,6 +3162,7 @@ def visualizar_ventas_view(request):
 
 
 
+
 @login_required
 def agregar_pedido_proveedor_view(request):
     if request.method == 'POST':
@@ -3172,17 +3173,30 @@ def agregar_pedido_proveedor_view(request):
             fechaestimadaentrega = form.cleaned_data.get('fechaestimadaentrega')
             comentario = form.cleaned_data.get('comentario')
             detalles_json = form.cleaned_data['detalles']
+
             try:
                 detalles = json.loads(detalles_json)
             except json.JSONDecodeError:
                 detalles = []
+
             if not detalles:
                 return JsonResponse({
                     'success': False,
-                    'errors': {'detalles': [{'message': 'Debe agregar al menos un producto.'}]}
+                    'errors': {
+                        'detalles': [
+                            {'message': 'Debe agregar al menos un producto.'}
+                        ]
+                    }
                 })
+
             # Calcular costo total
-            total_cost = sum(Decimal(str(item.get('preciounitario', '0.00'))) * Decimal(str(item.get('cantidad', 0))) for item in detalles)
+            total_cost = Decimal('0.00')
+            for item in detalles:
+                cant = Decimal(str(item.get('cantidad', 0)))
+                pu = Decimal(str(item.get('precio_unitario', '0.00')))
+                subtotal = cant * pu
+                total_cost += subtotal
+
             try:
                 with transaction.atomic():
                     pedido = PedidoProveedor.objects.create(
@@ -3196,7 +3210,7 @@ def agregar_pedido_proveedor_view(request):
                     for item in detalles:
                         productoid = item.get('productoid')
                         cantidad = item.get('cantidad')
-                        preciounitario = item.get('preciounitario')
+                        preciounitario = item.get('precio_unitario')
                         if productoid and cantidad and preciounitario:
                             DetallePedidoProveedor.objects.create(
                                 pedidoid=pedido,
@@ -3204,10 +3218,18 @@ def agregar_pedido_proveedor_view(request):
                                 cantidad=cantidad,
                                 preciounitario=preciounitario
                             )
-                return JsonResponse({'success': True})
+                # Éxito
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Pedido guardado exitosamente.'
+                })
             except Exception as e:
-                return JsonResponse({'success': False, 'message': 'Error al guardar el pedido.'})
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Error al guardar el pedido: {str(e)}'
+                })
         else:
+            # Form no válido
             errors = form.errors.get_json_data()
             return JsonResponse({'success': False, 'errors': errors})
     else:
@@ -3216,8 +3238,15 @@ def agregar_pedido_proveedor_view(request):
 
 @login_required
 def visualizar_pedidos_view(request):
-    pedidos = PedidoProveedor.objects.all().order_by('-fechapedido')
-    return render(request, 'visualizar_pedidos.html', {'pedidos': pedidos})
+    """
+    Muestra la lista de pedidos existentes.
+    """
+    pedidos = PedidoProveedor.objects.select_related('proveedorid', 'sucursalid').order_by('-pedidoid')
+    # O filtra/ordena como gustes
+
+    return render(request, 'visualizar_pedidos.html', {
+        'pedidos': pedidos
+    })
 
 
 
