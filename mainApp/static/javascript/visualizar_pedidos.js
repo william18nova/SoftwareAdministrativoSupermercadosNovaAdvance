@@ -1,34 +1,93 @@
 $(document).ready(function() {
     "use strict";
-
-    // Inicializar DataTable
-    const tablaPedidos = $('#tabla-pedidos').DataTable({
-      paging: true,
-      info: true,
-      searching: true, // Dejar searching: true para usar la API
+  
+    // Inicializar DataTable sin la barra de búsqueda interna
+    const table = $('#pedidos-table').DataTable({
+      paging: false,
+      info: false,
+      searching: true,
+      dom: 't',
       language: {
-        lengthMenu: "Mostrar _MENU_ pedidos",
-        zeroRecords: "No se encontraron resultados",
-        info: "Mostrando _START_ a _END_ de _TOTAL_ pedidos",
-        infoEmpty: "No hay pedidos disponibles",
-        infoFiltered: "(filtrado de _MAX_ pedidos totales)",
-        paginate: {
-          first: "Primero",
-          last: "Último",
-          next: "Siguiente",
-          previous: "Anterior"
-        }
+        emptyTable: ""
       }
     });
-
-    // Filtrado externo
-    $('#buscar-pedidos').on('keyup', function() {
-      tablaPedidos.search(this.value).draw();
+  
+    // Búsqueda externa
+    $('#buscador-pedidos').on('keyup', function() {
+      table.search(this.value).draw();
     });
-
-    // Si quisieras manejar botones de acciones, por ejemplo "Ver" o "Editar":
-    // $('#tabla-pedidos').on('click', '.btn-ver', function() {
-    //   const pedidoId = $(this).data('id');
-    //   // Lógica para ver detalles
-    // });
-});
+  
+    // Obtener CSRF token
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+  
+    // 1. Eliminar pedido (cuando se hace clic en el botón)
+    $('#pedidos-table tbody').on('click', '.btn-eliminar-pedido', function(e) {
+      e.stopPropagation(); // Evita que se dispare el click de la fila
+      const pedidoId = $(this).data('id');
+      const url = eliminarPedidoUrl.replace('0', pedidoId);
+  
+      if (!confirm("¿Está seguro de eliminar este pedido?")) {
+        return;
+      }
+  
+      $.ajax({
+        url: url,
+        type: 'POST',
+        headers: { 'X-CSRFToken': csrftoken },
+        success: function(data) {
+          if (data.success) {
+            // Eliminar la fila en DataTables
+            table.row($('tr[data-id="' + pedidoId + '"]')).remove().draw();
+            // Mostrar alerta de éxito
+            $("#success-message").text("Pedido eliminado exitosamente.").fadeIn();
+            setTimeout(() => {
+              $("#success-message").fadeOut();
+            }, 3000);
+          } else {
+            // Mostrar alerta de error
+            $("#error-message").text(data.message || "Error al eliminar el pedido.").fadeIn();
+            setTimeout(() => {
+              $("#error-message").fadeOut();
+            }, 3000);
+          }
+        },
+        error: function() {
+          // Mostrar alerta de error
+          $("#error-message").text("Error al eliminar el pedido.").fadeIn();
+          setTimeout(() => {
+            $("#error-message").fadeOut();
+          }, 3000);
+        }
+      });
+    });
+  
+    // 2. Redirigir a la vista de detalle (cuando se hace clic en la fila, excepto en el botón eliminar)
+    $('#pedidos-table tbody').on('click', 'tr', function(e) {
+      // Verificamos si el click fue en el botón de eliminar (o su icono)
+      if ($(e.target).closest('.btn-eliminar-pedido').length) {
+        // Si fue el botón, ya se manejó arriba, no hacemos nada
+        return;
+      }
+      const pedidoId = $(this).data('id');
+      if (!pedidoId) return; // Por seguridad
+  
+      // Redirigir a la página de detalles
+      const urlDetalle = verPedidoUrl.replace('0', pedidoId);
+      window.location.href = urlDetalle;
+    });
+  });
+  

@@ -3236,20 +3236,6 @@ def agregar_pedido_proveedor_view(request):
         form = PedidoProveedorForm()
     return render(request, 'agregar_pedido.html', {'form': form})
 
-@login_required
-def visualizar_pedidos_view(request):
-    """
-    Muestra la lista de pedidos existentes.
-    """
-    pedidos = PedidoProveedor.objects.select_related('proveedorid', 'sucursalid').order_by('-pedidoid')
-    # O filtra/ordena como gustes
-
-    return render(request, 'visualizar_pedidos.html', {
-        'pedidos': pedidos
-    })
-
-
-
 
 @login_required
 def producto_pedido_autocomplete(request):
@@ -3299,3 +3285,42 @@ def producto_pedido_autocomplete(request):
     has_more = end < total_results
 
     return JsonResponse({'results': results, 'has_more': has_more})
+
+@login_required
+def visualizar_pedidos_view(request):
+    # Se obtienen todos los pedidos ordenados por fecha de pedido (más recientes primero)
+    pedidos = PedidoProveedor.objects.all().order_by('-fechapedido')
+    return render(request, 'visualizar_pedidos.html', {'pedidos': pedidos})
+
+@login_required
+def eliminar_pedido(request, pedido_id):
+    if request.method == 'POST':
+        try:
+            pedido = get_object_or_404(PedidoProveedor, pk=pedido_id)
+            pedido.delete()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            print("Error al eliminar:", e)  # Para debug en la consola del servidor
+            return JsonResponse({'success': False, 'message': 'Error al eliminar el pedido.'})
+    else:
+        return JsonResponse({'success': False, 'message': 'Método no permitido.'})
+
+@login_required
+def ver_pedido_view(request, pedido_id):
+    # Obtener el pedido principal (o un 404 si no existe)
+    pedido = get_object_or_404(PedidoProveedor, pk=pedido_id)
+    
+    # Obtener los detalles asociados
+    detalles = DetallePedidoProveedor.objects.filter(pedidoid=pedido)
+
+    # Calcular el subtotal de cada detalle
+    for d in detalles:
+        # Multiplicar preciounitario * cantidad
+        # Ojo: si preciounitario es Decimal, se mantiene la precisión
+        d.subtotal = d.preciounitario * d.cantidad
+    
+    # Renderizar el template con pedido y detalles
+    return render(request, "ver_pedido.html", {
+        "pedido": pedido,
+        "detalles": detalles,
+    })

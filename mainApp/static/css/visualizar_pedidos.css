@@ -4,6 +4,8 @@
   --color-principal: #005091;
   --color-secundario: #ADD8E6;
   --color-blanco: #ffffff;
+  --color-rojo: #ff0000;
+  --color-verde: #3c763d;
   --color-gris-claro: #f0f8ff;
   --color-gris: #ccc;
   --color-gris-hover: #aaa;
@@ -12,103 +14,179 @@
   --fuente-principal: 'Roboto', Arial, sans-serif;
 }
 
+/* Reset */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+/* Fondo general */
 body {
   font-family: var(--fuente-principal);
   background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-  margin: 0;
-  padding: 0;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: auto;
+  margin: 0;
 }
 
-/* Contenedor principal */
-.container-pedidos {
-  max-width: 1200px;
+/* Contenedor principal semitransparente */
+.container-precios-proveedor {
+  max-width: 800px;
   width: 90%;
   margin: 20px auto;
-  padding: 30px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 40px;
+  background: rgba(255,255,255,0.1);
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
   text-align: center;
-  position: relative;
-  box-sizing: border-box;
   color: var(--color-blanco);
 }
 
-.container-pedidos h2 {
+.container-precios-proveedor h2 {
   margin-bottom: 20px;
-  font-size: 24px;
+  font-size: 28px;
 }
 
-.buscar-pedidos-input {
+/* Alertas */
+.alert {
+  padding: 15px;
+  margin-top: 20px;
+  border-radius: 4px;
+  font-size: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.alert-success {
+  color: var(--color-verde);
+  background-color: #dff0d8;
+  border: 1px solid #d6e9c6;
+}
+
+.alert-error {
+  color: var(--color-rojo);
+  background-color: #f2dede;
+  border: 1px solid #ebccd1;
+}
+
+/* Barra de búsqueda */
+.form-control {
   width: 100%;
-  max-width: 400px;
   padding: 10px;
+  margin-bottom: 20px;
   border: 1px solid var(--color-gris);
   border-radius: 5px;
-  margin-bottom: 20px;
   font-size: 16px;
   color: #333;
 }
 
-/* Contenedor de la tabla */
-.table-container-pedidos {
-  background-color: #ffffff;
-  padding: 10px;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  overflow: auto;
-}
-
-/* Tabla DataTables */
-#tabla-pedidos {
+/* Tabla */
+.table {
   width: 100%;
   border-collapse: collapse;
   background-color: #fff;
+  margin-top: 20px;
 }
 
-#tabla-pedidos thead th {
+.table thead {
   background-color: var(--color-boton);
   color: var(--color-blanco);
-  padding: 10px;
+}
+
+.table thead th {
+  padding: 12px;
   text-align: left;
+  font-size: 14px;
 }
 
-#tabla-pedidos tbody td {
+.table tbody tr {
   border-bottom: 1px solid #ddd;
-  padding: 8px;
-  color: #333;
 }
 
-#tabla-pedidos tbody tr:nth-child(even) {
+.table tbody tr:nth-child(even) {
   background-color: #f2f2f2;
 }
 
-/* Responsivo */
+.table tbody tr:hover {
+  background-color: #e8e8e8;
+}
+
+.table tbody td {
+  padding: 10px;
+  text-align: left;
+  color: #333;
+  font-size: 14px;
+  vertical-align: middle;
+  /* Por si usas table-layout: fixed, esto evita recortes */
+  word-wrap: break-word;
+}
+
+/* Forzar la columna de Acciones a centrarse */
+/* 1) Asegúrate que la cabecera tenga <th class="acciones"> y la celda <td class="acciones"> */
+.acciones {
+  text-align: center !important;  /* ¡importante! para sobrescribir DataTables */
+  vertical-align: middle;
+}
+
+/* 2) Asegura que el botón se muestre como inline-block */
+.acciones .btn-eliminar {
+  display: inline-block;
+  margin: 0 auto; 
+}
+
+/* Botones */
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+/* Responsividad (opcional estilo “card” en pantallas pequeñas) */
 @media (max-width: 768px) {
-  .container-pedidos {
+  .container-precios-proveedor {
     padding: 20px;
-    margin: 0;
-    border-radius: 0;
   }
 
-  #tabla-pedidos thead th,
-  #tabla-pedidos tbody td {
+  .table thead {
+    display: none;
+  }
+  .table tbody tr {
+    display: block;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+  }
+  .table tbody td {
+    display: block;
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
     font-size: 14px;
-    padding: 6px;
+    position: relative;
   }
-
-  .buscar-pedidos-input {
-    max-width: 100%;
+  .table tbody td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+  }
+  .table tbody td:last-child {
+    border-bottom: none;
   }
 }
