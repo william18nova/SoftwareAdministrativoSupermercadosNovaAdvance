@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Editar Pedido{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Editar Pedido</title>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css" />
+  <!-- jQuery UI CSS -->
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+  <!-- Hoja de estilo -->
+  <link rel="stylesheet" href="{% static 'css/agregar_pedido.css' %}" />
+
+  <!-- Variables globales -->
+  <script>
+    const initialDetalles      = {{ detalles_json|safe }};
+    const visualizarPedidosUrl = "{% url 'visualizar_pedidos' %}";
+  </script>
+</head>
+<body>
+  <div class="container-precios-proveedor">
+    <i class="fas fa-truck icon-proveedor"></i>
+    <h2>Editar Pedido #{{ pedido.pedidoid }}</h2>
+    <p class="obligatorio-texto">Modifique los campos según sea necesario.</p>
+
+    <!-- Alertas -->
+    <div id="success-message" class="alert alert-success" style="display:none;"></div>
+    <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
+
+    <!-- Formulario -->
+    <form id="pedidoForm" action="{% url 'editar_pedido' pedido.pedidoid %}" method="POST">
+      {% csrf_token %}
+
+      <!-- Proveedor -->
+      <div class="form-group-pedido">
+        <label for="id_proveedor_autocomplete">Proveedor <span class="required">*</span></label>
+        <input  id="id_proveedor_autocomplete" name="proveedor_autocomplete"
+                type="text" class="form-control" autocomplete="off"
+                placeholder="Buscar proveedor..." value="{{ pedido.proveedorid.nombre }}">
+        <input type="hidden" id="id_proveedor" name="proveedor" value="{{ pedido.proveedorid.pk }}">
+        <div  id="proveedor-autocomplete-results" class="autocomplete-results"></div>
+        <div  id="error-id_proveedor" class="field-error"></div>
+      </div>
+
+      <!-- Sucursal -->
+      <div class="form-group-pedido">
+        <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
+        <input  id="id_sucursal_autocomplete" type="text"
+                class="form-control" autocomplete="off"
+                placeholder="Buscar sucursal..." value="{{ pedido.sucursalid.nombre }}">
+        <input type="hidden" id="id_sucursal" name="sucursal" value="{{ pedido.sucursalid.pk }}">
+        <div  id="sucursal-autocomplete-results" class="autocomplete-results"></div>
+        <div  id="error-id_sucursal" class="field-error"></div>
+      </div>
+
+      <!-- Fecha estimada -->
+      <div class="form-group-pedido">
+        <label for="id_fechaestimadaentrega">Fecha Estimada de Entrega</label>
+        <input id="id_fechaestimadaentrega" name="fechaestimadaentrega"
+               type="text" placeholder="dd/mm/aaaa"
+               value="{{ pedido.fechaestimadaentrega|date:'d/m/Y' }}">
+        <div id="error-id_fechaestimadaentrega" class="field-error"></div>
+      </div>
+
+      <!-- Comentario -->
+      <div class="form-group-pedido">
+        <label for="id_comentario">Comentario</label>
+        <textarea id="id_comentario" name="comentario"
+                  class="form-control" rows="3">{{ pedido.comentario }}</textarea>
+        <div id="error-id_comentario" class="field-error"></div>
+      </div>
+
+      <!-- Producto -->
+      <div class="form-group-pedido">
+        <label for="producto_autocomplete">Producto <span class="required">*</span></label>
+        <input  id="producto_autocomplete" type="text" class="form-control"
+                placeholder="Buscar producto..." autocomplete="off">
+        <input type="hidden" id="producto_id">
+        <div  id="producto-autocomplete-results" class="autocomplete-results"></div>
+        <div  id="error-producto" class="field-error"></div>
+      </div>
+
+      <!-- Cantidad -->
+      <div class="form-group-pedido">
+        <label for="cantidad">Cantidad <span class="required">*</span></label>
+        <input id="cantidad" class="form-control" type="number" min="1" value="1">
+        <div id="error-cantidad" class="field-error"></div>
+      </div>
+
+      <!-- Botón Agregar -->
+      <div class="form-group-pedido">
+        <button type="button" id="agregarProductoPedido" class="btn-agregar-pedido">Agregar Producto</button>
+      </div>
+
+      <!-- Total -->
+      <h3 id="total-aproximado">
+        Total Aproximado: <span id="total-valor">
+          {{ pedido.costototal|floatformat:2|default:"$ 0.00" }}
+        </span>
+      </h3>
+
+      <!-- Buscador tabla -->
+      <div class="form-group-pedido">
+        <input id="buscador-detalles" class="form-control" type="text"
+               placeholder="Buscar en el pedido...">
+      </div>
+
+      <!-- Tabla -->
+      <div class="table-container-pedido">
+        <table id="detalle-productos" class="table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Cantidad</th>
+              <th>Precio Unitario</th>
+              <th>Subtotal</th>
+              <th class="acciones">Acciones</th>
+            </tr>
+          </thead>
+          <tbody><!-- JS --></tbody>
+        </table>
+      </div>
+
+      <!-- Detalles JSON oculto -->
+      <input type="hidden" id="id_detalles" name="detalles">
+
+      <!-- Botón Guardar -->
+      <div class="form-group-pedido">
+        <button type="submit" class="btn-guardar-pedido">Actualizar Pedido</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- URLs para JS -->
+  <script>
+    const proveedorAutocompleteUrl      = "{% url 'proveedor_con_productos_autocomplete' %}";
+    const productoPedidoAutocompleteUrl = "{% url 'producto_pedido_autocomplete' %}";
+    const sucursalAutocompleteUrl       = "{% url 'sucursal_autocomplete' %}";
+  </script>
+
+  <!-- Librerías -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+
+  <!-- JS específico -->
+  <script src="{% static 'javascript/editar_pedido.js' %}"></script>
+</body>
+</html>
+{% endblock %}

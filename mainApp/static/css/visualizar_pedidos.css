@@ -1,192 +1,203 @@
+/* static/css/visualizar_pedidos.css */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-:root {
-  --color-principal: #005091;
-  --color-secundario: #ADD8E6;
-  --color-blanco: #ffffff;
-  --color-rojo: #ff0000;
-  --color-verde: #3c763d;
-  --color-gris-claro: #f0f8ff;
-  --color-gris: #ccc;
-  --color-gris-hover: #aaa;
-  --color-boton: #3b5998;
-  --color-boton-hover: #2b467d;
-  --fuente-principal: 'Roboto', Arial, sans-serif;
+:root{
+  --color-principal:#005091;
+  --color-secundario:#ADD8E6;
+  --color-blanco:#fff;
+
+  --color-editar:#ffc107;        /* amarillo */
+  --color-editar-hover:#e0a800;
+  --color-eliminar:#e74c3c;      /* rojo */
+  --color-eliminar-hover:#c0392b;
+
+  --color-verde:#3c763d;         /* éxito */
+  --color-rojo:#ff0000;          /* usado en errores */
+  --color-gris:#ccc;
+  --fuente-principal:'Roboto',Arial,sans-serif;
 }
 
-/* Reset */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* RESET */
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* FONDO */
+body{
+  font-family:var(--fuente-principal);
+  background:linear-gradient(to bottom right,var(--color-secundario),var(--color-principal));
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:auto;
 }
 
-/* Fondo general */
-body {
-  font-family: var(--fuente-principal);
-  background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: auto;
-  margin: 0;
+/* CONTENEDOR PRINCIPAL */
+.container-precios-proveedor{
+  max-width:900px;
+  width:95%;
+  margin:20px auto;
+  padding:40px;
+  background:rgba(255,255,255,.12);
+  border-radius:10px;
+  box-shadow:0 4px 8px rgba(0,0,0,.2);
+  text-align:center;
+  color:var(--color-blanco);
+}
+.container-precios-proveedor h2{
+  margin-bottom:20px;
+  font-size:28px;
 }
 
-/* Contenedor principal semitransparente */
-.container-precios-proveedor {
-  max-width: 800px;
-  width: 90%;
-  margin: 20px auto;
-  padding: 40px;
-  background: rgba(255,255,255,0.1);
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  text-align: center;
-  color: var(--color-blanco);
+/* BUSCADOR */
+.form-control{
+  width:100%;
+  padding:10px;
+  margin-bottom:20px;
+  border:1px solid var(--color-gris);
+  border-radius:5px;
+  font-size:16px;
+  color:#333;
 }
 
-.container-precios-proveedor h2 {
-  margin-bottom: 20px;
-  font-size: 28px;
+/* CONTENEDOR TABLA */
+.table-responsive{width:100%}
+
+/* TABLA (escritorio) */
+.table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  margin-top:20px;
+}
+.table thead{
+  background:var(--color-principal);
+  color:var(--color-blanco);
+}
+.table thead th{
+  padding:12px;
+  text-align:left;
+  font-size:14px;
 }
 
-/* Alertas */
-.alert {
-  padding: 15px;
-  margin-top: 20px;
-  border-radius: 4px;
-  font-size: 16px;
-  margin-bottom: 20px;
-  text-align: center;
+/* Bordes claros para todas las celdas */
+.table tbody td{
+  padding:10px;
+  text-align:left;
+  color:#333;
+  font-size:14px;
+  vertical-align:middle;
+  word-wrap:break-word;
+  border:1px solid #e0e0e0;
+}
+.table tbody tr:nth-child(even){background:#f9f9f9}
+.table tbody tr:hover{background:#e8e8e8}
+
+/* Columna Acciones centrada */
+.acciones{text-align:center!important}
+
+/* ───────── BOTONES ───────── */
+.btn{
+  padding:6px 12px;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  font-size:14px;
+  display:inline-flex;           /* centra icono */
+  align-items:center;
+  justify-content:center;
+}
+/* EDITAR */
+.btn-primary{
+  background:var(--color-editar);
+  color:#fff;
+}
+.btn-primary:hover{
+  background:var(--color-editar-hover);
+}
+.btn-primary i{ color:#fff; }    /* lápiz blanco */
+
+/* ELIMINAR */
+.btn-danger{
+  background:var(--color-eliminar);
+  color:#fff;
+}
+.btn-danger:hover{
+  background:var(--color-eliminar-hover);
+}
+.btn-danger i{ color:#fff; }
+
+/* ALERTAS */
+.alert{
+  padding:15px;margin-top:20px;border:1px solid transparent;
+  border-radius:4px;font-size:16px;margin-bottom:20px;text-align:center;
+}
+.alert-success{
+  color:var(--color-verde);          /* #3c763d */
+  background-color:#dff0d8;          /* verde pastel */
+  border-color:#d6e9c6;              /* borde verde claro */
+}
+.alert-error{
+  color:var(--color-rojo);
+  background:#f2dede;
+  border-color:#ebccd1;
+  position:relative;z-index:9999;
 }
 
-.alert-success {
-  color: var(--color-verde);
-  background-color: #dff0d8;
-  border: 1px solid #d6e9c6;
-}
-
-.alert-error {
-  color: var(--color-rojo);
-  background-color: #f2dede;
-  border: 1px solid #ebccd1;
-}
-
-/* Barra de búsqueda */
-.form-control {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 20px;
-  border: 1px solid var(--color-gris);
-  border-radius: 5px;
-  font-size: 16px;
-  color: #333;
-}
-
-/* Tabla */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #fff;
-  margin-top: 20px;
-}
-
-.table thead {
-  background-color: var(--color-boton);
-  color: var(--color-blanco);
-}
-
-.table thead th {
-  padding: 12px;
-  text-align: left;
-  font-size: 14px;
-}
-
-.table tbody tr {
-  border-bottom: 1px solid #ddd;
-}
-
-.table tbody tr:nth-child(even) {
-  background-color: #f2f2f2;
-}
-
-.table tbody tr:hover {
-  background-color: #e8e8e8;
-}
-
-.table tbody td {
-  padding: 10px;
-  text-align: left;
-  color: #333;
-  font-size: 14px;
-  vertical-align: middle;
-  /* Por si usas table-layout: fixed, esto evita recortes */
-  word-wrap: break-word;
-}
-
-/* Forzar la columna de Acciones a centrarse */
-/* 1) Asegúrate que la cabecera tenga <th class="acciones"> y la celda <td class="acciones"> */
-.acciones {
-  text-align: center !important;  /* ¡importante! para sobrescribir DataTables */
-  vertical-align: middle;
-}
-
-/* 2) Asegura que el botón se muestre como inline-block */
-.acciones .btn-eliminar {
-  display: inline-block;
-  margin: 0 auto; 
-}
-
-/* Botones */
-.btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn-danger {
-  background-color: #e74c3c;
-  color: #fff;
-}
-
-.btn-danger:hover {
-  background-color: #c0392b;
-}
-
-/* Responsividad (opcional estilo “card” en pantallas pequeñas) */
-@media (max-width: 768px) {
-  .container-precios-proveedor {
-    padding: 20px;
+/* ─────  MÓVILES ≤ 768 px (tarjetas)  ───── */
+@media(max-width:768px){
+  body{align-items:flex-start}
+  .container-precios-proveedor{
+    padding:24px;
+    width:100%;
+    max-width:550px;
   }
+  .table-responsive{overflow-x:hidden}
 
-  .table thead {
-    display: none;
+  /* Ocultar cabecera */
+  .table thead{display:none}
+
+  /* Tarjetas */
+  .table, .table tbody, .table tr{width:100%!important}
+  .table tbody tr{
+    display:block;
+    background:#fff;
+    border:1px solid #e0e0e0;
+    border-radius:8px;
+    margin-bottom:18px;
+    box-shadow:0 2px 6px rgba(0,0,0,.09);
   }
-  .table tbody tr {
-    display: block;
-    margin-bottom: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
+  .table tbody td{
+    display:block;
+    width:100%;
+    padding:10px 14px;
+    font-size:14px;
+    border-bottom:1px solid #e5e5e5;
+    text-align:left;
+    word-break:break-word;
+    border-left:none;
+    border-right:none;
   }
-  .table tbody td {
-    display: block;
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
-    font-size: 14px;
-    position: relative;
+  .table tbody td:last-child{border-bottom:none}
+
+  .table tbody td::before{
+    content:attr(data-label);
+    display:block;
+    font-weight:700;
+    color:var(--color-principal);
+    margin-bottom:4px;
   }
-  .table tbody td::before {
-    content: attr(data-label);
-    font-weight: bold;
-    display: block;
-    margin-bottom: 5px;
-    color: #555;
+  /* Celda Acciones */
+  .table tbody td[data-label="Acciones"]{
+    text-align:right;
+    border-bottom:none;
   }
-  .table tbody td:last-child {
-    border-bottom: none;
-  }
+  .table tbody td[data-label="Acciones"]::before{content:''}
+}
+
+/* EXTRAPEQUEÑAS ≤ 480 px */
+@media(max-width:480px){
+  .container-precios-proveedor h2{font-size:24px}
+  .form-control{font-size:15px}
+  .table tbody td{font-size:13px}
+  .btn{font-size:13px}
 }

@@ -8,98 +8,94 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Visualizar Pedidos</title>
+
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <!-- DataTables CSS -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-  <!-- CSS personalizado -->
+  <!-- CSS propio -->
   <link rel="stylesheet" href="{% static 'css/visualizar_pedidos.css' %}">
-  <!-- jQuery -->
+
+  <!-- jQuery + DataTables -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <!-- DataTables JS -->
   <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
   <div class="container-precios-proveedor">
+
     <h2>Visualizar Pedidos</h2>
 
-    <!-- Alertas de éxito y error -->
-    <div id="success-message" class="alert alert-success" style="display: none;"></div>
-    <div id="error-message" class="alert alert-error" style="display: none;"></div>
+    <!-- Alertas -->
+    <div id="success-message" class="alert alert-success"
+         {% if not just_updated %}style="display:none;"{% endif %}>
+      Pedido actualizado exitosamente.
+    </div>
+    <div id="error-message" class="alert alert-error" style="display:none;"></div>
 
-    <!-- Barra de búsqueda externa -->
-    <input 
-      type="text" 
-      id="buscador-pedidos" 
-      class="form-control" 
-      placeholder="Buscar en pedidos..."
-    >
+    <!-- Buscador -->
+    <input id="buscador-pedidos" class="form-control" type="text"
+           placeholder="Buscar en pedidos...">
 
-    <!-- Tabla de pedidos -->
-    <table class="table" id="pedidos-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Proveedor</th>
-          <th>Sucursal</th>
-          <th>Fecha Pedido</th>
-          <th>Fecha Estimada</th>
-          <th>Costo Total</th>
-          <th>Estado</th>
-          <th class="acciones">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for pedido in pedidos %}
-        <tr data-id="{{ pedido.pedidoid }}">
-          <td data-label="ID">{{ pedido.pedidoid }}</td>
-          <td data-label="Proveedor">{{ pedido.proveedorid.nombre }}</td>
-          <td data-label="Sucursal">{{ pedido.sucursalid.nombre }}</td>
-          <td data-label="Fecha Pedido">{{ pedido.fechapedido }}</td>
-          <td data-label="Fecha Estimada">{{ pedido.fechaestimadaentrega }}</td>
-          <td data-label="Costo Total">{{ pedido.costototal }}</td>
-          <td data-label="Estado">{{ pedido.estado }}</td>
-          <td data-label="Acciones" class="acciones">
-            <button 
-              type="button" 
-              class="btn btn-danger btn-eliminar-pedido" 
-              data-id="{{ pedido.pedidoid }}"
-            >
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <!-- Tabla -->
+    <div class="table-responsive">
+      <table id="pedidos-table" class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Proveedor</th><th>Sucursal</th>
+            <th>Fecha&nbsp;Pedido</th><th>Fecha&nbsp;Estimada</th>
+            <th>Costo&nbsp;Total</th><th>Estado</th>
+            <th class="acciones">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pedido in pedidos %}
+          <tr data-id="{{ pedido.pedidoid }}" class="clickable-row">
+            <td data-label="ID">{{ pedido.pedidoid }}</td>
+            <td data-label="Proveedor">{{ pedido.proveedorid.nombre }}</td>
+            <td data-label="Sucursal">{{ pedido.sucursalid.nombre }}</td>
+            <td data-label="Fecha Pedido">{{ pedido.fechapedido }}</td>
+            <td data-label="Fecha Estimada">{{ pedido.fechaestimadaentrega }}</td>
+            <td data-label="Costo Total">{{ pedido.costototal }}</td>
+            <td data-label="Estado">{{ pedido.estado }}</td>
+            <td data-label="Acciones" class="acciones">
+              <a href="{% url 'editar_pedido' pedido.pedidoid %}"
+                 class="btn btn-primary btn-editar-pedido" title="Editar">
+                <i class="fas fa-edit"></i>
+              </a>
+              <button type="button"
+                      class="btn btn-danger btn-eliminar-pedido"
+                      data-id="{{ pedido.pedidoid }}" title="Eliminar">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div><!-- /table-responsive -->
   </div>
 
-  <!-- Función para obtener el CSRF token -->
+  <!-- CSRF helper -->
   <script>
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++){
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')){
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
+    function getCookie(name){
+      let cv=null;if(document.cookie&&document.cookie!==''){
+        for(let c of document.cookie.split(';')){
+          c=c.trim();
+          if(c.substring(0,name.length+1)===name+'='){
+            cv=decodeURIComponent(c.substring(name.length+1)); break; }
+        }}
+      return cv;
     }
     const csrftoken = getCookie('csrftoken');
   </script>
 
-  <!-- Variables globales para la URL de eliminación y la de ver pedido -->
-  <script type="text/javascript">
-    var eliminarPedidoUrl = "{% url 'eliminar_pedido' 0 %}";
-    var verPedidoUrl = "{% url 'ver_pedido' 0 %}";
+  <!-- URLs JS -->
+  <script>
+    const eliminarPedidoUrl = "{% url 'eliminar_pedido' 0 %}";
+    const verPedidoUrl      = "{% url 'ver_pedido' 0 %}";
   </script>
 
-  <!-- Script personalizado para visualizar pedidos -->
+  <!-- JS específico -->
   <script src="{% static 'javascript/visualizar_pedidos.js' %}"></script>
 </body>
 </html>
