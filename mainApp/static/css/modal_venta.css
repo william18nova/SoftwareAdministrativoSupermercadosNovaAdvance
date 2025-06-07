@@ -1,84 +1,74 @@
-/* Modal styles */
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.4);
+/* ----- VARIABLES (heredamos la paleta) ----- */
+:root{
+  --principal: #005091;
+  --secundario:#ADD8E6;
+  --blanco:#ffffff;
+  --verde:#28a745;
+  --verde-hover:#218838;
 }
 
-.modal-content {
-    background-color: #fefefe;
-    margin: 15% auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
-    max-width: 400px;
-    border-radius: 8px;
+/* ----- CAPA OPACA ----- */
+.modal{
+  display:none;             /* Oculto por defecto */
+  position:fixed; z-index:1050;
+  top:0;left:0;height:100%;width:100%;
+  backdrop-filter: blur(2px);
+  background:rgba(0,0,0,.45);
 }
 
-.close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
+/* ----- CONTENIDO ----- */
+.modal-content{
+  background: linear-gradient(145deg,var(--secundario),var(--principal));
+  color:var(--blanco);
+  margin:10% auto; max-width:380px; width:90%;
+  padding:30px 25px 35px;
+  border-radius:12px;
+  box-shadow:0 8px 15px rgba(0,0,0,.4);
+  position:relative;
+  overflow:hidden;
+  animation:fadeIn .4s ease-out;
 }
 
-.close:hover,
-.close:focus {
-    color: black;
-    text-decoration: none;
-    cursor: pointer;
+@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+
+/* ----- CERRAR “X” ----- */
+.close{
+  position:absolute; top:12px; right:16px;
+  font-size:28px; font-weight:bold; color:var(--blanco);
+  cursor:pointer; transition:transform .2s;
+}
+.close:hover{transform:scale(1.15);}
+
+/* ----- TÍTULO ----- */
+.modal-content h2{
+  margin:0 0 25px; font-size:22px; font-weight:700;
+  text-align:center;
 }
 
-h2 {
-    text-align: center;
-    margin-bottom: 20px;
-    color: #000; /* Color del texto */
+/* ----- OPCIONES RADIO ----- */
+.radio-wrap{
+  display:flex;align-items:center;
+  margin:8px 0;
 }
+.radio-wrap input{margin-right:10px;transform:scale(1.15);}
+.radio-wrap label{font-size:16px;cursor:pointer;}
 
-.payment-method {
-    margin: 10px 0;
-    display: flex;
-    align-items: center;
+/* ----- EFECTIVO extra ----- */
+#efectivo-options{
+  display:none;margin:10px 0 0;
 }
+#efectivo-options label{display:block;margin-bottom:4px;font-weight:700;}
+#efectivo-options input{
+  width:100%;padding:6px;border-radius:6px;border:none;
+  outline:none;font-size:15px;
+}
+#cambio{margin-top:6px;font-weight:bold;}
 
-.payment-method input {
-    margin-right: 10px;
+/* ----- BOTÓN CONFIRMAR ----- */
+#confirmar-pago{
+  display:block;width:100%;padding:12px 0;margin-top:25px;
+  background:var(--verde);color:var(--blanco);border:none;
+  font-size:17px;font-weight:700;border-radius:8px;
+  cursor:pointer;transition:background .25s;
 }
-
-.payment-method label {
-    color: #000; /* Color del texto */
-}
-
-#efectivo-options {
-    display: none;
-    margin-top: 10px;
-    color: #000; /* Color del texto */
-}
-
-#confirmar-pago {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-top: 20px;
-}
-
-#confirmar-pago:hover {
-    background-color: #218838;
-}
-
-label {
-    font-weight: bold;
-    color: #000; /* Color del texto */
-}
+#confirmar-pago:hover{background:var(--verde-hover);}

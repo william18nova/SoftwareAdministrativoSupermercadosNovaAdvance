@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Generar Venta{% endblock %}
 {% block content %}
 <!DOCTYPE html>
@@ -7,141 +8,145 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Generar Venta</title>
-  {% load static %}
-  <!-- CSS externos -->
+
+  <!-- FontAwesome + jQuery UI + Quagga -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
-  <link rel="stylesheet" href="{% static 'modal_venta.css' %}">
   <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-  <!-- jQuery y jQuery UI -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-  <!-- Quagga para escanear códigos de barras -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-  
-  <!-- Variables globales definidas con Django -->
-  <script type="text/javascript">
-    var verificarProductoUrl = "{% url 'verificar_producto' %}";
-    var buscarProductosUrl = "{% url 'buscar_productos' %}";
-    var buscarClienteUrl = "{% url 'buscar_cliente' %}";
-    var buscarProductoPorCodigoUrl = "{% url 'buscar_producto_por_codigo' %}";
-    var obtenerPuntosPagoUrl = "{% url 'obtener_puntos_pago' %}";
-    var verificarPagoNequiUrl = "{% url 'verificar_pago_nequi' %}";
-    var sucursalAutocompleteUrl = "{% url 'sucursal_punto_pago_autocomplete' %}";
-    var puntopagoAutocompleteUrl = "{% url 'puntopago_autocomplete_venta' %}";
+
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
+  <link rel="stylesheet" href="{% static 'css/modal_venta.css' %}">
+
+  <!-- Rutas Django para el JS -->
+  <script>
+    const verificarProductoUrl          = "{% url 'verificar_producto' %}";
+    const buscarProductosUrl            = "{% url 'buscar_productos' %}";
+    const buscarClienteUrl              = "{% url 'buscar_cliente' %}";
+    const buscarProductoPorCodigoUrl    = "{% url 'buscar_producto_por_codigo' %}";
+    const obtenerPuntosPagoUrl          = "{% url 'obtener_puntos_pago' %}";
+    const verificarPagoNequiUrl         = "{% url 'verificar_pago_nequi' %}";
+    const sucursalAutocompleteUrl       = "{% url 'sucursal_punto_pago_autocomplete' %}";
+    const puntopagoAutocompleteUrl      = "{% url 'puntopago_autocomplete_venta' %}";
   </script>
 </head>
 <body>
   <div class="container">
     <h1>Generar Venta</h1>
-    <form id="venta-form" method="post" action="{% url 'generar_venta' %}">
+
+    <!-- ====================  FORMULARIO PRINCIPAL  ==================== -->
+    <form id="venta-form" action="{% url 'generar_venta' %}" method="post">
       {% csrf_token %}
+      <!-- -------------  Cliente  ------------- -->
       <div class="form-group">
         <label for="cliente_busqueda">Cliente:</label>
-        <input type="text" id="cliente_busqueda" name="cliente_busqueda" placeholder="Buscar por nombre o cédula">
+        <input type="text" id="cliente_busqueda" placeholder="Buscar por nombre o cédula">
         <input type="hidden" id="cliente_id" name="cliente_id">
       </div>
-      <!-- Autocomplete para Sucursal -->
+
+      <!-- -------------  Sucursal  ------------- -->
       <div class="form-group">
         <label for="sucursal_autocomplete">Sucursal:</label>
-        <input type="text" id="sucursal_autocomplete" name="sucursal_autocomplete" placeholder="Buscar sucursal...">
+        <input type="text"  id="sucursal_autocomplete" placeholder="Buscar sucursal...">
         <input type="hidden" id="sucursal_id" name="sucursal_id">
       </div>
-      <!-- Autocomplete para Punto de Pago -->
+
+      <!-- -------------  Punto de Pago  ------------- -->
       <div class="form-group">
         <label for="puntopago_autocomplete">Punto de Pago:</label>
-        <input type="text" id="puntopago_autocomplete" name="puntopago_autocomplete" placeholder="Buscar punto de pago...">
+        <input type="text"  id="puntopago_autocomplete" placeholder="Buscar punto de pago...">
         <input type="hidden" id="puntopago_id" name="puntopago_id">
       </div>
-      <!-- Autocompletes para Producto -->
+
+      <!-- -------------  Producto (3 búsquedas)  ------------- -->
       <div class="form-group">
         <label for="producto_busqueda_nombre">Nombre del Producto:</label>
-        <input type="text" id="producto_busqueda_nombre" name="producto_busqueda_nombre" placeholder="Buscar por nombre">
+        <input type="text" id="producto_busqueda_nombre" placeholder="Buscar por nombre">
       </div>
       <div class="form-group">
         <label for="producto_busqueda_codigo">Código del Producto:</label>
-        <input type="text" id="producto_busqueda_codigo" name="producto_busqueda_codigo" placeholder="Buscar por código">
+        <input type="text" id="producto_busqueda_codigo" placeholder="Buscar por código">
       </div>
       <div class="form-group">
-        <label for="producto_busqueda_codigo_barras">Código de Barras del Producto:</label>
-        <input type="text" id="producto_busqueda_codigo_barras" name="producto_busqueda_codigo_barras" placeholder="Buscar por código de barras">
-        <button type="button" id="btnEscanear" class="btn-escanear">Escanear Código de Barras</button>
+        <label for="producto_busqueda_codigo_barras">Código de Barras:</label>
+        <input type="text" id="producto_busqueda_codigo_barras" placeholder="Buscar por código de barras">
+        <button type="button" id="btnEscanear" class="btn-escanear">Escanear</button>
       </div>
       <div id="interactive" class="viewport"></div>
-      <input type="hidden" id="producto_id" name="producto_id">
-      <input type="hidden" id="productos" name="productos">
+
+      <input type="hidden" id="producto_id">
+      <input type="hidden" id="productos"  name="productos">
       <input type="hidden" id="cantidades" name="cantidades">
       <input type="hidden" id="medio_pago" name="medio_pago">
+
       <div class="form-group">
         <label for="cantidad">Cantidad:</label>
-        <input type="number" id="cantidad" name="cantidad" value="1" min="1" required disabled>
+        <input type="number" id="cantidad" min="1" value="1" required disabled>
       </div>
+
       <button type="button" id="agregar-producto" class="btn btn-success" disabled>Agregar Producto</button>
     </form>
 
+    <!-- ====================  DETALLE & TOTAL  ==================== -->
     <h2>Detalles de la Venta</h2>
     <h3>Total: <span id="total" class="total-color">{{ total }}</span></h3>
     <button type="button" class="btn btn-primary" id="generar-venta">Generar Venta</button>
     <input type="text" id="buscar-detalles" placeholder="Buscar en el carrito...">
-    <table class="table" id="detalle-productos">
+
+    <table id="detalle-productos" class="table">
       <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Cantidad</th>
-          <th>Precio Unitario</th>
-          <th>Subtotal</th>
-          <th>Acciones</th>
-        </tr>
+        <tr><th>Producto</th><th>Cantidad</th><th>Precio Unitario</th><th>Subtotal</th><th>Acciones</th></tr>
       </thead>
       <tbody>
-        {% if detalles %}
-          {% for detalle in detalles %}
-            <tr>
-              <td data-id="{{ detalle.productoid }}">{{ detalle.producto }}</td>
-              <td>{{ detalle.cantidad }}</td>
-              <td>{{ detalle.precio_unitario }}</td>
-              <td>{{ detalle.subtotal }}</td>
-              <td class="text-center">
-                <button class="btn btn-danger btn-sm eliminar-producto"><i class="fas fa-trash-alt"></i></button>
-              </td>
-            </tr>
-          {% endfor %}
-        {% endif %}
+        {% for d in detalles %}
+          <tr>
+            <td data-id="{{ d.productoid }}">{{ d.producto }}</td>
+            <td>{{ d.cantidad }}</td>
+            <td>{{ d.precio_unitario }}</td>
+            <td>{{ d.subtotal }}</td>
+            <td class="text-center">
+              <button class="btn btn-danger btn-sm eliminar-producto">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </td>
+          </tr>
+        {% endfor %}
       </tbody>
     </table>
-  </div>
+  </div><!-- /.container -->
 
-  <!-- Modal para selección de medio de pago -->
-  <div id="myModal" class="modal">
+  <!-- ====================  MODAL MEDIO DE PAGO  ==================== -->
+  <div id="myModal" class="modal"><!-- hidden por CSS -->
     <div class="modal-content">
       <span class="close">&times;</span>
       <h2>Seleccione el medio de pago</h2>
-      <div class="payment-method">
-        <input type="radio" id="nequi" name="payment_method" value="nequi">
-        <label for="nequi">Nequi</label>
+
+      <div class="radio-wrap">
+        <input type="radio" id="nequi"    name="payment_method" value="nequi"><label for="nequi">Nequi</label>
       </div>
-      <div class="payment-method">
-        <input type="radio" id="daviplata" name="payment_method" value="daviplata">
-        <label for="daviplata">Daviplata</label>
+      <div class="radio-wrap">
+        <input type="radio" id="daviplata" name="payment_method" value="daviplata"><label for="daviplata">Daviplata</label>
       </div>
-      <div class="payment-method">
-        <input type="radio" id="efectivo" name="payment_method" value="efectivo">
-        <label for="efectivo">Efectivo</label>
+      <div class="radio-wrap">
+        <input type="radio" id="efectivo" name="payment_method" value="efectivo"><label for="efectivo">Efectivo</label>
       </div>
+      <!-- Campo efectivo -->
       <div id="efectivo-options">
         <label for="monto-recibido">Monto recibido:</label>
         <input type="number" id="monto-recibido" min="0" step="100">
         <p id="cambio"></p>
       </div>
-      <div class="payment-method">
-        <input type="radio" id="tarjeta" name="payment_method" value="tarjeta">
-        <label for="tarjeta">Tarjeta</label>
+      <div class="radio-wrap">
+        <input type="radio" id="tarjeta"  name="payment_method" value="tarjeta"><label for="tarjeta">Tarjeta</label>
       </div>
-      <button id="confirmar-pago">Confirmar</button>
+
+      <button id="confirmar-pago" class="btn btn-success">Confirmar</button>
     </div>
   </div>
-  
-  <!-- Cargar el archivo JS externo -->
+
+  <!-- ====================  JS  ==================== -->
   <script src="{% static 'javascript/generar_venta.js' %}"></script>
 </body>
 </html>
