@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Detalle Venta {{ venta.ventaid }}{% endblock %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalle Venta #{{ venta.ventaid }}</title>
+
+  <!-- Misma hoja que usa Generar Venta -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
+
+  <!-- Estilos extra sólo para la vista de detalle -->
+  <style>
+    /* Re-usa apariencia de los inputs de generar_venta */
+    .readonly-input{
+      width:100%;padding:8px;box-sizing:border-box;
+      border:1px solid #ccc;border-radius:4px;
+      background:#f0f8ff;color:#333;
+      pointer-events:none;cursor:default;
+      font-size:15px;
+    }
+    .readonly-input:hover{background:#e0e8ff;border-color:#aaa}
+
+    .form-group-readonly{margin-bottom:14px;text-align:left}
+    .form-group-readonly label{
+      display:block;font-weight:bold;margin-bottom:4px;color:#ffffff
+    }
+
+    /* Pequeñas correcciones para esta página */
+    #detalle-productos{margin-top:18px}
+    #detalle-productos th,#detalle-productos td{font-size:15px}
+
+    .total-venta{color:#ffffff;font-size:24px;font-weight:bold;margin-top:24px;text-align:center}
+    .volver-btn{max-width:240px;margin:32px auto 0 auto;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Encabezado -->
+    <h1 style="display:flex;justify-content:center;align-items:center;gap:8px;">
+      <i class="fas fa-file-invoice-dollar"></i>
+      Detalle de la Venta #{{ venta.ventaid }}
+    </h1>
+
+    <!-- Grupo de campos “readonly” (mismo look que autocomplete) -->
+    <div class="form-group-readonly">
+      <label>Fecha:</label>
+      <input class="readonly-input" readonly value="{{ venta.fecha }}">
+    </div>
+
+    <div class="form-group-readonly">
+      <label>Hora:</label>
+      <input class="readonly-input" readonly value="{{ venta.hora }}">
+    </div>
+
+    <div class="form-group-readonly">
+      <label>Cliente:</label>
+      <input class="readonly-input" readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
+    </div>
+
+    <div class="form-group-readonly">
+      <label>Empleado:</label>
+      <input class="readonly-input" readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
+    </div>
+
+    <div class="form-group-readonly">
+      <label>Sucursal:</label>
+      <input class="readonly-input" readonly value="{{ venta.sucursalid.nombre }}">
+    </div>
+
+    <div class="form-group-readonly">
+      <label>Punto de Pago:</label>
+      <input class="readonly-input" readonly value="{{ venta.puntopagoid.nombre }}">
+    </div>
+
+    <div class="form-group-readonly">
+      <label>Medio de Pago:</label>
+      <input class="readonly-input" readonly value="{{ venta.mediopago|title }}">
+    </div>
+
+    <!-- Tabla de productos -->
+    <h2 style="margin-top:26px;color:#ffffff;text-align:center;">Productos</h2>
+    <table id="detalle-productos" class="table">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Precio Unitario</th>
+          <th>Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in detalles %}
+        <tr>
+          <td data-label="Producto">{{ d.productoid.nombre }}</td>
+          <td data-label="Cantidad">{{ d.cantidad }}</td>
+          <td data-label="Precio Unitario">${{ d.preciounitario|floatformat:2 }}</td>
+          <td data-label="Subtotal">${{ d.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Total & botón -->
+    <div class="total-venta">Total: ${{ venta.total|floatformat:2 }}</div>
+    <a href="{% url 'visualizar_ventas' %}" class="btn btn-primary volver-btn">Volver a la lista</a>
+  </div>
+</body>
+</html>
+{% endblock %}

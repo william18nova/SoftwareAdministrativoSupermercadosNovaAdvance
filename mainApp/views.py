@@ -3155,7 +3155,37 @@ def visualizar_ventas_view(request):
     return render(request, 'visualizar_ventas.html', {'ventas': ventas})
 
 
+@login_required
+def ver_venta_view(request, venta_id):
+    """
+    Muestra la información completa de una venta y sus productos,
+    calculando el subtotal de cada línea en la propia vista para
+    evitar filtros personalizados en la plantilla.
+    """
+    venta = get_object_or_404(
+        Venta.objects.select_related(
+            "clienteid", "empleadoid", "sucursalid", "puntopagoid"
+        ),
+        pk=venta_id,
+    )
 
+    # Traemos los detalles y añadimos un atributo 'subtotal' a cada objeto
+    detalles = (
+        DetalleVenta.objects
+        .filter(ventaid=venta)
+        .select_related("productoid")
+    )
+    for det in detalles:
+        det.subtotal = det.preciounitario * det.cantidad
+
+    return render(
+        request,
+        "ver_venta.html",
+        {
+            "venta": venta,
+            "detalles": detalles,   # ahora cada detalle trae .subtotal
+        },
+    )
 
 
 

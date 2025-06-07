@@ -106,6 +106,9 @@ urlpatterns = [
     path('autocomplete/puntopago_venta/', views.puntopago_autocomplete_venta, name='puntopago_autocomplete_venta'),
     
     path('visualizar_ventas/', views.visualizar_ventas_view, name='visualizar_ventas'),
+    #  … otras urls …
+    path("ver_venta/<int:venta_id>/", views.ver_venta_view, name="ver_venta"),
+
     
     
     path('agregar_pedido/', views.agregar_pedido_proveedor_view, name='agregar_pedido'),

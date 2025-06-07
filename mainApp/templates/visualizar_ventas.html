@@ -7,50 +7,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visualizar Ventas</title>
+  <title>Lista de Ventas</title>
 
-  <!-- Font Awesome + DataTables -->
+  <!-- Font Awesome (para el icono del título) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+
+  <!-- DataTables -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 
   <!-- Estilos propios -->
   <link rel="stylesheet" href="{% static 'css/visualizar_ventas.css' %}">
-
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
   <div class="container">
-
     <h2><i class="fas fa-receipt"></i> Lista de Ventas</h2>
 
+    <!-- Alertas Django si las hubiera -->
     {% if messages %}
       <div class="messages">
         {% for message in messages %}
-          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-            {{ message }}
-          </div>
+          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">{{ message }}</div>
         {% endfor %}
       </div>
     {% endif %}
 
-    <!-- ▶ Barra de búsqueda externa -->
+    <!-- Buscador externo -->
     <div class="search-wrapper">
       <i class="fas fa-search"></i>
       <input id="buscador-ventas" class="search-input" type="text" placeholder="Buscar…">
     </div>
 
-    <table id="ventasTable" class="display nowrap">
+    <!-- Tabla -->
+    <table id="ventasTable" class="display">
       <thead>
         <tr>
-          <th>ID</th><th>Fecha</th><th>Hora</th><th>Cliente</th>
-          <th>Empleado</th><th>Sucursal</th><th>Punto&nbsp;Pago</th>
-          <th>Total</th><th>Medio&nbsp;Pago</th>
+          <th>ID</th>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Cliente</th>
+          <th>Empleado</th>
+          <th>Sucursal</th>
+          <th>Punto Pago</th>
+          <th>Total</th>
+          <th>Medio Pago</th>
         </tr>
       </thead>
       <tbody>
         {% for v in ventas %}
-        <tr>
+        <tr data-id="{{ v.ventaid }}" class="clickable-row">
           <td data-label="ID">{{ v.ventaid }}</td>
           <td data-label="Fecha">{{ v.fecha }}</td>
           <td data-label="Hora">{{ v.hora }}</td>
@@ -59,15 +65,21 @@
           </td>
           <td data-label="Empleado">{{ v.empleadoid.nombre }} {{ v.empleadoid.apellido }}</td>
           <td data-label="Sucursal">{{ v.sucursalid.nombre }}</td>
-          <td data-label="Punto de Pago">{{ v.puntopagoid.nombre }}</td>
-          <td data-label="Total" class="money">{{ v.total }}</td>
-          <td data-label="Pago">{{ v.mediopago|capfirst }}</td>
+          <td data-label="Punto Pago">{{ v.puntopagoid.nombre }}</td>
+          <td data-label="Total">${{ v.total|floatformat:2 }}</td>
+          <td data-label="Pago">{{ v.mediopago|title }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
+  <!-- URL base para navegar al detalle -->
+  <script>
+    const verVentaUrl = "{% url 'ver_venta' 0 %}";
+  </script>
+
+  <!-- JS propio -->
   <script src="{% static 'javascript/visualizar_ventas.js' %}"></script>
 </body>
 </html>
