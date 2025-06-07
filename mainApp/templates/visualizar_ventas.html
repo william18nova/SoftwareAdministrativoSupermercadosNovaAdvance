@@ -5,61 +5,70 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizar Ventas</title>
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-    <!-- CSS Propio -->
-    <link rel="stylesheet" href="{% static 'css/visualizar_ventas.css' %}">
-    <!-- jQuery y DataTables JS -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualizar Ventas</title>
+
+  <!-- Font Awesome + DataTables -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_ventas.css' %}">
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h2>Lista de Ventas</h2>
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-        <table id="ventasTable" class="display">
-            <thead>
-                <tr>
-                    <th>ID Venta</th>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Cliente</th>
-                    <th>Empleado</th>
-                    <th>Sucursal</th>
-                    <th>Punto de Pago</th>
-                    <th>Total</th>
-                    <th>Medio de Pago</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for venta in ventas %}
-                <tr>
-                    <td>{{ venta.ventaid }}</td>
-                    <td>{{ venta.fecha }}</td>
-                    <td>{{ venta.hora }}</td>
-                    <td>{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}</td>
-                    <td>{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}</td>
-                    <td>{{ venta.sucursalid.nombre }}</td>
-                    <td>{{ venta.puntopagoid.nombre }}</td>
-                    <td>${{ venta.total|floatformat:2 }}</td>
-                    <td>{{ venta.mediopago }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  <div class="container">
+
+    <h2><i class="fas fa-receipt"></i> Lista de Ventas</h2>
+
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- ▶ Barra de búsqueda externa -->
+    <div class="search-wrapper">
+      <i class="fas fa-search"></i>
+      <input id="buscador-ventas" class="search-input" type="text" placeholder="Buscar…">
     </div>
-    <script src="{% static 'javascript/visualizar_ventas.js' %}"></script>
+
+    <table id="ventasTable" class="display nowrap">
+      <thead>
+        <tr>
+          <th>ID</th><th>Fecha</th><th>Hora</th><th>Cliente</th>
+          <th>Empleado</th><th>Sucursal</th><th>Punto&nbsp;Pago</th>
+          <th>Total</th><th>Medio&nbsp;Pago</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in ventas %}
+        <tr>
+          <td data-label="ID">{{ v.ventaid }}</td>
+          <td data-label="Fecha">{{ v.fecha }}</td>
+          <td data-label="Hora">{{ v.hora }}</td>
+          <td data-label="Cliente">
+            {% if v.clienteid %}{{ v.clienteid.nombre }} {{ v.clienteid.apellido }}{% else %}N/A{% endif %}
+          </td>
+          <td data-label="Empleado">{{ v.empleadoid.nombre }} {{ v.empleadoid.apellido }}</td>
+          <td data-label="Sucursal">{{ v.sucursalid.nombre }}</td>
+          <td data-label="Punto de Pago">{{ v.puntopagoid.nombre }}</td>
+          <td data-label="Total" class="money">{{ v.total }}</td>
+          <td data-label="Pago">{{ v.mediopago|capfirst }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script src="{% static 'javascript/visualizar_ventas.js' %}"></script>
 </body>
 </html>
 {% endblock %}
