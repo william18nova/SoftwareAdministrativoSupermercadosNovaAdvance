@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from decimal import Decimal
+from datetime import date
+from django.db import models, transaction
 
 class Sucursal(models.Model):
     sucursalid = models.AutoField(primary_key=True)
@@ -254,3 +256,88 @@ class DetallePedidoProveedor(models.Model):
 
     def __str__(self):
         return f"Detalle {self.detallepedidoid} - {self.productoid.nombre}"
+    
+class CambioDevolucion(models.Model):
+    """Cada fila representa un producto devuelto o cambiado."""
+    cambioid = models.AutoField(primary_key=True)
+
+    venta = models.ForeignKey(
+        Venta,
+        on_delete=models.CASCADE,
+        related_name="cambios",
+        db_column="ventaid",          # ya corregido
+    )
+    detalle = models.ForeignKey(
+        DetalleVenta,
+        on_delete=models.CASCADE,
+        db_column="detalle_id",       # ya corregido
+    )
+    # ⬇⬇⬇  NUEVO: indica a Django el nombre exacto
+    productoid = models.ForeignKey(
+        Producto,
+        on_delete=models.PROTECT,
+        db_column="productoid"
+    )
+
+    cantidad = models.PositiveIntegerField()
+    tipo     = models.CharField(max_length=50,
+                                choices=[("Cambio", "Cambio"),
+                                         ("Devolucion", "Devolucion")])
+    estado   = models.CharField(max_length=50, default="Completado")
+    fecha    = models.DateField(default=date.today)
+    motivo   = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "cambiosdevoluciones"
+        verbose_name = "Cambio / devolución"
+        verbose_name_plural = "Cambios / devoluciones"
+
+    def __str__(self):
+        return f"{self.tipo} • {self.productoid} ({self.cantidad})"
+
+    # ----------  LÓGICA DE NEGOCIO  ----------
+    @staticmethod
+    @transaction.atomic
+    def registrar_devolucion(venta: "Venta", devoluciones: list[dict]):
+        """
+        • devoluciones = [{"detalle": DetalleVenta, "cantidad": int}, …]
+        • Crea registros, ajusta inventario, resta total.
+        """
+        total_a_restar = Decimal("0")
+
+        for item in devoluciones:
+            det     = item["detalle"]
+            cant    = item["cantidad"]
+
+            if cant <= 0:
+                continue
+            if cant > det.cantidad:
+                raise ValidationError("No puedes devolver más de lo comprado.")
+
+            CambioDevolucion.objects.create(
+                venta      = venta,
+                detalle    = det,
+                productoid = det.productoid,
+                cantidad   = cant,
+                tipo       = "Devolucion",
+            )
+
+            # línea de venta
+            det.cantidad -= cant
+            det.save(update_fields=["cantidad"])
+
+            # inventario (sucursal de la venta)
+            inv, _ = Inventario.objects.select_for_update().get_or_create(
+                        sucursalid = venta.sucursalid,
+                        productoid = det.productoid,
+                        defaults   = {"cantidad": 0})
+            inv.cantidad += cant
+            inv.save(update_fields=["cantidad"])
+
+            # acumular total
+            total_a_restar += det.preciounitario * cant
+
+        # total venta
+        if total_a_restar:
+            venta.total -= total_a_restar
+            venta.save(update_fields=["total"])

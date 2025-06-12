@@ -1,0 +1,273 @@
+/* static/css/visualizar_cambios.css */
+
+/* ----------------------------------------------------
+   Variables globales y fuente
+---------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+:root {
+  --color-principal: #005091;
+  --color-secundario: #ADD8E6;
+  --color-blanco: #fff;
+
+  --color-editar: #ffc107;
+  --color-editar-hover: #e0a800;
+  --color-eliminar: #e74c3c;
+  --color-eliminar-hover: #c0392b;
+
+  --color-verde: #3c763d;
+  --color-rojo: #ff0000;
+  --color-gris: #ccc;
+  --fuente-principal: 'Roboto', Arial, sans-serif;
+}
+
+/* ----------------------------------------------------
+   RESET
+---------------------------------------------------- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ----------------------------------------------------
+   Fondo y contenedor
+---------------------------------------------------- */
+body {
+  font-family: var(--fuente-principal);
+  background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+
+.container-precios-proveedor {
+  max-width: 900px;
+  width: 95%;
+  margin: 20px auto;
+  padding: 40px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,.2);
+  text-align: center;
+  color: var(--color-blanco);
+
+  /* alto máximo con scroll vertical */
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+/* ----------------------------------------------------
+   Título
+---------------------------------------------------- */
+.container-precios-proveedor h2 {
+  margin-bottom: 20px;
+  font-size: 1.8rem;
+}
+
+/* ----------------------------------------------------
+   Tabla wrapper
+---------------------------------------------------- */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 20px;
+  padding-bottom: 10px;
+}
+
+/* ----------------------------------------------------
+   Tabla cambios & devoluciones
+---------------------------------------------------- */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.table thead {
+  background: var(--color-principal);
+  color: var(--color-blanco);
+}
+
+.table thead th {
+  padding: 12px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.table tbody td {
+  padding: 10px;
+  text-align: left;
+  vertical-align: middle;
+  color: #333;
+  font-size: 14px;
+  word-wrap: break-word;
+  border: 1px solid #e0e0e0;
+}
+
+.table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.table tbody tr:hover {
+  background: #e8e8e8;
+}
+
+.acciones {
+  text-align: center !important;
+}
+
+/* enlaces dentro de tabla */
+.table a {
+  color: #007bff;
+  text-decoration: none;
+}
+.table a:hover {
+  text-decoration: underline;
+}
+
+/* ----------------------------------------------------
+   Botones
+---------------------------------------------------- */
+.btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* editar */
+.btn-primary {
+  background: var(--color-editar);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--color-editar-hover);
+}
+.btn-primary i {
+  color: #fff;
+}
+
+/* eliminar */
+.btn-danger {
+  background: var(--color-eliminar);
+  color: #fff;
+}
+.btn-danger:hover {
+  background: var(--color-eliminar-hover);
+}
+.btn-danger i {
+  color: #fff;
+}
+
+/* ----------------------------------------------------
+   Alertas (si las utilizas)
+---------------------------------------------------- */
+.alert {
+  padding: 15px;
+  margin-top: 20px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.alert-success {
+  color: var(--color-verde);
+  background-color: #dff0d8;
+  border-color: #d6e9c6;
+}
+.alert-error {
+  color: var(--color-rojo);
+  background: #f2dede;
+  border-color: #ebccd1;
+}
+
+/* ----------------------------------------------------
+   Responsive ≤ 768px: tarjetas verticales
+---------------------------------------------------- */
+@media(max-width:768px) {
+  body {
+    align-items: flex-start;
+  }
+  .container-precios-proveedor {
+    padding: 24px;
+    width: 100%;
+    max-width: 550px;
+  }
+  .table-responsive {
+    overflow-x: hidden;
+  }
+
+  /* oculta <thead> */
+  .table thead {
+    display: none;
+  }
+
+  /* convierte filas en tarjetas */
+  .table,
+  .table tbody,
+  .table tr {
+    width: 100% !important;
+  }
+  .table tbody tr {
+    display: block;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.09);
+  }
+  .table tbody td {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    border-bottom: 1px solid #e5e5e5;
+    text-align: left;
+    word-break: break-word;
+    border-left: none;
+    border-right: none;
+  }
+  .table tbody td:last-child {
+    border-bottom: none;
+  }
+  .table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 700;
+    color: var(--color-principal);
+    margin-bottom: 4px;
+  }
+  .table tbody td[data-label="Acciones"] {
+    text-align: right;
+    border-bottom: none;
+  }
+  .table tbody td[data-label="Acciones"]::before {
+    content: '';
+  }
+}
+
+/* ----------------------------------------------------
+   Extra pequeños ≤ 480px
+---------------------------------------------------- */
+@media(max-width:480px) {
+  .container-precios-proveedor h2 {
+    font-size: 24px;
+  }
+  .form-control {
+    font-size: 15px;
+  }
+  .table tbody td {
+    font-size: 13px;
+  }
+  .btn {
+    font-size: 13px;
+  }
+}

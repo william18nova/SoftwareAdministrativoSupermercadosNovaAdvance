@@ -1,115 +1,76 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
-{% block title %}Detalle Venta {{ venta.ventaid }}{% endblock %}
+
+{% block title %}Detalle Venta #{{ venta.ventaid }}{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Detalle Venta #{{ venta.ventaid }}</title>
+    <!-- mismas hojas que usa “Generar Venta” + la nuestra -->
+    <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
+    <link rel="stylesheet" href="{% static 'css/ver_venta.css' %}">
 
-  <!-- Misma hoja que usa Generar Venta -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
+    <div class="venta-card">
 
-  <!-- Estilos extra sólo para la vista de detalle -->
-  <style>
-    /* Re-usa apariencia de los inputs de generar_venta */
-    .readonly-input{
-      width:100%;padding:8px;box-sizing:border-box;
-      border:1px solid #ccc;border-radius:4px;
-      background:#f0f8ff;color:#333;
-      pointer-events:none;cursor:default;
-      font-size:15px;
-    }
-    .readonly-input:hover{background:#e0e8ff;border-color:#aaa}
+        <h1 class="venta-card__title">
+          <i class="fas fa-file-invoice-dollar me-2"></i>
+          Detalle de la Venta #{{ venta.ventaid }}
+        </h1>
 
-    .form-group-readonly{margin-bottom:14px;text-align:left}
-    .form-group-readonly label{
-      display:block;font-weight:bold;margin-bottom:4px;color:#ffffff
-    }
+        <div class="venta-grid">
+          <div><label>Fecha</label>         <input readonly value="{{ venta.fecha }}"></div>
+          <div><label>Hora</label>          <input readonly value="{{ venta.hora }}"></div>
+          <div><label>Medio de Pago</label> <input readonly value="{{ venta.mediopago|title }}"></div>
+          <div><label>Cliente</label>
+            <input readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
+          </div>
+          <div><label>Empleado</label>
+            <input readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
+          </div>
+          <div><label>Sucursal</label>      <input readonly value="{{ venta.sucursalid.nombre }}"></div>
+          <div><label>Punto de Pago</label> <input readonly value="{{ venta.puntopagoid.nombre }}"></div>
+        </div>
 
-    /* Pequeñas correcciones para esta página */
-    #detalle-productos{margin-top:18px}
-    #detalle-productos th,#detalle-productos td{font-size:15px}
+        <form method="post">
+          {% csrf_token %}
+          {{ formset.management_form }}
 
-    .total-venta{color:#ffffff;font-size:24px;font-weight:bold;margin-top:24px;text-align:center}
-    .volver-btn{max-width:240px;margin:32px auto 0 auto;text-decoration:none}
-  </style>
-</head>
-<body>
-  <div class="container">
+          <h2 class="venta-card__subtitle">Productos</h2>
 
-    <!-- Encabezado -->
-    <h1 style="display:flex;justify-content:center;align-items:center;gap:8px;">
-      <i class="fas fa-file-invoice-dollar"></i>
-      Detalle de la Venta #{{ venta.ventaid }}
-    </h1>
+          <div class="table-responsive rounded-2 overflow-hidden">
+            <table class="venta-table">
+              <thead>
+                <tr>
+                  <th>Producto</th><th>Cant.</th>
+                  <th>Precio U.</th><th>Subtotal</th><th>Devolver</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for det, f in filas %}
+                <tr>
+                  <td>{{ det.productoid.nombre }}</td>
+                  <td class="text-end">{{ det.cantidad }}</td>
+                  <td class="text-end">${{ det.preciounitario|floatformat:2 }}</td>
+                  <td class="text-end">${{ det.subtotal|floatformat:2 }}</td>
+                  <td class="text-end">{{ f.devolver }} {{ f.detalle_id }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="empty">Sin productos</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
 
-    <!-- Grupo de campos “readonly” (mismo look que autocomplete) -->
-    <div class="form-group-readonly">
-      <label>Fecha:</label>
-      <input class="readonly-input" readonly value="{{ venta.fecha }}">
+          <div class="venta-footer">
+            <h3>Total actual: <span>${{ venta.total|floatformat:2 }}</span></h3>
+
+            <div class="btn-group">
+              <button type="submit" class="btn-primary-alt">
+                <i class="fas fa-undo me-1"></i> Registrar devolución
+              </button>
+              <a href="{% url 'visualizar_ventas' %}" class="btn-primary">
+                <i class="fas fa-list me-1"></i> Volver a la lista
+              </a>
+            </div>
+          </div>
+        </form>
     </div>
-
-    <div class="form-group-readonly">
-      <label>Hora:</label>
-      <input class="readonly-input" readonly value="{{ venta.hora }}">
-    </div>
-
-    <div class="form-group-readonly">
-      <label>Cliente:</label>
-      <input class="readonly-input" readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
-    </div>
-
-    <div class="form-group-readonly">
-      <label>Empleado:</label>
-      <input class="readonly-input" readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
-    </div>
-
-    <div class="form-group-readonly">
-      <label>Sucursal:</label>
-      <input class="readonly-input" readonly value="{{ venta.sucursalid.nombre }}">
-    </div>
-
-    <div class="form-group-readonly">
-      <label>Punto de Pago:</label>
-      <input class="readonly-input" readonly value="{{ venta.puntopagoid.nombre }}">
-    </div>
-
-    <div class="form-group-readonly">
-      <label>Medio de Pago:</label>
-      <input class="readonly-input" readonly value="{{ venta.mediopago|title }}">
-    </div>
-
-    <!-- Tabla de productos -->
-    <h2 style="margin-top:26px;color:#ffffff;text-align:center;">Productos</h2>
-    <table id="detalle-productos" class="table">
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Cantidad</th>
-          <th>Precio Unitario</th>
-          <th>Subtotal</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for d in detalles %}
-        <tr>
-          <td data-label="Producto">{{ d.productoid.nombre }}</td>
-          <td data-label="Cantidad">{{ d.cantidad }}</td>
-          <td data-label="Precio Unitario">${{ d.preciounitario|floatformat:2 }}</td>
-          <td data-label="Subtotal">${{ d.subtotal|floatformat:2 }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <!-- Total & botón -->
-    <div class="total-venta">Total: ${{ venta.total|floatformat:2 }}</div>
-    <a href="{% url 'visualizar_ventas' %}" class="btn btn-primary volver-btn">Volver a la lista</a>
-  </div>
-</body>
-</html>
 {% endblock %}

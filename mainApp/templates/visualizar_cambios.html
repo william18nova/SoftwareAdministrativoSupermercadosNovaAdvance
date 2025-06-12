@@ -1,0 +1,69 @@
+{# templates/visualizar_cambios.html #}
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cambios & Devoluciones{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cambios &amp; Devoluciones</title>
+
+  <!-- Font Awesome (iconos) -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <!-- CSS compartido (misma hoja de pedidos) -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_pedidos.css' %}">
+  <!-- CSS específico -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_cambios.css' %}">
+</head>
+<body>
+  <div class="container-precios-proveedor">
+
+    <h2>Cambios &amp; Devoluciones</h2>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Venta</th>
+            <th>Producto</th>
+            <th>Cant.</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+            <th>Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cambios %}
+          <tr>
+            <td data-label="ID">{{ c.cambioid }}</td>
+            <td data-label="Venta">
+              <a href="{% url 'ver_venta' c.venta.ventaid %}">#{{ c.venta.ventaid }}</a>
+            </td>
+            <td data-label="Producto">{{ c.productoid.nombre }}</td>
+            <td data-label="Cant.">{{ c.cantidad }}</td>
+            <td data-label="Tipo">{{ c.tipo }}</td>
+            <td data-label="Estado">{{ c.estado }}</td>
+            <td data-label="Fecha">{{ c.fecha }}</td>
+            <td data-label="Motivo">{{ c.motivo|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="empty">No hay cambios o devoluciones.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>
+{% endblock %}

@@ -8,6 +8,7 @@ from django.core.validators import RegexValidator
 from dal import autocomplete
 import json
 from django.db.models import Exists, OuterRef, Count, Q  # Agrega esta línea
+from django.forms import formset_factory
 
 MEDIO_PAGO_CHOICES = (
     ('nequi', 'Nequi'),
@@ -1886,3 +1887,26 @@ class PedidoProveedorForm(forms.Form):
         # o None si no se ingresó
         return data
     
+class LineaDevolucionForm(forms.Form):
+    """Un input por línea de venta (cantidad a devolver)."""
+    detalle_id = forms.IntegerField(widget=forms.HiddenInput)
+    devolver   = forms.IntegerField(
+        min_value=0, label="Cant.",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "style": "width:5em"}))
+
+DevolucionFormSet = formset_factory(LineaDevolucionForm, extra=0)
+
+class DevolucionForm(forms.Form):
+    """
+    Form simple usado en ver_venta para indicar cuántas unidades
+    se devuelven de cada DetalleVenta.
+    """
+    devolver   = forms.IntegerField(
+        min_value=0,               # 0 = no devolver
+        required=True,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control text-end",
+            "style": "width: 5rem;",
+        })
+    )
+    detalle_id = forms.IntegerField(widget=forms.HiddenInput())

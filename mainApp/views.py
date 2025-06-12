@@ -1,12 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion
 from django.db.models import Count, Sum, Exists, OuterRef, Q
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login as auth_login
 import json
-from datetime import datetime
+from datetime import datetime, date
 from django.utils import timezone
 from django.contrib.auth import authenticate, login
 import logging
@@ -42,11 +42,15 @@ from .forms import (
     SucursalEditarForm,
     UsuarioEditarForm,
     GenerarVentaForm,
-    PedidoProveedorForm
+    PedidoProveedorForm,
+    DevolucionFormSet,
+    DevolucionForm,
 )
 from dal import autocomplete
 from decimal import Decimal
 from django.urls import reverse
+from itertools import zip_longest
+from django.forms import formset_factory 
 
 logger = logging.getLogger(__name__)
 
@@ -3155,38 +3159,66 @@ def visualizar_ventas_view(request):
     return render(request, 'visualizar_ventas.html', {'ventas': ventas})
 
 
+# mainApp/views.py
+from django.contrib import messages
+from django.shortcuts import redirect
+
 @login_required
+@transaction.atomic
 def ver_venta_view(request, venta_id):
-    """
-    Muestra la información completa de una venta y sus productos,
-    calculando el subtotal de cada línea en la propia vista para
-    evitar filtros personalizados en la plantilla.
-    """
-    venta = get_object_or_404(
-        Venta.objects.select_related(
-            "clienteid", "empleadoid", "sucursalid", "puntopagoid"
-        ),
-        pk=venta_id,
-    )
+    venta     = get_object_or_404(
+                   Venta.objects.select_related(
+                       "clienteid", "empleadoid", "sucursalid"),
+                   pk=venta_id)
+    detalles  = DetalleVenta.objects.filter(ventaid=venta).select_related("productoid")
 
-    # Traemos los detalles y añadimos un atributo 'subtotal' a cada objeto
-    detalles = (
-        DetalleVenta.objects
-        .filter(ventaid=venta)
-        .select_related("productoid")
-    )
-    for det in detalles:
-        det.subtotal = det.preciounitario * det.cantidad
+    DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
+    filas = list(zip(detalles, DevolucionFormSet(initial=[
+              {"detalle_id": d.pk, "devolver": 0} for d in detalles])))
 
-    return render(
-        request,
-        "ver_venta.html",
-        {
-            "venta": venta,
-            "detalles": detalles,   # ahora cada detalle trae .subtotal
-        },
-    )
+    if request.method == "POST":
+        formset = DevolucionFormSet(request.POST)
+        if formset.is_valid():
+            devoluciones = []
+            for form in formset.cleaned_data:
+                cant = form["devolver"]
+                if cant:
+                    devoluciones.append({
+                        "detalle": detalles.get(pk=form["detalle_id"]),
+                        "cantidad": cant
+                    })
 
+            if devoluciones:
+                CambioDevolucion.registrar_devolucion(venta, devoluciones)
+                # ------------- MENSAJE ÉXITO -------------
+                messages.success(
+                    request,
+                    "✅ Devolución registrada correctamente."
+                )
+        # Redirige **siempre** a la lista de ventas
+        return redirect("visualizar_ventas")
+
+    else:
+        formset = DevolucionFormSet(initial=[
+            {"detalle_id": d.pk, "devolver": 0} for d in detalles
+        ])
+
+    return render(request, "ver_venta.html", {
+        "venta": venta,
+        "filas": zip(detalles, formset.forms),   # (det, f) para la plantilla
+        "formset": formset,
+    })
+
+@login_required
+def visualizar_cambios_view(request):
+    cambios = (
+        CambioDevolucion.objects
+        .select_related('venta', 'productoid', 'detalle')
+        .order_by('-fecha', '-cambioid')
+    )
+    return render(request, 'visualizar_cambios.html', {
+        'cambios': cambios,
+    })
 
 
 
