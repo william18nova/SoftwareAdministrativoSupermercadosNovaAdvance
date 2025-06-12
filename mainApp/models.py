@@ -123,27 +123,32 @@ class UsuarioManager(BaseUserManager):
     def create_superuser(self, nombreusuario, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-
+        if extra_fields.get('is_staff') is not True or extra_fields.get('is_superuser') is not True:
+            raise ValueError('El superusuario debe tener is_staff=True e is_superuser=True.')
         return self.create_user(nombreusuario, password, **extra_fields)
 
+
 class Usuario(AbstractBaseUser, PermissionsMixin):
-    usuarioid = models.AutoField(db_column='usuarioid', primary_key=True)  # Nombre de la columna en PostgreSQL
+    class Meta:
+        db_table = 'usuarios'
+
+    usuarioid     = models.AutoField(db_column='usuarioid', primary_key=True)
     nombreusuario = models.CharField(db_column='nombreusuario', max_length=100, unique=True)
-    password = models.CharField(db_column='contraseña', max_length=255)  # Nombre de la columna en PostgreSQL
-    rolid = models.IntegerField(db_column='rolid', blank=True, null=True)  # Nombre de la columna en PostgreSQL
-    
-    # Campos adicionales requeridos por AbstractBaseUser y PermissionsMixin
-    last_login = models.DateTimeField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+
+    # Aquí dejamos el atributo en Python como `password`, pero le decimos
+    # que en la BD el nombre de columna es `contraseña`
+    password      = models.CharField(db_column='contraseña', max_length=255)
+
+    rolid = models.ForeignKey('Rol', db_column='rolid', null=True, blank=True, on_delete=models.SET_NULL)
+
+    last_login    = models.DateTimeField(db_column='last_login', blank=True, null=True)
+    is_active     = models.BooleanField(db_column='is_active', default=True)
+    is_staff      = models.BooleanField(db_column='is_staff', default=False)
 
     objects = UsuarioManager()
 
     USERNAME_FIELD = 'nombreusuario'
     REQUIRED_FIELDS = []
-
-    class Meta:
-        db_table = 'usuarios'  # Nombre de la tabla en la base de datos
 
     def __str__(self):
         return self.nombreusuario

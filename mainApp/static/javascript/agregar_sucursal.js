@@ -1,150 +1,98 @@
-// agregar_sucursal.js
+// static/javascript/agregar_sucursal.js
+(() => {
+  const form        = document.getElementById('sucursalForm');
+  const errorDiv    = document.getElementById('error-message');
+  const successDiv  = document.getElementById('success-message');
+  const successText = document.getElementById('success-text');
+  const fieldErrors = document.querySelectorAll('.field-error');
 
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('sucursalForm');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
-    const successTextSpan = document.getElementById('success-text'); // Nuevo elemento
+  /** Oculta ambos alertas */
+  function hideAlerts() {
+    errorDiv.style.display   = 'none';
+    successDiv.style.display = 'none';
+    // limpiamos contenido general
+    errorDiv.innerHTML   = '';
+    successText.textContent = '';
+  }
 
-    /**
-     * Función para limpiar mensajes de error y éxito
-     */
-    function clearMessages() {
-        errorMessageDiv.style.display = 'none';
-        errorMessageDiv.innerHTML = '';
-        successMessageDiv.style.display = 'none';
-        successTextSpan.textContent = ''; // Limpiar texto
-        // Limpiar errores específicos de campos
-        const errorFields = document.querySelectorAll('.field-error');
-        errorFields.forEach(function(errorField) {
-            errorField.innerHTML = '';
-            errorField.classList.remove('visible');
-        });
+  /** Oculta todos los errores de campo */
+  function hideFieldErrors() {
+    fieldErrors.forEach(div => {
+      div.style.display = 'none';
+      div.innerHTML     = '';
+      div.classList.remove('visible');
+    });
+  }
+
+  /** Limpia todo antes de cada envío */
+  function clearAll() {
+    hideAlerts();
+    hideFieldErrors();
+  }
+
+  /**
+   * Muestra un alert general
+   * @param {HTMLElement} div  – contenedor .alert-error o .alert-success
+   * @param {string} html      – contenido HTML del mensaje
+   */
+  function showAlert(div, html) {
+    div.innerHTML = html;
+    if (div === successDiv) {
+      // alerta de éxito en flex
+      div.style.display = 'flex';
+    } else {
+      // alerta de error en bloque
+      div.style.display = 'block';
     }
+  }
 
-    /**
-     * Función para mostrar mensajes de error
-     */
-    function displayErrors(errors) {
-        clearMessages();
+  /**
+   * Muestra el error de un campo concreto
+   * @param {string} field – nombre del campo (p.ej. 'nombre' o 'telefono')
+   * @param {string} html  – HTML con sus mensajes
+   */
+  function showFieldError(field, html) {
+    const div = document.getElementById(`error-${field}`);
+    if (!div) return;
+    div.innerHTML     = html;
+    div.classList.add('visible');
+    div.style.display = 'block';
+  }
 
-        // Errores generales (si los hubiera)
-        if (errors.__all__) {
-            errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
-            errorMessageDiv.style.display = 'block';
-        }
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    clearAll();
 
-        // Errores específicos de campo
-        for (let field in errors) {
-            if (field === '__all__') continue;
-            const fieldErrors = errors[field];
-            const errorDiv = document.getElementById('error-id_' + field);
-            if (errorDiv) {
-                errorDiv.innerHTML = fieldErrors.map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`).join('<br>');
-                errorDiv.classList.add('visible');
-            }
-        }
-    }
+    try {
+      const resp = await fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: new FormData(form),
+      });
+      const data = await resp.json();
 
-    /**
-     * Función para mostrar mensajes de éxito
-     */
-    function displaySuccess(message) {
-        successTextSpan.textContent = message;
-        successMessageDiv.style.display = 'flex'; // Cambiar a flex para mostrar el ícono y el texto
+      if (resp.ok && data.success) {
+        // éxito
+        const msg = `<i class="fas fa-check-circle success-icon"></i> ${data.message}`;
+        showAlert(successDiv, msg);
         form.reset();
-    }
-
-    /**
-     * Evento de envío del formulario
-     */
-    form.addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevenir el envío predeterminado
-        clearMessages();
-
-        const formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Accept': 'application/json',
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displaySuccess(data.message);
-            } else {
-                const errors = JSON.parse(data.errors);
-                displayErrors(errors);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            errorMessageDiv.textContent = 'Ocurrió un error inesperado.';
-            errorMessageDiv.style.display = 'block';
-        });
-    });
-
-    /**
-     * Función para obtener el valor de una cookie por nombre
-     */
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                cookie = cookie.trim();
-                // Verificar si la cookie empieza con el nombre buscado
-                if (cookie.startsWith(name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+      } else {
+        // validación fallida
+        const errs = data.errors || {};
+        if (errs.__all__) {
+          showAlert(errorDiv, errs.__all__.map(e => e.message).join('<br>'));
         }
-        return cookieValue;
-    }
-
-    /**
-     * Remover el resaltado de errores al modificar el campo
-     */
-    const inputs = form.querySelectorAll('input, textarea');
-    inputs.forEach(function(input) {
-        input.addEventListener('input', function() {
-            if (input.classList.contains('input-error')) {
-                input.classList.remove('input-error');
-                const errorDiv = document.getElementById('error-id_' + input.id);
-                if (errorDiv) {
-                    errorDiv.innerHTML = '';
-                    errorDiv.classList.remove('visible');
-                }
-                clearMessages();
-            }
+        Object.keys(errs).forEach(field => {
+          if (field === '__all__') return;
+          const msgs = errs[field]
+            .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
+            .join('<br>');
+          showFieldError(field, msgs);
         });
-    });
-
-    /**
-     * (Opcional) Añadir placeholders dinámicamente si faltan
-     */
-    function addMissingPlaceholders() {
-        inputs.forEach(function(input) {
-            if (!input.hasAttribute('placeholder')) {
-                // Puedes definir un mapeo de IDs a placeholders
-                const placeholders = {
-                    'id_nombre': 'Ingresa el nombre de la sucursal',
-                    'id_direccion': 'Ingresa la dirección',
-                    'id_telefono': 'Ingresa el teléfono'
-                    // Añade más campos según sea necesario
-                };
-                if (placeholders[input.id]) {
-                    input.setAttribute('placeholder', placeholders[input.id]);
-                }
-            }
-        });
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert(errorDiv, 'Error de red. Inténtalo de nuevo.');
     }
-
-    // Ejecutar la función al cargar el DOM
-    addMissingPlaceholders();
-});
+  });
+})();

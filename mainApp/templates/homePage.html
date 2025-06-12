@@ -1,29 +1,22 @@
-<!DOCTYPE html>
 {% extends 'base.html' %}
-{% block title %}Home{% endblock %}
+{% load static %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/homePage.css' %}">
+{% endblock %}
+
 {% block content %}
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-    {% load static %}
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/homePage.css' %}">
-</head>
-<body>
-    <div class="container">
-        <div class="title">
-            Software administrativo de Supermercados
-        </div>
-        <img src="{% static 'images/logoNovaAdvancetransparente.png' %}" alt="Imagen centrada">
-        <div class="trademark">
-            Nova Advace&reg;
-        </div>
-        <div class="copyright">
-            © 2024 Nova Advace. Todos los derechos reservados.
-        </div>
-    </div>
-</body>
-</html>
+<main class="home">
+    <h1 class="home__title">Software Administrativo de Supermercados</h1>
+    <figure class="home__logo">
+      <img src="{% static 'images/logoNovaAdvancetransparente.png' %}"
+           alt="Logo Nova Advance" loading="lazy">
+    </figure>
+    <p class="home__tagline">Nova Advance®</p>
+    <p class="home__copyright">
+      © 2024 Nova Advance. Todos los derechos reservados.
+    </p>
+</main>
 {% endblock %}

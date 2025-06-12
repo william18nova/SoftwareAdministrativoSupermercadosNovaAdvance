@@ -805,6 +805,44 @@ class EditarHorarioCajaForm(forms.Form):
 
     
 class SucursalForm(forms.ModelForm):
+    # Ahora 'nombre' acepta cualquier carácter UTF, sólo comprobamos que no esté vacío
+    nombre = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el nombre de la sucursal',
+            'required': 'required',
+        }),
+        error_messages={
+            'required': 'El nombre es obligatorio.',
+            'max_length': 'El nombre no puede superar los 100 caracteres.'
+        }
+    )
+
+    direccion = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa la dirección',
+            'required': 'required',
+        }),
+        error_messages={'required': 'La dirección es obligatoria.'}
+    )
+
+    telefono = forms.CharField(
+        validators=[
+            RegexValidator(
+                regex=r'^\d{10}$',
+                message='El teléfono debe contener exactamente 10 dígitos.'
+            )
+        ],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa el teléfono',
+            'required': 'required',
+        }),
+        error_messages={'required': 'El teléfono es obligatorio.'}
+    )
+
     class Meta:
         model = Sucursal
         fields = ['nombre', 'direccion', 'telefono']
@@ -813,44 +851,10 @@ class SucursalForm(forms.ModelForm):
             'direccion': 'Dirección',
             'telefono': 'Teléfono',
         }
-        widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el nombre de la sucursal',
-                'required': 'required'
-            }),
-            'direccion': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa la dirección',
-                'required': 'required'
-            }),
-            'telefono': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el teléfono',
-                'required': 'required'
-            }),
-        }
-
-    # Validadores personalizados
-    nombre_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El nombre solo debe contener letras y espacios.'
-    )
-    
-    telefono_validator = RegexValidator(
-        regex=r'^\d{10}$',
-        message='El teléfono debe contener exactamente 10 dígitos.'
-    )
-
-    nombre = forms.CharField(
-        max_length=100,
-        validators=[nombre_validator]
-    )
-
-    telefono = forms.CharField(validators=[telefono_validator])
 
     def clean_nombre(self):
-        nombre = self.cleaned_data.get('nombre')
+        nombre = self.cleaned_data['nombre']
+        # Unicidad case-insensitive
         if Sucursal.objects.filter(nombre__iexact=nombre).exists():
             raise forms.ValidationError('El nombre de la sucursal ya está registrado.')
         return nombre

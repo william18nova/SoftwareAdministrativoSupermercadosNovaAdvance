@@ -1,79 +1,33 @@
-<!-- agregar_sucursal.html -->
-
 {% extends 'base.html' %}
 {% load static %}
+
 {% block title %}Agregar Sucursal{% endblock %}
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agregar Sucursal</title>
-    
-    <!-- Font Awesome CDN para iconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
-    <!-- Enlace al CSS específico -->
-    <link rel="stylesheet" href="{% static 'css/agregar_sucursal.css' %}">
-</head>
-<body>
-    <div class="container">
-        <!-- Ícono de tienda -->
-        <i class="fas fa-store icon"></i>
-        
-        <h2>Agregar Sucursal</h2>
-        
-        <!-- Mensaje de campos obligatorios -->
-        <p class="obligatorio-texto">Todos los campos con <span class="required">*</span> son obligatorios.</p>
-        
-        <!-- Mensajes de éxito y error generales (manejados vía AJAX) -->
-        <div id="error-message" class="alert alert-error" style="display: none;"></div>
-        <div id="success-message" class="alert alert-success" style="display: none;">
-            <i class="fas fa-check-circle success-icon"></i>
-            <span id="success-text"></span>
-        </div>
-        
-        <!-- Formulario para agregar sucursal -->
-        <form id="sucursalForm" action="{% url 'agregar_sucursal' %}" method="POST">
-            {% csrf_token %}
-            
-            <!-- Campo Nombre -->
-            <div class="form-group">
-                <label for="{{ form.nombre.id_for_label }}">
-                    {{ form.nombre.label }} <span class="required">*</span>
-                </label>
-                {{ form.nombre }}
-                <div class="field-error" id="error-id_nombre"></div>
-            </div>
-            
-            <!-- Campo Dirección -->
-            <div class="form-group">
-                <label for="{{ form.direccion.id_for_label }}">
-                    {{ form.direccion.label }} <span class="required">*</span>
-                </label>
-                {{ form.direccion }}
-                <div class="field-error" id="error-id_direccion"></div>
-            </div>
-            
-            <!-- Campo Teléfono -->
-            <div class="form-group">
-                <label for="{{ form.telefono.id_for_label }}">
-                    {{ form.telefono.label }} <span class="required">*</span>
-                </label>
-                {{ form.telefono }}
-                <div class="field-error" id="error-id_telefono"></div>
-            </div>
-            
-            <!-- Botón de Envío -->
-            <div class="form-group">
-                <button type="submit" class="btn-agregar-sucursal">Agregar</button>
-            </div>
-        </form>
+<link rel="stylesheet" href="{% static 'css/agregar_sucursal.css' %}">
+
+<div class="container">
+    <i class="fas fa-store icon"></i>
+    <h2>Agregar Sucursal</h2>
+    <p class="obligatorio-texto">Los campos marcados con * son obligatorios.</p>
+
+    <div id="error-message" class="alert alert-error" style="display:none;"></div>
+    <div id="success-message" class="alert alert-success" style="display:none;">
+        <i class="fas fa-check-circle success-icon"></i>
+        <span id="success-text"></span>
     </div>
 
-    <!-- Incluir el archivo JavaScript específico para esta página -->
-    <script src="{% static 'javascript/agregar_sucursal.js' %}"></script>
-</body>
-</html>
+    <form id="sucursalForm" method="post" action="{% url 'agregar_sucursal' %}">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="form-group">
+            {{ field.label_tag }}
+            {{ field }}
+            <div class="field-error" id="error-{{ field.html_name }}"></div>
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn-agregar-sucursal">Agregar</button>
+    </form>
+</div>
+
+<script src="{% static 'javascript/agregar_sucursal.js' %}"></script>
 {% endblock %}

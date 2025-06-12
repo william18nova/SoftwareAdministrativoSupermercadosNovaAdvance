@@ -51,44 +51,57 @@ from decimal import Decimal
 from django.urls import reverse
 from itertools import zip_longest
 from django.forms import formset_factory 
+from django.views          import View
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import TemplateView
+from django.views.generic.edit import FormView
 
 logger = logging.getLogger(__name__)
 
 
-def login(request):
-    if request.method == 'POST':
-        nombreusuario = request.POST.get('nombreusuario')
-        contraseña = request.POST.get('contraseña')
+class LoginView(View):
+    template_name = "login.html"
 
-        usuario = authenticate(request, username=nombreusuario, password=contraseña)
-        
-        if usuario is not None:
-            auth_login(request, usuario)
-            return redirect('home')  # Asegúrate de que 'home' está definido en tus URLs
-        else:
-            messages.error(request, 'Nombre de usuario o contraseña incorrectos')
+    def get(self, request):
+        return render(request, self.template_name)
 
-    return render(request, 'login.html')
-
-
-@login_required
-def homePage_view(request):
-    return render(request, 'homePage.html')
+    def post(self, request):
+        u = request.POST.get("nombreusuario")
+        p = request.POST.get("contraseña")
+        user = authenticate(request, username=u, password=p)
+        if user:
+            auth_login(request, user)
+            return redirect("home")
+        messages.error(request, "Usuario o contraseña incorrectos.")
+        return render(request, self.template_name)
 
 
-@login_required
-def agregar_sucursal_view(request):
-    if request.method == 'POST':
-        form = SucursalForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return JsonResponse({'success': True, 'message': 'Sucursal agregada exitosamente.'})
-        else:
-            errors = form.errors.get_json_data()  # Obtener errores como dict
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = SucursalForm()
-    return render(request, 'agregar_sucursal.html', {'form': form})
+class HomePageView(LoginRequiredMixin, TemplateView):
+    template_name = "homePage.html"
+
+
+class SucursalCreateAJAXView(LoginRequiredMixin, FormView):
+    template_name = 'agregar_sucursal.html'
+    form_class = SucursalForm
+
+    def form_valid(self, form):
+        sucursal = form.save()
+        # Cuando es AJAX devolvemos JSON
+        if self.request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Sucursal agregada exitosamente.',
+                'sucursal': {
+                    'id': sucursal.sucursalid,
+                    'nombre': sucursal.nombre
+                }
+            })
+        # En caso normal, redirigir con mensaje
+        return redirect('listar_sucursales')  # O la vista deseada
+
+    def form_invalid(self, form):
+        errors = form.errors.get_json_data()
+        return JsonResponse({'success': False, 'errors': errors}, status=400)
 
 
 @login_required

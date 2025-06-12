@@ -1,126 +1,190 @@
-/* login.css */
+/* static/css/login.css */
 
+/*─────────────────────────────────────────────────────────────────────────────  
+  Variables Globales  
+─────────────────────────────────────────────────────────────────────────────*/
+:root {
+  --clr-bg: #6699CC;                   /* fondo de página */
+  --clr-card-bg: rgba(255,255,255,0.1);/* fondo de la tarjeta */
+  --clr-input-bg: rgba(255,255,255,0.2);
+  --clr-input-hover: rgba(255,255,255,0.3);
+  --clr-btn-bg: rgba(0,0,0,0.3);
+  --clr-btn-hover: rgba(0,0,0,0.5);
+  --clr-white: #ffffff;
+  --clr-error-bg: #f2dede;
+  --clr-error-border: #ebccd1;
+  --clr-error-text: #a94442;
+
+  --radius: 4px;
+  --transition: background-color 0.3s ease;
+  --font-base: 'Arial', sans-serif;
+}
+
+/*─────────────────────────────────────────────────────────────────────────────  
+  RESET & BASE  
+─────────────────────────────────────────────────────────────────────────────*/
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/*─────────────────────────────────────────────────────────────────────────────  
+  Layout general  
+─────────────────────────────────────────────────────────────────────────────*/
 body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    background: #6699CC; /* Fondo azul */
-    font-family: Arial, sans-serif;
-    overflow-y: auto; /* Permitir desplazamiento vertical */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: var(--clr-bg);
+  font-family: var(--font-base);
+  overflow-y: auto;
 }
 
+/*─────────────────────────────────────────────────────────────────────────────  
+  Contenedor de login  
+─────────────────────────────────────────────────────────────────────────────*/
 .login-container {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
-    border-radius: 8px;
-    width: 300px;
-    text-align: center;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 300px;      /* ancho en móvil y por defecto */
+  padding: 40px;
+  text-align: center;
+  background: var(--clr-card-bg);
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  transition: max-width 0.3s ease;
 }
 
+/* En pantallas mayores, faça la tarjeta un poco más ancha */
+@media (min-width: 768px) {
+  .login-container {
+    max-width: 360px;
+  }
+}
+
+/*─────────────────────────────────────────────────────────────────────────────  
+  Icono y título  
+─────────────────────────────────────────────────────────────────────────────*/
 .login-container .icon {
-    font-size: 80px;
-    color: white;
-    margin-bottom: 20px;
+  font-size: 80px;
+  color: var(--clr-white);
+  margin-bottom: 20px;
 }
 
 .login-container h2 {
-    margin-bottom: 20px;
-    font-weight: normal;
-    color: white;
-    font-size: 24px;
+  font-size: 24px;
+  font-weight: normal;
+  color: var(--clr-white);
+  margin-bottom: 20px;
 }
 
+/*─────────────────────────────────────────────────────────────────────────────  
+  Inputs  
+─────────────────────────────────────────────────────────────────────────────*/
 .login-container input[type="text"],
 .login-container input[type="password"] {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 4px;
-    box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    font-size: 14px;
-    transition: background-color 0.3s ease; /* Transición para hover */
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--clr-input-bg);
+  color: var(--clr-white);
+  font-size: 14px;
+  transition: var(--transition);
 }
 
 .login-container input[type="text"]:hover,
-.login-container input[type="password"]:hover {
-    background: rgba(255, 255, 255, 0.3); /* Cambio de color en hover */
+.login-container input[type="password"]:hover,
+.login-container input[type="text"]:focus,
+.login-container input[type="password"]:focus {
+  background: var(--clr-input-hover);
+  outline: none;
 }
 
+/*─────────────────────────────────────────────────────────────────────────────  
+  Botón Entrar  
+─────────────────────────────────────────────────────────────────────────────*/
 .login-container button {
-    width: 100%;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.3);
-    border: none;
-    border-radius: 4px;
-    color: white;
-    font-size: 16px;
-    cursor: pointer;
-    margin-top: 10px;
-    transition: background-color 0.3s ease; /* Transición para hover */
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--clr-btn-bg);
+  color: var(--clr-white);
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: var(--transition);
 }
 
 .login-container button:hover {
-    background: rgba(0, 0, 0, 0.5); /* Cambio de color en hover */
+  background: var(--clr-btn-hover);
 }
 
+/*─────────────────────────────────────────────────────────────────────────────  
+  Opciones (recordarme / olvido)  
+─────────────────────────────────────────────────────────────────────────────*/
 .login-container .options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: white;
-    margin: 10px 0;
-    flex-wrap: nowrap; /* Asegura que no se envuelvan */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--clr-white);
 }
 
 .login-container .options label {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 }
 
 .login-container .options a {
-    color: white;
-    text-decoration: none;
+  color: var(--clr-white);
+  text-decoration: none;
 }
 
+.login-container .options a:hover {
+  text-decoration: underline;
+}
+
+/*─────────────────────────────────────────────────────────────────────────────  
+  Placeholder y herencia de color para el botón  
+─────────────────────────────────────────────────────────────────────────────*/
 .login-container input::placeholder,
 .login-container button {
-    color: white;
+  color: var(--clr-white);
 }
 
+/*─────────────────────────────────────────────────────────────────────────────  
+  Mensaje de error  
+─────────────────────────────────────────────────────────────────────────────*/
 .error-message {
-    color: #a94442;
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    padding: 10px;
-    margin-top: 20px; /* Añadir margen superior para separación */
-    margin-bottom: 15px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: left;
+  margin: 20px 0 15px;
+  padding: 10px;
+  background-color: var(--clr-error-bg);
+  color: var(--clr-error-text);
+  border: 1px solid var(--clr-error-border);
+  border-radius: var(--radius);
+  text-align: left;
+  font-size: 14px;
 }
 
-/* Media Queries para responsive design */
+/*─────────────────────────────────────────────────────────────────────────────  
+  Responsive < 768px  
+─────────────────────────────────────────────────────────────────────────────*/
 @media (max-width: 768px) {
-    .login-container {
-        width: 90%;
-        padding: 20px;
-    }
+  .login-container {
+    width: 90%;
+    padding: 20px;
+  }
 
-    .login-container .options {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .login-container .options label,
-    .login-container .options a {
-        margin-bottom: 0;
-    }
+  .login-container .options {
+    flex-direction: column;
+    gap: 8px;
+  }
 }
