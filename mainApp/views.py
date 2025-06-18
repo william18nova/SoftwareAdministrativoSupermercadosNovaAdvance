@@ -55,6 +55,7 @@ from django.views          import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.views.generic.edit import FormView
+from django.views.generic import ListView
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +105,10 @@ class SucursalCreateAJAXView(LoginRequiredMixin, FormView):
         return JsonResponse({'success': False, 'errors': errors}, status=400)
 
 
-@login_required
-def visualizar_sucursales_view(request):
-    sucursales = Sucursal.objects.all()
-    return render(request, 'visualizar_sucursales.html', {'sucursales': sucursales})
+class SucursalListView(LoginRequiredMixin, ListView):
+    template_name = "visualizar_sucursales.html"
+    model = Sucursal               # => queryset = Sucursal.objects.all()
+    context_object_name = "sucursales"
 
 @login_required
 def eliminar_sucursal(request, sucursal_id):

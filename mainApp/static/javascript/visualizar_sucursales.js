@@ -1,27 +1,39 @@
-$(document).ready(function() {
-    // Inicializar DataTable
-    const table = $('#sucursalesTable').DataTable({
-        paging: true,
-        searching: true,
-        info: true,
-        responsive: true,
-        language: {
-            search: "Buscar:",
-            zeroRecords: "No se encontraron resultados",
-            emptyTable: "No hay sucursales para mostrar"
-        }
-    });
+/* eslint-env jquery */
+$(function () {
+  "use strict";
 
-    // Manejar el evento de eliminación de sucursal
-    $('#sucursalesTable').on('click', '.btn.borrar', function(event) {
-        event.preventDefault();
-        const button = $(this);
-        const sucursalId = button.data('sucursal-id');
-        const sucursalNombre = button.data('sucursal-nombre');
-        // Confirmar eliminación
-        if (confirm(`¿Está seguro de que desea eliminar la sucursal "${sucursalNombre}"?`)) {
-            // Enviar el formulario oculto correspondiente
-            $('#eliminar-form-' + sucursalId).submit();
-        }
-    });
+  /* ----------  DataTable + buscador externo  ---------- */
+  const table = $("#sucursalesTable").DataTable({
+    paging: true,
+    searching: true,
+    info: true,
+    responsive: true,
+    order: [[0, "asc"]],
+    language: {
+      search: "",
+      zeroRecords: "No se encontraron sucursales",
+      info: "Mostrando _START_ a _END_ de _TOTAL_ sucursales",
+      infoEmpty: "Mostrando 0 a 0 de 0 sucursales",
+      paginate: {
+        first: "Primero",
+        last: "Último",
+        next: "Siguiente",
+        previous: "Anterior",
+      },
+    },
+  });
+
+  $("#buscador-sucursales").on("keyup", function () {
+    table.search(this.value).draw();
+  });
+
+  /* ----------  Eliminar con confirmación  ---------- */
+  $("#sucursalesTable").on("click", ".btn.borrar", function (e) {
+    e.preventDefault();
+    const id = $(this).data("sucursal-id");
+    const nombre = $(this).data("sucursal-nombre");
+    if (confirm(`¿Eliminar la sucursal «${nombre}»?`)) {
+      $(`#eliminar-form-${id}`).submit();
+    }
+  });
 });

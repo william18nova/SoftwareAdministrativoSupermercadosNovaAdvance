@@ -1,12 +1,12 @@
 from django.urls import path
 from . import views
-from .views import LoginView, HomePageView, SucursalCreateAJAXView
+from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
     path('home/', HomePageView.as_view(), name='home'),
-    path('sucursales/add/', SucursalCreateAJAXView.as_view(), name='agregar_sucursal'),
-    path('visualizar_sucursales/', views.visualizar_sucursales_view, name='visualizar_sucursales'),
+    path('agregar_sucursal/', SucursalCreateAJAXView.as_view(), name='agregar_sucursal'),
+    path("visualizar_sucursales/", SucursalListView.as_view(), name="visualizar_sucursales"),
     path('sucursales/eliminar/<int:sucursal_id>/', views.eliminar_sucursal, name='eliminar_sucursal'),
     path('sucursales/editar/<int:sucursal_id>/', views.editar_sucursal_view, name='editar_sucursal'),
 
