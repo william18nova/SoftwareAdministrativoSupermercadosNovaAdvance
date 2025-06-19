@@ -56,6 +56,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.views.generic.edit import FormView, UpdateView
 from django.views.generic import ListView
+from django.db.models import QuerySet
 
 logger = logging.getLogger(__name__)
 
@@ -223,12 +224,16 @@ class CategoriaCreateAJAXView(LoginRequiredMixin, FormView):
         return super().form_invalid(form)
 
 
-@login_required
-def visualizar_categorias_view(request):
-    categorias = Categoria.objects.all().order_by('nombre')
-    return render(request, 'visualizar_categorias.html', {
-        'categorias': categorias
-    })
+class CategoriaListView(LoginRequiredMixin, ListView):
+    """
+    Lista todas las categorías ordenadas alfabéticamente para usarse
+    con DataTables.  No paginamos en el servidor porque la paginación
+    se delega al plugin JS.
+    """
+    model               = Categoria
+    template_name       = "visualizar_categorias.html"
+    context_object_name = "categorias"
+    ordering            = ["nombre"]
 
 @login_required
 def eliminar_categoria(request, categoria_id):

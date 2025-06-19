@@ -1,211 +1,252 @@
-/* =============================================================================
-   Visualizar Categorías - Estilos
-============================================================================= */
-
-/* ---------------------------------------------------------------------------
-   Importación de fuentes y variables globales
---------------------------------------------------------------------------- */
+/* ============================================================================
+   Visualizar Categorías / Sucursales / Ventas (estilo unificado)
+============================================================================ */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-:root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
-    --color-rojo: #ff0000;
-    --color-verde: #3c763d;
-    --color-gris-claro: #f0f8ff;
-    --color-gris: #ccc;
-    --color-gris-hover: #aaa;
-    --color-boton: #3b5998;
-    --color-boton-hover: #2b467d;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
+/* ---------- Variables ---------- */
+:root{
+  --azul:        #005091;
+  --azul-claro:  #ADD8E6;
+  --gris-table:  #f9f9f9;
+  --gris-hover:  #e9f3ff;
+  --blanco:      #ffffff;
+  --shadow:      0 6px 14px rgba(0,0,0,.25);
 }
 
-/* ---------------------------------------------------------------------------
-   Reset básico y estilos del cuerpo
---------------------------------------------------------------------------- */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* ---------- Reset & Body ---------- */
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:'Roboto',Arial,sans-serif;
+  overflow:auto;
 }
 
-body {
-    font-family: var(--fuente-principal);
-    background: linear-gradient(to bottom right, #ADD8E6, #005091);
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: auto;
+/* ---------- Tarjeta contenedora ---------- */
+.container{
+  width:95%;
+  max-width:1200px;
+  background:var(--blanco);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:35px 25px;
+  box-sizing:border-box;
 }
 
-/* ---------------------------------------------------------------------------
-   Contenedor principal
---------------------------------------------------------------------------- */
-.container {
-    max-width: 1200px;
-    width: 100%;
-    margin: 20px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+/* ---------- Título ---------- */
+h2{
+  margin:0 0 25px;
+  font-size:28px;
+  font-weight:700;
+  color:var(--azul);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+}
+h2 i{font-size:30px;color:var(--azul);}
+
+/* ---------- Buscador externo ---------- */
+.search-wrapper{
+  position:relative;
+  width:100%;
+  margin:0 auto 20px;
+}
+.search-wrapper i{
+  position:absolute;
+  left:10px;top:50%;
+  transform:translateY(-50%);
+  color:#888;
+}
+.search-input{
+  width:100%;
+  padding:10px 12px 10px 35px;
+  border:1px solid #ccc;
+  border-radius:8px;
+  font-size:15px;
+  transition:border .25s;
+  box-sizing:border-box;
+}
+.search-input:focus{
+  border-color:var(--azul);
+  box-shadow:0 0 4px rgba(0,80,145,.35);
+  outline:none;
 }
 
-/* ---------------------------------------------------------------------------
-   Titulado y encabezados
---------------------------------------------------------------------------- */
-h2 {
-    text-align: center;
-    margin-bottom: 20px;
-    color: #333;
+/* ---------- Tabla (desktop) ---------- */
+table.dataTable{
+  width:100%!important;
+  border-collapse:collapse;
 }
 
-/* ---------------------------------------------------------------------------
-   Estilos para DataTables
---------------------------------------------------------------------------- */
-table.display {
-    width: 100%;
-    border-collapse: collapse;
+/* Cabecera */
+table.dataTable thead{
+  background:var(--azul);
+  color:var(--blanco);
+}
+table.dataTable thead th{
+  padding:12px;
+  font-weight:700;
+  text-align:center;          /* centrado encabezados */
+  position:sticky;top:0;z-index:2;
 }
 
-/* Cabecera de la tabla */
-table.display thead {
-    background-color: #007bff;
-    color: #fff;
+/* Cuerpo */
+table.dataTable tbody tr:nth-child(even){background:var(--gris-table);}
+table.dataTable tbody tr:hover{background:var(--gris-hover);}
+table.dataTable tbody td{
+  padding:10px;
+  vertical-align:middle;
+  word-break:break-word;
+  text-align:center;          /* centrado celdas */
 }
 
-table.display thead th {
-    padding: 10px;
-    text-align: left;
+/* Iconos FontAwesome para ordenación */
+table.dataTable thead th.sorting,
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc{
+  background-image:none!important;
+  cursor:pointer;
+  position:relative;
+}
+table.dataTable thead th.sorting::after{
+  content:'\f0dc';
+  font-family:'Font Awesome 6 Free';
+  font-weight:900;
+  position:absolute;right:8px;
+}
+table.dataTable thead th.sorting_asc::after{
+  content:'\f106';
+  font-family:'Font Awesome 6 Free';
+  font-weight:900;
+  position:absolute;right:8px;
+}
+table.dataTable thead th.sorting_desc::after{
+  content:'\f107';
+  font-family:'Font Awesome 6 Free';
+  font-weight:900;
+  position:absolute;right:8px;
 }
 
-/* Filas y celdas del cuerpo */
-table.display tbody tr {
-    border-bottom: 1px solid #ddd;
+/* ---------- Botones de acciones ---------- */
+.actions-cell{
+  display:flex;
+  justify-content:center;     /* centrado botones */
+  align-items:center;
+  gap:10px;
+}
+.btn-container{display:flex;gap:10px;}
+.btn{
+  border:none;
+  padding:5px 10px;
+  border-radius:5px;
+  cursor:pointer;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  color:#fff;
 }
 
-table.display tbody tr:nth-child(even) {
-    background-color: #f2f2f2;
+.btn.editar{
+  background:#ffc107;
+  color:#fff;
+  font-size:15px;      /* tamaño del ícono */
+  width:35px;          /* ancho fijo */
+  height:35px;         /* alto fijo */
+  padding:0;           /* sin relleno extra */
+  display:flex;
+  align-items:center;  /* centra el ícono verticalmente */
+  justify-content:center; /* centra el ícono horizontalmente */
+  border-radius:5px;
 }
 
-table.display tbody td {
-    padding: 10px;
-    text-align: left;
-    vertical-align: middle;
+/* Botón Borrar */
+.btn.borrar{
+  background:#dc3545;
+  color:#fff;
+  font-size:15px;
+  width:35px;          /* mismo ancho que Editar */
+  height:35px;         /* mismo alto que Editar  */
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:5px;
 }
 
-/* ---------------------------------------------------------------------------
-   Columna de Acciones y botones
---------------------------------------------------------------------------- */
-.actions-cell {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    align-items: center;
-    width: 100px;
+/* ---------- Paginación ---------- */
+.dataTables_paginate{
+  margin-top:10px;
+  text-align:right;
+}
+.dataTables_paginate .paginate_button{
+  border:none!important;
+  padding:6px 12px!important;
+  margin:2px!important;
+  border-radius:6px!important;
+  background:#e0e8ff!important;
+  color:#000!important;
+  cursor:pointer;
+}
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button.current:hover{
+  background:var(--azul)!important;
+  color:var(--blanco)!important;
+}
+.dataTables_paginate .paginate_button:hover{
+  background:#c7d9ff!important;
 }
 
-.btn-container {
-    display: flex;
-    gap: 10px;
+/* ---------- Alertas Django ---------- */
+.messages{margin-bottom:20px;}
+.alert{
+  padding:10px 15px;
+  border-radius:6px;
+  font-size:15px;
+  margin-bottom:10px;
+  text-align:center;
 }
+.alert-success{background:#d4edda;color:#155724;}
+.alert-error  {background:#f8d7da;color:#721c24;}
 
-.btn {
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+/* ---------- Responsive ≤ 768 px ---------- */
+@media(max-width:768px){
+  .container{padding:20px;}
+  h2{font-size:22px;}
+  .search-input{padding:8px 12px 8px 35px;font-size:14px;}
+  .search-wrapper i{left:8px;}
 
-.btn.editar {
-    background-color: #ffc107;
-    color: #fff;
-    font-size: 15px;
-}
-
-.btn.borrar {
-    background-color: #dc3545;
-    color: #fff;
-    font-size: 15px;
-}
-
-/* ---------------------------------------------------------------------------
-   Mensajes globales
---------------------------------------------------------------------------- */
-.messages {
-    margin-bottom: 20px;
-}
-
-.alert {
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 10px;
-    text-align: center;
-}
-
-.alert-success {
-    background-color: #d4edda;
-    color: #155724;
-}
-
-.alert-error {
-    background-color: #f2dede;
-    color: #a94442;
-}
-
-/* ---------------------------------------------------------------------------
-   Responsividad
---------------------------------------------------------------------------- */
-@media (min-width: 769px) {
-    table.display tbody td:nth-child(1) {
-        width: 35%;
-    }
-    table.display tbody td:nth-child(2) {
-        width: 55%;
-    }
-    table.display tbody td:nth-child(3) {
-        width: 100px;
-    }
-}
-
-@media (max-width: 768px) {
-    .container {
-        padding: 10px;
-    }
-    /* Ocultar cabecera en dispositivos pequeños */
-    table.display thead {
-        display: none;
-    }
-    /* Convertir cada fila en bloque para mayor legibilidad */
-    table.display tbody tr {
-        display: block;
-        margin-bottom: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-    }
-    table.display tbody td {
-        display: block;
-        text-align: left;
-        padding-left: 10px;
-        position: relative;
-        border-bottom: 1px solid #ddd;
-    }
-    /* Mostrar etiqueta en cada celda mediante el atributo data-label */
-    table.display tbody td::before {
-        content: attr(data-label);
-        font-weight: bold;
-        display: block;
-        margin-bottom: 5px;
-    }
-    .actions-cell {
-        width: auto;
-        flex-direction: column;
-    }
+  /* Tabla → tarjetas */
+  table.dataTable thead{display:none;}
+  table.dataTable tbody tr{
+    display:block;
+    margin-bottom:15px;
+    border:1px solid #ccc;
+    border-radius:10px;
+    background:var(--blanco)!important;
+    box-shadow:0 2px 4px rgba(0,0,0,.1);
+    overflow:hidden;
+  }
+  table.dataTable tbody td{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    padding:8px 12px;
+    font-size:13px;
+    border-bottom:1px solid #f0f0f0;
+    text-align:left;          /* en móvil volvemos a la alineación habitual */
+  }
+  table.dataTable tbody td:last-child{border-bottom:none;}
+  table.dataTable tbody td::before{
+    content:attr(data-label);
+    font-weight:700;
+    color:var(--azul);
+    margin-right:10px;
+  }
+  .actions-cell{justify-content:flex-start;}
 }
