@@ -1,39 +1,47 @@
-/* eslint-env jquery */
+/* static/javascript/visualizar_sucursales.js */
 $(function () {
   "use strict";
 
-  /* ----------  DataTable + buscador externo  ---------- */
+  /* ───────── DATATABLE & BUSCADOR ───────── */
   const table = $("#sucursalesTable").DataTable({
-    paging: true,
-    searching: true,
-    info: true,
+    paging    : true,
+    searching : true,
+    info      : true,
     responsive: true,
-    order: [[0, "asc"]],
-    language: {
-      search: "",
-      zeroRecords: "No se encontraron sucursales",
-      info: "Mostrando _START_ a _END_ de _TOTAL_ sucursales",
-      infoEmpty: "Mostrando 0 a 0 de 0 sucursales",
-      paginate: {
-        first: "Primero",
-        last: "Último",
-        next: "Siguiente",
-        previous: "Anterior",
-      },
-    },
+    language  : {
+      search      : "",
+      zeroRecords : "No se encontraron sucursales",
+      info        : "Mostrando _START_ a _END_ de _TOTAL_ sucursales",
+      infoEmpty   : "Mostrando 0 a 0 de 0 sucursales",
+      paginate    : { first:"Primero", last:"Último", next:"Siguiente", previous:"Anterior" }
+    }
   });
 
   $("#buscador-sucursales").on("keyup", function () {
     table.search(this.value).draw();
   });
 
-  /* ----------  Eliminar con confirmación  ---------- */
+  /* ───────── ELIMINAR SUCURSAL ───────── */
   $("#sucursalesTable").on("click", ".btn.borrar", function (e) {
     e.preventDefault();
-    const id = $(this).data("sucursal-id");
-    const nombre = $(this).data("sucursal-nombre");
-    if (confirm(`¿Eliminar la sucursal «${nombre}»?`)) {
-      $(`#eliminar-form-${id}`).submit();
+    const $btn = $(this);
+    if (confirm(`¿Desea eliminar la sucursal «${$btn.data("sucursal-nombre")}»?`)) {
+      $(`#eliminar-form-${$btn.data("sucursal-id")}`).submit();
     }
   });
+
+  /* ───────── FLASH-MESSAGE DESDE sessionStorage ───────── */
+  const flash = sessionStorage.getItem("flash-sucursal");
+  if (flash) {
+    const $alert = $(`
+      <div class="messages">
+        <div class="alert alert-success">
+          <i class="fas fa-check-circle"></i> ${flash}
+        </div>
+      </div>`);
+
+    /* ⬇️  insertar inmediatamente DESPUÉS del <h2> */
+    $(".container h2").after($alert);
+    sessionStorage.removeItem("flash-sucursal");
+  }
 });

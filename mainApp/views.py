@@ -48,13 +48,13 @@ from .forms import (
 )
 from dal import autocomplete
 from decimal import Decimal
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from itertools import zip_longest
 from django.forms import formset_factory 
 from django.views          import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
-from django.views.generic.edit import FormView
+from django.views.generic.edit import FormView, UpdateView
 from django.views.generic import ListView
 
 logger = logging.getLogger(__name__)
@@ -120,39 +120,41 @@ def eliminar_sucursal(request, sucursal_id):
     return render(request, 'visualizar_sucursales.html', {'sucursales': Sucursal.objects.all()})
 
 
-@login_required
-def editar_sucursal_view(request, sucursal_id):
-    sucursal = get_object_or_404(Sucursal, sucursalid=sucursal_id)
+class SucursalUpdateAJAXView(LoginRequiredMixin, UpdateView):
+    """
+    ▸  Edita una sucursal mediante AJAX.
+    ▸  Si la petición NO es AJAX, actúa como un UpdateView normal.
+    """
+    model         = Sucursal
+    pk_url_kwarg  = "sucursal_id"       # <int:sucursal_id> en la URL
+    form_class    = SucursalEditarForm
+    template_name = "editar_sucursal.html"
+    success_url   = reverse_lazy("visualizar_sucursales")
 
-    if request.method == 'POST':
-        form = SucursalEditarForm(request.POST, instance=sucursal)
-
-        if form.is_valid():
-            form.save()
-            # Mensaje de éxito (para mostrarse en visualizar_sucursales)
-            messages.success(request, f'Sucursal "{sucursal.nombre}" actualizada exitosamente.')
-
-            # Retornamos JSON con success y la URL de redirección
+    # ------------------------------------------------------------------ AJAX
+    def form_valid(self, form):
+        self.object = form.save()                 # guarda y conserva instancia
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
-                'success': True,
-                'redirect_url': reverse('visualizar_sucursales')  
+                "success": True,
+                "message": f'Sucursal “{self.object.nombre}” actualizada.',
+                "redirect_url": self.success_url,
             })
-        else:
-            # Devolver errores
-            errors_data = form.errors.get_json_data()
-            return JsonResponse({
-                'success': False,
-                'errors': errors_data
-            })
+        # Petición normal (no-AJAX) → mensaje + redirect
+        messages.success(
+            self.request,
+            f'Sucursal “{self.object.nombre}” actualizada exitosamente.',
+        )
+        return redirect(self.success_url)
 
-    else:
-        # GET: renderizamos la plantilla con el form
-        form = SucursalEditarForm(instance=sucursal)
-
-    return render(request, 'editar_sucursal.html', {
-        'sucursal': sucursal,
-        'form': form,
-    })
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400,
+            )
+        # fallback: renderiza template con errores
+        return self.render_to_response(self.get_context_data(form=form))
 
 @login_required
 def puntopago_autocomplete_venta(request):

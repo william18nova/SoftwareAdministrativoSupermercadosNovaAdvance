@@ -1,66 +1,48 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 {% block title %}Editar Sucursal{% endblock %}
+
+{# ① — todo lo que vaya dentro del <head> de base.html #}
+{% block extra_head %}
+  <!-- Estilos específicos -->
+  <link rel="stylesheet" href="{% static 'css/agregar_sucursal.css' %}">
+  <!-- FontAwesome solo si no lo cargaste antes -->
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+{% endblock %}
+
+{# ② — contenido principal #}
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Sucursal</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Reusar el mismo CSS de agregar si quieres -->
-    <link rel="stylesheet" href="{% static 'css/agregar_sucursal.css' %}">
-</head>
-<body>
-    <div class="container">
-        <i class="fas fa-pencil-alt icon"></i> <!-- Ícono de edición -->
-        <h2>Editar Sucursal</h2>
+  <div class="container">
+    <i class="fas fa-pencil-alt icon"></i>
+    <h2>Editar Sucursal</h2>
 
-        <p class="obligatorio-texto">
-            Todos los campos con <span class="required">*</span> son obligatorios.
-        </p>
+    <p class="obligatorio-texto">
+      Los campos marcados con <span class="required">*</span> son obligatorios.
+    </p>
 
-        <!-- Divs para mensajes de error/éxito (igual que en agregar) -->
-        <div id="error-message" class="alert alert-error" style="display: none;"></div>
-        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
+    <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
-        <!-- Form -->
-        <form id="sucursalForm" action="{% url 'editar_sucursal' sucursal.sucursalid %}" method="POST">
-            {% csrf_token %}
-            
-            <div class="form-group">
-                <label for="{{ form.nombre.id_for_label }}">
-                    Nombre <span class="required">*</span>
-                </label>
-                {{ form.nombre }}
-                <div class="field-error" id="error-id_nombre"></div>
-            </div>
+    <form id="sucursalForm"
+          method="post"
+          action="{% url 'editar_sucursal' sucursal.sucursalid %}">
+      {% csrf_token %}
 
-            <div class="form-group">
-                <label for="{{ form.direccion.id_for_label }}">
-                    Dirección <span class="required">*</span>
-                </label>
-                {{ form.direccion }}
-                <div class="field-error" id="error-id_direccion"></div>
-            </div>
+      {% for field in form.visible_fields %}
+        <div class="form-group">
+          <label for="{{ field.id_for_label }}">
+            {{ field.label }} <span class="required">*</span>
+          </label>
+          {{ field }}
+          <div class="field-error" id="error-{{ field.auto_id }}"></div>
+        </div>
+      {% endfor %}
 
-            <div class="form-group">
-                <label for="{{ form.telefono.id_for_label }}">
-                    Teléfono <span class="required">*</span>
-                </label>
-                {{ form.telefono }}
-                <div class="field-error" id="error-id_telefono"></div>
-            </div>
+      <button type="submit" class="btn-agregar-sucursal">
+        Guardar cambios
+      </button>
+    </form>
+  </div>
 
-            <div class="form-group">
-                <button type="submit" class="btn-agregar-sucursal">Guardar Cambios</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- JS para manejar AJAX -->
-    <script src="{% static 'javascript/editar_sucursal.js' %}"></script>
-</body>
-</html>
+  <script defer src="{% static 'javascript/editar_sucursal.js' %}"></script>
 {% endblock %}

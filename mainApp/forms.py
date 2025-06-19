@@ -17,6 +17,133 @@ MEDIO_PAGO_CHOICES = (
     ('tarjeta', 'Tarjeta'),
 )
 
+telefono_validator = RegexValidator(
+    regex=r'^\d{10}$',
+    message='El teléfono debe contener exactamente 10 dígitos.'
+)
+
+# -----------------------------------------------------------------------------
+#  AGREGAR  ▸  SucursalForm
+# -----------------------------------------------------------------------------
+class SucursalForm(forms.ModelForm):
+    """
+    • «nombre» permite **cualquier** carácter UTF-8; sólo se valida longitud ≦ 100
+    • Se siguen validando duplicados en `clean_nombre`.
+    """
+    nombre = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el nombre de la sucursal",
+            "required": True,
+        }),
+        error_messages={
+            "required":   "El nombre es obligatorio.",
+            "max_length": "El nombre no puede superar los 100 caracteres.",
+        },
+    )
+
+    telefono = forms.CharField(
+        validators=[telefono_validator],
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el teléfono",
+            "required": True,
+        }),
+    )
+
+    class Meta:
+        model  = Sucursal
+        fields = ("nombre", "direccion", "telefono")
+        labels = {
+            "nombre":    "Nombre",
+            "direccion": "Dirección",
+            "telefono":  "Teléfono",
+        }
+        widgets = {
+            "direccion": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ingresa la dirección",
+                "required": True,
+            })
+        }
+
+    # --- unicidad (case-insensitive) ----------------------------------------
+    def clean_nombre(self):
+        nombre = self.cleaned_data["nombre"].strip()
+        if Sucursal.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError("El nombre de la sucursal ya está registrado.")
+        return nombre
+
+
+# -----------------------------------------------------------------------------
+#  EDITAR  ▸  SucursalEditarForm
+# -----------------------------------------------------------------------------
+class SucursalEditarForm(forms.ModelForm):
+    """
+    Versión para edición:
+    · Permite cualquier carácter UTF-8 en el nombre.
+    · Sólo comprueba longitud y unicidad (sin disparar error si no se modificó).
+    """
+
+    nombre = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el nombre de la sucursal",
+            "required": True,
+        }),
+        error_messages={
+            "required":   "El nombre es obligatorio.",
+            "max_length": "El nombre no puede superar los 100 caracteres.",
+        },
+    )
+
+    direccion = forms.CharField(
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa la dirección",
+            "required": True,
+        }),
+        error_messages={"required": "La dirección es obligatoria."},
+    )
+
+    telefono = forms.CharField(
+        validators=[telefono_validator],
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el teléfono",
+            "required": True,
+        }),
+    )
+
+    class Meta:
+        model  = Sucursal
+        fields = ("nombre", "direccion", "telefono")
+        labels = {
+            "nombre":    "Nombre",
+            "direccion": "Dirección",
+            "telefono":  "Teléfono",
+        }
+
+    # ───────── validación extra ─────────
+    def clean_nombre(self):
+        nombre = self.cleaned_data["nombre"].strip()
+
+        # si no cambió, aceptamos
+        if self.instance and nombre.lower() == self.instance.nombre.lower():
+            return nombre
+
+        # si cambió, verificamos unicidad
+        existe = Sucursal.objects.filter(
+            nombre__iexact=nombre
+        ).exclude(pk=self.instance.pk).exists()
+
+        if existe:
+            raise forms.ValidationError(
+                "El nombre de la sucursal ya está registrado."
+            )
+        return nombre
 
 class CategoriaForm(forms.ModelForm):
     class Meta:
@@ -804,61 +931,6 @@ class EditarHorarioCajaForm(forms.Form):
         return cleaned_data
 
     
-class SucursalForm(forms.ModelForm):
-    # Ahora 'nombre' acepta cualquier carácter UTF, sólo comprobamos que no esté vacío
-    nombre = forms.CharField(
-        max_length=100,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el nombre de la sucursal',
-            'required': 'required',
-        }),
-        error_messages={
-            'required': 'El nombre es obligatorio.',
-            'max_length': 'El nombre no puede superar los 100 caracteres.'
-        }
-    )
-
-    direccion = forms.CharField(
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa la dirección',
-            'required': 'required',
-        }),
-        error_messages={'required': 'La dirección es obligatoria.'}
-    )
-
-    telefono = forms.CharField(
-        validators=[
-            RegexValidator(
-                regex=r'^\d{10}$',
-                message='El teléfono debe contener exactamente 10 dígitos.'
-            )
-        ],
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el teléfono',
-            'required': 'required',
-        }),
-        error_messages={'required': 'El teléfono es obligatorio.'}
-    )
-
-    class Meta:
-        model = Sucursal
-        fields = ['nombre', 'direccion', 'telefono']
-        labels = {
-            'nombre': 'Nombre',
-            'direccion': 'Dirección',
-            'telefono': 'Teléfono',
-        }
-
-    def clean_nombre(self):
-        nombre = self.cleaned_data['nombre']
-        # Unicidad case-insensitive
-        if Sucursal.objects.filter(nombre__iexact=nombre).exists():
-            raise forms.ValidationError('El nombre de la sucursal ya está registrado.')
-        return nombre
-    
 class ProductoForm(forms.ModelForm):
     codigo_de_barras_validator = RegexValidator(
         regex=r'^\d{12}$',
@@ -938,69 +1010,6 @@ class ProductoForm(forms.ModelForm):
         return codigo_de_barras
     
     
-class SucursalEditarForm(forms.ModelForm):
-    class Meta:
-        model = Sucursal
-        fields = ['nombre', 'direccion', 'telefono']
-        labels = {
-            'nombre': 'Nombre',
-            'direccion': 'Dirección',
-            'telefono': 'Teléfono',
-        }
-
-    nombre_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El nombre solo debe contener letras y espacios.'
-    )
-    telefono_validator = RegexValidator(
-        regex=r'^\d{10}$',
-        message='El teléfono debe contener exactamente 10 dígitos.'
-    )
-
-    # Campo nombre
-    nombre = forms.CharField(
-        max_length=100,
-        validators=[nombre_validator],
-        required=True,
-        error_messages={'required': 'El nombre es obligatorio.'}
-    )
-
-    # Campo direccion con placeholder
-    direccion = forms.CharField(
-        required=True,
-        error_messages={'required': 'La dirección es obligatoria.'},
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Ingresa la dirección',
-            'class': 'form-control'  # o la clase que uses
-        })
-    )
-
-    # Campo telefono
-    telefono = forms.CharField(
-        required=True,
-        validators=[telefono_validator],
-        error_messages={'required': 'El teléfono es obligatorio.'},
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Ingresa el teléfono',
-            'class': 'form-control'
-        })
-    )
-
-    def __init__(self, *args, **kwargs):
-        self.instance = kwargs.get('instance', None)
-        super().__init__(*args, **kwargs)
-
-    def clean_nombre(self):
-        nombre = self.cleaned_data.get('nombre')
-        if self.instance and self.instance.nombre.lower() == nombre.lower():
-            return nombre
-
-        # Verificamos duplicados si cambió el nombre
-        if Sucursal.objects.filter(nombre__iexact=nombre).exclude(sucursalid=self.instance.sucursalid).exists():
-            raise forms.ValidationError('El nombre de la sucursal ya está registrado.')
-        return nombre
-
-
     
 class ProveedorForm(forms.ModelForm):
     nombre = forms.CharField(

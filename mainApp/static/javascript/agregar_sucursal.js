@@ -1,98 +1,94 @@
-// static/javascript/agregar_sucursal.js
+/* static/javascript/agregar_sucursal.js
+   — versión con resaltado de input, idéntico al usado en “Editar Sucursal” — */
 (() => {
-  const form        = document.getElementById('sucursalForm');
-  const errorDiv    = document.getElementById('error-message');
-  const successDiv  = document.getElementById('success-message');
-  const successText = document.getElementById('success-text');
-  const fieldErrors = document.querySelectorAll('.field-error');
+  "use strict";
 
-  /** Oculta ambos alertas */
-  function hideAlerts() {
-    errorDiv.style.display   = 'none';
-    successDiv.style.display = 'none';
-    // limpiamos contenido general
-    errorDiv.innerHTML   = '';
-    successText.textContent = '';
-  }
+  /* -----------------  helpers ----------------- */
+  const $ = s => document.querySelector(s);
 
-  /** Oculta todos los errores de campo */
-  function hideFieldErrors() {
-    fieldErrors.forEach(div => {
-      div.style.display = 'none';
-      div.innerHTML     = '';
-      div.classList.remove('visible');
-    });
-  }
+  const form         = $("#sucursalForm");
+  const errorDiv     = $("#error-message");
+  const successDiv   = $("#success-message");
+  const successText  = $("#success-text");
+  const fieldErrors  = document.querySelectorAll(".field-error");
+  const inputs       = form.querySelectorAll("input, textarea");
 
-  /** Limpia todo antes de cada envío */
-  function clearAll() {
-    hideAlerts();
-    hideFieldErrors();
-  }
+  const icon  = txt => `<i class="fas fa-exclamation-circle"></i> ${txt}`;
+  const okIcon= txt => `<i class="fas fa-check-circle success-icon"></i> ${txt}`;
 
-  /**
-   * Muestra un alert general
-   * @param {HTMLElement} div  – contenedor .alert-error o .alert-success
-   * @param {string} html      – contenido HTML del mensaje
-   */
-  function showAlert(div, html) {
-    div.innerHTML = html;
-    if (div === successDiv) {
-      // alerta de éxito en flex
-      div.style.display = 'flex';
-    } else {
-      // alerta de error en bloque
-      div.style.display = 'block';
-    }
-  }
-
-  /**
-   * Muestra el error de un campo concreto
-   * @param {string} field – nombre del campo (p.ej. 'nombre' o 'telefono')
-   * @param {string} html  – HTML con sus mensajes
-   */
-  function showFieldError(field, html) {
-    const div = document.getElementById(`error-${field}`);
-    if (!div) return;
+  const show = (div, html, flex = false) => {
     div.innerHTML     = html;
-    div.classList.add('visible');
-    div.style.display = 'block';
+    div.style.display = flex ? "flex" : "block";
+    div.classList.add("visible");
+  };
+  const hide = div => {
+    div.style.display = "none";
+    div.innerHTML     = "";
+    div.classList.remove("visible");
+  };
+
+  /* -----------------  limpieza ----------------- */
+  function clearAll() {
+    hide(errorDiv);
+    hide(successDiv);
+    fieldErrors.forEach(hide);
+    inputs.forEach(i => i.classList.remove("input-error"));
   }
 
-  form.addEventListener('submit', async e => {
+  /* -----------------  errores de campo ----------------- */
+  function showFieldError(field, html) {
+    const div   = document.getElementById(`error-${field}`);
+    const input = document.getElementById(`id_${field}`); // <-- Django genera id_{field}
+
+    if (div)  show(div, html);
+    if (input) input.classList.add("input-error");
+  }
+
+  /* -----------------  evento submit ----------------- */
+  form.addEventListener("submit", async e => {
     e.preventDefault();
     clearAll();
 
     try {
-      const resp = await fetch(form.action, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        body: new FormData(form),
+      const resp  = await fetch(form.action, {
+        method : "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        body   : new FormData(form)
       });
       const data = await resp.json();
 
       if (resp.ok && data.success) {
-        // éxito
-        const msg = `<i class="fas fa-check-circle success-icon"></i> ${data.message}`;
-        showAlert(successDiv, msg);
+        show(successDiv, okIcon(data.message), true);
         form.reset();
       } else {
-        // validación fallida
         const errs = data.errors || {};
         if (errs.__all__) {
-          showAlert(errorDiv, errs.__all__.map(e => e.message).join('<br>'));
+          show(errorDiv, errs.__all__.map(e => icon(e.message)).join("<br>"));
         }
         Object.keys(errs).forEach(field => {
-          if (field === '__all__') return;
-          const msgs = errs[field]
-            .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
-            .join('<br>');
-          showFieldError(field, msgs);
+          if (field === "__all__") return;
+          const html = errs[field]
+              .map(e => icon(e.message))
+              .join("<br>");
+          showFieldError(field, html);
         });
       }
     } catch (err) {
       console.error(err);
-      showAlert(errorDiv, 'Error de red. Inténtalo de nuevo.');
+      show(errorDiv, icon("Error de red. Inténtalo de nuevo."));
     }
+  });
+
+  /* -----------------  quitar resaltado al teclear ----------------- */
+  inputs.forEach(input => {
+    input.addEventListener("input", () => {
+      if (input.classList.contains("input-error")) {
+        input.classList.remove("input-error");
+        const field        = input.id.replace("id_", "");
+        const errContainer = document.getElementById(`error-${field}`);
+        if (errContainer) hide(errContainer);
+        hide(errorDiv); // opcional: cierra alerta global al empezar a corregir
+      }
+    });
   });
 })();
