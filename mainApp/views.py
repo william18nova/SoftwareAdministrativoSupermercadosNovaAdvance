@@ -194,24 +194,33 @@ def puntopago_autocomplete_venta(request):
     return JsonResponse({'results': results, 'has_more': has_more})
 
 
-@login_required
-def agregar_categoria_view(request):
-    """
-    Vista para agregar una categoría usando AJAX.
-    Retorna un JSON con success=True o success=False y la lista de errores en caso de no ser válido.
-    """
-    if request.method == 'POST':
-        form = CategoriaForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return JsonResponse({'success': True})
-        else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = CategoriaForm()
-    
-    return render(request, 'agregar_categoria.html', {'form': form})
+class CategoriaCreateAJAXView(LoginRequiredMixin, FormView):
+    template_name = "agregar_categoria.html"
+    form_class    = CategoriaForm
+    success_url   = reverse_lazy("visualizar_categorias")   # o la lista que uses
+
+    # ------------- POST -------------
+    def form_valid(self, form):
+        categoria = form.save()
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success"  : True,
+                "message"  : "Categoría agregada exitosamente.",
+                "redirect_url": str(self.success_url),
+                "categoria": {
+                    "id"      : categoria.categoriaid,
+                    "nombre"  : categoria.nombre
+                }
+            })
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400
+            )
+        return super().form_invalid(form)
 
 
 @login_required

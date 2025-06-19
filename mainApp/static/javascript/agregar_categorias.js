@@ -1,112 +1,75 @@
-// agregar_categorias.js
+/* static/javascript/agregar_categorias.js */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('categoriaForm');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
+  const $       = sel => document.querySelector(sel);
+  const form    = $("#categoriaForm");
+  const errBox  = $("#error-message");
+  const okBox   = $("#success-message");
+  const okText  = $("#success-text");
 
-    /**
-     * Limpia mensajes globales y de campo
-     */
-    function clearMessages() {
-        // Ocultar y limpiar mensajes globales
-        errorMessageDiv.style.display = 'none';
-        errorMessageDiv.textContent = '';
-        successMessageDiv.style.display = 'none';
-        successMessageDiv.textContent = '';
+  const icon = txt => `<i class="fas fa-exclamation-circle"></i> ${txt}`;
+  const show = (el, html) => { el.innerHTML = html; el.style.display = "block"; };
+  const hide = el         => { el.style.display = "none"; el.innerHTML = ""; };
 
-        // Ocultar errores de campos
-        const errorFields = document.querySelectorAll('.field-error');
-        errorFields.forEach(function(errorField) {
-            errorField.innerHTML = '';
-            errorField.classList.remove('visible');
-        });
-    }
-
-    /**
-     * Muestra los errores devueltos por el servidor
-     */
-    function displayErrors(errors) {
-        clearMessages();
-
-        // Errores generales (no asociados a un campo específico)
-        if (errors.__all__) {
-            const generalErrors = errors.__all__.map(e => e.message).join('<br>');
-            // Usa backticks para inyectar HTML con el ícono
-            errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${generalErrors}`;
-            errorMessageDiv.style.display = 'block';
-        }
-
-        // Errores específicos de cada campo
-        for (let fieldName in errors) {
-            if (fieldName === '__all__') continue; // saltar errores globales
-            const fieldErrors = errors[fieldName];
-            
-            // Asegúrate de usar backticks o concatenar bien el id
-            const errorDiv = document.getElementById(`error-id_${fieldName}`);
-            if (errorDiv) {
-                // Construimos el HTML para cada error con su ícono
-                const messagesHTML = fieldErrors
-                    .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
-                    .join('<br>');
-
-                errorDiv.innerHTML = messagesHTML;
-                // Mostramos con la clase .visible para la animación CSS
-                errorDiv.classList.add('visible');
-            }
-        }
-    }
-
-    /**
-     * Maneja el envío del formulario
-     */
-    form.addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevenir envío completo
-        clearMessages();
-
-        const formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Accept': 'application/json',
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                successMessageDiv.innerHTML = '<i class="fas fa-check-circle"></i> Categoría agregada exitosamente.';
-                successMessageDiv.style.display = 'block';
-                form.reset(); // Limpiar el formulario
-            } else {
-                const errors = JSON.parse(data.errors);
-                displayErrors(errors);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            errorMessageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Ocurrió un error inesperado.';
-            errorMessageDiv.style.display = 'block';
-        });
+  function resetUI () {
+    hide(errBox); hide(okBox); okText.textContent = "";
+    form.querySelectorAll(".field-error").forEach(div => {
+      div.classList.remove("visible");
+      div.innerHTML = "";
+      div.style.display = "none";
     });
+    form.querySelectorAll(".input-error").forEach(i => i.classList.remove("input-error"));
+  }
 
-    /**
-     * Función para obtener el valor de la cookie (CSRF)
-     */
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                cookie = cookie.trim();
-                if (cookie.startsWith(name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
+  function renderErrors (errors){
+    if (errors.__all__)
+      show(errBox, errors.__all__.map(e => icon(e.message)).join("<br>"));
+
+    for (const [field,msgArr] of Object.entries(errors)){
+      if (field === "__all__") continue;
+      const div   = document.getElementById(`error-id_${field}`);
+      const input = document.getElementById(`id_${field}`);
+      if (div){
+        div.innerHTML = msgArr.map(e => icon(e.message)).join("<br>");
+        div.classList.add("visible"); div.style.display="block";
+      }
+      if (input) input.classList.add("input-error");
     }
-});
+  }
+
+  const csrftoken = document.cookie.split(";").map(c=>c.trim())
+                     .find(c=>c.startsWith("csrftoken="))?.split("=")[1] || "";
+
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    resetUI();
+
+    try{
+      const resp = await fetch(form.action,{
+        method:"POST",
+        headers:{
+          "X-CSRFToken":csrftoken,
+          "X-Requested-With":"XMLHttpRequest",
+          "Accept":"application/json"
+        },
+        body:new FormData(form)
+      });
+      const data = await resp.json();
+
+      if (data.success){
+        okBox.innerHTML     = '<i class="fas fa-check-circle"></i> Categoría agregada exitosamente.';
+        okBox.style.display = "flex";
+        form.reset();
+      }else{
+        /* ← aquí la corrección */
+        renderErrors(
+          typeof data.errors === "string" ? JSON.parse(data.errors) : data.errors
+        );
+      }
+    }catch(err){
+      console.error(err);
+      show(errBox, icon("Ocurrió un error inesperado."));
+    }
+  });
+})();

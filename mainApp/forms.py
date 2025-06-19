@@ -146,29 +146,37 @@ class SucursalEditarForm(forms.ModelForm):
         return nombre
 
 class CategoriaForm(forms.ModelForm):
+    nombre = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            "class"      : "form-control",
+            "placeholder": "Ingresa el nombre de la categoría",
+            "required"   : "required"
+        }),
+        error_messages={
+            "required"  : "El nombre es obligatorio.",
+            "max_length": "No más de 100 caracteres."
+        }
+    )
+
+    descripcion = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class"      : "form-control",
+            "placeholder": "Ingresa una descripción (opcional)"
+        })
+    )
+
     class Meta:
-        model = Categoria
-        fields = ['nombre', 'descripcion']
-        labels = {
-            'nombre': 'Nombre',
-            'descripcion': 'Descripción',
-        }
-        widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el nombre de la categoría',
-                'required': 'required'
-            }),
-            'descripcion': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa una descripción (opcional)'
-            }),
-        }
-    
+        model  = Categoria
+        fields = ["nombre", "descripcion"]
+        labels = {"nombre": "Nombre", "descripcion": "Descripción"}
+
+    # validación de duplicados (nombre UTF-8 sin distinción de mayúsculas)
     def clean_nombre(self):
-        nombre = self.cleaned_data.get('nombre')
+        nombre = self.cleaned_data["nombre"].strip()
         if Categoria.objects.filter(nombre__iexact=nombre).exists():
-            raise forms.ValidationError('El Nombre de la categoría ya está registrado.')
+            raise forms.ValidationError("El nombre de la categoría ya está registrado.")
         return nombre
 
 class EditarCategoriaForm(forms.ModelForm):
