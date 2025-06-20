@@ -376,44 +376,42 @@ def eliminar_producto(request, producto_id):
     return render(request, 'visualizar_productos.html', {'productos': productos})
 
 
-@login_required
-def editar_producto_view(request, producto_id):
-    """
-    Permite editar un producto existente.
-    - Utiliza ProductoForm para manejar la edición.
-    - Responde con JSON para solicitudes AJAX.
-    - Redirige a visualizar_productos tras un guardado exitoso.
-    """
-    producto = get_object_or_404(Producto, productoid=producto_id)
-    categorias = Categoria.objects.all()
-    
-    if request.method == 'POST':
-        form = ProductoForm(request.POST, instance=producto)
-        if form.is_valid():
-            form.save()
-            # Guardar mensaje de éxito en la sesión
-            messages.success(
-                request,
-                f'Producto actualizado exitosamente: '
-                f'Nombre="{producto.nombre}", Descripción="{producto.descripcion}", Precio="{producto.precio}", '
-                f'Categoría="{producto.categoria.nombre if producto.categoria else "Sin categoría"}"'
+class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
+    model         = Producto
+    form_class    = ProductoForm
+    template_name = "editar_producto.html"
+    pk_url_kwarg  = "producto_id"          # /editar/<producto_id>/
+
+    def form_valid(self, form):
+        producto = form.save()
+
+        # ¿La petición viene de fetch/ajax?
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            # ①  NO guardamos mensaje de Django
+            return JsonResponse({
+                "success"     : True,
+                "redirect_url": reverse_lazy("visualizar_productos"),
+                "nombre"      : producto.nombre        # opcional
+            })
+
+        # ②  Navegación tradicional → sí usamos messages
+        messages.success(
+            self.request,
+            f'Producto «{producto.nombre}» actualizado correctamente.'
+        )
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        # Para AJAX devolvemos los errores en JSON
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400,
             )
-            # Obtener la URL de redirección
-            redirect_url = reverse('visualizar_productos')
-            return JsonResponse({'success': True, 'redirect_url': redirect_url})
-        else:
-            # Retornar errores del formulario en formato JSON
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        # Solicitud GET: inicializar el formulario con datos del producto
-        form = ProductoForm(instance=producto)
-    
-    return render(
-        request,
-        'editar_producto.html',
-        {'form': form, 'categorias': categorias, 'producto': producto},
-    )
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("visualizar_productos")
 
 
 @login_required

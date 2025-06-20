@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView, SucursalUpdateAJAXView, CategoriaCreateAJAXView, CategoriaListView, CategoriaUpdateAJAXView, ProductoCreateAJAXView, CategoriaAutocompleteView, ProductoListView
+from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView, SucursalUpdateAJAXView, CategoriaCreateAJAXView, CategoriaListView, CategoriaUpdateAJAXView, ProductoCreateAJAXView, CategoriaAutocompleteView, ProductoListView, ProductoUpdateAJAXView
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -21,7 +21,7 @@ urlpatterns = [
     path("categoria_autocomplete/", CategoriaAutocompleteView.as_view(), name="categoria_autocomplete"),
     path('visualizar_productos/',  ProductoListView.as_view(), name='visualizar_productos'),
     path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
-    path('productos/editar/<int:producto_id>/', views.editar_producto_view, name='editar_producto'),
+    path('productos/editar/<int:producto_id>/', ProductoUpdateAJAXView.as_view(), name='editar_producto'),
     
     path('agregar_inventario/', views.agregar_inventario_view, name='agregar_inventario'),
     # Ruta para autocompletar Sucursales sin Inventario
