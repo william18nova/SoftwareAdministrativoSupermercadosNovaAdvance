@@ -1,169 +1,148 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-body {
-    font-family: 'Roboto', Arial, sans-serif;
-    background: linear-gradient(to bottom right, #ADD8E6, #005091);
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: auto;
+/* ============  VARIABLES  ============ */
+:root{
+  --azul:#005091;
+  --azul-claro:#ADD8E6;
+  --gris-table:#f9f9f9;
+  --gris-hover:#e9f3ff;
+  --blanco:#ffffff;
+  --shadow:0 6px 14px rgba(0,0,0,.25);
 }
 
-.container {
-    max-width: 1200px;
-    width: 100%;
-    margin: 20px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
+body{
+  margin:0;min-height:100vh;
+  display:flex;justify-content:center;align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:'Roboto',Arial,sans-serif;
+  overflow:auto;
 }
 
-h2 {
-    text-align: center;
-    margin-bottom: 20px;
-    color: #333;
+/* ----------  TARJETA ---------- */
+.container{
+  width:95%;max-width:1200px;
+  background:var(--blanco);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:35px 25px;
+  box-sizing:border-box;
 }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
+/* ----------  TÍTULO ---------- */
+h2{
+  margin:0 0 25px;
+  font-size:28px;font-weight:700;color:var(--azul);
+  display:flex;align-items:center;gap:10px;justify-content:center;
+}
+h2 i{font-size:30px}
+
+/* ----------  BUSCADOR ---------- */
+.search-wrapper{position:relative;width:100%;margin:0 auto 20px}
+.search-wrapper i{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#888;
+}
+.search-input{
+  width:100%;padding:10px 12px 10px 35px;
+  border:1px solid #ccc;border-radius:8px;font-size:15px;
+  transition:border .25s;box-sizing:border-box;
+}
+.search-input:focus{
+  border-color:var(--azul);
+  box-shadow:0 0 4px rgba(0,80,145,.35);outline:none;
 }
 
-table thead {
-    background-color: #007bff;
-    color: white;
+/* ----------  TABLA (desktop) ---------- */
+table.dataTable{width:100%!important;border-collapse:collapse}
+table.dataTable thead{background:var(--azul);color:var(--blanco)}
+table.dataTable thead th{
+  padding:12px;font-weight:700;position:sticky;top:0;z-index:2;text-align:center
+}
+table.dataTable tbody tr:nth-child(even){background:var(--gris-table)}
+table.dataTable tbody tr:hover{background:var(--gris-hover)}
+table.dataTable tbody td{
+  padding:10px;vertical-align:middle;word-break:break-word;text-align:center
 }
 
-table thead th {
-    padding: 10px;
-    text-align: left;
+/* ordenación con íconos FA */
+table.dataTable thead th.sorting,
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc{background-image:none!important;cursor:pointer;position:relative}
+table.dataTable thead th.sorting::after     {content:'\f0dc';font-family:'Font Awesome 6 Free';font-weight:900;position:absolute;right:8px}
+table.dataTable thead th.sorting_asc::after {content:'\f106';font-family:'Font Awesome 6 Free';font-weight:900;position:absolute;right:8px}
+table.dataTable thead th.sorting_desc::after{content:'\f107';font-family:'Font Awesome 6 Free';font-weight:900;position:absolute;right:8px}
+
+/* ----------  BOTONES ACCIONES ---------- */
+.actions-cell{display:flex;gap:10px;justify-content:center;align-items:center}
+.btn-container{display:flex;gap:10px}
+.btn{
+  border:none;border-radius:5px;cursor:pointer;color:#fff;display:flex;align-items:center;justify-content:center
 }
 
-table tbody tr {
-    border-bottom: 1px solid #ddd;
+.btn.editar{
+  background:#ffc107;
+  color:#fff;
+  font-size:15px;      /* tamaño del ícono */
+  width:35px;          /* ancho fijo */
+  height:35px;         /* alto fijo */
+  padding:0;           /* sin relleno extra */
+  display:flex;
+  align-items:center;  /* centra el ícono verticalmente */
+  justify-content:center; /* centra el ícono horizontalmente */
+  border-radius:5px;
 }
 
-table tbody tr:nth-child(even) {
-    background-color: #f2f2f2;
+/* Botón Borrar */
+.btn.borrar{
+  background:#dc3545;
+  color:#fff;
+  font-size:15px;
+  width:35px;          /* mismo ancho que Editar */
+  height:35px;         /* mismo alto que Editar  */
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:5px;
 }
 
-table tbody td {
-    padding: 10px;
-    min-height: 50px;
-    position: relative;
-    word-wrap: break-word;
-    text-align: left;
-    vertical-align: middle;
-    white-space: normal;
-}
 
-.actions-cell {
-    text-align: left;
-    display: flex;
-    gap: 10px;
-    justify-content: flex-start;
-    align-items: center;
+/* ----------  PAGINACIÓN ---------- */
+.dataTables_paginate{text-align:right;margin-top:10px}
+.dataTables_paginate .paginate_button{
+  border:none!important;padding:6px 12px!important;margin:2px!important;border-radius:6px!important;
+  background:#e0e8ff!important;color:#000!important;cursor:pointer
 }
-
-.btn-container {
-    display: flex;
-    gap: 10px;
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button.current:hover{
+  background:var(--azul)!important;color:var(--blanco)!important
 }
+.dataTables_paginate .paginate_button:hover{background:#c7d9ff!important}
 
-.btn {
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    margin: 2px;
-    cursor: pointer;
-    display: inline-block;
-}
+/* ----------  ALERTAS ---------- */
+.messages{margin-bottom:20px}
+.alert{padding:10px 15px;border-radius:6px;font-size:15px;margin-bottom:10px}
+.alert-success{background:#d4edda;color:#155724}
 
-.btn.editar {
-    background-color: #ffc107;
-    color: white;
-    font-size: 15px;
-    height: 25px;
-}
+/* ============  RESPONSIVE ≤768px ============ */
+@media(max-width:768px){
+  .container{padding:20px}
+  h2{font-size:22px}
+  .search-input{padding:8px 12px 8px 35px;font-size:14px}
+  .search-wrapper i{left:8px}
 
-.btn.borrar {
-    background-color: #dc3545;
-    color: white;
-    font-size: 15px;
-    height: 35px;
-}
-
-.messages {
-    margin-bottom: 20px;
-}
-
-.alert {
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 10px;
-}
-
-.alert-success {
-    background-color: #d4edda;
-    color: #155724;
-}
-
-/* Ancho de columnas en escritorio */
-@media (min-width: 769px) {
-    table tbody td:nth-child(1) { width: 10%; }
-    table tbody td:nth-child(2) { width: 15%; }
-    table tbody td:nth-child(3) { width: 20%; }
-    table tbody td:nth-child(4) { width: 10%; }
-    table tbody td:nth-child(5) { width: 15%; }
-    table tbody td:nth-child(6) { width: 15%; }
-    table tbody td:nth-child(7) { width: 10%; }
-    table tbody td:nth-child(8) { width: 15%; }
-}
-
-/* Responsividad */
-@media (max-width: 768px) {
-    .container {
-        padding: 10px;
-    }
-    table {
-        border: 0;
-    }
-    table thead {
-        display: none;
-    }
-    table tbody tr {
-        display: block;
-        margin-bottom: 10px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-    }
-    table tbody td {
-        display: block;
-        text-align: left;
-        padding-left: 10px;
-        position: relative;
-        border-bottom: 1px solid #ddd;
-        word-break: break-word;
-    }
-    table tbody td::before {
-        content: attr(data-label);
-        display: block;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    table tbody td:last-child {
-        border-bottom: 0;
-    }
-    .actions-cell {
-        flex-direction: column;
-        justify-content: flex-start;
-    }
-    .btn-container {
-        flex-direction: row;
-    }
+  /* tabla → tarjetas */
+  table.dataTable thead{display:none}
+  table.dataTable tbody tr{
+    display:block;margin-bottom:15px;border:1px solid #ccc;border-radius:10px;
+    background:var(--blanco)!important;box-shadow:0 2px 4px rgba(0,0,0,.1);overflow:hidden
+  }
+  table.dataTable tbody td{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:8px 12px;font-size:13px;border-bottom:1px solid #f0f0f0;text-align:left
+  }
+  table.dataTable tbody td:last-child{border-bottom:none}
+  table.dataTable tbody td::before{
+    content:attr(data-label);font-weight:700;color:var(--azul);margin-right:10px
+  }
+  .actions-cell{justify-content:flex-start}
 }

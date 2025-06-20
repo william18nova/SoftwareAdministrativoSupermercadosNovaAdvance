@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView, SucursalUpdateAJAXView, CategoriaCreateAJAXView, CategoriaListView, CategoriaUpdateAJAXView, ProductoCreateAJAXView, CategoriaAutocompleteView
+from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView, SucursalUpdateAJAXView, CategoriaCreateAJAXView, CategoriaListView, CategoriaUpdateAJAXView, ProductoCreateAJAXView, CategoriaAutocompleteView, ProductoListView
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -19,7 +19,7 @@ urlpatterns = [
     
     path("agregar_producto/", ProductoCreateAJAXView.as_view(), name="agregar_producto"),
     path("categoria_autocomplete/", CategoriaAutocompleteView.as_view(), name="categoria_autocomplete"),
-    path('visualizar_productos/', views.visualizar_productos_view, name='visualizar_productos'),
+    path('visualizar_productos/',  ProductoListView.as_view(), name='visualizar_productos'),
     path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
     path('productos/editar/<int:producto_id>/', views.editar_producto_view, name='editar_producto'),
     

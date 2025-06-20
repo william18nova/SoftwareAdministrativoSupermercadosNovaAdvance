@@ -1,79 +1,103 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Visualizar Productos{% endblock %}
+
 {% block content %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Productos</title>
-    <!-- Font Awesome para íconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Archivo CSS específico para visualizar productos -->
-    <link rel="stylesheet" href="{% static 'css/visualizar_productos.css' %}">
-    <!-- DataTables CSS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Productos</title>
+
+  <!-- Font Awesome (ícono en título & botones) -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+
+  <!-- DataTables -->
+  <link rel="stylesheet"
+        href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css"/>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_productos.css' %}">
 </head>
 <body>
-    <div class="container">
-        <h2>Lista de Productos</h2>
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
-        <table id="productosTable" class="display">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>Descripción</th>
-                    <th>Precio</th>
-                    <th>Categoría</th>
-                    <th>Código de Barras</th>
-                    <th>IVA</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for producto in productos %}
-                <tr>
-                    <td data-label="Código">{{ producto.productoid }}</td>
-                    <td data-label="Nombre">{{ producto.nombre }}</td>
-                    <td data-label="Descripción">{{ producto.descripcion }}</td>
-                    <td data-label="Precio">{{ producto.precio }}</td>
-                    <td data-label="Categoría">{% if producto.categoria %}{{ producto.categoria.nombre }}{% else %}Sin categoría{% endif %}</td>
-                    <td data-label="Código de Barras">{{ producto.codigo_de_barras }}</td>
-                    <td data-label="IVA">{{ producto.iva }}</td>
-                    <td data-label="Acciones" class="actions-cell">
-                        <div class="btn-container">
-                            <a href="{% url 'editar_producto' producto.productoid %}" class="btn editar">
-                                <i class="fas fa-pencil-alt"></i>
-                            </a>
-                            <button type="button" class="btn borrar" onclick="confirmDelete(this)">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                        <!-- Formulario oculto para enviar la eliminación vía POST -->
-                        <form class="delete-form" action="{% url 'eliminar_producto' producto.productoid %}" method="post" style="display:none;">
-                            {% csrf_token %}
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  <div class="container">
+    <h2><i class="fas fa-box"></i> Lista de Productos</h2>
+
+    {# ---- mensajes Django ----- #}
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {# ---- buscador externo ----- #}
+    <div class="search-wrapper">
+      <i class="fas fa-search"></i>
+      <input id="buscador-productos" class="search-input" type="text" placeholder="Buscar…">
     </div>
-    <!-- Cargar jQuery y DataTables JS -->
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <!-- Archivo JavaScript propio para esta página -->
-    <script src="{% static 'javascript/visualizar_productos.js' %}"></script>
+
+    {# ---- tabla ----- #}
+    <table id="productosTable" class="display">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Precio</th>
+          <th>Categoría</th>
+          <th>Cód. Barras</th>
+          <th>IVA</th>
+          <th class="no-sort">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in productos %}
+        <tr>
+          <td data-label="ID">{{ p.productoid }}</td>
+          <td data-label="Nombre">{{ p.nombre }}</td>
+          <td data-label="Descripción">{{ p.descripcion|default:"—" }}</td>
+          <td data-label="Precio">${{ p.precio|floatformat:2 }}</td>
+          <td data-label="Categoría">
+            {% if p.categoria %}{{ p.categoria.nombre }}{% else %}—{% endif %}
+          </td>
+          <td data-label="Cód. Barras">{{ p.codigo_de_barras|default:"—" }}</td>
+          <td data-label="IVA">{{ p.iva|floatformat:2 }}</td>
+          <td data-label="Acciones" class="actions-cell">
+            <div class="btn-container">
+              <a href="{% url 'editar_producto' p.productoid %}"
+                 class="btn editar" title="Editar {{ p.nombre }}">
+                <i class="fas fa-edit"></i>
+              </a>
+
+              <button type="button" class="btn borrar"
+                      data-nombre="{{ p.nombre }}"
+                      title="Eliminar {{ p.nombre }}">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
+
+            <!-- formulario oculto para DELETE -->
+            <form class="delete-form"
+                  action="{% url 'eliminar_producto' p.productoid %}"
+                  method="post" style="display:none;">{% csrf_token %}</form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- JS propio -->
+  <script src="{% static 'javascript/visualizar_productos.js' %}" defer></script>
 </body>
 </html>
 {% endblock %}

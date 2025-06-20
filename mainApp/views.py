@@ -343,10 +343,25 @@ class CategoriaAutocompleteView(LoginRequiredMixin, View):
         })
 
 
-@login_required
-def visualizar_productos_view(request):
-    productos = Producto.objects.all()
-    return render(request, 'visualizar_productos.html', {'productos': productos})
+class ProductoListView(LoginRequiredMixin, ListView):
+    """
+    Lista de productos optimizada y paginada.
+
+    • select_related('categoria') evita el problema N+1.
+    • Se ordena alfabéticamente por nombre.
+    • context_object_name = 'productos' mantiene la variable usada en la plantilla.
+    """
+    model               = Producto
+    template_name       = "visualizar_productos.html"
+    context_object_name = "productos"
+    paginate_by         = 50                      # ajusta si necesitas menos/más filas
+
+    def get_queryset(self):
+        return (
+            Producto.objects
+            .select_related("categoria")
+            .order_by("nombre")
+        )
 
 @login_required
 def eliminar_producto(request, producto_id):
