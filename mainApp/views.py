@@ -291,82 +291,56 @@ class CategoriaUpdateAJAXView(LoginRequiredMixin, UpdateView):
 
 
 
+class ProductoCreateAJAXView(LoginRequiredMixin, FormView):
+    template_name = "agregar_producto.html"
+    form_class    = ProductoForm
 
+    def get_context_data(self, **kw):
+        ctx = super().get_context_data(**kw)
+        ctx["categorias"] = Categoria.objects.all()   #  para precargar si quieres un select
+        return ctx
 
-@login_required
-def editar_categoria_view(request, categoria_id):
-    categoria = get_object_or_404(Categoria, pk=categoria_id)
-    if request.method == 'POST':
-        form = EditarCategoriaForm(request.POST, instance=categoria)
-        if form.is_valid():
-            form.save()
-            # Mensaje de éxito
-            messages.success(request, f'Categoría "{categoria.nombre}" editada exitosamente.')
+    #  POST -------------------------------------------------
+    def form_valid(self, form):
+        producto = form.save()
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
-                'success': True,
-                'redirect_url': reverse('visualizar_categorias')
+                "success": True,
+                "message": "Producto agregado exitosamente.",
+                "producto": {
+                    "id": producto.productoid,
+                    "nombre": producto.nombre,
+                }
             })
-        else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = EditarCategoriaForm(instance=categoria)
+        #  fallback (no-AJAX)
+        return super().form_valid(form)
 
-    return render(request, 'editar_categoria.html', {'form': form})
+    def form_invalid(self, form):
+        return JsonResponse(
+            {"success": False, "errors": form.errors.get_json_data()},
+            status=400
+        )
 
 
-@login_required
-def agregar_producto_view(request):
-    if request.method == 'POST':
-        form = ProductoForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return JsonResponse({'success': True, 'message': 'Producto agregado exitosamente.'})
-        else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = ProductoForm()
-    categorias = Categoria.objects.all()
-    return render(request, 'agregar_producto.html', {'form': form, 'categorias': categorias})
+# ----------  Autocomplete «Categoría»  ----------
+class CategoriaAutocompleteView(LoginRequiredMixin, View):
+    PER_PAGE = 10
 
-@login_required
-def categoria_autocomplete(request):
-    """
-    Autocomplete para Categoría.
-    """
-    term = request.GET.get('term', '').strip()
-    page = request.GET.get('page', '1').strip()
-    per_page = 10  # Número de resultados por página
+    def get(self, request):
+        term      = request.GET.get("term", "").strip()
+        page      = max(int(request.GET.get("page", 1)), 1)
+        start     = (page - 1) * self.PER_PAGE
+        end       = start + self.PER_PAGE
 
-    try:
-        page = int(page)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
+        qs = Categoria.objects.filter(nombre__icontains=term).order_by("nombre")
+        total = qs.count()
+        items = qs[start:end]
 
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    categorias = Categoria.objects.filter(
-        Q(nombre__icontains=term)
-    ).order_by('nombre')
-
-    total_results = categorias.count()
-    categorias = categorias[start:end]
-
-    results = []
-    for categoria in categorias:
-        results.append({
-            'id': categoria.categoriaid,
-            'text': categoria.nombre,
+        results = [{"id": c.categoriaid, "text": c.nombre} for c in items]
+        return JsonResponse({
+            "results" : results,
+            "has_more": end < total,
         })
-
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
 
 
 @login_required

@@ -1,348 +1,172 @@
-/* agregar_producto.css */
+/*  static/css/agregar_producto.css  */
 
-/* Importación de fuente */
+/* ─────────  Google Font  ───────── */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* Variables CSS para facilitar cambios de color y mantenimiento */
-:root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
-    --color-rojo: #ff0000;
-    --color-verde: #3c763d;
-    --color-gris-claro: #f0f8ff;
-    --color-gris: #ccc;
-    --color-gris-hover: #aaa;
-    --color-boton: #3b5998;
-    --color-boton-hover: #2b467d;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
-    --fuente-secundaria: 'Arial', sans-serif;
-    --tamanio-icono: 90px;
+/* ─────────  VARIABLES GLOBALES  ───────── */
+:root{
+  --clr-main:        #005091;
+  --clr-secondary:   #ADD8E6;
+  --clr-white:       #ffffff;
+  --clr-red:         #ff0000;
+  --clr-green:       #3c763d;
+  --clr-grey:        #ccc;
+  --clr-grey-light:  #f0f8ff;
+  --clr-grey-hover:  #aaa;
+  --clr-btn:         #3b5998;
+  --clr-btn-hover:   #2b467d;
+  --radius:          6px;
+  --font:           'Roboto',Arial,sans-serif;
+  --icon-size:       90px;
 }
 
-/* Reset básico */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* ─────────  RESET  ───────── */
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ─────────  BODY / FONDO  ───────── */
+body{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(135deg,var(--clr-secondary),var(--clr-main));
+  font-family:var(--font);
+  color:var(--clr-white);
+  text-align:center;
+  overflow:auto;
+  position:relative;
+}
+body::before{
+  content:"";
+  position:absolute;inset:0;
+  background:inherit;
+  filter:blur(20px);
+  z-index:-1;
+  pointer-events:none;
 }
 
-/* Estilos del cuerpo */
-body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center; /* Habilitado para centrar verticalmente */
-    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-    font-family: var(--fuente-principal);
-    text-align: center;
-    color: var(--color-blanco);
-    overflow: auto;
-    position: relative;
-    /* padding: 20px; */ /* Eliminado para evitar interferencias con el centrado */
+/* ─────────  TARJETA  ───────── */
+.container{
+  width:95%;max-width:430px;
+  background:rgba(255,255,255,.12);
+  border-radius:10px;
+  box-shadow:0 4px 10px rgba(0,0,0,.25);
+  padding:30px 40px 10px;
+  margin:20px auto;
+  display:flex;
+  flex-direction:column;
+}
+.icon{font-size:var(--icon-size);margin-bottom:15px}
+h2{font-size:24px;margin-bottom:10px}
+
+/* ─────────  TEXTOS / INDICACIONES  ───────── */
+.obligatorio-texto{
+  font-size:14px;font-style:italic;
+  margin:10px 0;
+}
+.required{color:var(--clr-white)}
+
+/* ─────────  FORMULARIO  ───────── */
+.form-group{margin-bottom:12px;text-align:left;position:relative}
+label{display:block;margin-bottom:5px;font-weight:700;font-size:16px}
+input[type="text"],
+input[type="number"],
+select{
+  width:100%;padding:10px;
+  border:1px solid var(--clr-grey);
+  border-radius:var(--radius);
+  background:var(--clr-grey-light);
+  font-size:15px;
+  transition:.25s;
+}
+input[type="text"]:hover,
+input[type="number"]:hover,
+select:hover{
+  background:#e0e8ff;border-color:var(--clr-grey-hover)
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus{
+  outline:none;border-color:var(--clr-main);
+  box-shadow:0 0 5px rgba(0,80,145,.5);
+}
+.input-error{
+  border-color:var(--clr-red)!important;
+  box-shadow:0 0 3px rgba(255,0,0,.5);    /* ← agregado el ; final */
 }
 
-/* Pseudo-elemento para el fondo difuminado */
-body::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    filter: blur(20px);
-    z-index: -1;
-    pointer-events: none;
+/* ─── Mensajes de error por campo ─── */
+.field-error{
+  color:var(--clr-red);
+  font-size:14px;
+  margin-top:5px;
+  display:none;opacity:0;
+  transition:opacity .3s;
+}
+.field-error.visible{display:block;opacity:1}
+.field-error i{margin-right:5px}
+
+/* ─── Alertas globales ─── */
+.alert{
+  padding:15px;margin-top:20px;
+  border:1px solid transparent;
+  border-radius:var(--radius);
+  font-size:16px;text-align:center;
+}
+.alert-success{
+  background:#dff0d8;color:var(--clr-green);
+  border-color:#c8e5bc;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.alert-error{
+  background:#f2dede;color:var(--clr-red);border-color:#ebccd1;
 }
 
-/* Contenedor principal */
-.container {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 30px 40px 10px; /* Top | Right & Left | Bottom */
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-    position: relative;
-    box-sizing: border-box;
-    margin: 20px auto; /* Mantener el margen existente */
-    /* height: 70%; */ /* Eliminado */
-
-    /* Flexbox properties */
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* Distribuye espacio equitativamente */
-    height: auto; /* Permite que el contenido defina la altura */
+/* ─── Botón enviar ─── */
+.btn-agregar-producto{
+  width:100%;padding:12px 20px;
+  background:var(--clr-btn);color:var(--clr-white);
+  border:none;border-radius:var(--radius);
+  font-size:17px;font-weight:700;cursor:pointer;
+  transition:background .25s,transform .2s,box-shadow .25s;
+  margin:25px 0;
 }
-
-/* Título del contenedor */
-.container h2 {
-    color: var(--color-blanco);
-    margin-bottom: 10px;
-    font-size: 24px;
+.btn-agregar-producto:hover{
+  background:var(--clr-btn-hover);transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
 }
+.btn-agregar-producto:active{transform:none}
 
-/* Icono */
-.icon {
-    font-size: var(--tamanio-icono);
-    margin-bottom: 15px;
-    color: var(--color-blanco);
+/* ─────────  AUTOCOMPLETE  ───────── */
+.autocomplete-results{
+  position:absolute;top:100%;left:0;right:0;
+  max-height:200px;overflow-y:auto;
+  background:var(--clr-grey-light);border:1px solid var(--clr-grey);
+  border-radius:var(--radius);box-shadow:0 2px 5px rgba(0,0,0,.2);
+  margin-top:5px;z-index:1000;display:none;
 }
-
-/* Mensaje de campos obligatorios */
-.obligatorio-texto {
-    font-style: italic;
-    color: var(--color-blanco);
-    font-size: 14px;
-    margin-top: 10px; /* Reducido de 20px a 10px */
-    margin-bottom: 10px; /* Añadido margin-bottom para equilibrar */
+.autocomplete-results.visible{display:block}
+.autocomplete-option{
+  padding:10px;font-size:16px;cursor:pointer;color:#333;
+  transition:background .2s,color .2s;
 }
-
-/* Grupo de formulario */
-.form-group {
-    margin-bottom: 10px; /* Reducido de 15px a 10px */
-    text-align: left;
-    position: relative; /* Para posicionar mensajes de error correctamente */
+.autocomplete-option:hover{
+  background:var(--clr-btn-hover);color:var(--clr-white);
 }
+.autocomplete-no-result{padding:10px;font-size:16px;color:#999}
 
-/* Etiquetas de los campos */
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--color-blanco);
-    font-weight: bold;
-    font-size: 16px;
+/* ─────────  RESPONSIVE  ───────── */
+@media(max-width:768px){
+  .container{padding:20px}
+  .btn-agregar-producto{padding:10px 18px;font-size:16px;margin:18px 0}
+  .icon{font-size:70px}
 }
-
-/* Asterisco para campos obligatorios */
-.form-group .required {
-    color: var(--color-blanco); /* Cambiar a rojo para mayor visibilidad */
-    margin-left: 5px;
-    font-size: 18px;
-}
-
-/* Campos de entrada */
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--color-gris);
-    border-radius: 5px;
-    background-color: var(--color-gris-claro);
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-/* Hover sobre campos de entrada */
-.form-group input[type="text"]:hover,
-.form-group input[type="number"]:hover,
-.form-group select:hover {
-    background-color: #e0e8ff;
-    border-color: var(--color-gris-hover);
-}
-
-/* Enfoque sobre campos de entrada */
-.form-group input[type="text"]:focus,
-.form-group input[type="number"]:focus,
-.form-group select:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
-}
-
-/* Botón de agregar producto */
-.btn-agregar-producto {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    cursor: pointer;
-    padding: 12px 20px; /* Mantener padding horizontal */
-    text-align: center;
-    width: 100%;
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
-    margin: 25px auto 25px; /* Top | Left & Right | Bottom */
-    display: block;
-    font-weight: bold;
-}
-
-/* Efecto al pasar el cursor */
-.btn-agregar-producto:hover {
-    background-color: var(--color-boton-hover);
-    transform: translateY(-2px); /* Efecto de elevación al pasar el cursor */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-/* Efecto al hacer clic */
-.btn-agregar-producto:active {
-    transform: translateY(0); /* Retornar al estado original al hacer clic */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-/* Estilos de alertas */
-.alert {
-    padding: 15px;
-    margin-top: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-    font-size: 16px;
-}
-
-.alert-success {
-    color: var(--color-verde);
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
-.alert-error {
-    color: var(--color-rojo);
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    margin-bottom: 20px;
-}
-
-/* Estilos para mensajes de error de campo */
-.field-error {
-    color: var(--color-rojo);
-    font-size: 14px;
-    margin-top: 5px;
-    display: none; /* Ocultar por defecto */
-    text-align: left;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.field-error.visible {
-    display: block;
-    opacity: 1;
-}
-
-/* Icono dentro de mensajes de error */
-.field-error i {
-    margin-right: 5px;
-}
-
-/* Autocomplete Styles */
-.autocomplete-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background-color: var(--color-gris-claro);
-    border: 1px solid var(--color-gris);
-    z-index: 1000;
-    max-height: 200px; /* Altura máxima */
-    overflow-y: auto; /* Scroll vertical */
-    display: none; /* Ocultar por defecto */
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    margin-top: 5px; /* Separación del campo de entrada */
-}
-
-.autocomplete-results.visible {
-    display: block;
-}
-
-.autocomplete-option {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #333;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-.autocomplete-option:hover {
-    background-color: var(--color-boton-hover);
-    color: var(--color-blanco);
-}
-
-.autocomplete-no-result {
-    padding: 10px;
-    color: #999;
-    font-size: 16px;
-}
-
-/* Responsividad para dispositivos móviles */
-@media (max-width: 768px) {
-    .container {
-        padding: 15px 20px; /* Reducido padding para móviles */
-    }
-
-    .form-group {
-        margin-bottom: 10px; /* Reducido espacio entre campos */
-    }
-
-    .btn-agregar-producto {
-        padding: 10px 18px; /* Ajuste de padding para dispositivos móviles */
-        font-size: 16px;
-        margin: 10px auto 10px; /* Mantener consistencia */
-    }
-
-    .obligatorio-texto {
-        font-size: 12px;
-        margin-top: 10px; /* Mantener consistencia */
-        margin-bottom: 10px; /* Añadido para equilibrar */
-    }
-
-    .autocomplete-results {
-        max-height: 150px;
-    }
-
-    .autocomplete-option {
-        font-size: 14px;
-    }
-}
-
-/* Responsividad para dispositivos muy pequeños */
-@media (max-width: 480px) {
-    .container {
-        padding: 10px 15px; /* Reducido padding para pantallas muy pequeñas */
-    }
-
-    .icon {
-        font-size: 50px;
-        margin-bottom: 8px;
-    }
-
-    .container h2 {
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
-
-    .form-group input[type="text"],
-    .form-group input[type="number"],
-    .form-group select {
-        font-size: 14px;
-        padding: 6px;
-    }
-
-    .btn-agregar-producto {
-        font-size: 16px;
-        padding: 8px 16px; /* Ajuste de padding para dispositivos muy pequeños */
-        margin: 10px auto 10px; /* Mantener consistencia */
-    }
-
-    .obligatorio-texto {
-        font-size: 10px;
-        margin-top: 10px; /* Mantener consistencia */
-        margin-bottom: 10px; /* Añadido para equilibrar */
-    }
-
-    .autocomplete-results {
-        max-height: 120px;
-    }
-
-    .autocomplete-option {
-        font-size: 12px;
-    }
+@media(max-width:480px){
+  .container{padding:15px}
+  .icon{font-size:50px}
+  h2{font-size:20px}
+  input[type="text"],
+  input[type="number"]{font-size:14px;padding:6px}
+  .btn-agregar-producto{padding:8px 16px;font-size:15px}
+  .autocomplete-option{font-size:13px}
 }

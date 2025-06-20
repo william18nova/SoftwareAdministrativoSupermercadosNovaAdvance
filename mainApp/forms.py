@@ -932,82 +932,88 @@ class EditarHorarioCajaForm(forms.Form):
 
     
 class ProductoForm(forms.ModelForm):
-    codigo_de_barras_validator = RegexValidator(
-        regex=r'^\d{12}$',
-        message='El código de barras debe contener exactamente 12 dígitos.'
+    _ean_validator = RegexValidator(
+        regex=r"^\d{12}$",
+        message="El código de barras debe contener exactamente 12 dígitos."
     )
 
     codigo_de_barras = forms.CharField(
-        validators=[codigo_de_barras_validator],
         required=False,
+        validators=[_ean_validator],
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el código de barras'
+            "class": "form-control",
+            "placeholder": "Ingresa el código de barras"
         })
     )
 
     class Meta:
-        model = Producto
-        fields = ['nombre', 'descripcion', 'precio', 'categoria', 'codigo_de_barras', 'iva']
+        model  = Producto
+        fields = ["nombre", "descripcion", "precio", "categoria",
+                  "codigo_de_barras", "iva"]
+
         labels = {
-            'nombre': 'Nombre',
-            'descripcion': 'Descripción',
-            'precio': 'Precio',
-            'categoria': 'Categoría',
-            'codigo_de_barras': 'Código de Barras',
-            'iva': 'IVA (Por ejemplo, para 19% ingrese 0.19)',
+            "nombre"          : "Nombre",
+            "descripcion"     : "Descripción",
+            "precio"          : "Precio",
+            "categoria"       : "Categoría",
+            "codigo_de_barras": "Código de barras",
+            "iva"             : "IVA (p. ej. 0.19)",
         }
+
         widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el nombre del producto',
-                'required': 'required'
+            "nombre": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ingresa el nombre del producto",
+                "required": "required"
             }),
-            'descripcion': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa la descripción del producto'
+            "descripcion": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ingresa la descripción del producto"
             }),
-            'precio': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el precio',
-                'required': 'required',
-                'step': '0.01',
-                'min': '0'
+            "precio": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0",
+                "placeholder": "Ingresa el precio",
+                "required": "required"
             }),
-            'categoria': forms.HiddenInput(),  # Campo oculto para almacenar el ID de la categoría
-            'iva': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el IVA (Por ejemplo, para 19% ingrese 0.19)',
-                'required': 'required',
-                'step': '0.01',
-                'min': '0',
-                'max': '1'
+            #  campo oculto: la PK llega vía autocompletado
+            "categoria": forms.HiddenInput(),
+            "iva": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "min": "0",
+                "max": "1",
+                "placeholder": "Ingresa el IVA",
+                "required": "required"
             }),
         }
 
-    def __init__(self, *args, **kwargs):
-        # Recibir 'instance' para editar
-        super().__init__(*args, **kwargs)
-        self.instance = kwargs.get('instance', None)
+    #  === VALIDATIONS ======================================================
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self._instance_pk = getattr(self.instance, "productoid", None)
 
     def clean_nombre(self):
-        nombre = self.cleaned_data.get('nombre')
+        nombre = self.cleaned_data["nombre"]
         qs = Producto.objects.filter(nombre__iexact=nombre)
-        if self.instance:
-            qs = qs.exclude(productoid=self.instance.productoid)
+        if self._instance_pk:
+            qs = qs.exclude(productoid=self._instance_pk)
         if qs.exists():
-            raise forms.ValidationError('El nombre del producto ya está registrado.')
+            raise forms.ValidationError("El nombre ya está registrado.", code="duplicate")
         return nombre
 
     def clean_codigo_de_barras(self):
-        codigo_de_barras = self.cleaned_data.get('codigo_de_barras')
-        if codigo_de_barras:
-            qs = Producto.objects.filter(codigo_de_barras=codigo_de_barras)
-            if self.instance:
-                qs = qs.exclude(productoid=self.instance.productoid)
-            if qs.exists():
-                raise forms.ValidationError('El código de barras ya está registrado.')
-        return codigo_de_barras
+        ean = self.cleaned_data.get("codigo_de_barras")
+        if not ean:
+            return ean
+        qs = Producto.objects.filter(codigo_de_barras=ean)
+        if self._instance_pk:
+            qs = qs.exclude(productoid=self._instance_pk)
+        if qs.exists():
+            raise forms.ValidationError("El código de barras ya está registrado.", code="duplicate")
+        return ean
     
     
     
