@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView, SucursalUpdateAJAXView, CategoriaCreateAJAXView, CategoriaListView
+from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView, SucursalUpdateAJAXView, CategoriaCreateAJAXView, CategoriaListView, CategoriaUpdateAJAXView
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -15,7 +15,7 @@ urlpatterns = [
     path("agregar_categoria/", CategoriaCreateAJAXView.as_view(), name="agregar_categoria"),
     path("visualizar_categorias/", CategoriaListView.as_view(), name="visualizar_categorias"),
     path('categorias/eliminar/<int:categoria_id>/', views.eliminar_categoria, name='eliminar_categoria'),
-    path('categorias/editar/<int:categoria_id>/', views.editar_categoria_view, name='editar_categoria'),
+    path("categorias/editar/<int:categoria_id>/", CategoriaUpdateAJAXView.as_view(), name="editar_categoria"),
     
     path('agregar_producto/', views.agregar_producto_view, name='agregar_producto'),
     path('categoria_autocomplete/', views.categoria_autocomplete, name='categoria_autocomplete'),

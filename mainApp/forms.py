@@ -181,38 +181,30 @@ class CategoriaForm(forms.ModelForm):
 
 class EditarCategoriaForm(forms.ModelForm):
     class Meta:
-        model = Categoria
-        fields = ['nombre', 'descripcion']
-        labels = {
-            'nombre': 'Nombre',
-            'descripcion': 'Descripción',
-        }
+        model  = Categoria
+        fields = ("nombre", "descripcion")
+        labels = {"nombre": "Nombre", "descripcion": "Descripción"}
         widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el nombre de la categoría',
+            "nombre": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ingresa el nombre de la categoría",
             }),
-            'descripcion': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa una descripción (opcional)',
+            "descripcion": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ingresa una descripción (opcional)",
             }),
         }
 
     def clean_nombre(self):
-        """
-        Asegúrate de que no haya otra categoría con el mismo nombre, 
-        excepto la que estamos editando.
-        """
-        nombre = self.cleaned_data.get('nombre')
-        # self.instance => la instancia que se está editando
-        categoriaid_excluir = self.instance.categoriaid
-
-        if Categoria.objects.filter(nombre__iexact=nombre)\
-                            .exclude(categoriaid=categoriaid_excluir)\
-                            .exists():
-            raise forms.ValidationError('El Nombre de la categoría ya está registrado.')
+        nombre = self.cleaned_data["nombre"]
+        qs = Categoria.objects.filter(nombre__iexact=nombre)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError(
+                "El nombre de la categoría ya está registrado."
+            )
         return nombre
-
 
 class ClienteForm(forms.ModelForm):
     class Meta:

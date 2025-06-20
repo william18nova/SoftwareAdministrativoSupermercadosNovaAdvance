@@ -248,6 +248,50 @@ def eliminar_categoria(request, categoria_id):
         return redirect('visualizar_categorias')
     return render(request, 'visualizar_categorias.html', {'categorias': Categoria.objects.all()})
 
+class CategoriaUpdateAJAXView(LoginRequiredMixin, UpdateView):
+    """
+    Edita una categoría mediante AJAX.
+    • En caso de éxito devuelve JSON  {success:true, redirect_url:"…"}
+    • Si hay errores devuelve        {success:false, errors:{…}}
+    """
+    model         = Categoria
+    form_class    = EditarCategoriaForm
+    template_name = "editar_categoria.html"
+    pk_url_kwarg  = "categoria_id"        # <int:categoria_id> en la URL
+    success_url   = reverse_lazy("visualizar_categorias")
+
+    # ── sobreevaluamos post() para responder siempre JSON a peticiones AJAX ──
+    def form_valid(self, form):
+        """
+        Guardamos, y enviamos ‘flash’ a sessionStorage mediante JS
+        => sólo enviamos la URL destino
+        """
+        self.object = form.save()
+        success_msg = f'Categoría «{self.object.nombre}» actualizada correctamente.'
+
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success"     : True,
+                "redirect_url": str(self.success_url),
+                "flash_msg"   : success_msg,          # opcional (por si lo quieres)
+            })
+
+        # Fallback (no-AJAX)
+        from django.contrib import messages
+        messages.success(self.request, success_msg)
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400,
+            )
+        return super().form_invalid(form)
+
+
+
+
 
 @login_required
 def editar_categoria_view(request, categoria_id):
