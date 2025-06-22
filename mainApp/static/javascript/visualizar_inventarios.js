@@ -1,145 +1,115 @@
-$(document).ready(function() {
-    // Inicializar DataTable
-    var table = $('#inventarios-list').DataTable({
-        paging: false,
-        searching: true,
-        info: false,
-        language: {
-            search: "Buscar:",
-            zeroRecords: "No se encontraron resultados",
-            emptyTable: "No hay productos para mostrar"
-        }
-    });
+/*  visualizar_inventarios.js
+    – DataTable intact
+    – Autocomplete de sucursal totalmente visible
+    – Eliminación vía AJAX
+------------------------------------------------------------------*/
+$(function () {
+  "use strict";
 
-    // Función para mostrar mensajes de alerta
-    function mostrarMensaje(mensaje, clase) {
-        $('.alert').remove();
-        var alertDiv = $('<div class="alert ' + clase + '">' + mensaje + '</div>');
-        $('h2').after(alertDiv);
+  /* 1. DataTable ------------------------------------------------- */
+  const $tblEl = $("#inventariosTable, #inventarios-list");      // acepta el id viejo o el nuevo
+  const tbl = $tblEl.length ? $tblEl.DataTable({
+    paging: true,
+    searching: true,
+    info: true,
+    responsive: true,
+    language: {
+      search       : "",
+      zeroRecords  : "No se encontraron registros",
+      info         : "Mostrando _START_ a _END_ de _TOTAL_",
+      infoEmpty    : "Mostrando 0 a 0 de 0",
+      paginate     : { first:"Primero", last:"Último", next:"Sig.", previous:"Ant." }
     }
+  }) : null;
 
-    // Manejo de eliminación de inventario vía AJAX
-    $('#inventarios-list').on('click', '.btn-eliminar', function(event) {
-        event.preventDefault();
-        var button = $(this);
-        var inventarioId = button.data('inventario-id');
-        var row = button.closest('tr');
-        if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
-            $.ajax({
-                url: eliminarInventarioUrlPattern.replace('0', inventarioId),
-                type: 'POST',
-                data: {
-                    csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
-                },
-                success: function(response) {
-                    if (response.success) {
-                        table.row(row).remove().draw(false);
-                        mostrarMensaje(response.message, 'alert-success');
-                    } else {
-                        mostrarMensaje(response.message, 'alert-error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    mostrarMensaje('Ocurrió un error al eliminar el producto.', 'alert-error');
-                }
-            });
-        }
-    });
+  /* 2. Helpers --------------------------------------------------- */
+  const csrf  = $("input[name=csrfmiddlewaretoken]").val();
+  const $msg  = $("<div class='alert' style='display:none'></div>").insertAfter("h2");
 
-    /* Autocomplete para Sucursal (con inventario) */
-    var sucursalInput = $('#id_sucursal_autocomplete');
-    var sucursalResults = $('#sucursal-autocomplete-results');
-    var sucursalIdInput = $('#id_sucursal');
-    var currentPage = 1;
-    var isLoading = false;
-    var hasMore = true;
-    var currentTerm = '';
+  const flash = (ok, txt) => $msg
+      .removeClass("alert-success alert-error")
+      .addClass(ok ? "alert-success" : "alert-error")
+      .text(txt).show();
 
-    function fetchSucursales(term, page) {
-        console.log("Fetch sucursales:", term, "page:", page);
-        if (isLoading) return;
-        isLoading = true;
-        $.ajax({
-            url: sucursalAutocompleteUrl,
-            data: { term: term, page: page },
-            dataType: "json",
-            success: function(data) {
-                console.log("Datos recibidos:", data);
-                if (page === 1) {
-                    sucursalResults.empty();
-                }
-                if (data.results && data.results.length > 0) {
-                    $.each(data.results, function(i, item) {
-                        var option = $('<div class="autocomplete-option"></div>')
-                            .text(item.text)
-                            .attr('data-id', item.id);
-                        sucursalResults.append(option);
-                    });
-                    hasMore = data.has_more;
-                } else if (page === 1) {
-                    sucursalResults.append('<div class="autocomplete-no-result">No se encontraron resultados</div>');
-                    hasMore = false;
-                }
-                sucursalResults.show();
-                isLoading = false;
-            },
-            error: function() {
-                console.error("Error en la petición de sucursales.");
-                isLoading = false;
-            }
-        });
+  const debounce = (fn, ms=300) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
+
+  /* 3. Eliminar -------------------------------------------------- */
+  $("#inventariosTable, #inventarios-list").on("click", ".btn-eliminar", function (e) {
+    e.preventDefault();
+    const $btn = $(this);
+    const id   = $btn.data("inventario-id");
+    if (!id || !confirm("¿Eliminar este producto del inventario?")) return;
+
+    $.post(eliminarInventarioUrl.replace("0", id),
+           { csrfmiddlewaretoken: csrf })
+     .done(r => {
+        if (r.success && tbl) { tbl.row($btn.closest("tr")).remove().draw(false); }
+        flash(r.success, r.message);
+     })
+     .fail(() => flash(false, "Error al eliminar el registro."));
+  });
+
+  /* 4. Autocomplete Sucursal ------------------------------------ */
+  const $inp = $("#id_sucursal_autocomplete");
+  const $hid = $("#id_sucursal");
+  const $box = $("#sucursal-autocomplete-results");
+
+  let page = 1, more = true, load = false, term = "";
+
+  const draw = data => {
+    if (page === 1) { $box.empty(); }
+
+    if (data.results.length) {
+      data.results.forEach(r =>
+        $("<div>", { "class":"autocomplete-option", text:r.text, "data-id":r.id }).appendTo($box)
+      );
+      more = data.has_more;
+    } else if (page === 1) {
+      $box.html('<div class="autocomplete-no-result">Sin resultados</div>');
+      more = false;
     }
+    /* — FIX clave: forzar display — */
+    $box.css("display","block");
+  };
 
-    function debounce(func, delay) {
-        var timeout;
-        return function() {
-            var context = this, args = arguments;
-            clearTimeout(timeout);
-            timeout = setTimeout(function() {
-                func.apply(context, args);
-            }, delay);
-        };
+  const fetchSuc = () => {
+    if (load || !more) return;
+    load = true;
+    $.getJSON(sucursalAutocompleteUrl, { term, page })
+      .done(draw)
+      .always(()=> load=false);
+  };
+
+  const kick = debounce(() => { page=1; more=true; fetchSuc(); }, 250);
+
+  $inp
+    .on("input", () => { $hid.val(""); term=$.trim($inp.val()); kick(); })
+    .on("focus", ()  => { term=$.trim($inp.val()); page=1; more=true; fetchSuc(); });
+
+  $box
+    .on("scroll", () => {
+      if ($box.scrollTop() + $box.innerHeight() >= $box[0].scrollHeight-4 && more && !load) {
+        page += 1; fetchSuc();
+      }
+    })
+    .on("click", ".autocomplete-option", function () {
+      $inp.val($(this).text());
+      $hid.val($(this).data("id"));
+      $box.hide();
+      $("#sucursalForm").trigger("submit");     // recarga con la sucursal elegida
+    });
+
+  $(document).on("click", e => {
+    if (!$(e.target).closest("#id_sucursal_autocomplete, #sucursal-autocomplete-results").length) {
+      $box.hide();
     }
-    var debouncedFetchSucursales = debounce(function() {
-        currentPage = 1;
-        currentTerm = sucursalInput.val().trim();
-        fetchSucursales(currentTerm, currentPage);
-    }, 300);
+  });
 
-    sucursalInput.on('input', function() {
-        sucursalIdInput.val('');
-        hasMore = true;
-        debouncedFetchSucursales();
-    });
-
-    // Al hacer focus, se muestra el autocomplete (incluso si el campo está vacío)
-    sucursalInput.on('focus', function() {
-        currentTerm = sucursalInput.val().trim();
-        currentPage = 1;
-        fetchSucursales(currentTerm, currentPage);
-    });
-
-    sucursalResults.on('click', '.autocomplete-option', function() {
-        var selectedText = $(this).text();
-        var selectedId = $(this).data('id');
-        sucursalInput.val(selectedText);
-        sucursalIdInput.val(selectedId);
-        sucursalResults.hide();
-        $('#sucursalForm').submit();
-    });
-
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#id_sucursal_autocomplete, #sucursal-autocomplete-results').length) {
-            sucursalResults.hide();
-        }
-    });
-
-    sucursalResults.on('scroll', function() {
-        if (sucursalResults.scrollTop() + sucursalResults.innerHeight() >= sucursalResults[0].scrollHeight - 5) {
-            if (hasMore && !isLoading) {
-                currentPage++;
-                fetchSucursales(currentTerm, currentPage);
-            }
-        }
-    });
+  /* ----------  DEBUG rápido (opcional) ----------
+     descomenta para ver pasos en consola
+  // [ "focus","input","scroll","click" ].forEach(evt=>{
+  //   $inp.on(evt, ()=>console.log("inp:",evt));
+  //   $box.on(evt, ()=>console.log("box:",evt));
+  // });
+  ---------------------------------------------- */
 });

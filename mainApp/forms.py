@@ -1320,6 +1320,33 @@ class InventarioForm(forms.Form):
             self.add_error("cantidad", "Indique una cantidad válida.")
         return cd
     
+
+class InventarioFiltroForm(forms.Form):
+    """
+    Formulario mínimo usado por la vista `InventarioListView`.
+    Solo contiene el campo oculto “sucursal” que llega del
+    autocompletado (puede ser un PK o la cadena “global”).
+    """
+
+    sucursal = forms.CharField(widget=forms.HiddenInput(), required=False)
+
+    def clean_sucursal(self):
+        valor = self.cleaned_data.get("sucursal", "").strip()
+        if not valor:                       # → sin filtro (listar nada)
+            return ""
+
+        if valor == "global":               # → modo inventario global
+            return "global"
+
+        # debe ser un entero correspondiente a una sucursal existente
+        if not valor.isdigit():
+            raise forms.ValidationError("Sucursal no válida.")
+        pk = int(valor)
+        if not Sucursal.objects.filter(pk=pk, inventario__isnull=False).exists():
+            raise forms.ValidationError("Sucursal no encontrada.")
+        return pk
+
+    
 class EditarInventarioForm(forms.Form):
     """
     Formulario para editar el inventario de una sucursal con autocomplete.

@@ -26,6 +26,7 @@ from .forms import (
     ProveedorForm,
     RolForm,
     InventarioForm, 
+    InventarioFiltroForm,
     PreciosProveedorForm,
     PuntosPagoForm,
     UsuarioForm,
@@ -559,73 +560,76 @@ class ProductoAutocomplete(PaginatedAutocompleteMixin):
         ids      = [int(x) for x in excluded.split(",") if x.isdigit()]
         return qs.exclude(productoid__in=ids) if ids else qs
 
-@login_required
-def visualizar_inventarios_view(request):
-    sucursales_con_inventario = Sucursal.objects.filter(inventario__isnull=False).distinct()
-    sucursal_id = request.POST.get('sucursal')
-    inventario_global = False
-    inventarios = []
-    inventario_global_data = []
+class InventarioListView(LoginRequiredMixin, View):
+    """Renderiza y filtra inventarios por sucursal (o modo global)."""
 
-    if sucursal_id and sucursal_id != "global":
-        sucursal_seleccionada = get_object_or_404(Sucursal, pk=int(sucursal_id))
-        inventarios = Inventario.objects.filter(sucursalid=sucursal_seleccionada)
-    elif sucursal_id == "global":
-        inventario_global = True
-        inventario_global_data = Inventario.objects.values('productoid__nombre').annotate(
-            total_cantidad=Sum('cantidad')
-        )
+    template_name = "visualizar_inventarios.html"
 
-    context = {
-        'sucursales': sucursales_con_inventario,
-        'inventarios': inventarios,
-        'inventario_global': inventario_global,
-        'inventario_global_data': inventario_global_data,
-        'sucursal_seleccionada': (
-            sucursal_seleccionada if (sucursal_id and sucursal_id != "global") else None
-        ),
-    }
-    return render(request, 'visualizar_inventarios.html', context)
+    def get_context(self, request):
+        """Devuelve contexto según el filtro POST (si lo hay)."""
+        form         = InventarioFiltroForm(request.POST or None)
+        sucursales   = Sucursal.objects.filter(inventario__isnull=False).distinct()
+        sucursal_sel = None
+        inventarios  = []
+        global_mode  = False
+        global_data  = []
 
-@login_required
-def sucursal_con_inventario_autocomplete(request):
+        if form.is_valid():
+            filtro = form.cleaned_data.get("sucursal")
+            if filtro == "global":
+                global_mode = True
+                global_data = (Inventario.objects
+                               .values("productoid__nombre")
+                               .annotate(total_cantidad=Sum("cantidad"))
+                               .order_by("productoid__nombre"))
+            elif filtro:
+                sucursal_sel = get_object_or_404(Sucursal, pk=int(filtro))
+                inventarios  = (Inventario.objects
+                                .filter(sucursalid=sucursal_sel)
+                                .select_related("productoid"))
+        return {
+            "form"                : form,
+            "sucursales"          : sucursales,
+            "inventarios"         : inventarios,
+            "inventario_global"   : global_mode,
+            "inventario_global_data": global_data,
+            "sucursal_seleccionada": sucursal_sel,
+        }
+
+    # GET y POST necesitan la misma lógica
+    def get(self, request):
+        return render(request, self.template_name, self.get_context(request))
+
+    def post(self, request):
+        return render(request, self.template_name, self.get_context(request))
+
+class SucursalInventarioAutocompleteView(PaginatedAutocompleteMixin):
     """
-    Devuelve en JSON las sucursales que tienen inventario para el autocomplete
-    en la vista de Visualizar Inventarios. Se inserta "Inventario Global" como primera opción.
-    Soporta paginación mediante 'term' y 'page'.
+    Autocompletado de sucursales que YA tienen inventario.
+    En la primera página agrega la opción «Inventario Global».
     """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page = 10
+    model       = Sucursal
+    text_field  = "nombre"
+    id_field    = "sucursalid"
 
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
+    # ── se filtra solo a sucursales con inventario ───────────────────────────
+    def extra_filter(self, qs, request):
+        #  opción A (sin Count) – más simple
+        return qs.filter(inventario__isnull=False).distinct()
 
-    start = (page - 1) * per_page
-    end = start + per_page
+        #  opción B (con Count) – si prefieres una sola consulta
+        # return qs.annotate(n=Count("inventario")).filter(n__gt=0)
 
-    qs = Sucursal.objects.annotate(inventarios_count=Count('inventario')) \
-                         .filter(inventarios_count__gt=0) \
-                         .order_by('nombre')
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-    
-    total_results = qs.count()
-    qs = qs[start:end]
+    # ── se añade la opción «global» en la página 1 ────────────────────────────
+    def get(self, request, *args, **kwargs):
+        # llamamos al mixin ⇒ JsonResponse
+        base_response = super().get(request, *args, **kwargs)
+        data          = json.loads(base_response.content)   # → dict
 
-    results = [{'id': sucursal.sucursalid, 'text': sucursal.nombre} for sucursal in qs]
-    # Si es la primera página, insertar la opción global al inicio
-    if page == 1:
-        results.insert(0, {"id": "global", "text": "Inventario Global"})
+        if int(request.GET.get("page", "1")) == 1:
+            data["results"].insert(0, {"id": "global", "text": "Inventario Global"})
 
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
+        return JsonResponse(data)
 
 
 @login_required
