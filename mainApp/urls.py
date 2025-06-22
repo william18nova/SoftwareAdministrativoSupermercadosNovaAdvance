@@ -17,7 +17,10 @@ from .views import (
                     SucursalSinInventarioAutocomplete,
                     ProductoAutocomplete,
                     InventarioListView,
-                    SucursalInventarioAutocompleteView)
+                    SucursalInventarioAutocompleteView,
+                    EditarInventarioView,
+                    SucursalInventarioAutocompleteEditarView,
+                    ProductoInventarioAutocompleteView,)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -48,9 +51,9 @@ urlpatterns = [
     path('autocomplete/producto_inventario/', ProductoAutocomplete.as_view(), name='producto_inventario_autocomplete'),
     path('visualizar_inventarios/', InventarioListView.as_view(), name='visualizar_inventarios'),
     path('autocomplete/sucursal_con_inventario/', SucursalInventarioAutocompleteView.as_view(), name='sucursal_con_inventario_autocomplete'),
-    path('editar_inventario/<int:sucursal_id>/', views.editar_inventario_view, name='editar_inventario'),
-    path('autocomplete/sucursal_inventario_editar/', views.sucursal_inventario_autocomplete_editar, name='sucursal_inventario_autocomplete_editar'),
-    path('autocomplete/producto_inventario_editar/', views.producto_inventario_autocomplete_editar, name='producto_inventario_autocomplete_editar'),
+    path('editar_inventario/<int:sucursal_id>/', EditarInventarioView.as_view(), name='editar_inventario'),
+    path('autocomplete/sucursal_inventario_editar/', SucursalInventarioAutocompleteEditarView.as_view(), name='sucursal_inventario_autocomplete_editar'),
+    path('autocomplete/producto_inventario_editar/', ProductoInventarioAutocompleteView.as_view(), name='producto_inventario_autocomplete_editar'),
     path('inventario/eliminar/<int:inventario_id>/', views.eliminar_producto_inventario_view, name='eliminar_producto_inventario'),
     
     path('agregar_proveedor/', views.agregar_proveedor_view, name='agregar_proveedor'),

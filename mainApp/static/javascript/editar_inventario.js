@@ -1,422 +1,257 @@
-// static/javascript/editar_inventario.js
+/*  static/javascript/editar_inventario.js
+    ───────────────────────────────────────────────
+    Variante de agregar_inventario.js PARA “Editar”.
+    Cambios:
+      • Precarga de filas existentes en state.items.
+      • Tras guardar, redirige a data.redirect_url.
+   ------------------------------------------------ */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    // 1. Inicializar DataTable
-    const table = $('#inventario-list').DataTable({
-      paging: false,
-      searching: true,
-      info: false,
-      responsive: true,
-      language: {
-        search: "Buscar:",
-        zeroRecords: "No se encontraron resultados",
-        emptyTable: "No hay productos para mostrar",
-      },
-    });
-  
-    // 2. Referencias al DOM
-    const form = document.getElementById('inventarioForm');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
-  
-    // Sucursal
-    const sucursalInput    = document.getElementById('id_sucursal_autocomplete');
-    const sucursalIdInput  = document.getElementById('id_sucursal');  // hidden
-    const sucursalResults  = document.getElementById('sucursal-autocomplete-results');
-  
-    // Producto
-    const productoInput    = document.getElementById('id_producto_autocomplete');
-    const productoIdInput  = document.getElementById('id_productoid');
-    const productoResults  = document.getElementById('producto-autocomplete-results');
-  
-    // Cantidad
-    const cantidadInput    = document.getElementById('id_cantidad');
-    const btnAgregar       = document.getElementById('btn-agregar-producto');
-  
-    // Campo oculto con el JSON final
-    const inventariosTempInput = document.getElementById('id_inventarios_temp');
-  
-    // Array con inventarios (existentes + nuevos)
-    let inventarioTemp = [];
-  
-    // 2A. Cargar filas existentes (productos) en el array 'inventarioTemp'
-    const existingRows = table.rows().nodes();
-    existingRows.each((row) => {
-      const productId   = row.getAttribute('data-product-id');
-      const productName = row.cells[0].textContent.trim();
-      const qtyInput    = row.cells[1].querySelector('input.qty-input');
-      const cantidadVal = qtyInput ? qtyInput.value.trim() : '1';
-      inventarioTemp.push({
-        productId,
-        productName,
-        cantidad: cantidadVal
-      });
-    });
-    console.log('inventarioTemp inicial:', inventarioTemp);
-  
-    // 3. Manejo de Errores
-    function clearErrors() {
-      document.querySelectorAll('.field-error').forEach(e => {
-        e.innerHTML = '';
-        e.style.display = 'none';
-      });
-      errorMessageDiv.style.display = 'none';
-      successMessageDiv.style.display = 'none';
+  /* ───────── 0. helpers DOM ───────── */
+  const $id  = id => document.getElementById(id);
+  const $qs  = s  => document.querySelector(s);
+  const $qsa = s  => document.querySelectorAll(s);
+
+  /* ───────── 1. refs y estado ───────── */
+  const dom = {
+    form      : $id('inventarioForm'),
+    sucInp    : $id('id_sucursal_autocomplete'),
+    sucHid    : $id('id_sucursal'),
+    sucBox    : $id('sucursal-autocomplete-results'),
+
+    prdInp    : $id('id_producto_autocomplete'),
+    prdHid    : $id('id_productoid'),
+    prdBox    : $id('producto-autocomplete-results'),
+
+    qtyInp    : $id('id_cantidad'),
+    btnAdd    : $id('agregarProductoBtn'),
+    rowsWrap  : $id('productos-body'),
+
+    alertErr  : $id('error-message'),
+    alertOk   : $id('success-message'),
+  };
+
+  const state = {
+    suc : { page:1, term:'', loading:false, more:true },
+    prd : { page:1, term:'', loading:false, more:true },
+    items : []      // [{ productId, productName, cantidad }]
+  };
+
+  /* ───────── 2. precargar filas existentes ───────── */
+  $qsa('#productos-body tr').forEach(tr=>{
+    const pid  = tr.dataset.productId;
+    const name = tr.children[0].textContent.trim();
+    const qty  = tr.querySelector('.qty-input')?.value.trim() || '1';
+    state.items.push({ productId: pid, productName: name, cantidad: qty });
+  });
+
+  /* ───────── 3. DataTable ───────── */
+  const dataTable = $('#productos-list').DataTable({
+    paging    : false,
+    searching : true,
+    info      : false,
+    responsive: true,
+    language  : {
+      search      : 'Buscar:',
+      zeroRecords : 'No se encontraron resultados',
+      emptyTable  : 'No hay productos para mostrar'
     }
+  });
 
-    function showFieldError(field, message) {
-      const errorDiv = document.getElementById(`error-id_${field}`);
-      if (errorDiv) {
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        errorDiv.style.display = 'block';
+  /* ───────── 4. utilidades UI ───────── */
+  const UI = {
+    clearAlerts(){
+      [dom.alertOk, dom.alertErr].forEach(a=>{
+        if (!a) return; a.style.display='none'; a.innerHTML='';
+      });
+    },
+    err(msg){
+      dom.alertErr.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+      dom.alertErr.style.display='block';
+    },
+    clearFieldErrors(){
+      $qsa('.field-error').forEach(d=>{ d.classList.remove('visible'); d.textContent=''; });
+      $qsa('.input-error').forEach(i=>i.classList.remove('input-error'));
+    },
+    fieldError(field,msg){
+      const box = $qs(`#error-id_${field}`);
+      if (box){
+        box.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+        box.classList.add('visible');
       }
+      const map = { sucursal: dom.sucInp, productoid: dom.prdInp, cantidad: dom.qtyInp };
+      const input = map[field] || $qs(`#id_${field}`);
+      if (input) input.classList.add('input-error');
+    }
+  };
+
+  /* ───────── 5. cachés y fetchCached ───────── */
+  const cacheSucursal = Object.create(null);
+  const cacheProducto = Object.create(null);
+
+  async function fetchCached(url, cache){
+    if (cache[url]) return cache[url];
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    cache[url]=data; return data;
+  }
+
+  /* ───────── 6. debounce ───────── */
+  const debounce = (fn,ms=300)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
+
+  /* ───────── 7. Autocomplete Factory ───────── */
+  function Autocomplete(kind){
+    const cfg = (kind==='suc') ? {
+      inp:dom.sucInp, hid:dom.sucHid, box:dom.sucBox,
+      state:state.suc, cache:cacheSucursal,
+      url  : p => `${sucursalAutocompleteUrl}?current_sucursal_id=${currentSucursalId}&${p}`
+    } : {
+      inp:dom.prdInp, hid:dom.prdHid, box:dom.prdBox,
+      state:state.prd, cache:cacheProducto,
+      url:p=>{
+        const excluded = state.items.length
+              ? `&excluded=${state.items.map(i=>i.productId).join(',')}` : '';
+        return `${productoAutocompleteUrl}?${p}${excluded}`;
+      }
+    };
+
+    const render = async ()=>{
+      if (cfg.state.loading || !cfg.state.more) return;
+      cfg.state.loading=true;
+
+      const params = new URLSearchParams({ term:cfg.state.term, page:cfg.state.page });
+      try{
+        const data = await fetchCached(cfg.url(params), cfg.cache);
+        if (cfg.state.page===1) cfg.box.innerHTML='';
+
+        if (data.results.length){
+          data.results.forEach(r=>{
+            const div=document.createElement('div');
+            div.className='autocomplete-option';
+            div.dataset.id=r.id; div.textContent=r.text;
+            cfg.box.appendChild(div);
+          });
+          cfg.state.more = data.has_more;
+        }else if (cfg.state.page===1){
+          cfg.box.innerHTML = '<div class="autocomplete-no-result">No se encontraron resultados</div>';
+          cfg.state.more=false;
+        }
+        cfg.box.style.display='block';
+      }catch(err){ console.error(err); }
+      cfg.state.loading=false;
+    };
+
+    const delayed = debounce(()=>{ cfg.state.page=1; cfg.state.more=true; render(); });
+    cfg.inp.addEventListener('input',()=>{
+      cfg.hid.value=''; cfg.state.term=cfg.inp.value.trim();
+      if (!cfg.state.term){ cfg.box.style.display='none'; return; }
+      delayed();
+    });
+    cfg.inp.addEventListener('focus',()=>{
+      cfg.state.term=cfg.inp.value.trim(); cfg.state.page=1; cfg.state.more=true; render();
+    });
+    cfg.box.addEventListener('scroll',()=>{
+      if (cfg.box.scrollTop+cfg.box.clientHeight>=cfg.box.scrollHeight-4)
+        if (cfg.state.more && !cfg.state.loading){ cfg.state.page++; render(); }
+    });
+    cfg.box.addEventListener('click',e=>{
+      const opt=e.target.closest('.autocomplete-option'); if (!opt) return;
+      cfg.inp.value=opt.textContent; cfg.hid.value=opt.dataset.id; cfg.box.style.display='none';
+    });
+    document.addEventListener('click',e=>{
+      if (!cfg.inp.contains(e.target) && !cfg.box.contains(e.target))
+        cfg.box.style.display='none';
+    });
+  }
+  Autocomplete('suc');
+  Autocomplete('prd');
+
+  /* ───────── 8. Agregar fila ───────── */
+  dom.btnAdd.addEventListener('click', ()=>{
+    UI.clearAlerts(); UI.clearFieldErrors();
+
+    const sid=dom.sucHid.value.trim();
+    const pid=dom.prdHid.value.trim();
+    const qty=dom.qtyInp.value.trim();
+    const pname=dom.prdInp.value.trim();
+
+    let bad=false;
+    if (!sid){ UI.fieldError('sucursal','Debe seleccionar una sucursal.'); bad=true; }
+    if (!pid){ UI.fieldError('productoid','Debe seleccionar un producto.'); bad=true; }
+    if (!qty || qty<=0){ UI.fieldError('cantidad','Cantidad debe ser mayor que 0.'); bad=true; }
+    if (bad) return;
+
+    if (state.items.some(i=>i.productId===pid)){
+      UI.fieldError('productoid','Este producto ya está en la lista.'); return;
     }
 
-    function showGlobalError(msg) {
-      errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
-      errorMessageDiv.style.display = 'block';
+    state.items.push({ productId:pid, productName:pname, cantidad:qty });
+
+    dataTable.row.add([
+      pname,
+      `<input type="number" class="qty-input" min="1" value="${qty}">`,
+      `<button type="button" class="btn-eliminar" data-product-id="${pid}">
+         <i class="fas fa-trash-alt"></i>
+       </button>`
+    ]).draw(false);
+
+    dom.prdInp.value=''; dom.prdHid.value=''; dom.qtyInp.value='';
+  });
+
+  /* ───────── 9. Eliminar fila ───────── */
+  dom.rowsWrap.addEventListener('click',e=>{
+    const btn=e.target.closest('.btn-eliminar'); if (!btn) return;
+    const pid=btn.dataset.productId;
+    state.items=state.items.filter(i=>i.productId!==pid);
+    dataTable.row(btn.closest('tr')).remove().draw(false);
+  });
+
+  /* ───────── 10. submit ───────── */
+  dom.form.addEventListener('submit',async ev=>{
+    ev.preventDefault();
+    UI.clearAlerts(); UI.clearFieldErrors();
+
+    if (!state.items.length){
+      UI.err('Debe agregar al menos un producto.'); return;
     }
 
-    function showSuccess(msg) {
-      successMessageDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
-      successMessageDiv.style.display = 'block';
-    }
-  
-    // 4. Autocomplete Sucursal
-    let isLoadingSucursal = false,
-        hasMoreSucursal   = true,
-        currentPageSucursal = 1,
-        currentTermSucursal = '';
-  
-    function fetchSucursales(term, page=1) {
-      if (isLoadingSucursal || !hasMoreSucursal) return;
-      isLoadingSucursal = true;
-      const url = `${sucursalAutocompleteUrl}&term=${encodeURIComponent(term)}&page=${page}`;
-      console.log('Fetch sucursales:', url);
-  
-      fetch(url)
-        .then(r => {
-          if (!r.ok) throw new Error(`HTTP error: ${r.status}`);
-          return r.json();
-        })
-        .then(data => {
-          if (page === 1) {
-            sucursalResults.innerHTML = '';
-          }
-          if (data.results.length > 0) {
-            data.results.forEach(item => {
-              const opt = document.createElement('div');
-              opt.classList.add('autocomplete-option');
-              opt.textContent = item.text;
-              opt.dataset.id  = item.id;
-              sucursalResults.appendChild(opt);
-            });
-            hasMoreSucursal = data.has_more;
-          } else if (page === 1) {
-            const noRes = document.createElement('div');
-            noRes.classList.add('autocomplete-no-result');
-            noRes.textContent = 'No se encontraron resultados';
-            sucursalResults.appendChild(noRes);
-            hasMoreSucursal = false;
-          }
-          sucursalResults.style.display = 'block';
-        })
-        .catch(e => console.error('Error fetchSucursales:', e))
-        .finally(() => {
-          isLoadingSucursal = false;
+    /* sincronizar cantidades editadas */
+    dataTable.rows().every(function(){
+      const [prod, qtyCell] = this.node().querySelectorAll('td');
+      const item = state.items.find(i=>i.productName===prod.textContent.trim());
+      const inp  = qtyCell.querySelector('.qty-input');
+      if (item && inp) item.cantidad = inp.value.trim();
+    });
+
+    $id('id_inventarios_temp').value = JSON.stringify(state.items);
+
+    try{
+      const resp = await fetch(dom.form.action,{
+        method:'POST',
+        headers:{
+          'X-CSRFToken': document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1] || '',
+          'Accept':'application/json'
+        },
+        body:new FormData(dom.form)
+      });
+      const data = await resp.json();
+
+      if (data.success){
+        /* Éxito → redirige */
+        window.location.href = data.redirect_url || window.location.href;
+      }else{
+        /* errores de validación */
+        const errs = JSON.parse(data.errors || '{}');
+        Object.entries(errs).forEach(([field, arr])=>{
+          arr.forEach(e=>UI.fieldError(field, e.message));
         });
+      }
+    }catch(err){
+      console.error(err);
+      UI.err('Ocurrió un error inesperado.');
     }
-  
-    if (sucursalInput) {
-      sucursalInput.addEventListener('input', () => {
-        clearErrors();
-        sucursalIdInput.value = '';
-        hasMoreSucursal = true;
-        currentPageSucursal = 1;
-        currentTermSucursal = sucursalInput.value.trim();
-        fetchSucursales(currentTermSucursal, currentPageSucursal);
-      });
+  });
 
-      sucursalInput.addEventListener('focus', () => {
-        clearErrors();
-        hasMoreSucursal = true;
-        currentPageSucursal = 1;
-        currentTermSucursal = sucursalInput.value.trim();
-        fetchSucursales(currentTermSucursal, currentPageSucursal);
-      });
-
-      sucursalResults.addEventListener('scroll', () => {
-        if (sucursalResults.scrollTop + sucursalResults.clientHeight >= sucursalResults.scrollHeight - 5) {
-          if (!isLoadingSucursal && hasMoreSucursal) {
-            currentPageSucursal++;
-            fetchSucursales(currentTermSucursal, currentPageSucursal);
-          }
-        }
-      });
-
-      sucursalResults.addEventListener('click', (e) => {
-        if (e.target.classList.contains('autocomplete-option')) {
-          sucursalInput.value = e.target.textContent;
-          sucursalIdInput.value = e.target.dataset.id;
-          sucursalResults.innerHTML = '';
-          sucursalResults.style.display = 'none';
-          hasMoreSucursal = false;
-        }
-      });
-
-      document.addEventListener('click', (ev) => {
-        if (!sucursalInput.contains(ev.target) && !sucursalResults.contains(ev.target)) {
-          sucursalResults.innerHTML = '';
-          sucursalResults.style.display = 'none';
-          hasMoreSucursal = false;
-        }
-      });
-    }
-  
-    // 5. Autocomplete Producto
-    let isLoadingProducto = false,
-        hasMoreProducto   = true,
-        currentPageProducto = 1,
-        currentTermProducto = '';
-  
-    function fetchProductos(term, page=1) {
-      if (isLoadingProducto || !hasMoreProducto) return;
-      isLoadingProducto = true;
-  
-      // Excluir los productos ya en inventarioTemp
-      //  (así se evita que aparezcan repetidos)
-      const excludedIds = inventarioTemp.map(i => i.productId).join(',');
-      // Armamos la URL con el param 'excluded'
-      const url = `${productoAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}&excluded=${excludedIds}`;
-      console.log('Fetching productos:', url);
-
-      fetch(url)
-        .then(r => {
-          if (!r.ok) throw new Error(`HTTP error: ${r.status}`);
-          return r.json();
-        })
-        .then(data => {
-          if (page === 1) {
-            productoResults.innerHTML = '';
-          }
-          if (data.results.length > 0) {
-            data.results.forEach(item => {
-              const opt = document.createElement('div');
-              opt.classList.add('autocomplete-option');
-              opt.textContent = item.text;
-              opt.dataset.id  = item.id;
-              productoResults.appendChild(opt);
-            });
-            hasMoreProducto = data.has_more;
-          } else if (page === 1) {
-            const noRes = document.createElement('div');
-            noRes.classList.add('autocomplete-no-result');
-            noRes.textContent = 'No se encontraron resultados';
-            productoResults.appendChild(noRes);
-            hasMoreProducto = false;
-          }
-          productoResults.style.display = 'block';
-        })
-        .catch(err => console.error('Error fetchProductos:', err))
-        .finally(() => {
-          isLoadingProducto = false;
-        });
-    }
-  
-    productoInput.addEventListener('input', () => {
-      clearErrors();
-      productoIdInput.value = '';
-      hasMoreProducto = true;
-      currentPageProducto = 1;
-      currentTermProducto = productoInput.value.trim();
-      fetchProductos(currentTermProducto, currentPageProducto);
-    });
-
-    productoInput.addEventListener('focus', () => {
-      clearErrors();
-      hasMoreProducto = true;
-      currentPageProducto = 1;
-      currentTermProducto = productoInput.value.trim();
-      fetchProductos(currentTermProducto, currentPageProducto);
-    });
-
-    productoResults.addEventListener('scroll', () => {
-      if (productoResults.scrollTop + productoResults.clientHeight >= productoResults.scrollHeight - 5) {
-        if (!isLoadingProducto && hasMoreProducto) {
-          currentPageProducto++;
-          fetchProductos(currentTermProducto, currentPageProducto);
-        }
-      }
-    });
-
-    productoResults.addEventListener('click', (e) => {
-      if (e.target.classList.contains('autocomplete-option')) {
-        productoInput.value   = e.target.textContent;
-        productoIdInput.value = e.target.dataset.id;
-        productoResults.innerHTML = '';
-        productoResults.style.display = 'none';
-        hasMoreProducto = false;
-      }
-    });
-
-    document.addEventListener('click', (ev) => {
-      if (!productoInput.contains(ev.target) && !productoResults.contains(ev.target)) {
-        productoResults.innerHTML = '';
-        productoResults.style.display = 'none';
-        hasMoreProducto = false;
-      }
-    });
-  
-    // 6. Agregar producto a la tabla
-    btnAgregar.addEventListener('click', () => {
-      clearErrors();
-      const sId = sucursalIdInput.value.trim();
-      const pId = productoIdInput.value.trim();
-      const pName = productoInput.value.trim();
-      const qty   = cantidadInput.value.trim();
-  
-      let hasErrors = false;
-      if (!sId) {
-        showFieldError('sucursal', 'Debe seleccionar una sucursal.');
-        hasErrors = true;
-      }
-      if (!pId) {
-        showFieldError('productoid', 'Debe seleccionar un producto.');
-        hasErrors = true;
-      }
-      if (!qty || parseInt(qty) < 1) {
-        showFieldError('cantidad', 'La cantidad debe ser mayor que 0.');
-        hasErrors = true;
-      }
-      if (hasErrors) return;
-  
-      // Verificar duplicado en nuestro array
-      if (inventarioTemp.some(x => x.productId === pId)) {
-        showFieldError('productoid', 'Este producto ya está en la lista.');
-        return;
-      }
-  
-      // Agregar
-      inventarioTemp.push({
-        productId: pId,
-        productName: pName,
-        cantidad: qty
-      });
-      console.log('inventarioTemp =>', inventarioTemp);
-  
-      // Agregar fila a DataTable
-      table.row.add([
-        pName,
-        `<input type="number" class="qty-input" value="${qty}" min="1" style="width:70px;">`,
-        `<button type="button" class="btn-eliminar" data-product-id="${pId}">
-           <i class="fas fa-trash"></i>
-         </button>`
-      ]).draw(false);
-  
-      // Limpiar campos de producto
-      productoInput.value   = '';
-      productoIdInput.value = '';
-      cantidadInput.value   = '';
-    });
-  
-    // 7. Eliminar fila de la tabla
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('.btn-eliminar')) {
-        const btn = e.target.closest('.btn-eliminar');
-        const row = btn.closest('tr');
-        const pId = btn.dataset.productId;
-  
-        // 1) Eliminar del array 'inventarioTemp'
-        inventarioTemp = inventarioTemp.filter(x => x.productId !== pId);
-        // 2) Eliminar la fila del DataTable
-        table.row(row).remove().draw(false);
-      }
-    });
-  
-    // 8. Al enviar => Guardar
-    form.addEventListener('submit', (ev) => {
-        ev.preventDefault();
-        clearErrors();
-      
-        // Validar sucursal
-        if (!sucursalIdInput.value.trim()) {
-          showFieldError('sucursal', 'Debe seleccionar una sucursal.');
-          return;
-        }
-      
-        // Convertimos los nodos de la tabla en un array nativo
-        const rowNodes = table.rows().nodes();
-        const rowsArray = Array.from(rowNodes);
-      
-        // Actualizar cantidades en inventarioTemp
-        rowsArray.forEach((row) => {
-          const pId = row.getAttribute('data-product-id');
-          const input = row.querySelector('input.qty-input');
-          if (input) {
-            const nuevaCant = input.value.trim();
-            const idx = inventarioTemp.findIndex(x => x.productId === pId);
-            if (idx >= 0) {
-              inventarioTemp[idx].cantidad = nuevaCant;
-            }
-          }
-        });
-      
-        // Poner en JSON
-        inventariosTempInput.value = JSON.stringify(inventarioTemp);
-        console.log('Inventarios final =>', inventariosTempInput.value);
-      
-        // Enviar con fetch
-        const formData = new FormData(form);
-        fetch(form.action, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Accept': 'application/json',
-          },
-          body: formData
-        })
-        .then(resp => {
-          if (!resp.ok) throw new Error(`HTTP Error: ${resp.status}`);
-          return resp.json();
-        })
-        .then(data => {
-          if (data.success) {
-            // En lugar de mostrar el mensaje aquí, redirigimos
-            // a la URL devuelta en 'redirect_url'
-            window.location.href = data.redirect_url;
-          } else {
-            // Manejo de errores
-            if (data.errors) {
-              const errs = JSON.parse(data.errors);
-              for (let field in errs) {
-                errs[field].forEach(e => {
-                  showFieldError(field, e.message);
-                });
-              }
-            } else {
-              showGlobalError('Error desconocido al actualizar.');
-            }
-          }
-        })
-        .catch(err => {
-          console.error('Error al guardar:', err);
-          showGlobalError('Ocurrió un error inesperado al guardar.');
-        });
-      });
-  
-    // 9. getCookie (CSRF)
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-          cookie = cookie.trim();
-          if (cookie.startsWith(name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
-    }
-});
+})();

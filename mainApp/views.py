@@ -60,6 +60,7 @@ from django.views.generic import ListView
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 
+
 logger = logging.getLogger(__name__)
 
 # ---------- mixin reutilizable para autocompletados ----------
@@ -632,219 +633,162 @@ class SucursalInventarioAutocompleteView(PaginatedAutocompleteMixin):
         return JsonResponse(data)
 
 
-@login_required
-def editar_inventario_view(request, sucursal_id):
-    sucursal_original = get_object_or_404(Sucursal, pk=sucursal_id)
-    inventarios_existentes = (Inventario.objects
-                              .filter(sucursalid=sucursal_original)
-                              .select_related('productoid')
-                              .order_by('productoid__nombre'))
+# ─────────────────────────────────────────────────────────────────────────────
+# Editar Inventario  (CBV)
+# ─────────────────────────────────────────────────────────────────────────────
+class EditarInventarioView(LoginRequiredMixin, View):
+    """
+    GET  → muestra formulario precargado.
+    POST → procesa JSON de inventarios y redirige.
+    """
 
-    if request.method == 'POST':
-        form = EditarInventarioForm(request.POST)
-        if form.is_valid():
-            nueva_sucursal = form.cleaned_data['sucursal']
-            inventarios_str = form.cleaned_data['inventarios_temp']
+    template_name = "editar_inventario.html"
 
-            # Parsear JSON
-            try:
-                inventarios_data = json.loads(inventarios_str) if inventarios_str else []
-            except ValueError:
-                inventarios_data = []
+    # ---------- GET ----------
+    def get(self, request, sucursal_id):
+        sucursal_original = get_object_or_404(Sucursal, pk=sucursal_id)
+        inventarios_existentes = (
+            Inventario.objects
+            .filter(sucursalid=sucursal_original)
+            .select_related("productoid")
+            .order_by("productoid__nombre")
+        )
 
-            # Si la nueva sucursal es distinta, borramos inventario viejo
-            if nueva_sucursal != sucursal_original:
-                Inventario.objects.filter(sucursalid=sucursal_original).delete()
-
-            # Diccionario { productId -> cantidad }
-            nuevo_dic = {}
-            for item in inventarios_data:
-                pid = item.get('productId')
-                cant = item.get('cantidad')
-                if pid and cant is not None:
-                    nuevo_dic[str(pid)] = int(cant)
-
-            # Inventarios actuales en la nueva sucursal
-            inv_map = {
-                str(inv.productoid_id): inv
-                for inv in Inventario.objects.filter(sucursalid=nueva_sucursal)
-            }
-
-            # Actualizar / Eliminar
-            for prod_str, inv_obj in inv_map.items():
-                if prod_str in nuevo_dic:
-                    inv_obj.cantidad = nuevo_dic[prod_str]
-                    inv_obj.save()
-                    del nuevo_dic[prod_str]
-                else:
-                    inv_obj.delete()
-
-            # Crear los nuevos
-            for prod_str, cant in nuevo_dic.items():
-                prod_id = int(prod_str)
-                producto = get_object_or_404(Producto, pk=prod_id)
-                Inventario.objects.create(
-                    productoid=producto,
-                    sucursalid=nueva_sucursal,
-                    cantidad=cant
-                )
-
-            # Guardamos mensaje en la sesión (para que aparezca en la siguiente vista)
-            messages.success(
-                request,
-                f'Inventario de la sucursal "{nueva_sucursal.nombre}" se ha actualizado correctamente.'
-            )
-            # Retornamos la URL de redirección
-            redirect_url = reverse('visualizar_inventarios')
-            return JsonResponse({'success': True, 'redirect_url': redirect_url})
-        else:
-            # Errores
-            errors = form.errors.get_json_data()
-            processed_errors = {}
-            for field, ferrors in errors.items():
-                processed_errors[field] = [{'message': e['message']} for e in ferrors]
-            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
-    else:
-        # GET => pre-cargamos la sucursal
         form = EditarInventarioForm(initial={
-            'sucursal': sucursal_original.sucursalid,
-            'sucursal_autocomplete': sucursal_original.nombre,
+            "sucursal": sucursal_original.pk,
+            "sucursal_autocomplete": sucursal_original.nombre,
         })
 
-    return render(
-        request,
-        'editar_inventario.html',
-        {
-            'form': form,
-            'sucursal': sucursal_original,
-            'inventarios': inventarios_existentes,
-        }
-    )
-
-@login_required
-def sucursal_inventario_autocomplete_editar(request):
-    """
-    Autocomplete que:
-      - Incluye SIEMPRE la sucursal actual (enviada como 'current_sucursal_id'),
-        aunque ya tenga inventarios.
-      - Incluye también las sucursales que NO tengan inventario (inventario__isnull=True).
-      - Filtra por 'term'.
-      - Evita duplicados con .distinct().
-    """
-    term = request.GET.get('term', '').strip()
-    current_sucursal_str = request.GET.get('current_sucursal_id', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '50').strip()
-
-    # Manejo de page
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    # Manejo de per_page
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 50
-    if per_page < 1:
-        per_page = 50
-
-    # Convertir sucursal actual
-    try:
-        current_suc_id = int(current_sucursal_str)
-    except ValueError:
-        current_suc_id = None
-
-    # Query base
-    if current_suc_id:
-        # OR para la sucursal actual + las que no tienen inventario
-        qs = Sucursal.objects.filter(
-            Q(pk=current_suc_id) | Q(inventario__isnull=True)
-        ).distinct()
-    else:
-        qs = Sucursal.objects.filter(inventario__isnull=True).distinct()
-
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    qs = qs.order_by('nombre')
-
-    # Paginación
-    start = (page - 1) * per_page
-    end = start + per_page
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    # Construir results
-    results = []
-    for s in qs:
-        results.append({
-            'id': s.pk,
-            'text': s.nombre
+        return render(request, self.template_name, {
+            "form": form,
+            "sucursal": sucursal_original,
+            "inventarios": inventarios_existentes,
         })
 
-    has_more = end < total_results
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more
-    })
+    # ---------- POST ----------
+    @transaction.atomic
+    def post(self, request, sucursal_id):
+        form = EditarInventarioForm(request.POST)
+        if not form.is_valid():
+            errors = {
+                fld: [{"message": e["message"]} for e in ferr]
+                for fld, ferr in form.errors.get_json_data().items()
+            }
+            return JsonResponse({"success": False,
+                                 "errors": json.dumps(errors)})
 
-@login_required
-def producto_inventario_autocomplete_editar(request):
-    """
-    Autocomplete para productos en edición de inventario.
-    Recibe 'excluded' (IDs de productos ya listados).
-    """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    excluded_str = request.GET.get('excluded', '').strip()
-    per_page = 50  # Ajusta el número de resultados por página si quieres
+        nueva_sucursal = form.cleaned_data["sucursal"]
+        raw_json       = form.cleaned_data["inventarios_temp"]
 
-    # page
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    qs = Producto.objects.all().order_by('nombre')
-
-    # Excluir productos cuyos IDs están en 'excluded'
-    excluded_ids = []
-    if excluded_str:
         try:
-            excluded_ids = [int(x) for x in excluded_str.split(',') if x.isdigit()]
-        except:
-            pass
-    if excluded_ids:
-        qs = qs.exclude(productoid__in=excluded_ids)
+            data = json.loads(raw_json or "[]")
+        except json.JSONDecodeError:
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps({
+                    "inventarios_temp": [{
+                        "message": "Formato JSON inválido."
+                    }]
+                })
+            })
 
-    # Filtro por 'term'
-    if term:
-        qs = qs.filter(nombre__icontains=term)
+        # ----- Diccionario {id: cantidad} -----
+        nuevo_dic = {
+            str(item["productId"]): int(item["cantidad"])
+            for item in data
+            if item.get("productId") and item.get("cantidad") is not None
+        }
 
-    total_results = qs.count()
-    qs = qs[start:end]
+        # Si cambió la sucursal, limpiamos inventario anterior
+        sucursal_original = get_object_or_404(Sucursal, pk=sucursal_id)
+        if sucursal_original != nueva_sucursal:
+            Inventario.objects.filter(sucursalid=sucursal_original).delete()
 
-    results = []
-    for prod in qs:
-        results.append({
-            'id': prod.productoid,
-            'text': prod.nombre,
+        # ----- Inventario existente en la nueva sucursal -----
+        existentes = {
+            str(obj.productoid_id): obj
+            for obj in Inventario.objects.filter(sucursalid=nueva_sucursal)
+        }
+
+        # Actualizar/eliminar los existentes
+        for pid, inv in existentes.items():
+            if pid in nuevo_dic:
+                inv.cantidad = nuevo_dic.pop(pid)
+                inv.save(update_fields=["cantidad"])
+            else:
+                inv.delete()
+
+        # Crear los nuevos restantes
+        nuevos = [
+            Inventario(productoid_id=int(pid),
+                       sucursalid=nueva_sucursal,
+                       cantidad=cant)
+            for pid, cant in nuevo_dic.items()
+        ]
+        if nuevos:
+            Inventario.objects.bulk_create(nuevos)
+
+        messages.success(
+            request,
+            f'Inventario de la sucursal «{nueva_sucursal.nombre}» '
+            f'actualizado correctamente.'
+        )
+        return JsonResponse({
+            "success": True,
+            "redirect_url": reverse("visualizar_inventarios"),
         })
 
-    has_more = end < total_results
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
+# ─────────────────────────────────────────────────────────────────────────────
+# Autocomplete de SUCURSALES (modo editar)
+# ─────────────────────────────────────────────────────────────────────────────
+class SucursalInventarioAutocompleteEditarView(PaginatedAutocompleteMixin):
+    """
+    Autocompletado de sucursales para la pantalla *Editar Inventario*.
+
+    • Siempre incluye la sucursal que se está editando
+      (parámetro GET “current_sucursal_id”).
+    • Además muestra las sucursales SIN inventario (inventario__isnull=True),
+      para permitir mover existencias a una nueva sede vacía.
+    • Soporta paginación estándar del mixin (?page=, ?term= …).
+    """
+    model      = Sucursal
+    text_field = "nombre"
+    id_field   = "sucursalid"
+    per_page   = 50   # mismo tamaño que usarás en JS
+
+    def extra_filter(self, qs, request):
+        """
+        Aplica el filtro base:
+          — sucursal actual  OR
+          — sucursales sin inventario
+        Luego .distinct() para evitar duplicados.
+        """
+        current_id = request.GET.get("current_sucursal_id")
+        if current_id and current_id.isdigit():
+            qs = qs.filter(
+                Q(pk=current_id) | Q(inventario__isnull=True)
+            )
+        else:
+            qs = qs.filter(inventario__isnull=True)
+        return qs.distinct()
+
+    # Añadimos el método «global» solo si lo necesitas; aquí NO se agrega.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Autocomplete de PRODUCTOS (excluye IDs ya listados)
+# ─────────────────────────────────────────────────────────────────────────────
+class ProductoInventarioAutocompleteView(PaginatedAutocompleteMixin):
+    """Devuelve productos paginados, excluyendo los IDs recibidos en ?excluded."""
+    model     = Producto
+    text_field = "nombre"
+    id_field   = "productoid"
+    per_page   = 50
+
+    def extra_filter(self, qs, request):
+        excluded = request.GET.get("excluded", "")
+        ids = [int(x) for x in excluded.split(",") if x.isdigit()]
+        return qs.exclude(productoid__in=ids) if ids else qs
 
 
 @login_required

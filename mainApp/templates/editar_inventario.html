@@ -1,28 +1,21 @@
-{% extends 'base.html' %}
+{# templates/editar_inventario.html #}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Editar Inventario{% endblock %}
+
+{% block extra_head %}
+  <!-- Font-Awesome -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <!-- DataTables -->
+  <link rel="stylesheet"
+        href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
+  <!-- Hoja de estilos -->
+  <link rel="stylesheet" href="{% static 'css/agregar_inventario.css' %}">
+{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Editar Inventario</title>
-
-  <!-- DataTables CSS (opcional) -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-
-  <!-- Usamos la misma hoja de estilos que "agregar_inventario" -->
-  <link rel="stylesheet" href="{% static 'css/agregar_inventario.css' %}"/>
-
-  <!-- jQuery + DataTables (opcional) -->
-  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-
-  <!-- Font Awesome (opcional) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-</head>
-<body>
   <div class="container-inventario">
     <i class="fas fa-pencil-alt icon-inventario"></i>
     <h2>Editar Inventario</h2>
@@ -30,79 +23,49 @@
       Todos los campos con <span class="required">*</span> son obligatorios.
     </p>
 
-    <!-- Alertas globales (Django messages o alertas JS) -->
-    {% if messages %}
-      <div class="messages">
-        {% for message in messages %}
-          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-            {{ message }}
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-    <div id="error-message" class="alert alert-error" style="display:none;"></div>
+    <!-- alertas -->
+    <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
     <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
-    <!-- Form principal -->
-    <form id="inventarioForm" action="{% url 'editar_inventario' sucursal_id=sucursal.sucursalid %}" method="POST">
+    <form id="inventarioForm" method="post"
+          action="{% url 'editar_inventario' sucursal_id=sucursal.pk %}">
       {% csrf_token %}
 
-      <!-- Sucursal con autocompletado -->
+      {# ---------- Sucursal ---------- #}
       <div class="form-group-precio">
-        <label for="{{ form.sucursal_autocomplete.id_for_label }}">
-          Sucursal <span class="required">*</span>
-        </label>
-        {{ form.sucursal_autocomplete }} <!-- input text (name="sucursal_autocomplete") -->
-        {{ form.sucursal }} <!-- hidden input (name="sucursal") -->
+        <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
+        {{ form.sucursal_autocomplete }}
+        {{ form.sucursal }}
         <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
-        <div class="field-error visible" id="error-id_sucursal"></div>
+        <div class="field-error" id="error-id_sucursal"></div>
       </div>
 
-      <!-- Producto (autocompletado) -->
+      {# ---------- Producto ---------- #}
       <div class="form-group-precio">
-        <label for="id_producto_autocomplete">
-          Producto <span class="required">*</span>
-        </label>
-        <input 
-          type="text"
-          id="id_producto_autocomplete"
-          name="producto_autocomplete"
-          class="form-control"
-          placeholder="Escriba para buscar producto..."
-          autocomplete="off"
-        />
-        <!-- hidden input para product ID -->
-        <input type="hidden" id="id_productoid" name="productoid" />
+        <label for="id_producto_autocomplete">Producto <span class="required">*</span></label>
+        <input type="text" id="id_producto_autocomplete"
+               name="producto_autocomplete" class="form-control"
+               placeholder="Escriba para buscar producto…" autocomplete="off">
+        <input type="hidden" id="id_productoid" name="productoid">
         <div class="autocomplete-results" id="producto-autocomplete-results"></div>
-        <div class="field-error visible" id="error-id_productoid"></div>
+        <div class="field-error" id="error-id_productoid"></div>
       </div>
 
-      <!-- Cantidad -->
+      {# ---------- Cantidad ---------- #}
       <div class="form-group-precio">
-        <label for="id_cantidad">
-          Cantidad <span class="required">*</span>
-        </label>
-        <input 
-          type="number"
-          id="id_cantidad"
-          name="cantidad"
-          class="form-control"
-          min="1"
-          placeholder="Ingrese la cantidad"
-        />
-        <div class="field-error visible" id="error-id_cantidad"></div>
+        <label for="id_cantidad">Cantidad <span class="required">*</span></label>
+        <input type="number" id="id_cantidad" name="cantidad"
+               class="form-control" min="1" placeholder="Ingrese la cantidad">
+        <div class="field-error" id="error-id_cantidad"></div>
       </div>
 
-      <!-- Botón para añadir producto a la lista -->
-      <div class="form-group-precio">
-        <button type="button" class="btn-agregar-precio" id="btn-agregar-producto">
-          Agregar al Inventario
-        </button>
-      </div>
+      <button type="button" id="agregarProductoBtn" class="btn-agregar-precio">
+        Agregar Producto
+      </button>
 
-      <!-- Tabla DataTable (productos existentes + nuevos) -->
-      <div class="table-container-precio table-container-inventario">
-        <table id="inventario-list" class="table display">
+      {# ---------- Tabla ---------- #}
+      <div class="table-wrap">
+        <table id="productos-list" class="display">
           <thead>
             <tr>
               <th>Producto</th>
@@ -110,52 +73,46 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody id="inventario-body">
+          <tbody id="productos-body">
             {% for inv in inventarios %}
-            <tr data-product-id="{{ inv.productoid.productoid }}">
-              <td>{{ inv.productoid.nombre }}</td>
-              <td>
-                <input 
-                  type="number"
-                  class="qty-input"
-                  value="{{ inv.cantidad }}"
-                  min="1"
-                  style="width:70px;"
-                />
-              </td>
-              <td>
-                <button type="button" class="btn-eliminar" data-product-id="{{ inv.productoid.productoid }}">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </td>
-            </tr>
+              <tr data-product-id="{{ inv.productoid.pk }}">
+                <td>{{ inv.productoid.nombre }}</td>
+                <td>
+                  <input type="number" class="qty-input" min="1"
+                         value="{{ inv.cantidad }}">
+                </td>
+                <td>
+                  <button type="button" class="btn-eliminar"
+                          data-product-id="{{ inv.productoid.pk }}">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </td>
+              </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
 
-      <!-- Campo oculto para inventarios_temp (JSON final) -->
       {{ form.inventarios_temp }}
-      <div class="field-error visible" id="error-id_inventarios_temp"></div>
+      <div class="field-error" id="error-id_inventarios_temp"></div>
 
-      <!-- Botón de Guardar -->
-      <div class="form-group-precio">
-        <button type="submit" class="btn-guardar-precio">
-          Guardar Cambios
-        </button>
-      </div>
+      <button type="submit" class="btn-guardar-precio">Guardar Cambios</button>
     </form>
   </div>
 
-  <!-- Rutas de autocomplete (para EDITAR) -->
+  {# ---------- URLs para JS ---------- #}
   <script>
-    // Pasamos la sucursal actual para que la incluya el autocomplete
-    var sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete_editar' %}?current_sucursal_id={{ sucursal.sucursalid }}";
-    var productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete_editar' %}";
+    /* sin parámetros extra; el ID actual va en otra constante */
+    const sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete_editar' %}";
+    const currentSucursalId       = "{{ sucursal.pk }}";
+
+    const productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete_editar' %}";
   </script>
 
-  <!-- JavaScript separado (similar a agregar_inventario.js) -->
-  <script src="{% static 'javascript/editar_inventario.js' %}"></script>
-</body>
-</html>
+  <!-- jQuery + DataTables -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+
+  <!-- JS propio -->
+  <script defer src="{% static 'javascript/editar_inventario.js' %}"></script>
 {% endblock %}
