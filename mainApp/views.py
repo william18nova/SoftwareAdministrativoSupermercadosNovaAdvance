@@ -444,11 +444,11 @@ class InventarioCreateAJAXView(LoginRequiredMixin, View):
     · POST →  guarda lotes a partir de 'inventarios_temp' (JSON).
               Respuesta JSON {success, errors}
     """
-
     template_name = "agregar_inventario.html"
     form_class    = InventarioForm
     success_msg   = "Inventario creado exitosamente."
 
+    # ----------  GET ----------
     def get(self, request):
         form  = self.form_class()
         sucs  = (Sucursal.objects
@@ -466,18 +466,19 @@ class InventarioCreateAJAXView(LoginRequiredMixin, View):
         ctx = {"form": form, "sucursales": sucs, "productos": prods}
         return render(request, self.template_name, ctx)
 
+    # ----------  POST ----------
     def post(self, request):
         form = self.form_class(request.POST)
 
-        # -------- validación de formulario base --------
+        # 1) Validación de formulario base
         if not form.is_valid():
             return JsonResponse({
                 "success": False,
                 "errors" : json.dumps(form.errors.get_json_data(escape_html=True))
             })
 
-        sucursal    = form.cleaned_data["sucursal"]
-        raw_list    = request.POST.get("inventarios_temp", "[]")
+        sucursal = form.cleaned_data["sucursal"]
+        raw_list = request.POST.get("inventarios_temp", "[]")
 
         try:
             items = json.loads(raw_list)
@@ -492,17 +493,17 @@ class InventarioCreateAJAXView(LoginRequiredMixin, View):
                 })
             })
 
-        # -------- construir lotes y guardar --------
+        # 2) Construir lotes
         batch = []
         for it in items:
-            pid   = it.get("productId")
-            qty   = it.get("cantidad")
+            pid = it.get("productId")
+            qty = it.get("cantidad")
             if not (pid and qty):
                 continue
 
             producto = get_object_or_404(Producto, pk=pid)
 
-            # evitar duplicados en BD
+            # evitar duplicados
             if Inventario.objects.filter(productoid=producto,
                                          sucursalid=sucursal).exists():
                 continue
@@ -512,12 +513,13 @@ class InventarioCreateAJAXView(LoginRequiredMixin, View):
                 if qty_int <= 0:
                     raise ValueError
             except ValueError:
-                continue  # cantidad no válida → simplemente se descarta
+                continue
 
             batch.append(Inventario(
                 productoid = producto,
                 sucursalid = sucursal,
-                cantidad   = qty_int))
+                cantidad   = qty_int
+            ))
 
         if not batch:
             return JsonResponse({
@@ -527,8 +529,12 @@ class InventarioCreateAJAXView(LoginRequiredMixin, View):
                 })
             })
 
+        # 3) Guardar
         Inventario.objects.bulk_create(batch)
-        messages.success(request, self.success_msg)
+
+        # ► ¡Ya NO se añade messages.success aquí! ◄
+        # messages.success(request, self.success_msg)
+
         return JsonResponse({"success": True})
 
 
