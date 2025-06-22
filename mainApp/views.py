@@ -63,15 +63,20 @@ logger = logging.getLogger(__name__)
 
 # ---------- mixin reutilizable para autocompletados ----------
 class PaginatedAutocompleteMixin(LoginRequiredMixin, View):
-    model          = None       # ← se define en la sub-clase
-    text_field     = "nombre"
-    id_field       = "pk"
-    extra_filter   = None       # callable(qs, request)  →  qs
-    per_page       = 10
+    """
+    Mixin genérico para autocompletados paginados.
+    Las sub-clases solo declaran `model`, `text_field`, `id_field` y
+    opcionalmente `extra_filter` o `per_page`.
+    """
+    model        = None         #  ← se define en la sub-clase
+    text_field   = "nombre"
+    id_field     = "pk"
+    extra_filter = None         #  callable(qs, request)  →  qs
+    per_page     = 10
 
     def get(self, request, *args, **kwargs):
-        term      = request.GET.get("term", "").strip()
-        page      = max(int(request.GET.get("page", "1")), 1)
+        term   = request.GET.get("term", "").strip()
+        page   = max(int(request.GET.get("page", 1)), 1)
         start, end = (page - 1) * self.per_page, page * self.per_page
 
         qs = self.model.objects.all().order_by(self.text_field)
@@ -84,11 +89,11 @@ class PaginatedAutocompleteMixin(LoginRequiredMixin, View):
         total = qs.count()
         qs    = qs[start:end]
 
-        data = [
-            {"id": getattr(o, self.id_field), "text": getattr(o, self.text_field)}
-            for o in qs
+        results = [
+            {"id": getattr(obj, self.id_field), "text": getattr(obj, self.text_field)}
+            for obj in qs
         ]
-        return JsonResponse({"results": data, "has_more": end < total})
+        return JsonResponse({"results": results, "has_more": end < total})
 
 class LoginView(View):
     template_name = "login.html"
@@ -352,24 +357,12 @@ class ProductoCreateAJAXView(LoginRequiredMixin, FormView):
 
 
 # ----------  Autocomplete «Categoría»  ----------
-class CategoriaAutocompleteView(LoginRequiredMixin, View):
-    PER_PAGE = 10
-
-    def get(self, request):
-        term      = request.GET.get("term", "").strip()
-        page      = max(int(request.GET.get("page", 1)), 1)
-        start     = (page - 1) * self.PER_PAGE
-        end       = start + self.PER_PAGE
-
-        qs = Categoria.objects.filter(nombre__icontains=term).order_by("nombre")
-        total = qs.count()
-        items = qs[start:end]
-
-        results = [{"id": c.categoriaid, "text": c.nombre} for c in items]
-        return JsonResponse({
-            "results" : results,
-            "has_more": end < total,
-        })
+class CategoriaAutocompleteView(PaginatedAutocompleteMixin):
+    """Devuelve categorías paginadas para el componente de autocompletado."""
+    model      = Categoria            # ← modelo a consultar
+    text_field = "nombre"             # ← columna que se muestra
+    id_field   = "categoriaid"        # ← valor que se envía al form
+    per_page   = 10                   # ← (opcional) página de 10 resultados
 
 
 class ProductoListView(LoginRequiredMixin, ListView):
