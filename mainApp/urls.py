@@ -1,6 +1,21 @@
 from django.urls import path
 from . import views
-from .views import LoginView, HomePageView, SucursalCreateAJAXView, SucursalListView, SucursalUpdateAJAXView, CategoriaCreateAJAXView, CategoriaListView, CategoriaUpdateAJAXView, ProductoCreateAJAXView, CategoriaAutocompleteView, ProductoListView, ProductoUpdateAJAXView
+from .views import (
+                    LoginView, 
+                    HomePageView, 
+                    SucursalCreateAJAXView, 
+                    SucursalListView, 
+                    SucursalUpdateAJAXView, 
+                    CategoriaCreateAJAXView, 
+                    CategoriaListView, 
+                    CategoriaUpdateAJAXView, 
+                    ProductoCreateAJAXView, 
+                    CategoriaAutocompleteView, 
+                    ProductoListView, 
+                    ProductoUpdateAJAXView,
+                    InventarioCreateAJAXView,
+                    SucursalSinInventarioAutocomplete,
+                    ProductoAutocomplete,)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -23,11 +38,12 @@ urlpatterns = [
     path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
     path('productos/editar/<int:producto_id>/', ProductoUpdateAJAXView.as_view(), name='editar_producto'),
     
-    path('agregar_inventario/', views.agregar_inventario_view, name='agregar_inventario'),
+    
+    path('agregar_inventario/', InventarioCreateAJAXView.as_view(), name='agregar_inventario'),
     # Ruta para autocompletar Sucursales sin Inventario
-    path('autocomplete/sucursal_inventario/', views.sucursal_inventario_autocomplete, name='sucursal_inventario_autocomplete'),
+    path('autocomplete/sucursal_inventario/', SucursalSinInventarioAutocomplete.as_view(), name='sucursal_inventario_autocomplete'),
     # Ruta para autocompletar Productos (por ejemplo)
-    path('autocomplete/producto_inventario/', views.producto_inventario_autocomplete, name='producto_inventario_autocomplete'),
+    path('autocomplete/producto_inventario/', ProductoAutocomplete.as_view(), name='producto_inventario_autocomplete'),
     path('visualizar_inventarios/', views.visualizar_inventarios_view, name='visualizar_inventarios'),
     path('autocomplete/sucursal_con_inventario/', views.sucursal_con_inventario_autocomplete, name='sucursal_con_inventario_autocomplete'),
     path('editar_inventario/<int:sucursal_id>/', views.editar_inventario_view, name='editar_inventario'),

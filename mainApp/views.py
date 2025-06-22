@@ -57,9 +57,38 @@ from django.views.generic import TemplateView
 from django.views.generic.edit import FormView, UpdateView
 from django.views.generic import ListView
 from django.db.models import QuerySet
+from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
+# ---------- mixin reutilizable para autocompletados ----------
+class PaginatedAutocompleteMixin(LoginRequiredMixin, View):
+    model          = None       # ← se define en la sub-clase
+    text_field     = "nombre"
+    id_field       = "pk"
+    extra_filter   = None       # callable(qs, request)  →  qs
+    per_page       = 10
+
+    def get(self, request, *args, **kwargs):
+        term      = request.GET.get("term", "").strip()
+        page      = max(int(request.GET.get("page", "1")), 1)
+        start, end = (page - 1) * self.per_page, page * self.per_page
+
+        qs = self.model.objects.all().order_by(self.text_field)
+        if self.extra_filter:
+            qs = self.extra_filter(qs, request)
+
+        if term:
+            qs = qs.filter(**{f"{self.text_field}__icontains": term})
+
+        total = qs.count()
+        qs    = qs[start:end]
+
+        data = [
+            {"id": getattr(o, self.id_field), "text": getattr(o, self.text_field)}
+            for o in qs
+        ]
+        return JsonResponse({"results": data, "has_more": end < total})
 
 class LoginView(View):
     template_name = "login.html"
@@ -414,190 +443,122 @@ class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("visualizar_productos")
 
 
-@login_required
-def agregar_inventario_view(request):
+# ---------- alta de inventario ----------
+@method_decorator(transaction.atomic, name="dispatch")
+class InventarioCreateAJAXView(LoginRequiredMixin, View):
     """
-    Vista para agregar inventario a una Sucursal.
-    Maneja tanto GET como POST.
-    - En GET, muestra el formulario con autocompletados.
-    - En POST, valida el formulario y procesa los inventarios temporales.
-      Responde con JSON para manejar las respuestas en el frontend.
+    · GET  →  renderiza formulario + dataset inicial.
+    · POST →  guarda lotes a partir de 'inventarios_temp' (JSON).
+              Respuesta JSON {success, errors}
     """
-    if request.method == 'POST':
-        form = InventarioForm(request.POST)
-        if form.is_valid():
-            sucursal = form.cleaned_data['sucursal']
-            inventarios_temp = request.POST.get('inventarios_temp')
-            if inventarios_temp:
-                try:
-                    inventarios = json.loads(inventarios_temp)
-                except json.JSONDecodeError:
-                    inventarios = []
 
-                if not inventarios:
-                    errors = {
-                        'inventarios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
-                    }
-                    return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+    template_name = "agregar_inventario.html"
+    form_class    = InventarioForm
+    success_msg   = "Inventario creado exitosamente."
 
-                # Preparar lista para bulk_create
-                inventarios_to_create = []
-                for inventario in inventarios:
-                    producto_id = inventario.get('productId')
-                    cantidad = inventario.get('cantidad')
-                    if not producto_id or not cantidad:
-                        continue  # Puedes optar por manejar errores específicos aquí
+    def get(self, request):
+        form  = self.form_class()
+        sucs  = (Sucursal.objects
+                 .annotate(inv_count=Count("inventario"))
+                 .filter(inv_count=0))
+        prods = Producto.objects.all()
 
-                    producto = get_object_or_404(Producto, pk=producto_id)
+        if not sucs.exists():
+            messages.error(request,
+                "Todas las sucursales ya tienen inventario activo.")
+        if not prods.exists():
+            messages.error(request,
+                "No hay productos en el sistema. Agrega productos primero.")
 
-                    # Evitar duplicados
-                    if Inventario.objects.filter(productoid=producto, sucursalid=sucursal).exists():
-                        continue  # Opcional: manejar duplicados según necesidades
+        ctx = {"form": form, "sucursales": sucs, "productos": prods}
+        return render(request, self.template_name, ctx)
 
-                    inventarios_to_create.append(
-                        Inventario(
-                            productoid=producto,
-                            sucursalid=sucursal,
-                            cantidad=int(cantidad)
-                        )
-                    )
-                # Crear todos los inventarios en una sola consulta
-                Inventario.objects.bulk_create(inventarios_to_create)
-                return JsonResponse({'success': True})
-            else:
-                errors = {
-                    'inventarios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
-                }
-                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
-        else:
-            # Convertir errores del formulario a JSON
-            errors = form.errors.get_json_data()
-            # Procesar errores para el formato esperado por el frontend
-            processed_errors = {}
-            for field, field_errors in errors.items():
-                processed_errors[field] = [{'message': error['message']} for error in field_errors]
-            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
-    else:
-        form = InventarioForm()
+    def post(self, request):
+        form = self.form_class(request.POST)
 
-    # Filtrar sucursales sin inventario y listar productos
-    sucursales_sin_inventario = Sucursal.objects.annotate(inventarios_count=Count('inventario')) \
-                                                .filter(inventarios_count=0)
-    productos = Producto.objects.all()
+        # -------- validación de formulario base --------
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors" : json.dumps(form.errors.get_json_data(escape_html=True))
+            })
 
-    if not sucursales_sin_inventario.exists():
-        messages.error(
-            request,
-            'Todas las sucursales ya tienen inventario. '
-            'Debe ir a visualizar inventario para modificarlas o ir a agregar sucursales para añadir nuevas.'
-        )
+        sucursal    = form.cleaned_data["sucursal"]
+        raw_list    = request.POST.get("inventarios_temp", "[]")
 
-    if not productos.exists():
-        messages.error(
-            request,
-            'No hay productos en el sistema. Debe ir a agregar productos para añadir productos al sistema.'
-        )
-
-    return render(request, 'agregar_inventario.html', {
-        'form': form,
-        'sucursales': sucursales_sin_inventario,
-        'productos': productos
-    })
-
-@login_required
-def sucursal_inventario_autocomplete(request):
-    """
-    Lista únicamente las sucursales que no tengan inventario
-    Incluye scroll infinito con 'term' y 'page'.
-    """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page = 10  # Ajusta el número de resultados por página
-
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    # Filtrar sucursales sin inventario y asegurarse de que 'nombre' está indexado
-    qs = (Sucursal.objects.annotate(inventarios_count=Count('inventario'))
-                        .filter(inventarios_count=0)
-                        .order_by('nombre'))
-
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    results = []
-    for sucursal in qs:
-        results.append({
-            'id': sucursal.sucursalid,
-            'text': sucursal.nombre,
-        })
-
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
-
-@login_required
-def producto_inventario_autocomplete(request):
-    """
-    Lista productos con autocompletado, excluyendo los IDs proporcionados.
-    Incluye scroll infinito con 'term', 'page' y 'excluded'.
-    """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    excluded_str = request.GET.get('excluded', '').strip()
-    per_page = 10  # Ajusta el número de resultados por página
-
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    qs = Producto.objects.all().order_by('nombre')
-
-    # Excluir IDs listados
-    excluded_ids = []
-    if excluded_str:
         try:
-            excluded_ids = [int(x) for x in excluded_str.split(',') if x.isdigit()]
-        except:
-            pass
+            items = json.loads(raw_list)
+        except json.JSONDecodeError:
+            items = []
 
-    if excluded_ids:
-        qs = qs.exclude(productoid__in=excluded_ids)
+        if not items:
+            return JsonResponse({
+                "success": False,
+                "errors" : json.dumps({
+                    "inventarios_temp": [{"message": "Debe agregar al menos un producto."}]
+                })
+            })
 
-    if term:
-        qs = qs.filter(nombre__icontains=term)
+        # -------- construir lotes y guardar --------
+        batch = []
+        for it in items:
+            pid   = it.get("productId")
+            qty   = it.get("cantidad")
+            if not (pid and qty):
+                continue
 
-    total_results = qs.count()
-    qs = qs[start:end]
+            producto = get_object_or_404(Producto, pk=pid)
 
-    results = []
-    for prod in qs:
-        results.append({
-            'id': prod.productoid,
-            'text': prod.nombre,
-        })
+            # evitar duplicados en BD
+            if Inventario.objects.filter(productoid=producto,
+                                         sucursalid=sucursal).exists():
+                continue
 
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
+            try:
+                qty_int = int(qty)
+                if qty_int <= 0:
+                    raise ValueError
+            except ValueError:
+                continue  # cantidad no válida → simplemente se descarta
+
+            batch.append(Inventario(
+                productoid = producto,
+                sucursalid = sucursal,
+                cantidad   = qty_int))
+
+        if not batch:
+            return JsonResponse({
+                "success": False,
+                "errors" : json.dumps({
+                    "__all__": [{"message": "Nada que guardar."}]
+                })
+            })
+
+        Inventario.objects.bulk_create(batch)
+        messages.success(request, self.success_msg)
+        return JsonResponse({"success": True})
+
+
+# ---------- autocompletado ①: sucursales sin inventario ----------
+class SucursalSinInventarioAutocomplete(PaginatedAutocompleteMixin):
+    model = Sucursal
+
+    def extra_filter(self, qs, request):
+        return (
+            qs.annotate(inv_count=Count("inventario"))
+              .filter(inv_count=0)
+        )
+
+
+# ---------- autocompletado ②: productos (excluye IDs recibidos) ----------
+class ProductoAutocomplete(PaginatedAutocompleteMixin):
+    model = Producto
+    id_field = "productoid"
+
+    def extra_filter(self, qs, request):
+        excluded = request.GET.get("excluded", "")
+        ids      = [int(x) for x in excluded.split(",") if x.isdigit()]
+        return qs.exclude(productoid__in=ids) if ids else qs
 
 @login_required
 def visualizar_inventarios_view(request):

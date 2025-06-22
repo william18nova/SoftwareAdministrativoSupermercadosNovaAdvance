@@ -1,388 +1,199 @@
-/* agregar_inventario.css */
+/*  static/css/agregar_inventario.css  */
 
+/* ───────────  Google Font  ─────────── */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-:root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
-    --color-rojo: #ff0000;
-    --color-verde: #3c763d;
-    --color-gris-claro: #f0f8ff;
-    --color-gris: #ccc;
-    --color-gris-hover: #aaa;
-    --color-boton: #3b5998;
-    --color-boton-hover: #2b467d;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
-    --tamanio-icono: 90px;
+/* ───────────  VARIABLES  ─────────── */
+:root{
+  --azul:#005091;
+  --azul-claro:#ADD8E6;
+  --blanco:#ffffff;
+  --rojo:#ff0004;
+  --verde:#3c763d;
+  --gris:#ccc;
+  --gris-light:#f0f8ff;
+  --gris-hover:#a5a5a5;
+  --btn:#3b5998;
+  --btn-hover:#2b467d;
+  --radius:8px;
+  --shadow:0 4px 12px rgba(0,0,0,.25);
+  --font:'Roboto',Arial,sans-serif;
+  --icon-size:88px;
 }
 
-/* Reset básico */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* ───────────  RESET  ─────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ───────────  BODY  ─────────── */
+body{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:var(--font);
+  color:var(--blanco);
+  overflow:auto;
+  padding:20px;
+  text-align:center;
+}
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background:inherit;
+  filter:blur(22px);
+  z-index:-1;
 }
 
-/* Estilos del body */
-body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-    font-family: var(--fuente-principal);
-    text-align: center;
-    color: var(--color-blanco);
-    overflow: auto;
-    position: relative;
-    padding: 20px;
+/* ───────────  CARD  ─────────── */
+.container-inventario{
+  width:95%;
+  max-width:600px;
+  background:rgba(255,255,255,.12);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:40px 32px 28px;
+}
+.icon-inventario{
+  font-size:var(--icon-size);
+  margin-bottom:8px;
 }
 
-body::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    filter: blur(20px);
-    z-index: -1;
-    pointer-events: none;
+/* ───────────  TEXTOS  ─────────── */
+h2{font-size:26px;margin-bottom:6px;font-weight:700}
+.obligatorio-texto{font-size:14px;font-style:italic;margin-bottom:24px}
+
+/* ───────────  FORM GROUPS  ─────────── */
+.form-group-precio{margin-bottom:20px;text-align:left;position:relative}
+.form-group-precio label{display:block;font-weight:700;margin-bottom:6px}
+input[type="text"],
+input[type="number"]{
+  width:100%;padding:10px 12px;
+  border:1px solid var(--gris);
+  border-radius:var(--radius);
+  background:var(--gris-light);
+  font-size:15px;color:#222;
+  transition:border .25s,background .25s,box-shadow .25s;
+}
+input[type="text"]:hover,
+input[type="number"]:hover{
+  background:#e2ebff;border-color:var(--gris-hover)
+}
+input[type="text"]:focus,
+input[type="number"]:focus{
+  outline:none;border-color:var(--azul);
+  box-shadow:0 0 5px rgba(0,80,145,.45);
 }
 
-/* Contenedor principal */
-.container-inventario {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 600px;
-    text-align: center;
-    position: relative;
-    box-sizing: border-box;
-    margin: 20px auto;
-    overflow-x: auto;
+/* ───── borde rojo cuando hay error ───── */
+input.input-error,
+input[type="text"].input-error,
+input[type="number"].input-error{
+  border-color:var(--rojo)!important;
+  box-shadow:0 0 4px rgba(255,0,0,.55)!important;
 }
 
-/* Título */
-.container-inventario h2 {
-    color: var(--color-blanco);
-    margin-bottom: 10px;
-    font-size: 24px;
-}
-
-/* Ícono */
-.icon-inventario {
-    font-size: var(--tamanio-icono);
-    margin-bottom: 10px;
-    color: var(--color-blanco);
-}
-
-/* Texto explicativo */
-.obligatorio-texto {
-    font-style: italic;
-    color: var(--color-blanco);
-    margin-bottom: 20px;
-    font-size: 14px;
-}
-
-/* Alertas */
-.alert {
-    padding: 15px;
-    margin-top: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-    font-size: 16px;
-    margin-bottom: 20px;
-}
-
-.alert-success {
-    color: var(--color-verde);
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-}
-
-.alert-error {
-    color: var(--color-rojo);
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    position: relative;
-    z-index: 9999;
-}
-
-/* Grupos de formulario */
-.form-group-precio {
-    margin-bottom: 20px;
-    text-align: left;
-    position: relative;
-}
-
-.form-group-precio label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--color-blanco);
-    font-weight: bold;
-    font-size: 16px;
-}
-
-/* Campos de entrada */
-.form-group-precio input[type="text"],
-.form-group-precio input[type="number"] {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--color-gris);
-    border-radius: 5px;
-    background-color: var(--color-gris-claro);
-    font-size: 16px;
-    color: #333;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-.form-group-precio input[type="text"]:hover,
-.form-group-precio input[type="number"]:hover {
-    background-color: #e0e8ff;
-    border-color: var(--color-gris-hover);
-}
-
-.form-group-precio input[type="text"]:focus,
-.form-group-precio input[type="number"]:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
-}
-
-/* Botones */
+/* ───────────  BOTONES  ─────────── */
 .btn-agregar-precio,
-.btn-guardar-precio {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    cursor: pointer;
-    padding: 12px;
-    text-align: center;
-    width: 100%;
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-    margin-top: 10px;
-    display: block;
-    font-weight: bold;
+.btn-guardar-precio{
+  display:block;
+  width:100%;
+  border:none;
+  border-radius:var(--radius);
+  background:var(--btn);
+  color:var(--blanco);
+  padding:12px;
+  font-size:17px;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .25s,transform .2s,box-shadow .25s;
 }
-
 .btn-agregar-precio:hover,
-.btn-guardar-precio:hover {
-    background-color: var(--color-boton-hover);
+.btn-guardar-precio:hover{
+  background:var(--btn-hover);
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+}
+.btn-agregar-precio:active,
+.btn-guardar-precio:active{transform:none}
+
+/* ───────────  ALERTAS  ─────────── */
+.alert{
+  display:none;
+  padding:14px 16px;
+  border-radius:var(--radius);
+  font-size:15px;
+  margin-bottom:18px;
+}
+.alert-success{background:#dff0d8;color:var(--verde)}
+.alert-error  {background:#fbe4e6;color:var(--rojo)}
+
+/* ───────────  MENSAJES DE CAMPO  ─────────── */
+.field-error{
+  display:none;
+  margin-top:5px;
+  font-size:14px;
+  color:var(--rojo);
+  transition:opacity .3s;
+}
+.field-error.visible{display:block;opacity:1}
+.field-error i{margin-right:5px}
+
+/* ───────────  AUTOCOMPLETE  ─────────── */
+.autocomplete-results{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;
+  max-height:220px;overflow-y:auto;
+  background:var(--gris-light);border:1px solid var(--gris);
+  border-radius:var(--radius);box-shadow:0 2px 6px rgba(0,0,0,.2);
+  z-index:20;display:none;
+}
+.autocomplete-option{
+  padding:10px;font-size:15px;cursor:pointer;color:#333;
+}
+.autocomplete-option:hover{
+  background:var(--btn-hover);color:var(--blanco)
+}
+.autocomplete-no-result{
+  padding:10px;font-size:15px;color:#777
 }
 
-/* Errores de campo */
-.field-error {
-    color: var(--color-rojo);
-    font-size: 14px;
-    margin-top: 5px;
-    text-align: left;
-    display: none; 
-    opacity: 0;
-    transition: opacity 0.3s ease;
+/* ───────────  TABLA  ─────────── */
+.table-wrap{margin:24px 0}
+table.dataTable{
+  width:100%!important;border-collapse:collapse;
+  background:var(--blanco);        /* ← fondo blanco fijo */
 }
-
-.field-error.visible {
-    display: block !important;
-    opacity: 1 !important;
-    color: var(--color-rojo);
+table.dataTable thead{
+  background:var(--btn);
+  color:var(--blanco)
 }
-
-.field-error i {
-    margin-right: 5px;
+table.dataTable thead th{padding:10px;font-weight:700;text-align:center}
+table.dataTable tbody tr{background:var(--blanco)}  /* ← filas blancas */
+table.dataTable tbody td{padding:10px;text-align:center;color:#000}
+table.dataTable thead th.sorting::after,
+table.dataTable thead th.sorting_asc::after,
+table.dataTable thead th.sorting_desc::after{
+  font-family:"Font Awesome 6 Free";font-weight:900;margin-left:4px
 }
+table.dataTable thead th.sorting::after      {content:"\f0dc"}
+table.dataTable thead th.sorting_asc::after  {content:"\f106"}
+table.dataTable thead th.sorting_desc::after {content:"\f107"}
 
-/* Autocomplete results */
-.autocomplete-results {
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    right: 0;
-    background-color: var(--color-gris-claro);
-    border: 1px solid var(--color-gris);
-    z-index: 1000;
-    max-height: 200px;
-    overflow-y: auto;
-    display: none;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+.qty-input{
+  width:70px;padding:6px;border:1px solid var(--gris);border-radius:6px;text-align:center
 }
-
-.autocomplete-option {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #333;
+.btn-eliminar{
+  background:#e74c3c;color:#fff;border:none;
+  border-radius:6px;padding:5px 8px;cursor:pointer;
+  display:flex;justify-content:center;align-items:center;margin:0 auto
 }
+.btn-eliminar:hover{background:#c0392b}
 
-.autocomplete-option:hover {
-    background-color: var(--color-boton-hover);
-    color: var(--color-blanco);
-}
-
-.autocomplete-no-result {
-    padding: 10px;
-    color: #999;
-    font-size: 16px;
-}
-
-/* Tabla con DataTables */
-.table-container-precio,
-.table-container-inventario {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    background-color: #ffffff;
-    padding: 10px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    overflow-x: auto;
-}
-
-.table-container-precio .table,
-.table-container-inventario .table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    table-layout: fixed;
-}
-
-.table-container-precio .table th,
-.table-container-inventario .table th,
-.table-container-precio .table td,
-.table-container-inventario .table td {
-    padding: 10px;
-    border: 1px solid #ddd;
-    word-wrap: break-word;
-}
-
-.table-container-precio .table th,
-.table-container-inventario .table th {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-}
-
-.table-container-precio .table td,
-.table-container-inventario .table td {
-    background-color: #f9f9f9;
-    color: #333;
-}
-
-.table-container-precio .table td input[type="number"],
-.table-container-inventario .table td input[type="number"] {
-    width: 70%;
-    padding: 5px;
-}
-
-.btn-eliminar {
-    background-color: #e74c3c;
-    color: #fff;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-}
-
-.btn-eliminar:hover {
-    background-color: #c0392b;
-}
-
-/* Responsividad */
-@media (max-width: 768px) {
-    .container-inventario {
-        padding: 20px;
-    }
-
-    .icon-inventario {
-        font-size: 60px;
-        margin-bottom: 10px;
-    }
-
-    .container-inventario h2 {
-        font-size: 22px;
-    }
-
-    .form-group-precio input[type="text"],
-    .form-group-precio input[type="number"] {
-        font-size: 14px;
-        padding: 8px;
-    }
-
-    .btn-agregar-precio,
-    .btn-guardar-precio {
-        font-size: 16px;
-    }
-
-    .alert {
-        font-size: 14px;
-    }
-
-    .table-container-precio,
-    .table-container-inventario {
-        padding: 10px;
-        overflow-x: auto;
-    }
-
-    .table-container-precio .table th,
-    .table-container-inventario .table th,
-    .table-container-precio .table td,
-    .table-container-inventario .table td {
-        padding: 8px;
-        font-size: 14px;
-    }
-
-    .table-container-precio .table td input[type="number"],
-    .table-container-inventario .table td input[type="number"] {
-        width: 60%;
-    }
-
-    .btn-eliminar {
-        width: 30px;
-        height: 30px;
-        padding: 5px;
-    }
-}
-
-@media (min-width: 769px) {
-    .table-container-precio .table td input[type="number"],
-    .table-container-inventario .table td input[type="number"] {
-        width: 90px; /* Ajustar ancho para pantallas grandes */
-        box-sizing: border-box;
-    }
-
-    .table-container-precio .table,
-    .table-container-inventario .table {
-        table-layout: fixed;
-    }
-
-    .table-container-precio .table th:nth-child(1),
-    .table-container-inventario .table th:nth-child(1),
-    .table-container-precio .table td:nth-child(1),
-    .table-container-inventario .table td:nth-child(1) {
-        width: 14%;
-    }
-
-    .table-container-precio .table th:nth-child(2),
-    .table-container-inventario .table th:nth-child(2),
-    .table-container-precio .table td:nth-child(2),
-    .table-container-inventario .table td:nth-child(2),
-    .table-container-precio .table th:nth-child(3),
-    .table-container-inventario .table th:nth-child(3),
-    .table-container-precio .table td:nth-child(3),
-    .table-container-inventario .table td:nth-child(3) {
-        width: 30%;
-    }
-
-    /* Ajuste si hay más columnas */
+/* ───────────  RESPONSIVE  ≤768px  ─────────── */
+@media(max-width:768px){
+  .container-inventario{padding:28px 20px}
+  .icon-inventario{font-size:60px}
+  h2{font-size:22px}
+  .btn-agregar-precio,.btn-guardar-precio{font-size:15px}
+  .qty-input{width:58px}
 }

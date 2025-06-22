@@ -1,120 +1,68 @@
-<!-- agregar_inventario.html -->
-
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Agregar Inventario{% endblock %}
+
+{% block extra_head %}
+  <!-- Font-Awesome (iconos) -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+
+  <!-- DataTables -->
+  <link rel="stylesheet"
+        href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
+
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="{% static 'css/agregar_inventario.css' %}">
+{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Agregar Inventario</title>
-
-  <!-- Font Awesome para íconos (opcional) -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
-  />
-
-  <!-- DataTables CSS -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css"
-  />
-
-  <!-- CSS específico de esta página -->
-  <link rel="stylesheet" href="{% static 'css/agregar_inventario.css' %}"/>
-  
-  <!-- jQuery y DataTables JS -->
-  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-</head>
-<body>
   <div class="container-inventario">
-    <!-- Ícono de Inventario -->
-    <i class="fas fa-boxes icon-inventario"></i>
+    <i class="fas fa-cubes icon-inventario"></i>
     <h2>Agregar Inventario</h2>
-
     <p class="obligatorio-texto">
       Todos los campos con <span class="required">*</span> son obligatorios.
     </p>
 
-    <!-- Mensajes de éxito y error global (si usas Django messages o alertas JS) -->
-    <div id="error-message" class="alert alert-error" style="display: none;"></div>
-    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <!-- alertas globales controladas por JS -->
+    <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
+    <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
-    <!-- Django messages (si los usas) -->
-    {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-            {% if message.tags == 'success' %}
-                <div class="alert alert-success">
-                <i class="fas fa-check-circle"></i>
-                {{ message }}
-                </div>
-            {% elif message.tags == 'error' %}
-                <div class="alert alert-error">
-                <i class="fas fa-exclamation-circle"></i>
-                {{ message }}
-                </div>
-            {% else %}
-                <div class="alert">
-                {{ message }}
-                </div>
-            {% endif %}
-            {% endfor %}
-        </div>
-    {% endif %}
-    <!-- Formulario principal -->
-    <form id="inventarioForm" action="{% url 'agregar_inventario' %}" method="POST">
+    <form id="inventarioForm" method="post" action="{% url 'agregar_inventario' %}">
       {% csrf_token %}
 
-      <!-- Sucursal (autocompletado) -->
+      {# ----------  campo Sucursal con autocompletado  ---------- #}
       <div class="form-group-precio">
-        <label for="id_sucursal_autocomplete">
-          Sucursal <span class="required">*</span>
-        </label>
+        <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
         {{ form.sucursal_autocomplete }}
         {{ form.sucursal }}
         <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
         <div class="field-error" id="error-id_sucursal"></div>
       </div>
 
-      <!-- Producto (autocompletado) -->
+      {# ----------  campo Producto con autocompletado  ---------- #}
       <div class="form-group-precio">
-        <label for="id_producto_autocomplete">
-          Producto <span class="required">*</span>
-        </label>
+        <label for="id_producto_autocomplete">Producto <span class="required">*</span></label>
         {{ form.producto_autocomplete }}
         {{ form.productoid }}
         <div class="autocomplete-results" id="producto-autocomplete-results"></div>
         <div class="field-error" id="error-id_productoid"></div>
       </div>
 
-      <!-- Cantidad -->
+      {# ----------  campo Cantidad  ---------- #}
       <div class="form-group-precio">
-        <label for="id_cantidad">
-          Cantidad <span class="required">*</span>
-        </label>
+        <label for="id_cantidad">Cantidad <span class="required">*</span></label>
         {{ form.cantidad }}
         <div class="field-error" id="error-id_cantidad"></div>
       </div>
 
-      <!-- Botón para añadir producto a la lista temporal -->
-      <div class="form-group-precio">
-        <button
-          type="button"
-          class="btn-agregar-precio"
-          id="agregarProductoBtn"
-        >
-          Agregar Producto
-        </button>
-      </div>
+      <button type="button" id="agregarProductoBtn" class="btn-agregar-precio">
+        Agregar Producto
+      </button>
 
-      <!-- Tabla con DataTable -->
-      <div class="table-container-precio table-container-inventario">
-        <table id="productos-list" class="table display">
+      {# ----------  tabla DataTable  ---------- #}
+      <div class="table-wrap">
+        <table id="productos-list" class="display">
           <thead>
             <tr>
               <th>Producto</th>
@@ -126,26 +74,22 @@
         </table>
       </div>
 
-      <!-- Campo oculto para inventarios temporales -->
       <input type="hidden" name="inventarios_temp" id="id_inventarios_temp">
 
-      <!-- Botón de Envío final -->
-      <div class="form-group-precio">
-        <button type="submit" class="btn-guardar-precio">
-          Guardar Inventario
-        </button>
-      </div>
+      <button type="submit" class="btn-guardar-precio">Guardar Inventario</button>
     </form>
   </div>
 
-  <!-- Rutas para autocompletar -->
-  <script type="text/javascript">
-    var sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete' %}";
-    var productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete' %}";
+  {# ----------  rutas para los autocompletados  ---------- #}
+  <script>
+    const sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete' %}";
+    const productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete' %}";
   </script>
 
-  <!-- JS para autocompletado y manejo DataTable -->
-  <script src="{% static 'javascript/agregar_inventario.js' %}"></script>
-</body>
-</html>
+  <!-- jQuery + DataTables -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+
+  <!-- JS propio -->
+  <script defer src="{% static 'javascript/agregar_inventario.js' %}"></script>
 {% endblock %}

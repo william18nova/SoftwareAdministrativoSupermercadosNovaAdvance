@@ -1,507 +1,249 @@
-// agregar_inventario.js
+/*  static/javascript/agregar_inventario.js
+    — Sin colisión con jQuery, autocompletados funcionales,
+      borde rojo al mostrar error de campo.  */
 
-document.addEventListener('DOMContentLoaded', function() {
+(() => {
+  "use strict";
 
-  /* ======================
-     1. Inicializar DataTable con opciones responsive
-  ====================== */
+  /* ───────────  0. helpers DOM  ─────────── */
+  const qs  = s => document.querySelector(s);
+  const qsa = s => document.querySelectorAll(s);
+
+  /* ───────────  1. DataTable  ─────────── */
   const dataTable = $('#productos-list').DataTable({
-    paging: false,
-    searching: true,
-    info: false,
+    paging    : false,
+    searching : true,
+    info      : false,
     responsive: true,
-    language: {
-      search: "Buscar:",
-      zeroRecords: "No se encontraron resultados",
-      emptyTable: "No hay productos para mostrar",
+    language  : {
+      search      : "Buscar:",
+      zeroRecords : "No se encontraron resultados",
+      emptyTable  : "No hay productos para mostrar"
+    }
+  });
+
+  /* ───────────  2. refs y estado  ─────────── */
+  const dom = {
+    form      : qs('#inventarioForm'),
+    sucInp    : qs('#id_sucursal_autocomplete'),
+    sucHid    : qs('#id_sucursal'),
+    sucBox    : qs('#sucursal-autocomplete-results'),
+    prdInp    : qs('#id_producto_autocomplete'),
+    prdHid    : qs('#id_productoid'),
+    prdBox    : qs('#producto-autocomplete-results'),
+    qtyInp    : qs('#id_cantidad'),
+    btnAdd    : qs('#agregarProductoBtn'),
+    rowsWrap  : qs('#productos-body'),
+    alertErr  : qs('#error-message'),
+    alertOk   : qs('#success-message'),
+  };
+
+  const st = {
+    suc : { page:1, term:"", loading:false, more:true },
+    prd : { page:1, term:"", loading:false, more:true },
+    items : []               // [{productId, productName, cantidad}]
+  };
+
+  /* ───────────  3. UI helpers  ─────────── */
+  const ui = {
+    hideAlerts(){
+      [dom.alertErr, dom.alertOk].forEach(a => { if (!a) return; a.style.display='none'; a.innerHTML=''; });
     },
-  });
-
-  /* ======================
-     2. Variables Generales
-  ====================== */
-  const form = document.getElementById('inventarioForm');
-
-  // ------------------------------
-  // Autocomplete de Sucursal
-  // ------------------------------
-  const sucursalInput    = document.getElementById('id_sucursal_autocomplete');
-  const sucursalIdInput  = document.getElementById('id_sucursal');
-  const sucursalResults  = document.getElementById('sucursal-autocomplete-results');
-  let isLoadingSucursal  = false;
-  let hasMoreSucursal    = true;
-  let currentPageSucursal= 1;
-  let currentTermSucursal= '';
-
-  // ------------------------------
-  // Autocomplete de Producto
-  // ------------------------------
-  const productoInput     = document.getElementById('id_producto_autocomplete');
-  const productoIdInput   = document.getElementById('id_productoid');
-  const productoResults   = document.getElementById('producto-autocomplete-results');
-  let isLoadingProducto   = false;
-  let hasMoreProducto     = true;
-  let currentPageProducto = 1;
-  let currentTermProducto = '';
-
-  // ------------------------------
-  // Campo “Cantidad” y botón agregar
-  // ------------------------------
-  const cantidadInput       = document.getElementById('id_cantidad');
-  const btnAgregarProducto  = document.getElementById('agregarProductoBtn');
-
-  // Lista temporal: { productId, productName, cantidad }
-  let inventarioTemp = [];
-
-  /* ==========================
-     3. Variables de Debounce y Caching
-  ========================== */
-  const DEBOUNCE_TIME = 300; // Aumentado a 300 ms para reducir solicitudes
-  let debounceTimeoutSucursal = null;
-  let debounceTimeoutProducto  = null;
-
-  // Caches para almacenar respuestas anteriores
-  const cacheSucursal = {};
-  const cacheProducto = {};
-
-  /* ===================================
-     4. Funciones de Autocompletado Mejoradas
-  =================================== */
-  
-  // Función genérica para fetch con caching
-  function fetchWithCache(url, cache, term, page, callback) {
-    const cacheKey = `${term}_${page}`;
-    if (cache[cacheKey]) {
-      callback(cache[cacheKey]);
-      return;
-    }
-
-    fetch(url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        cache[cacheKey] = data; // Guardar en caché
-        callback(data);
-      })
-      .catch(error => {
-        console.error('fetchWithCache error:', error);
-      });
-  }
-
-  function fetchSucursales(term, page = 1) {
-    if (isLoadingSucursal || !hasMoreSucursal) return;
-    isLoadingSucursal = true;
-    console.log(`Fetching sucursales: term='${term}', page=${page}`);
-
-    const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-    
-    fetchWithCache(url, cacheSucursal, term, page, function(data) {
-      if (page === 1) {
-        sucursalResults.innerHTML = '';
+    alertOK(msg){
+      dom.alertOk.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
+      dom.alertOk.style.display = 'block';
+    },
+    alertErr(msg){
+      dom.alertErr.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+      dom.alertErr.style.display = 'block';
+    },
+    clearFieldErrors(){
+      /* borrar texto y borde rojo */
+      qsa('.field-error').forEach(d => { d.textContent=""; d.classList.remove('visible'); });
+      qsa('.input-error').forEach(i => i.classList.remove('input-error'));
+    },
+    /* pinta error bajo el campo y marca el input con borde rojo */
+    fieldErr(field, msg){
+      const div = qs(`#error-id_${field}`);
+      if (div){
+        div.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+        div.classList.add('visible');
       }
-      if (data.results.length > 0) {
-        data.results.forEach(item => {
-          const opt = document.createElement('div');
-          opt.classList.add('autocomplete-option');
-          opt.textContent = item.text;
-          opt.dataset.id  = item.id;
-          sucursalResults.appendChild(opt);
-        });
-        hasMoreSucursal = data.has_more;
-      } else if (page === 1) {
-        const noResult = document.createElement('div');
-        noResult.classList.add('autocomplete-no-result');
-        noResult.textContent = 'No se encontraron resultados';
-        sucursalResults.appendChild(noResult);
-        hasMoreSucursal = false;
-      }
-      sucursalResults.style.display = 'block';
-      isLoadingSucursal = false;
-      console.log('Sucursales fetch completado:', data);
-    });
-  }
-
-  function fetchProductos(term, page = 1) {
-    if (isLoadingProducto || !hasMoreProducto) return;
-    isLoadingProducto = true;
-    console.log(`Fetching productos: term='${term}', page=${page}`);
-
-    // Excluir IDs ya listados en inventarioTemp
-    const excludedIds = inventarioTemp.map(item => item.productId).join(',');
-    const url = `${productoAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}&excluded=${excludedIds}`;
-    console.log('Productos excluidos:', excludedIds);
-
-    fetchWithCache(url, cacheProducto, term, page, function(data) {
-      if (page === 1) {
-        productoResults.innerHTML = '';
-      }
-      if (data.results.length > 0) {
-        data.results.forEach(item => {
-          const opt = document.createElement('div');
-          opt.classList.add('autocomplete-option');
-          opt.textContent = item.text;
-          opt.dataset.id  = item.id;
-          productoResults.appendChild(opt);
-        });
-        hasMoreProducto = data.has_more;
-      } else if (page === 1) {
-        const noResult = document.createElement('div');
-        noResult.classList.add('autocomplete-no-result');
-        noResult.textContent = 'No se encontraron resultados';
-        productoResults.appendChild(noResult);
-        hasMoreProducto = false;
-      }
-      productoResults.style.display = 'block';
-      isLoadingProducto = false;
-      console.log('Productos fetch completado:', data);
-    });
-  }
-
-  /* ======================
-     5. Manejo de Errores
-  ====================== */
-  function clearErrors() {
-    const errorFields = document.querySelectorAll('.field-error');
-    errorFields.forEach(e => {
-      e.innerHTML = '';
-      e.style.display = 'none';
-      e.classList.remove('visible');
-    });
-    // Ocultar alert global
-    const globalError = document.getElementById('error-message');
-    if (globalError) {
-      globalError.style.display = 'none';
-      globalError.innerHTML = '';
+      /* asocia nombre de campo ⇢ input visible */
+      const map = { sucursal: dom.sucInp, productoid: dom.prdInp, cantidad: dom.qtyInp };
+      const inp = map[field] || qs(`#id_${field}`);
+      if (inp) inp.classList.add('input-error');
     }
-    const successMessage = document.getElementById('success-message');
-    if (successMessage) {
-      successMessage.style.display = 'none';
-      successMessage.innerHTML = '';
-    }
-  }
+  };
 
-  function showFieldError(field, message) {
-    const errorDiv = document.getElementById(`error-id_${field}`);
-    if (errorDiv) {
-      errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-      errorDiv.classList.add('visible');
-      errorDiv.style.display = 'block';
-    }
-  }
-
-  function showGlobalError(message) {
-    const errorDiv = document.getElementById('error-message');
-    if (errorDiv) {
-      errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-      errorDiv.style.display = 'block';
-    }
-  }
-
-  function showSuccess(message) {
-    const successDiv = document.getElementById('success-message');
-    if (successDiv) {
-      successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-      successDiv.style.display = 'block';
-    }
-  }
-
-  /* ==========================
-     6. Eventos de Autocomplete Mejorados
-  ========================== */
-  
-  // Función genérica de debounce
-  function debounce(func, delay) {
-    let timeout;
-    return function(...args) {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func.apply(this, args), delay);
+  /* ───────────  4. fetch con cache  ─────────── */
+  const fetchCache = (() => {
+    const memo = new Map();
+    return async url => {
+      if (memo.has(url)) return memo.get(url);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      memo.set(url, d);
+      return d;
     };
-  }
+  })();
 
-  // --- Sucursal ---
-  const debouncedFetchSucursales = debounce(function() {
-    fetchSucursales(currentTermSucursal, currentPageSucursal);
-  }, DEBOUNCE_TIME);
+  /* ───────────  5. Debounce  ─────────── */
+  const debounce = (fn, ms=300) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
 
-  sucursalInput.addEventListener('input', function() {
-    sucursalIdInput.value = '';
-    hasMoreSucursal = true;
-    currentPageSucursal = 1;
-    currentTermSucursal = sucursalInput.value.trim();
-
-    if (!currentTermSucursal) {
-      sucursalResults.innerHTML = '';
-      sucursalResults.style.display = 'none';
-      return;
-    }
-
-    debouncedFetchSucursales();
-  });
-
-  sucursalInput.addEventListener('focus', function() {
-    currentTermSucursal = sucursalInput.value.trim();
-    hasMoreSucursal = true;
-    currentPageSucursal = 1;
-    debouncedFetchSucursales();
-  });
-
-  sucursalResults.addEventListener('scroll', function() {
-    if (sucursalResults.scrollTop + sucursalResults.clientHeight >= sucursalResults.scrollHeight - 5) {
-      if (hasMoreSucursal && !isLoadingSucursal) {
-        currentPageSucursal += 1;
-        fetchSucursales(currentTermSucursal, currentPageSucursal);
+  /* ───────────  6. Factory Autocomplete  ─────────── */
+  function createAutocomplete(kind){
+    const cfg = kind==='suc' ? {
+      inp : dom.sucInp, hid: dom.sucHid, box: dom.sucBox,
+      state: st.suc,  url: p => `${sucursalAutocompleteUrl}?${p}`
+    } : {
+      inp : dom.prdInp, hid: dom.prdHid, box: dom.prdBox,
+      state: st.prd,  url : p => {
+        const excl = st.items.length ? `&excluded=${st.items.map(i=>i.productId).join(",")}` : "";
+        return `${productoAutocompleteUrl}?${p}${excl}`;
       }
-    }
-  });
+    };
 
-  sucursalResults.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('autocomplete-option')) {
-      sucursalInput.value    = e.target.textContent;
-      sucursalIdInput.value  = e.target.dataset.id;
-      sucursalResults.innerHTML = '';
-      sucursalResults.style.display = 'none';
-      hasMoreSucursal = false;
-    }
-  });
+    const render = async () => {
+      if (cfg.state.loading || !cfg.state.more) return;
+      cfg.state.loading = true;
 
-  document.addEventListener('click', function(e) {
-    if (!sucursalInput.contains(e.target) && !sucursalResults.contains(e.target)) {
-      sucursalResults.innerHTML = '';
-      sucursalResults.style.display = 'none';
-      hasMoreSucursal = false;
-    }
-  });
+      const params = new URLSearchParams({ term: cfg.state.term, page: cfg.state.page });
+      const data   = await fetchCache(cfg.url(params));
 
-  // --- Producto ---
-  const debouncedFetchProductos = debounce(function() {
-    fetchProductos(currentTermProducto, currentPageProducto);
-  }, DEBOUNCE_TIME);
+      if (cfg.state.page === 1) cfg.box.innerHTML="";
 
-  productoInput.addEventListener('input', function() {
-    productoIdInput.value = '';
-    hasMoreProducto = true;
-    currentPageProducto = 1;
-    currentTermProducto = productoInput.value.trim();
-
-    if (!currentTermProducto) {
-      productoResults.innerHTML = '';
-      productoResults.style.display = 'none';
-      return;
-    }
-
-    debouncedFetchProductos();
-  });
-
-  productoInput.addEventListener('focus', function() {
-    currentTermProducto = productoInput.value.trim();
-    hasMoreProducto = true;
-    currentPageProducto = 1;
-    debouncedFetchProductos();
-  });
-
-  productoResults.addEventListener('scroll', function() {
-    if (productoResults.scrollTop + productoResults.clientHeight >= productoResults.scrollHeight - 5) {
-      if (hasMoreProducto && !isLoadingProducto) {
-        currentPageProducto += 1;
-        fetchProductos(currentTermProducto, currentPageProducto);
+      if (data.results.length){
+        for (const r of data.results){
+          const d = document.createElement('div');
+          d.className='autocomplete-option'; d.dataset.id=r.id; d.textContent=r.text;
+          cfg.box.appendChild(d);
+        }
+        cfg.state.more = data.has_more;
+      }else if (cfg.state.page === 1){
+        cfg.box.innerHTML = '<div class="autocomplete-no-result">No se encontraron resultados</div>';
+        cfg.state.more = false;
       }
-    }
-  });
+      cfg.box.style.display='block';
+      cfg.state.loading = false;
+    };
 
-  productoResults.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('autocomplete-option')) {
-      productoInput.value   = e.target.textContent;
-      productoIdInput.value = e.target.dataset.id;
-      productoResults.innerHTML = '';
-      productoResults.style.display = 'none';
-      hasMoreProducto = false;
-    }
-  });
-
-  document.addEventListener('click', function(e) {
-    if (!productoInput.contains(e.target) && !productoResults.contains(e.target)) {
-      productoResults.innerHTML = '';
-      productoResults.style.display = 'none';
-      hasMoreProducto = false;
-    }
-  });
-
-  /* =================================================
-     7. Agregar Producto (con campo editable de Cantidad)
-  ================================================= */
-  btnAgregarProducto.addEventListener('click', function() {
-    clearErrors();
-
-    const sucursalId = sucursalIdInput.value.trim();
-    const productId = productoIdInput.value.trim();
-    const productName = productoInput.value.trim();
-    const cantidad = cantidadInput.value.trim();
-
-    let hasLocalErrors = false;
-    if (!sucursalId) {
-      showFieldError('sucursal', 'Debe seleccionar una sucursal.');
-      // Eliminamos la llamada a showGlobalError aquí
-      // showGlobalError('Debe seleccionar una sucursal antes de agregar un producto.'); // <--- ALERTA GLOBAL ELIMINADA
-      hasLocalErrors = true;
-    }
-    if (!productId) {
-      showFieldError('productoid', 'Debe seleccionar un producto.');
-      hasLocalErrors = true;
-    }
-    if (!cantidad || parseInt(cantidad) <= 0) {
-      showFieldError('cantidad', 'La cantidad debe ser mayor que 0.');
-      hasLocalErrors = true;
-    }
-    if (hasLocalErrors) return;
-
-    // Revisar si el producto ya existe
-    const existe = inventarioTemp.some(item => item.productId === productId);
-    if (existe) {
-      showFieldError('productoid', 'Este producto ya está en la lista.');
-      return;
-    }
-
-    // Agregar al array temporal
-    inventarioTemp.push({
-      productId:  productId,
-      productName: productName,
-      cantidad:    cantidad
+    /* input / focus */
+    const kick = debounce(() => { cfg.state.page=1; cfg.state.more=true; render(); });
+    cfg.inp.addEventListener('input', () => {
+      cfg.hid.value = '';
+      cfg.state.term = cfg.inp.value.trim();
+      if (!cfg.state.term){ cfg.box.style.display='none'; return; }
+      kick();
     });
-    console.log('inventarioTemp después de agregar:', inventarioTemp);
+    cfg.inp.addEventListener('focus', () => {
+      cfg.state.term = cfg.inp.value.trim();
+      cfg.state.page=1; cfg.state.more=true; render();
+    });
 
-    // Insertar fila en DataTable con cantidad editable
+    /* scroll (infinite) */
+    cfg.box.addEventListener('scroll', () => {
+      if (cfg.box.scrollTop + cfg.box.clientHeight >= cfg.box.scrollHeight-4){
+        if (cfg.state.more && !cfg.state.loading){ cfg.state.page+=1; render(); }
+      }
+    });
+
+    /* click */
+    cfg.box.addEventListener('click', e => {
+      const opt = e.target.closest('.autocomplete-option');
+      if (!opt) return;
+      cfg.inp.value  = opt.textContent;
+      cfg.hid.value  = opt.dataset.id;
+      cfg.box.style.display='none';
+    });
+
+    /* cerrar si clic fuera */
+    document.addEventListener('click', e=>{
+      if (!cfg.inp.contains(e.target) && !cfg.box.contains(e.target))
+        cfg.box.style.display='none';
+    });
+  }
+  createAutocomplete('suc');
+  createAutocomplete('prd');
+
+  /* ───────────  7. Añadir producto  ─────────── */
+  dom.btnAdd.addEventListener('click', () => {
+    ui.hideAlerts(); ui.clearFieldErrors();
+
+    const sid = dom.sucHid.value.trim();
+    const pid = dom.prdHid.value.trim();
+    const qty = dom.qtyInp.value.trim();
+    const pname = dom.prdInp.value.trim();
+
+    let invalid=false;
+    if (!sid)       { ui.fieldErr('sucursal','Debe seleccionar una sucursal.'); invalid=true; }
+    if (!pid)       { ui.fieldErr('productoid','Debe seleccionar un producto.'); invalid=true; }
+    if (!qty || qty<=0){ ui.fieldErr('cantidad','Cantidad debe ser mayor que 0.'); invalid=true; }
+    if (invalid) return;
+
+    if (st.items.some(i=>i.productId===pid)){
+      ui.fieldErr('productoid','Este producto ya está en la lista.'); return;
+    }
+
+    st.items.push({productId:pid,productName:pname,cantidad:qty});
+
     dataTable.row.add([
-      productName,
-      `<input type="number" class="qty-input" value="${cantidad}" min="1" style="width: 70px;">`,
-      `<button type="button" class="btn-eliminar" data-product-id="${productId}">
+      pname,
+      `<input type="number" class="qty-input" min="1" value="${qty}">`,
+      `<button type="button" class="btn-eliminar d-flex" data-product-id="${pid}">
          <i class="fas fa-trash-alt"></i>
        </button>`
     ]).draw(false);
 
-    // Limpiar campos de texto
-    productoInput.value   = '';
-    productoIdInput.value = '';
-    cantidadInput.value   = '';
+    dom.prdInp.value=''; dom.prdHid.value=''; dom.qtyInp.value='';
   });
 
-  /* ======================
-     8. Eliminar de la tabla
-  ====================== */
-  // Manejar el evento de eliminar utilizando delegación de eventos
-  document.getElementById('productos-body').addEventListener('click', function(e) {
-    if (e.target.closest('.btn-eliminar')) {
-      const button = e.target.closest('.btn-eliminar');
-      const productId = button.getAttribute('data-product-id');
-      const row = button.closest('tr');
-      dataTable.row(row).remove().draw(false);
-      inventarioTemp = inventarioTemp.filter(p => p.productId !== productId);
-      console.log('inventarioTemp después de eliminar:', inventarioTemp);
-    }
+  /* ───────────  8. Eliminar de la tabla  ─────────── */
+  dom.rowsWrap.addEventListener('click', e=>{
+    const btn=e.target.closest('.btn-eliminar');
+    if(!btn) return;
+    const pid=btn.dataset.productId;
+    st.items=st.items.filter(i=>i.productId!==pid);
+    dataTable.row(btn.closest('tr')).remove().draw(false);
   });
 
-  /* =========================
-     9. Submit del Formulario
-  ========================= */
-  form.addEventListener('submit', function(event) {
-    event.preventDefault();
-    clearErrors();
+  /* ───────────  9. Envío del formulario  ─────────── */
+  dom.form.addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    ui.hideAlerts(); ui.clearFieldErrors();
 
-    // Validar que al menos haya un producto
-    if (inventarioTemp.length === 0) {
-      showGlobalError('Debe agregar al menos un producto antes de guardar.');
-      return;
-    }
+    if (!st.items.length){ ui.alertErr('Debe agregar al menos un producto.'); return; }
 
-    // Actualizar inventarioTemp según lo editado en la tabla
-    const rows = dataTable.rows().indexes();
-    rows.each(function(idx) {
-      const rowNode = dataTable.row(idx).node();
-      const cells = rowNode.querySelectorAll('td');
-      if (cells.length >= 2) {
-        const productNameCell = cells[0].textContent.trim();
-        const qtyInput = cells[1].querySelector('.qty-input');
-        if (qtyInput) {
-          const newQty = qtyInput.value.trim();
-          const itemIndex = inventarioTemp.findIndex(i => i.productName === productNameCell);
-          if (itemIndex >= 0) {
-            inventarioTemp[itemIndex].cantidad = newQty;
-          }
-        }
-      }
+    /* sync cantidades editadas */
+    dataTable.rows().every(function(){
+      const [nameCell, qtyCell]=this.node().querySelectorAll('td');
+      const item=st.items.find(i=>i.productName===nameCell.textContent.trim());
+      const inp = qtyCell.querySelector('.qty-input');
+      if(item && inp) item.cantidad = inp.value.trim();
     });
 
-    console.log('inventarioTemp antes de enviar:', inventarioTemp);
+    qs('#id_inventarios_temp').value = JSON.stringify(st.items);
 
-    // Poner inventariosTemp en el campo oculto como JSON
-    const inventariosTempInput = document.getElementById('id_inventarios_temp');
-    inventariosTempInput.value = JSON.stringify(inventarioTemp);
-    console.log('inventarios_temp enviado:', inventariosTempInput.value);
-
-    // Enviar el formulario vía AJAX
-    const formData = new FormData(form);
-    fetch(form.action, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Accept': 'application/json',
+    try{
+      const resp = await fetch(dom.form.action,{
+        method:'POST',
+        headers:{
+          'X-CSRFToken': document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1]||'',
+          'Accept':'application/json'
         },
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Respuesta del servidor:', data);
-        if (data.success) {
-            // Éxito: mostrar mensaje, resetear formulario y tabla
-            showSuccess('Inventario creado exitosamente.');
-            form.reset();
-            inventarioTemp = [];
-            dataTable.clear().draw();
-            sucursalResults.innerHTML = '';
-            sucursalResults.style.display = 'none';
-            productoResults.innerHTML = '';
-            productoResults.style.display = 'none';
-        } else {
-            // Mostrar errores devueltos por el backend
-            const errors = JSON.parse(data.errors);
-            for (let field in errors) {
-                const fieldErrors = errors[field];
-                fieldErrors.forEach(error => {
-                    showFieldError(field, error.message);
-                });
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showGlobalError('Ocurrió un error inesperado al guardar.');
-    });
+        body:new FormData(dom.form)
+      });
+      const data = await resp.json();
+
+      if (data.success){
+        ui.alertOK('Inventario creado exitosamente.');
+        dom.form.reset(); st.items=[]; dataTable.clear().draw();
+      }else{
+        const errs = JSON.parse(data.errors||'{}');
+        Object.entries(errs).forEach(([f,arr])=>arr.forEach(e=>ui.fieldErr(f,e.message)));
+      }
+    }catch(err){ console.error(err); ui.alertErr('Ocurrió un error inesperado.'); }
   });
 
-  /* ================================
-     10. Función para Obtener la Cookie
-  ================================= */
-  function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-          const cookies = document.cookie.split(';');
-          for (let cookie of cookies) {
-              cookie = cookie.trim();
-              if (cookie.startsWith(name + '=')) {
-                  cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                  break;
-              }
-          }
-      }
-      return cookieValue;
-  }
-
-});
+})();

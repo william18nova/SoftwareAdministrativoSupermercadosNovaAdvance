@@ -1259,81 +1259,66 @@ class RolEditarForm(forms.ModelForm):
         return nombre
 
 class InventarioForm(forms.Form):
-    """
-    Form para 'Agregar Inventario' con autocompletado de Sucursal y Producto,
-    y campo de cantidad.
-    """
-    # Campo de autocompletado para Sucursal
+    """Formulario «liviano»; solo valida datos mínimos."""
+
+    # visibles
     sucursal_autocomplete = forms.CharField(
-        required=True,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar sucursal...',
-            'autocomplete': 'off',
-        })
-    )
-    # ID oculto de la sucursal
-    sucursal = forms.ModelChoiceField(
-        queryset=Sucursal.objects.none(),
-        widget=forms.HiddenInput(),
-        required=True,
-    )
+            "class": "form-control",
+            "placeholder": "Escriba para buscar sucursal…",
+            "autocomplete": "off",
+        }), required=True)
 
-    # Campo de autocompletado para Producto
     producto_autocomplete = forms.CharField(
-        required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar producto...',
-            'autocomplete': 'off',
-        })
-    )
-    # ID oculto del producto
-    productoid = forms.ModelChoiceField(
-        queryset=Producto.objects.none(),
-        widget=forms.HiddenInput(),
-        required=False,
-    )
+            "class": "form-control",
+            "placeholder": "Escriba para buscar producto…",
+            "autocomplete": "off",
+        }), required=False)
 
-    # Campo de cantidad
     cantidad = forms.IntegerField(
-        required=False,
+        min_value=1,
         widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa la cantidad',
-            'min': '1'
-        })
-    )
+            "class": "form-control",
+            "placeholder": "Cantidad",
+            "min": "1",
+        }), required=False)
+
+    # ocultos
+    sucursal  = forms.ModelChoiceField(
+        queryset=Sucursal.objects.none(),
+        widget=forms.HiddenInput(), required=True)
+
+    productoid = forms.ModelChoiceField(
+        queryset=Producto.objects.all(),
+        widget=forms.HiddenInput(), required=False)
 
     class Meta:
-        fields = ['sucursal', 'productoid', 'cantidad']
+        fields = ("sucursal", "productoid", "cantidad")
 
+    # ----------- queryset dinámico -----------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filtra Sucursales sin inventario
-        subquery = Inventario.objects.filter(sucursalid=OuterRef('pk'))
-        self.fields['sucursal'].queryset = (
-            Sucursal.objects
-                    .annotate(tiene_inventario=Exists(subquery))
-                    .filter(tiene_inventario=False)
-        )
 
-        # Todos los productos
-        self.fields['productoid'].queryset = Producto.objects.all()
+        sin_inv = Sucursal.objects.annotate(
+            tiene_inv=Exists(
+                Inventario.objects.filter(sucursalid=OuterRef("pk"))
+            )
+        ).filter(tiene_inv=False)
 
+        self.fields["sucursal"].queryset  = sin_inv
+        self.fields["productoid"].queryset = Producto.objects.all()
+
+    # ----------- validación cruzada -----------
     def clean(self):
-        cleaned_data = super().clean()
-        sucursal_obj = cleaned_data.get('sucursal')
-        product_obj = cleaned_data.get('productoid')
-        cantidad_val = cleaned_data.get('cantidad')
+        cd = super().clean()
 
-        if not sucursal_obj:
-            self.add_error('sucursal', 'Debe seleccionar una sucursal válida.')
+        if not cd.get("sucursal"):
+            self.add_error("sucursal", "Seleccione una sucursal válida.")
 
-        if product_obj and (not cantidad_val or cantidad_val <= 0):
-            self.add_error('cantidad', 'La cantidad debe ser mayor que 0.')
-
-        return cleaned_data
+        if cd.get("productoid") and not cd.get("cantidad"):
+            self.add_error("cantidad", "Indique una cantidad válida.")
+        return cd
     
 class EditarInventarioForm(forms.Form):
     """
