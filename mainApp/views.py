@@ -834,10 +834,12 @@ class ProveedorCreateView(LoginRequiredMixin, View):
         }, status=400)
 
 
-@login_required
-def visualizar_proveedores_view(request):
-    proveedores = Proveedor.objects.all()
-    return render(request, 'visualizar_proveedores.html', {'proveedores': proveedores})
+class ProveedorListView(LoginRequiredMixin, ListView):
+    """Lista de proveedores (lectura únicamente)."""
+    model               = Proveedor
+    template_name       = "visualizar_proveedores.html"
+    context_object_name = "proveedores"
+    paginate_by         = 0          # paginación la maneja DataTables
 
 @login_required
 def eliminar_proveedor(request, proveedor_id):

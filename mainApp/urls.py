@@ -21,7 +21,8 @@ from .views import (
                     EditarInventarioView,
                     SucursalInventarioAutocompleteEditarView,
                     ProductoInventarioAutocompleteView,
-                    ProveedorCreateView,)
+                    ProveedorCreateView,
+                    ProveedorListView,)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -58,7 +59,7 @@ urlpatterns = [
     path('inventario/eliminar/<int:inventario_id>/', views.eliminar_producto_inventario_view, name='eliminar_producto_inventario'),
     
     path('agregar_proveedor/', ProveedorCreateView.as_view(), name='agregar_proveedor'),
-    path('visualizar_proveedores/', views.visualizar_proveedores_view, name='visualizar_proveedores'),
+    path("visualizar_proveedores/", ProveedorListView.as_view(), name="visualizar_proveedores"),
     path('eliminar_proveedor/<int:proveedor_id>/', views.eliminar_proveedor, name='eliminar_proveedor'),
     path('editar_proveedor/<int:proveedor_id>/', views.editar_proveedor_view, name='editar_proveedor'),
     
