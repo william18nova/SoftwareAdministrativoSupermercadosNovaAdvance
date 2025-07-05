@@ -807,19 +807,31 @@ def eliminar_producto_inventario_view(request, inventario_id):
     return JsonResponse({'success': False, 'message': 'Método no permitido.'}, status=405)
 
 
-@login_required
-def agregar_proveedor_view(request):
-    if request.method == 'POST':
+class ProveedorCreateView(LoginRequiredMixin, View):
+    """
+    Crea un proveedor vía AJAX:
+      • GET  → renderiza formulario
+      • POST → devuelve JSON {success, message|errors}
+    """
+    template_name = "agregar_proveedor.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {"form": ProveedorForm()})
+
+    @transaction.atomic
+    def post(self, request):
         form = ProveedorForm(request.POST)
         if form.is_valid():
             form.save()
-            return JsonResponse({'success': True, 'message': 'Proveedor agregado exitosamente.'})
-        else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = ProveedorForm()
-    return render(request, 'agregar_proveedor.html', {'form': form})
+            return JsonResponse({
+                "success": True,
+                "message": "Proveedor agregado exitosamente."
+            })
+        # form.errors es un ErrorDict → .get_json_data() lista mensajes y códigos
+        return JsonResponse({
+            "success": False,
+            "errors": form.errors.get_json_data()
+        }, status=400)
 
 
 @login_required

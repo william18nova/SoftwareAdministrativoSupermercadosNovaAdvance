@@ -1,110 +1,87 @@
-// agregar_proveedor.js
+/* agregar_proveedor.js — versión “segura DOMContentLoaded” */
+document.addEventListener("DOMContentLoaded", () => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Variables generales
-    const form = document.getElementById('form-agregar-proveedor');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
-    const successTextSpan = document.getElementById('success-text'); // Nuevo elemento
+  /* ---------- Helpers ---------- */
+  const $id  = id  => document.getElementById(id);
+  const $qsa = sel => document.querySelectorAll(sel);
 
-    /**
-     * Función para limpiar mensajes de error y éxito
-     */
-    function clearMessages() {
-        errorMessageDiv.style.display = 'none';
-        errorMessageDiv.innerHTML = '';
-        successMessageDiv.style.display = 'none';
-        successTextSpan.textContent = ''; // Limpiar texto
-        // Limpiar errores específicos de campos
-        const errorFields = document.querySelectorAll('.field-error');
-        errorFields.forEach(function(errorField) {
-            errorField.innerHTML = '';
-            errorField.classList.remove('visible');
-        });
+  /* ---------- refs ---------- */
+  const form   = $id("form-agregar-proveedor");
+  if (!form) return;                 // si el ID cambiara, salimos
+
+  const boxErr = $id("error-message");
+  const boxOk  = $id("success-message");
+  const okText = $id("success-text");
+
+  /* ---------- UI helpers ---------- */
+  const UI = {
+    reset() {
+      boxErr.style.display = boxOk.style.display = "none";
+      boxErr.innerHTML = okText.textContent = "";
+
+      $qsa(".field-error").forEach(d => {
+        d.textContent = "";
+        d.classList.remove("visible");
+      });
+      $qsa(".input-error").forEach(i => i.classList.remove("input-error"));
+    },
+    ok(msg) {
+      okText.textContent  = msg;
+      boxOk.style.display = "flex";
+      form.reset();
+    },
+    errGlobal(msg) {
+      boxErr.innerHTML    = msg;
+      boxErr.style.display = "block";
+    },
+    errFields(errObj = {}) {
+      Object.entries(errObj).forEach(([field, list]) => {
+        const div = $id(`error-id_${field}`);
+        if (!div) return;
+        div.innerHTML = list
+          .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
+          .join("<br>");
+        div.classList.add("visible");
+
+        const inp = $id(`id_${field}`);
+        if (inp) inp.classList.add("input-error");
+      });
     }
+  };
 
-    /**
-     * Función para mostrar mensajes de error
-     */
-    function displayErrors(errors) {
-        clearMessages();
+  /* ---------- CSRF ---------- */
+  const getCookie = name =>
+    document.cookie.split("; ")
+      .find(c => c.startsWith(name + "="))
+      ?.split("=")[1] || "";
 
-        // Errores generales (si los hubiera)
-        if (errors.__all__) {
-            errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
-            errorMessageDiv.style.display = 'block';
-        }
+  /* ---------- submit ---------- */
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    UI.reset();
 
-        // Errores específicos de campo
-        for (let field in errors) {
-            if (field === '__all__') continue;
-            const fieldErrors = errors[field];
-            const errorDiv = document.getElementById('error-id_' + field);
-            if (errorDiv) {
-                errorDiv.innerHTML = fieldErrors.map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`).join('<br>');
-                errorDiv.classList.add('visible');
-            }
-        }
+    try {
+      const resp = await fetch(form.action, {
+        method : "POST",
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken"),
+          Accept       : "application/json"
+        },
+        body: new FormData(form)
+      });
+      const data = await resp.json();
+
+      if (resp.ok && data.success) {
+        UI.ok(data.message || "Proveedor agregado.");
+      } else {
+        UI.errFields(data.errors);
+        if (data.errors?.__all__)
+          UI.errGlobal(data.errors.__all__.map(e => e.message).join("<br>"));
+      }
+    } catch (err) {
+      console.error(err);
+      UI.errGlobal("Ocurrió un error inesperado.");
     }
-
-    /**
-     * Función para mostrar mensajes de éxito
-     */
-    function displaySuccess(message) {
-        successTextSpan.textContent = message;
-        successMessageDiv.style.display = 'flex'; // Cambiar a flex para mostrar el ícono y el texto
-        form.reset();
-    }
-
-    /**
-     * Evento de envío del formulario
-     */
-    form.addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevenir el envío predeterminado
-        clearMessages();
-
-        const formData = new FormData(form);
-
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Accept': 'application/json',
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displaySuccess(data.message);
-            } else {
-                const errors = JSON.parse(data.errors);
-                displayErrors(errors);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            errorMessageDiv.textContent = 'Ocurrió un error inesperado.';
-            errorMessageDiv.style.display = 'block';
-        });
-    });
-
-    /**
-     * Función para obtener el valor de una cookie por nombre
-     */
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                cookie = cookie.trim();
-                // Verificar si la cookie empieza con el nombre buscado
-                if (cookie.startsWith(name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
+  });
 });

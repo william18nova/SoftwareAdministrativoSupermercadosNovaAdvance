@@ -1,323 +1,156 @@
-/* agregar_proveedor.css */
+/* ───────────────────────────────
+   agregar_proveedor.css
+   Versión final con:
+   • variables CSS
+   • layout responsivo
+   • alert-success centrado (icono + texto)
+   • mensajes de error siempre en rojo
+──────────────────────────────── */
 
-/* Importación de fuente */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+/* fuente Roboto */
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap");
 
-/* Variables CSS para facilitar cambios de color y mantenimiento */
-:root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
-    --color-rojo: #ff0000;
-    --color-verde: #3c763d;
-    --color-gris-claro: #f0f8ff;
-    --color-gris: #ccc;
-    --color-gris-hover: #aaa;
-    --color-boton: #3b5998;
-    --color-boton-hover: #2b467d;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
-    --fuente-secundaria: 'Arial', sans-serif;
-    --tamanio-icono: 90px;
+/* ---------- Variables ---------- */
+:root{
+  --azul       : #005091;
+  --azul-claro : #ADD8E6;
+  --blanco     : #fff;
+  --rojo       : #ff0000;
+  --verde      : #3c763d;
+  --gris       : #ccc;
+  --gris-lite  : #f0f8ff;
+  --gris-hover : #aaa;
+  --btn        : #3b5998;
+  --btn-hover  : #2b467d;
+  --font       : "Roboto", Arial, sans-serif;
+  --icon-size  : 88px;
 }
 
-/* Reset básico */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* ---------- Reset ---------- */
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ---------- Body ---------- */
+body{
+  min-height:100vh;
+  display:flex;justify-content:center;align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:var(--font);
+  color:var(--blanco);
+  text-align:center;
+  overflow:auto;
+}
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background:inherit;
+  filter:blur(20px);
+  z-index:-1;
 }
 
-/* Estilos del cuerpo */
-body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center; /* Habilitado para centrar verticalmente */
-    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-    font-family: var(--fuente-principal);
-    text-align: center;
-    color: var(--color-blanco);
-    overflow: auto;
-    position: relative;
-    /* padding: 20px; */ /* Eliminado para evitar interferencias con el centrado */
+/* ---------- Card ---------- */
+.container-proveedor{
+  width:100%;max-width:500px;
+  margin:20px;padding:40px;
+  background:rgba(255,255,255,.12);
+  border-radius:10px;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);
+}
+.icon-proveedor{font-size:var(--icon-size);margin-bottom:15px}
+
+/* ---------- Headings ---------- */
+h2{margin:10px 0;font-size:24px;font-weight:700}
+.obligatorio-texto{font-size:14px;font-style:italic;margin-bottom:10px}
+
+/* ---------- Form ---------- */
+.form-group-proveedor{margin-bottom:14px;text-align:left}
+.form-group-proveedor label{display:block;margin-bottom:5px;font-weight:700}
+.required{margin-left:3px;color:var(--blanco)}
+input[type=text],
+input[type=email],
+textarea{
+  width:100%;padding:10px;
+  border:1px solid var(--gris);
+  border-radius:5px;
+  background:var(--gris-lite);
+  font-size:15px;
+  transition:.25s;
+}
+input:hover,
+textarea:hover{
+  background:#e0e8ff;border-color:var(--gris-hover)
+}
+input:focus,
+textarea:focus{
+  outline:none;
+  border-color:var(--azul);
+  box-shadow:0 0 5px rgba(0,80,145,.5)
 }
 
-/* Pseudo-elemento para el fondo difuminado */
-body::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    filter: blur(20px);
-    z-index: -1;
-    pointer-events: none;
+/* ---------- Button ---------- */
+.btn-agregar-proveedor{
+  width:100%;padding:12px;
+  border:none;border-radius:5px;
+  background:var(--btn);color:var(--blanco);
+  font-size:18px;font-weight:700;
+  cursor:pointer;
+  transition:background .25s,transform .2s,box-shadow .25s;
+  margin-top:20px;
+}
+.btn-agregar-proveedor:hover{
+  background:var(--btn-hover);
+  transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,.2)
+}
+.btn-agregar-proveedor:active{transform:none}
+
+/* ---------- Alerts ---------- */
+.alert{
+  display:none;
+  padding:14px;
+  border-radius:4px;
+  font-size:16px;
+  margin-top:18px;
+  margin-bottom:18px;
 }
 
-/* Contenedor principal */
-.container-proveedor {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 500px;
-    text-align: center;
-    position: relative;
-    box-sizing: border-box;
-    margin: 20px auto; /* Añadir margen para asegurar espacio para scroll */
-    /* height: 70%; */ /* Eliminado */
-
-    /* Flexbox properties */
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* Distribuye espacio equitativamente */
-    height: auto; /* Permite que el contenido defina la altura */
+/* éxito: centrado vertical y horizontal */
+.alert-success{
+  background:#dff0d8;
+  color:var(--verde);
+  display:flex;
+  align-items:center;           /* vertical */
+  justify-content:center;       /* horizontal */
+  gap:10px;
+  text-align:center;
 }
 
-/* Título del contenedor */
-.container-proveedor h2 {
-    color: var(--color-blanco);
-    margin-bottom: 10px;
-    font-size: 24px;
+/* error global */
+.alert-error{
+  background:#f2dede;
+  color:var(--rojo);
 }
 
-/* Icono */
-.icon-proveedor {
-    font-size: var(--tamanio-icono);
-    margin-bottom: 15px;
-    color: var(--color-blanco);
+/* ---------- Errores de campo ---------- */
+.field-error{
+  display:none;
+  font-size:14px;
+  margin-top:4px;
+  color:var(--rojo) !important; /* fuerza rojo */
 }
-
-/* Mensaje de campos obligatorios */
-.obligatorio-texto {
-    font-style: italic;
-    color: var(--color-blanco);
-    font-size: 14px;
-    margin-top: 10px; /* Reducido de 20px a 10px */
-    margin-bottom: 10px; /* Añadido margin-bottom para equilibrar */
+.field-error i{
+  color:var(--rojo) !important;
+  margin-right:5px;
 }
+.field-error.visible{display:block}
 
-/* Grupo de formulario */
-.form-group-proveedor {
-    margin-bottom: 10px; /* Reducido de 20px a 10px */
-    text-align: left;
-    position: relative; /* Para posicionar mensajes de error correctamente */
-}
+/* input con error */
+.input-error{border-color:var(--rojo) !important}
 
-/* Etiquetas de los campos */
-.form-group-proveedor label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--color-blanco);
-    font-weight: bold;
-    font-size: 16px;
-}
-
-/* Asterisco para campos obligatorios */
-.form-group-proveedor .required {
-    color: var(--color-blanco); /* Cambiado a rojo para mayor visibilidad */
-    margin-left: 5px;
-    font-size: 18px;
-}
-
-/* Campos de entrada y textarea */
-.form-group-proveedor input[type="text"],
-.form-group-proveedor input[type="email"],
-.form-group-proveedor textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--color-gris);
-    border-radius: 5px;
-    background-color: var(--color-gris-claro);
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-/* Hover sobre campos de entrada */
-.form-group-proveedor input[type="text"]:hover,
-.form-group-proveedor input[type="email"]:hover,
-.form-group-proveedor textarea:hover {
-    background-color: #e0e8ff;
-    border-color: var(--color-gris-hover);
-}
-
-/* Enfoque sobre campos de entrada */
-.form-group-proveedor input[type="text"]:focus,
-.form-group-proveedor input[type="email"]:focus,
-.form-group-proveedor textarea:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
-}
-
-/* Botón de agregar proveedor */
-.btn-agregar-proveedor {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    cursor: pointer;
-    padding: 12px 20px; /* Mantener padding horizontal */
-    text-align: center;
-    width: 100%;
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
-    margin: 25px auto 10px; /* Top | Left & Right | Bottom */
-    display: block;
-    font-weight: bold;
-}
-
-/* Efecto al pasar el cursor */
-.btn-agregar-proveedor:hover {
-    background-color: var(--color-boton-hover);
-    transform: translateY(-2px); /* Efecto de elevación al pasar el cursor */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-/* Efecto al hacer clic */
-.btn-agregar-proveedor:active {
-    transform: translateY(0); /* Retornar al estado original al hacer clic */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-/* Estilos de alertas */
-.alert {
-    padding: 15px;
-    margin-top: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-    font-size: 16px;
-}
-
-.alert-success {
-    color: var(--color-verde);
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px; /* Espacio entre el ícono y el texto */
-    margin-bottom: 20px;
-}
-
-.success-icon {
-    color: var(--color-verde);
-    font-size: 24px;
-}
-
-.alert-error {
-    color: var(--color-rojo);
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    margin-bottom: 20px;
-}
-
-/* Estilos para errores de campos */
-.field-error {
-    color: var(--color-rojo);
-    font-size: 14px;
-    margin-top: 5px;
-    display: none; /* Ocultar por defecto */
-    text-align: left;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.field-error.visible {
-    display: block;
-    opacity: 1;
-}
-
-/* Icono dentro de mensajes de error */
-.field-error i {
-    margin-right: 5px;
-}
-
-/* Responsividad para dispositivos móviles */
-@media (max-width: 768px) {
-    .container-proveedor {
-        padding: 30px 20px; /* Reducido padding para móviles */
-    }
-
-    .icon-proveedor {
-        font-size: 60px;
-        margin-bottom: 10px;
-    }
-
-    .container-proveedor h2 {
-        font-size: 22px;
-        margin-bottom: 15px;
-    }
-
-    .form-group-proveedor {
-        margin-bottom: 10px; /* Reducido espacio entre campos */
-    }
-
-    .form-group-proveedor input[type="text"],
-    .form-group-proveedor input[type="email"],
-    .form-group-proveedor textarea {
-        font-size: 14px;
-        padding: 8px;
-    }
-
-    .btn-agregar-proveedor {
-        padding: 10px 18px; /* Ajuste de padding para dispositivos móviles */
-        font-size: 16px;
-        margin: 10px auto 10px; /* Mantener consistencia */
-    }
-
-    .obligatorio-texto {
-        font-size: 12px;
-        margin-top: 10px; /* Mantener consistencia */
-        margin-bottom: 10px; /* Añadido para equilibrar */
-    }
-
-    .alert {
-        font-size: 14px;
-    }
-}
-
-/* Responsividad para dispositivos muy pequeños */
-@media (max-width: 480px) {
-    .container-proveedor {
-        padding: 20px 15px; /* Reducido padding para pantallas muy pequeñas */
-    }
-
-    .icon-proveedor {
-        font-size: 50px;
-        margin-bottom: 8px;
-    }
-
-    .container-proveedor h2 {
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
-
-    .form-group-proveedor input[type="text"],
-    .form-group-proveedor input[type="email"],
-    .form-group-proveedor textarea {
-        font-size: 14px;
-        padding: 6px;
-    }
-
-    .btn-agregar-proveedor {
-        font-size: 16px;
-        padding: 8px 16px; /* Ajuste de padding para dispositivos muy pequeños */
-        margin: 10px auto 10px; /* Mantener consistencia */
-    }
-
-    .obligatorio-texto {
-        font-size: 10px;
-        margin-top: 10px; /* Mantener consistencia */
-        margin-bottom: 10px; /* Añadido para equilibrar */
-    }
-
-    .alert {
-        font-size: 12px;
-    }
+/* ---------- Responsive ---------- */
+@media(max-width:480px){
+  .container-proveedor{padding:28px 18px}
+  input[type=text],
+  input[type=email],
+  textarea{font-size:14px;padding:8px}
+  .btn-agregar-proveedor{font-size:16px;padding:10px}
 }
