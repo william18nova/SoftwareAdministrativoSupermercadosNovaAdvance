@@ -1,90 +1,89 @@
-// static/javascript/editar_proveedor.js
+/* editar_proveedor.js – versión paralela a agregar_proveedor.js */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('form-editar-proveedor');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
-    const successTextSpan = document.getElementById('success-text');
-  
-    function clearMessages() {
-      errorMessageDiv.style.display = 'none';
-      errorMessageDiv.innerHTML = '';
-      successMessageDiv.style.display = 'none';
-      successTextSpan.textContent = '';
-  
-      const errorFields = document.querySelectorAll('.field-error');
-      errorFields.forEach(errorField => {
-        errorField.innerHTML = '';
-        errorField.classList.remove('visible');
+  /* ---------- helpers DOM ---------- */
+  const $id  = id  => document.getElementById(id);
+  const $qsa = sel => document.querySelectorAll(sel);
+
+  /* ---------- refs ---------- */
+  const form   = $id("form-editar-proveedor");
+  const boxErr = $id("error-message");
+  const boxOk  = $id("success-message");
+  const okTxt  = $id("success-text");
+
+  /* ---------- UI helpers ---------- */
+  const UI = {
+    reset() {
+      boxErr.style.display = "none";
+      boxErr.innerHTML     = "";
+      boxOk .style.display = "none";
+      okTxt.textContent    = "";
+
+      $qsa(".field-error").forEach(div => {
+        div.innerHTML = "";
+        div.classList.remove("visible");
       });
-    }
-  
-    function displayErrors(errors) {
-      clearMessages();
-      // Errores generales
-      if (errors.__all__) {
-        errorMessageDiv.innerHTML = errors.__all__.map(e => e.message).join('<br>');
-        errorMessageDiv.style.display = 'block';
-      }
-      // Errores por campo
-      for (let field in errors) {
-        if (field === '__all__') continue;
-        const fieldErrors = errors[field];
-        const errorDiv = document.getElementById('error-id_' + field);
-        if (errorDiv) {
-          errorDiv.innerHTML = fieldErrors
-            .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
-            .join('<br>');
-          errorDiv.classList.add('visible');
-          errorDiv.style.display = 'block';
-        }
-      }
-    }
-  
-    form.addEventListener('submit', function(event) {
-      event.preventDefault();
-      clearMessages();
-  
-      const formData = new FormData(form);
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCookie('csrftoken'),
-          'Accept': 'application/json'
-        },
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Redirige a la página de visualizar_proveedores con window.location
-          window.location.href = data.redirect_url;
-        } else {
-          // Mostrar errores
-          const errors = JSON.parse(data.errors);
-          displayErrors(errors);
-        }
-      })
-      .catch(error => {
-        console.error('Error al actualizar proveedor:', error);
-        errorMessageDiv.textContent = 'Ocurrió un error inesperado.';
-        errorMessageDiv.style.display = 'block';
+      $qsa(".input-error").forEach(inp => inp.classList.remove("input-error"));
+    },
+    errGlobal(msg) {
+      boxErr.innerHTML   = msg;
+      boxErr.style.display = "block";
+    },
+    errFields(errors) {
+      Object.entries(errors).forEach(([field, arr]) => {
+        const div = $id(`error-id_${field}`);
+        if (!div) return;
+
+        div.innerHTML = arr
+          .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
+          .join("<br>");
+        div.classList.add("visible");
+
+        const input = $id(`id_${field}`);
+        input?.classList.add("input-error");
       });
-    });
-  
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-          cookie = cookie.trim();
-          if (cookie.startsWith(name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
+    },
+  };
+
+  /* ---------- CSRF ---------- */
+  const getCSRF = () =>
+    document.cookie
+      .split("; ")
+      .find(c => c.startsWith("csrftoken="))
+      ?.split("=")[1] || "";
+
+  /* ---------- submit ---------- */
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    UI.reset();
+
+    try {
+      const resp = await fetch(form.action, {
+        method : "POST",
+        headers: { "X-CSRFToken": getCSRF(), Accept: "application/json" },
+        body   : new FormData(form),
+      });
+      const data = await resp.json();
+
+      if (data.success) {
+        /* flash en sessionStorage y redirección */
+        sessionStorage.setItem(
+          "flash-prov",
+          "Proveedor actualizado exitosamente."
+        );
+        window.location.href = data.redirect_url;
+      } else {
+        UI.errFields(data.errors || {});
+        if (data.errors?.__all__) {
+          UI.errGlobal(
+            data.errors.__all__.map(e => e.message).join("<br>")
+          );
         }
       }
-      return cookieValue;
+    } catch (err) {
+      console.error(err);
+      UI.errGlobal("Ocurrió un error inesperado.");
     }
   });
-  
+})();

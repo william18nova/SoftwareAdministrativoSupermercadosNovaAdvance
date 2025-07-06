@@ -1,19 +1,19 @@
-<!-- templates/editar_proveedor.html -->
-{% extends 'base.html' %}
+{# templates/editar_proveedor.html #}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Editar Proveedor{% endblock %}
 {% block content %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Editar Proveedor</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- CSS: puede ser el mismo que "agregar_proveedor.css" -->
-  <link rel="stylesheet" href="{% static 'css/agregar_proveedor.css' %}"/>
-  <!-- Font Awesome (iconos) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- Font-Awesome y estilos compartidos -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="{% static 'css/agregar_proveedor.css' %}">
 </head>
 <body>
   <div class="container-proveedor">
@@ -23,68 +23,35 @@
       Todos los campos con <span class="required">*</span> son obligatorios.
     </p>
 
-    <!-- Alertas globales (no usaremos el éxito aquí, sino al redirigir) -->
-    <div id="error-message" class="alert alert-error" style="display: none;"></div>
-    <div id="success-message" class="alert alert-success" style="display: none;">
-      <i class="fas fa-check-circle"></i> <span id="success-text"></span>
+    <!-- alertas globales controladas por JS -->
+    <div id="error-message"   class="alert alert-error"></div>
+    <div id="success-message" class="alert alert-success">
+      <i class="fas fa-check-circle"></i><span id="success-text"></span>
     </div>
 
     <form id="form-editar-proveedor"
-          action="{% url 'editar_proveedor' proveedor.pk %}" method="POST">
+          method="post"
+          action="{% url 'editar_proveedor' proveedor.pk %}">
       {% csrf_token %}
 
-      <!-- Campos del form -->
-      <div class="form-group-proveedor">
-        <label for="{{ form.nombre.id_for_label }}">
-          {{ form.nombre.label }} <span class="required">*</span>
-        </label>
-        {{ form.nombre }}
-        <div class="field-error" id="error-id_nombre"></div>
-      </div>
+      {# ---------- campos ---------- #}
+      {% for field in form.visible_fields %}
+        <div class="form-group-proveedor">
+          <label for="{{ field.id_for_label }}">
+            {{ field.label }}{% if field.field.required %} <span class="required">*</span>{% endif %}
+          </label>
+          {{ field }}
+          <div class="field-error" id="error-id_{{ field.name }}"></div>
+        </div>
+      {% endfor %}
 
-      <div class="form-group-proveedor">
-        <label for="{{ form.empresa.id_for_label }}">
-          {{ form.empresa.label }} <span class="required">*</span>
-        </label>
-        {{ form.empresa }}
-        <div class="field-error" id="error-id_empresa"></div>
-      </div>
-
-      <div class="form-group-proveedor">
-        <label for="{{ form.telefono.id_for_label }}">
-          {{ form.telefono.label }} <span class="required">*</span>
-        </label>
-        {{ form.telefono }}
-        <div class="field-error" id="error-id_telefono"></div>
-      </div>
-
-      <div class="form-group-proveedor">
-        <label for="{{ form.email.id_for_label }}">
-          {{ form.email.label }}
-        </label>
-        {{ form.email }}
-        <div class="field-error" id="error-id_email"></div>
-      </div>
-
-      <div class="form-group-proveedor">
-        <label for="{{ form.direccion.id_for_label }}">
-          {{ form.direccion.label }}
-        </label>
-        {{ form.direccion }}
-        <div class="field-error" id="error-id_direccion"></div>
-      </div>
-
-      <!-- Botón de Guardar -->
-      <div class="form-group-proveedor">
-        <button type="submit" class="btn-agregar-proveedor">
-          Actualizar Proveedor
-        </button>
-      </div>
+      <button class="btn-agregar-proveedor" type="submit">
+        Actualizar Proveedor
+      </button>
     </form>
   </div>
 
-  <!-- JS -->
-  <script src="{% static 'javascript/editar_proveedor.js' %}"></script>
+  <script defer src="{% static 'javascript/editar_proveedor.js' %}"></script>
 </body>
 </html>
 {% endblock %}

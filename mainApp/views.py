@@ -852,32 +852,46 @@ def eliminar_proveedor(request, proveedor_id):
     return render(request, 'visualizar_proveedores.html', {'proveedores': Proveedor.objects.all()})
 
 
-@login_required
-def editar_proveedor_view(request, proveedor_id):
-    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+class ProveedorUpdateView(LoginRequiredMixin, View):
+    """
+    Edición de proveedor con soporte AJAX.
+    – GET  → renderiza el formulario.
+    – POST → valida + responde JSON (success | errors)
+    """
 
-    if request.method == 'POST':
-        form = EditarProveedorForm(request.POST, instance=proveedor)
+    def get(self, request, proveedor_id: int):
+        proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+        form      = EditarProveedorForm(instance=proveedor)
+        return render(
+            request,
+            "editar_proveedor.html",
+            {"form": form, "proveedor": proveedor},
+        )
+
+    def post(self, request, proveedor_id: int):
+        proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
+        form      = EditarProveedorForm(request.POST, instance=proveedor)
+
         if form.is_valid():
             form.save()
-            # Aquí guardamos el mensaje de éxito en el "message framework"
-            messages.success(request, 'Proveedor actualizado exitosamente.')
 
-            # Devolvemos JSON con la URL a donde redirigir
-            return JsonResponse({
-                'success': True,
-                'redirect_url': reverse('visualizar_proveedores'),
-            })
-        else:
-            errors = form.errors.get_json_data()
-            return JsonResponse({'success': False, 'errors': json.dumps(errors)})
-    else:
-        form = EditarProveedorForm(instance=proveedor)
+            # el “flash” se mostrará al volver a la lista
+            request.session["flash-prov"] = "Proveedor actualizado exitosamente."
 
-    return render(request, 'editar_proveedor.html', {
-        'form': form,
-        'proveedor': proveedor,
-    })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "redirect_url": reverse("visualizar_proveedores"),
+                }
+            )
+
+        # serializamos los errores tal cual los genera Django
+        return JsonResponse(
+            {
+                "success": False,
+                "errors": form.errors.get_json_data(),
+            }
+        )
 
 
 
