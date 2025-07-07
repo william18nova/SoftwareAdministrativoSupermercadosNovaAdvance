@@ -1,505 +1,232 @@
-// agregar_precios_proveedor.js
+/*  agregar_precios_proveedor.js
+    ───────────────────────────────────────────────
+    · Autocompletados con scroll infinito + caché
+    · Tabla DataTables responsive
+    · Validación + guardado AJAX
+    · Patrón y nomenclatura idénticos a agregar_inventario.js
+   ---------------------------------------------------------- */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
+  /* Helpers DOM ------------------------------------------- */
+  const $id  = id => document.getElementById(id);
+  const $qs  =  s => document.querySelector(s);
+  const $qsa =  s => document.querySelectorAll(s);
 
-  /* =======================
-     1. Inicializar DataTable con opciones responsive
-  ======================= */
-  const dataTable = $('#productos-list').DataTable({
-    paging: false,
-    searching: true,
-    info: false,
-    responsive: true, // Activar modo responsive
-    language: {
-      search: "Buscar:",
-      zeroRecords: "No se encontraron resultados",
-      emptyTable: "No hay productos para mostrar",
-    },
+  /* DataTable --------------------------------------------- */
+  const dt = $('#productos-list').DataTable({
+    paging:false, searching:true, info:false, responsive:true,
+    language:{
+      search:"Buscar:", zeroRecords:"No se encontraron resultados",
+      emptyTable:"No hay productos para mostrar"
+    }
   });
 
-  /* ======================
-     2. Variables Generales
-  ====================== */
-  const form = document.getElementById('preciosForm');
+  /* refs & estado ---------------------------------------- */
+  const dom = {
+    form:$id("preciosForm"),
+    provInp:$id("id_proveedor_autocomplete"),
+    provHid:$id("id_proveedor"),
+    provBox:$id("proveedor-autocomplete-results"),
 
-  // ------------------------------
-  // Autocomplete de Proveedor
-  // ------------------------------
-  const proveedorInput    = document.getElementById('id_proveedor_autocomplete');
-  const proveedorIdInput  = document.getElementById('id_proveedor');
-  const proveedorResults  = document.getElementById('proveedor-autocomplete-results');
-  let isLoadingProveedor  = false;
-  let hasMoreProveedor    = true;
-  let currentPageProveedor= 1;
-  let currentTermProveedor= '';
+    prodInp:$id("id_producto_autocomplete"),
+    prodHid:$id("id_productoid"),
+    prodBox:$id("producto-autocomplete-results"),
 
-  // ------------------------------
-  // Autocomplete de Producto
-  // ------------------------------
-  const productoInput     = document.getElementById('id_producto_autocomplete');
-  const productoIdInput   = document.getElementById('id_productoid');
-  const productoResults   = document.getElementById('producto-autocomplete-results');
-  let isLoadingProducto   = false;
-  let hasMoreProducto     = true;
-  let currentPageProducto = 1;
-  let currentTermProducto = '';
+    priceInp:$id("id_precio"),
+    btnAdd:$id("agregarProductoBtn"),
+    tbody:$id("productos-body"),
 
-  // ------------------------------
-  // Campo “Precio” y botón agregar
-  // ------------------------------
-  const precioInput       = document.getElementById('id_precio');
-  const btnAgregarProducto= document.getElementById('agregarProductoBtn');
+    alertErr:$id("error-message"),
+    alertOk :$id("success-message"),
+  };
 
-  // Lista temporal: { productId, productName, price }
-  let preciosTemp = [];
+  /* estado autocomplete + lista --------------------------- */
+  const state = {
+    prov:{page:1, term:"", loading:false, more:true},
+    prod:{page:1, term:"", loading:false, more:true},
+    items:[]   // [{productId, productName, price}]
+  };
 
-  /* ==========================
-     3. Variables de Debounce y Caching
-  ========================== */
-  const DEBOUNCE_TIME = 300; // 300 ms
-  let debounceTimeoutProveedor = null;
-  let debounceTimeoutProducto  = null;
-
-  // Caches para almacenar respuestas anteriores
-  const cacheProveedor = {};
-  const cacheProducto = {};
-
-  /* ===================================
-     4. Funciones de Autocompletado Mejoradas
-  =================================== */
-  
-  // Función genérica para fetch con caching
-  function fetchWithCache(url, cache, term, page, callback) {
-    const cacheKey = `${term}_${page}`;
-    if (cache[cacheKey]) {
-      callback(cache[cacheKey]);
-      return;
-    }
-
-    fetch(url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        cache[cacheKey] = data; // Guardar en caché
-        callback(data);
-      })
-      .catch(error => {
-        console.error('fetchWithCache error:', error);
+  /* UI helpers -------------------------------------------- */
+  const UI = {
+    clearAlerts(){
+      [dom.alertErr, dom.alertOk].forEach(a=>{
+        a.style.display="none"; a.innerHTML="";
       });
-  }
-
-  function fetchProveedores(term, page = 1) {
-    if (isLoadingProveedor || !hasMoreProveedor) return;
-    isLoadingProveedor = true;
-    console.log(`Fetching proveedores: term='${term}', page=${page}`);
-
-    const url = `${proveedorAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-    
-    fetchWithCache(url, cacheProveedor, term, page, function(data) {
-      if (page === 1) {
-        proveedorResults.innerHTML = '';
+    },
+    ok(msg){
+      dom.alertOk.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
+      dom.alertOk.style.display="block";
+    },
+    err(msg){
+      dom.alertErr.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+      dom.alertErr.style.display="block";
+    },
+    clearErrors(){
+      $qsa(".field-error").forEach(d=>{
+        d.classList.remove("visible"); d.innerHTML="";
+      });
+      $qsa(".input-error").forEach(i=>i.classList.remove("input-error"));
+    },
+    fieldError(field, msg){
+      const box = $qs(`#error-id_${field}`);
+      if (box){
+        box.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+        box.classList.add("visible");
       }
-      if (data.results.length > 0) {
-        data.results.forEach(item => {
-          const opt = document.createElement('div');
-          opt.classList.add('autocomplete-option');
-          opt.textContent = item.text;
-          opt.dataset.id  = item.id;
-          proveedorResults.appendChild(opt);
-        });
-        hasMoreProveedor = data.has_more;
-      } else if (page === 1) {
-        const noResult = document.createElement('div');
-        noResult.classList.add('autocomplete-no-result');
-        noResult.textContent = 'No se encontraron resultados';
-        proveedorResults.appendChild(noResult);
-        hasMoreProveedor = false;
+      const map = {proveedor:dom.provInp, productoid:dom.prodInp, precio:dom.priceInp};
+      (map[field]||null)?.classList.add("input-error");
+    }
+  };
+
+  /* caching ---------------------------------------------- */
+  const cProv = Object.create(null);
+  const cProd = Object.create(null);
+  const fetchCached = async (url, cache)=>{
+    if (cache[url]) return cache[url];
+    const resp = await fetch(url);
+    const json = await resp.json();
+    cache[url]=json; return json;
+  };
+
+  const debounce = (fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(fn,ms,...a);};};
+
+  /* Autocomplete factory --------------------------------- */
+  function auto(kind){
+    const cfg = (kind==="prov") ? {
+      inp:dom.provInp, hid:dom.provHid, box:dom.provBox,
+      st:state.prov, cache:cProv,
+      url:p=>`${proveedorAutocompleteUrl}?${p}`
+    } : {
+      inp:dom.prodInp, hid:dom.prodHid, box:dom.prodBox,
+      st:state.prod, cache:cProd,
+      url:p=>{
+        const ex = state.items.map(i=>i.productId).join(",");
+        return `${productoAutocompleteUrl}?${p}&excluded=${ex}`;
       }
-      proveedorResults.style.display = 'block';
-      isLoadingProveedor = false;
-      console.log('Proveedores fetch completado:', data);
-    });
-  }
-
-  function fetchProductos(term, page = 1) {
-    if (isLoadingProducto || !hasMoreProducto) return;
-    isLoadingProducto = true;
-    console.log(`Fetching productos: term='${term}', page=${page}`);
-
-    // Excluir IDs ya listados en preciosTemp
-    const excludedIds = preciosTemp.map(item => item.productId).join(',');
-    const url = `${productoPreciosAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}&excluded=${excludedIds}`;
-    console.log('Productos excluidos:', excludedIds);
-
-    fetchWithCache(url, cacheProducto, term, page, function(data) {
-      if (page === 1) {
-        productoResults.innerHTML = '';
-      }
-      if (data.results.length > 0) {
-        data.results.forEach(item => {
-          const opt = document.createElement('div');
-          opt.classList.add('autocomplete-option');
-          opt.textContent = item.text;
-          opt.dataset.id  = item.id;
-          productoResults.appendChild(opt);
-        });
-        hasMoreProducto = data.has_more;
-      } else if (page === 1) {
-        const noResult = document.createElement('div');
-        noResult.classList.add('autocomplete-no-result');
-        noResult.textContent = 'No se encontraron resultados';
-        productoResults.appendChild(noResult);
-        hasMoreProducto = false;
-      }
-      productoResults.style.display = 'block';
-      isLoadingProducto = false;
-      console.log('Productos fetch completado:', data);
-    });
-  }
-
-  /* ======================
-     5. Manejo de Errores
-  ====================== */
-  function clearErrors() {
-    const errorFields = document.querySelectorAll('.field-error');
-    errorFields.forEach(e => {
-      e.innerHTML = '';
-      e.style.display = 'none';
-      e.classList.remove('visible');
-    });
-    // Ocultar alert global
-    const globalError = document.getElementById('error-message');
-    if (globalError) {
-      globalError.style.display = 'none';
-      globalError.innerHTML = '';
-    }
-    const successMessage = document.getElementById('success-message');
-    if (successMessage) {
-      successMessage.style.display = 'none';
-      successMessage.innerHTML = '';
-    }
-  }
-
-  function showFieldError(field, message) {
-    const errorDiv = document.getElementById(`error-id_${field}`);
-    if (errorDiv) {
-      errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-      errorDiv.classList.add('visible');
-      errorDiv.style.display = 'block';
-    }
-  }
-
-  function showGlobalError(message) {
-    const errorDiv = document.getElementById('error-message');
-    if (errorDiv) {
-      errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-      errorDiv.style.display = 'block';
-    }
-  }
-
-  function showSuccess(message) {
-    const successDiv = document.getElementById('success-message');
-    if (successDiv) {
-      successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-      successDiv.style.display = 'block';
-    }
-  }
-
-  /* ==========================
-     6. Eventos de Autocomplete Mejorados
-  ========================== */
-  
-  // Función genérica de debounce
-  function debounce(func, delay) {
-    let timeout;
-    return function(...args) {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func.apply(this, args), delay);
     };
-  }
 
-  // --- Proveedor ---
-  const debouncedFetchProveedores = debounce(function() {
-    fetchProveedores(currentTermProveedor, currentPageProveedor);
-  }, DEBOUNCE_TIME);
+    const render = async()=>{
+      if (cfg.st.loading || !cfg.st.more) return;
+      cfg.st.loading=true;
+      const params = new URLSearchParams({term:cfg.st.term,page:cfg.st.page});
+      const data   = await fetchCached(cfg.url(params), cfg.cache);
 
-  proveedorInput.addEventListener('input', function() {
-    proveedorIdInput.value = '';
-    hasMoreProveedor = true;
-    currentPageProveedor = 1;
-    currentTermProveedor = proveedorInput.value.trim();
-
-    if (!currentTermProveedor) {
-      proveedorResults.innerHTML = '';
-      proveedorResults.style.display = 'none';
-      return;
-    }
-
-    debouncedFetchProveedores();
-  });
-
-  proveedorInput.addEventListener('focus', function() {
-    currentTermProveedor = proveedorInput.value.trim();
-    hasMoreProveedor = true;
-    currentPageProveedor = 1;
-    debouncedFetchProveedores();
-  });
-
-  proveedorResults.addEventListener('scroll', function() {
-    if (proveedorResults.scrollTop + proveedorResults.clientHeight >= proveedorResults.scrollHeight - 5) {
-      if (hasMoreProveedor && !isLoadingProveedor) {
-        currentPageProveedor += 1;
-        fetchProveedores(currentTermProveedor, currentPageProveedor);
+      if (cfg.st.page===1) cfg.box.innerHTML="";
+      if (data.results.length){
+        for (const r of data.results){
+          const d=document.createElement("div");
+          d.className="autocomplete-option"; d.dataset.id=r.id; d.textContent=r.text;
+          cfg.box.appendChild(d);
+        }
+        cfg.st.more=data.has_more;
+      }else if (cfg.st.page===1){
+        cfg.box.innerHTML='<div class="autocomplete-no-result">No se encontraron resultados</div>';
+        cfg.st.more=false;
       }
-    }
-  });
+      cfg.box.style.display="block"; cfg.st.loading=false;
+    };
 
-  proveedorResults.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('autocomplete-option')) {
-      proveedorInput.value    = e.target.textContent;
-      proveedorIdInput.value  = e.target.dataset.id;
-      proveedorResults.innerHTML = '';
-      proveedorResults.style.display = 'none';
-      hasMoreProveedor = false;
-    }
-  });
-
-  document.addEventListener('click', function(e) {
-    if (!proveedorInput.contains(e.target) && !proveedorResults.contains(e.target)) {
-      proveedorResults.innerHTML = '';
-      proveedorResults.style.display = 'none';
-      hasMoreProveedor = false;
-    }
-  });
-
-  // --- Producto ---
-  const debouncedFetchProductos = debounce(function() {
-    fetchProductos(currentTermProducto, currentPageProducto);
-  }, DEBOUNCE_TIME);
-
-  productoInput.addEventListener('input', function() {
-    productoIdInput.value = '';
-    hasMoreProducto = true;
-    currentPageProducto = 1;
-    currentTermProducto = productoInput.value.trim();
-
-    if (!currentTermProducto) {
-      productoResults.innerHTML = '';
-      productoResults.style.display = 'none';
-      return;
-    }
-
-    debouncedFetchProductos();
-  });
-
-  productoInput.addEventListener('focus', function() {
-    currentTermProducto = productoInput.value.trim();
-    hasMoreProducto = true;
-    currentPageProducto = 1;
-    debouncedFetchProductos();
-  });
-
-  productoResults.addEventListener('scroll', function() {
-    if (productoResults.scrollTop + productoResults.clientHeight >= productoResults.scrollHeight - 5) {
-      if (hasMoreProducto && !isLoadingProducto) {
-        currentPageProducto += 1;
-        fetchProductos(currentTermProducto, currentPageProducto);
-      }
-    }
-  });
-
-  productoResults.addEventListener('click', function(e) {
-    if (e.target && e.target.classList.contains('autocomplete-option')) {
-      productoInput.value   = e.target.textContent;
-      productoIdInput.value = e.target.dataset.id;
-      productoResults.innerHTML = '';
-      productoResults.style.display = 'none';
-      hasMoreProducto = false;
-    }
-  });
-
-  document.addEventListener('click', function(e) {
-    if (!productoInput.contains(e.target) && !productoResults.contains(e.target)) {
-      productoResults.innerHTML = '';
-      productoResults.style.display = 'none';
-      hasMoreProducto = false;
-    }
-  });
-
-  /* =================================================
-     7. Agregar Producto (con campo editable de Precio)
-  ================================================= */
-  btnAgregarProducto.addEventListener('click', function() {
-    clearErrors();
-
-    const provId   = proveedorIdInput.value.trim();
-    const prodId   = productoIdInput.value.trim();
-    const prodName = productoInput.value.trim();
-    const priceVal = precioInput.value.trim();
-
-    let hasLocalErrors = false;
-
-    // REGLA: SE REQUIEREN los 3 campos para agregar un producto
-    if (!provId) {
-      showFieldError('proveedor', 'Debe seleccionar un proveedor.');
-      // Eliminamos la llamada a showGlobalError aquí
-      // showGlobalError('Debe seleccionar un proveedor antes de agregar un producto.'); // <--- ALERTA GLOBAL ELIMINADA
-      hasLocalErrors = true;
-    }
-    if (!prodId) {
-      showFieldError('productoid', 'Debe seleccionar un producto.');
-      hasLocalErrors = true;
-    }
-    if (!priceVal || parseFloat(priceVal) <= 0) {
-      showFieldError('precio', 'El precio debe ser mayor que 0.');
-      hasLocalErrors = true;
-    }
-
-    if (hasLocalErrors) {
-      return; // No agregamos nada
-    }
-
-    // Revisar si el producto ya existe en la tabla
-    const existe = preciosTemp.some(p => p.productId === prodId);
-    if (existe) {
-      showFieldError('productoid', 'Este producto ya está en la lista.');
-      return;
-    }
-
-    // Agregar al array
-    preciosTemp.push({
-      productId:  prodId,
-      productName:prodName,
-      price:      priceVal
+    const deb = debounce(()=>{cfg.st.page=1;cfg.st.more=true;render();});
+    cfg.inp.addEventListener("input",()=>{
+      cfg.hid.value=""; cfg.st.term=cfg.inp.value.trim();
+      if (!cfg.st.term){cfg.box.style.display="none";return;}
+      deb();
     });
+    cfg.inp.addEventListener("focus",()=>{
+      cfg.st.term=cfg.inp.value.trim(); cfg.st.page=1; cfg.st.more=true; render();
+    });
+    cfg.box.addEventListener("scroll",()=>{
+      if (cfg.box.scrollTop+cfg.box.clientHeight>=cfg.box.scrollHeight-4 && cfg.st.more && !cfg.st.loading){
+        cfg.st.page++; render();
+      }
+    });
+    cfg.box.addEventListener("click",e=>{
+      const opt=e.target.closest(".autocomplete-option"); if(!opt) return;
+      cfg.inp.value=opt.textContent; cfg.hid.value=opt.dataset.id; cfg.box.style.display="none";
+    });
+    document.addEventListener("click",e=>{
+      if(!cfg.inp.contains(e.target)&&!cfg.box.contains(e.target)) cfg.box.style.display="none";
+    });
+  }
+  auto("prov"); auto("prod");
 
-    // Insertar fila en DataTable con precio editable y placeholder
-    dataTable.row.add([
-      prodName,
-      `<input type="number" class="price-input" value="${priceVal}" step="0.01" min="0.01" placeholder="Ingrese el precio" style="width:80px;">`,
-      `<button type="button" class="btn-eliminar" data-product-id="${prodId}">
+  /* Agregar fila ----------------------------------------- */
+  dom.btnAdd.addEventListener("click",()=>{
+    UI.clearAlerts(); UI.clearErrors();
+
+    const pid=dom.prodHid.value.trim(), pname=dom.prodInp.value.trim();
+    const price=dom.priceInp.value.trim(), provId=dom.provHid.value.trim();
+
+    let bad=false;
+    if(!provId){UI.fieldError("proveedor","Debe seleccionar un proveedor.");bad=true;}
+    if(!pid){UI.fieldError("productoid","Debe seleccionar un producto.");bad=true;}
+    if(!price||parseFloat(price)<=0){UI.fieldError("precio","El precio debe ser mayor que 0.");bad=true;}
+    if(bad) return;
+
+    if(state.items.some(i=>i.productId===pid)){
+      UI.fieldError("productoid","Este producto ya está en la lista."); return;
+    }
+
+    state.items.push({productId:pid,productName:pname,price});
+    dt.row.add([
+      pname,
+      `<input type="number" class="price-input" value="${price}" step="0.01" min="0.01" style="width:80px;">`,
+      `<button type="button" class="btn-eliminar" data-product-id="${pid}">
          <i class="fas fa-trash-alt"></i>
        </button>`
     ]).draw(false);
 
-    // Limpiar campos de texto
-    productoInput.value   = '';
-    productoIdInput.value = '';
-    precioInput.value     = '';
+    dom.prodInp.value=""; dom.prodHid.value=""; dom.priceInp.value="";
   });
 
-  /* ======================
-     8. Eliminar de la tabla
-  ====================== */
-  // Manejar el evento de eliminar utilizando delegación de eventos
-  document.getElementById('productos-body').addEventListener('click', function(e) {
-    if (e.target.closest('.btn-eliminar')) {
-      const button = e.target.closest('.btn-eliminar');
-      const productId = button.getAttribute('data-product-id');
-      const row = button.closest('tr');
-      dataTable.row(row).remove().draw(false);
-      preciosTemp = preciosTemp.filter(p => p.productId !== productId);
-      console.log('preciosTemp después de eliminar:', preciosTemp);
-    }
+  /* Eliminar fila ---------------------------------------- */
+  dom.tbody.addEventListener("click",e=>{
+    const btn=e.target.closest(".btn-eliminar"); if(!btn) return;
+    const pid=btn.dataset.productId; dt.row(btn.closest("tr")).remove().draw(false);
+    state.items=state.items.filter(i=>i.productId!==pid);
   });
 
-  /* =========================
-     9. Submit del Formulario
-  ========================= */
-  form.addEventListener('submit', function(event) {
-    event.preventDefault();
-    clearErrors();
+  /* Submit ----------------------------------------------- */
+  dom.form.addEventListener("submit",async ev=>{
+    ev.preventDefault(); UI.clearAlerts(); UI.clearErrors();
 
-    // Validar al menos un producto en preciosTemp
-    if (preciosTemp.length === 0) {
-      showGlobalError('Debe agregar al menos un producto antes de guardar.');
-      return;
-    }
+    if(!state.items.length){UI.err("Debe agregar al menos un producto.");return;}
 
-    // Actualizar preciosTemp según lo editado en la tabla
-    const rows = dataTable.rows().indexes();
-    rows.each(function(idx) {
-      const rowNode = dataTable.row(idx).node();
-      const cells = rowNode.querySelectorAll('td');
-      if (cells.length >= 2) {
-        const productNameCell = cells[0].textContent.trim();
-        const priceInputElem = cells[1].querySelector('.price-input');
-        if (priceInputElem) {
-          const newPrice = priceInputElem.value.trim();
-          const itemIndex = preciosTemp.findIndex(i => i.productName === productNameCell);
-          if (itemIndex >= 0) {
-            preciosTemp[itemIndex].price = newPrice;
-          }
-        }
-      }
+    /* sync precios editados */
+    dt.rows().every(function(){
+      const [prod,priceCell]=this.node().querySelectorAll("td");
+      const item=state.items.find(i=>i.productName===prod.textContent.trim());
+      const inp=priceCell.querySelector(".price-input");
+      if(item&&inp) item.price=inp.value.trim();
     });
 
-    console.log('preciosTemp antes de enviar:', preciosTemp);
+    $id("id_precios_temp").value=JSON.stringify(state.items);
 
-    // Poner preciosTemp en el campo oculto como JSON
-    const preciosTempInput = document.getElementById('id_precios_temp');
-    preciosTempInput.value = JSON.stringify(preciosTemp);
-    console.log('precios_temp enviado:', preciosTempInput.value);
-
-    // Enviar el formulario vía AJAX
-    const formData = new FormData(form);
-    fetch(form.action, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'Accept': 'application/json',
+    try{
+      const r=await fetch(dom.form.action,{
+        method:"POST",
+        headers:{
+          "X-CSRFToken":document.cookie.split(";")
+                          .find(c=>c.trim().startsWith("csrftoken="))?.split("=")[1]||"",
+          Accept:"application/json"
         },
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Éxito: mostrar mensaje, resetear formulario y tabla
-            showSuccess('Productos y precios agregados exitosamente al proveedor.');
-            form.reset();
-            preciosTemp = [];
-            dataTable.clear().draw();
-            proveedorResults.innerHTML = '';
-            proveedorResults.style.display = 'none';
-            productoResults.innerHTML = '';
-            productoResults.style.display = 'none';
-        } else {
-            // Mostrar errores devueltos por el backend
-            const errors = JSON.parse(data.errors);
-            for (let field in errors) {
-                const fieldErrors = errors[field];
-                fieldErrors.forEach(error => {
-                    showFieldError(field, error.message);
-                });
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showGlobalError('Ocurrió un error inesperado al guardar.');
-    });
-  });
-
-  /* ================================
-     10. Función para Obtener la Cookie
-  ================================= */
-  function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-          const cookies = document.cookie.split(';');
-          for (let cookie of cookies) {
-              cookie = cookie.trim();
-              if (cookie.startsWith(name + '=')) {
-                  cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                  break;
-              }
-          }
+        body:new FormData(dom.form)
+      });
+      const data=await r.json();
+      if(data.success){
+        UI.ok("Productos y precios agregados exitosamente.");
+        dom.form.reset(); state.items=[]; dt.clear().draw();
+        [dom.provBox,dom.prodBox].forEach(b=>b.style.display="none");
+        // limpiar caches para refrescar datos
+        Object.keys(cProv).forEach(k=>delete cProv[k]);
+        Object.keys(cProd).forEach(k=>delete cProd[k]);
+      }else{
+        const errs=JSON.parse(data.errors||"{}");
+        for(const [field,arr] of Object.entries(errs))
+          arr.forEach(e=>UI.fieldError(field,e.message));
       }
-      return cookieValue;
-  }
-
-});
+    }catch(err){console.error(err);UI.err("Ocurrió un error inesperado.");}
+  });
+})();

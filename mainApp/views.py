@@ -895,172 +895,111 @@ class ProveedorUpdateView(LoginRequiredMixin, View):
 
 
 
-@login_required
-def agregar_productos_precios_proveedor_view(request):
-    """
-    Vista para agregar productos con sus precios a un Proveedor.
-    Maneja tanto GET como POST.
-    - En GET, muestra el formulario con autocompletados.
-    - En POST, valida el formulario y procesa los productos y precios temporales.
-      Responde con JSON para manejar las respuestas en el frontend.
-    """
-    if request.method == 'POST':
-        form = PreciosProveedorForm(request.POST)
-        if form.is_valid():
-            precios_temp = request.POST.get('precios_temp')
-            proveedor = form.cleaned_data['proveedor']
-            if precios_temp:
-                try:
-                    precios = json.loads(precios_temp)
-                except json.JSONDecodeError:
-                    precios = []
+@method_decorator(transaction.atomic, name="dispatch")
+class PreciosProveedorCreateAJAXView(LoginRequiredMixin, View):
+    template_name = "agregar_productos_precios_proveedor.html"
+    form_class    = PreciosProveedorForm
 
-                if not precios:
-                    errors = {
-                        'precios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
-                    }
-                    return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+    # ---------- GET ----------
+    def get(self, request):
+        form = self.form_class()
+        sin_precios = (
+            Proveedor.objects
+                     .annotate(p_count=Count("preciosproveedor"))
+                     .filter(p_count=0)
+        )
+        if not sin_precios.exists():
+            messages.error(request, "Todos los proveedores ya tienen precios cargados.")
 
-                # Preparar lista para bulk_create
-                precios_to_create = []
-                for precio in precios:
-                    producto_id = precio.get('productId')
-                    precio_val = precio.get('price')
-                    if not producto_id or not precio_val:
-                        continue  # Puedes optar por manejar errores específicos aquí
+        ctx = {"form": form, "proveedores": sin_precios}
+        return render(request, self.template_name, ctx)
 
-                    producto = get_object_or_404(Producto, pk=producto_id)
+    # ---------- POST ----------
+    def post(self, request):
+        form = self.form_class(request.POST)
 
-                    # Evitar duplicados
-                    if PreciosProveedor.objects.filter(productoid=producto, proveedorid=proveedor).exists():
-                        continue  # Opcional: manejar duplicados según necesidades
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors" : json.dumps(form.errors.get_json_data(escape_html=True))
+            })
 
-                    precios_to_create.append(
-                        PreciosProveedor(
-                            productoid=producto,
-                            proveedorid=proveedor,
-                            precio=Decimal(precio_val)
-                        )
-                    )
-                # Crear todos los precios en una sola consulta
-                PreciosProveedor.objects.bulk_create(precios_to_create)
-                return JsonResponse({'success': True})
-            else:
-                errors = {
-                    'precios_temp': [{'message': 'Debe agregar al menos un producto antes de guardar.'}]
-                }
-                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
-        else:
-            # Convertir errores del formulario a JSON
-            errors = form.errors.get_json_data()
-            # Procesar errores para el formato esperado por el frontend
-            processed_errors = {}
-            for field, field_errors in errors.items():
-                processed_errors[field] = [{'message': error['message']} for error in field_errors]
-            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
-    else:
-        form = PreciosProveedorForm()
+        proveedor = form.cleaned_data["proveedor"]
+        raw_json  = request.POST.get("precios_temp", "[]")
 
-    return render(request, 'agregar_productos_precios_proveedor.html', {'form': form})
-
-@login_required
-def proveedor_precios_autocomplete(request):
-    """
-    Autocomplete de Proveedores, excluyendo aquellos que ya
-    tienen registros en PreciosProveedor.
-    Implementa paginación y manejo de términos vacíos.
-    """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page = 10  # Cantidad de resultados por página
-
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    # Excluir Proveedores que ya tengan algo en PreciosProveedor
-    # => Los que tengan precios_count=0
-    qs = (
-        Proveedor.objects.annotate(precios_count=Count('preciosproveedor'))
-                        .filter(precios_count=0)
-                        .order_by('nombre')
-    )
-
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    results = []
-    for prov in qs:
-        results.append({
-            'id': prov.proveedorid,
-            'text': prov.nombre,
-        })
-
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
-
-@login_required
-def producto_precios_autocomplete(request):
-    """
-    Autocomplete para Producto, excluyendo IDs pasados via 'excluded'.
-    Implementa paginación y manejo de términos vacíos.
-    """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    excluded_str = request.GET.get('excluded', '').strip()
-    per_page = 10
-
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    qs = Producto.objects.all().order_by('nombre')
-
-    # Excluir IDs
-    excluded_ids = []
-    if excluded_str:
         try:
-            excluded_ids = [int(x) for x in excluded_str.split(',') if x.isdigit()]
-        except:
-            pass
+            items = json.loads(raw_json)
+        except json.JSONDecodeError:
+            items = []
 
-    if excluded_ids:
-        qs = qs.exclude(productoid__in=excluded_ids)
+        if not items:
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps({
+                    "precios_temp": [{"message": "Debe agregar al menos un producto."}]
+                })
+            })
 
-    if term:
-        qs = qs.filter(nombre__icontains=term)
+        batch = []
+        for it in items:
+            pid   = it.get("productId")
+            price = it.get("price")
 
-    total_results = qs.count()
-    qs = qs[start:end]
+            # validaciones mínimas
+            if not (pid and price):
+                continue
+            try:
+                precio_dec = Decimal(price)
+                if precio_dec <= 0:
+                    raise ValidationError("Precio no válido")
+            except Exception:
+                continue
 
-    results = []
-    for prod in qs:
-        results.append({
-            'id': prod.productoid,
-            'text': prod.nombre,
-        })
+            producto = get_object_or_404(Producto, pk=pid)
 
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
+            # evitar duplicados
+            if PreciosProveedor.objects.filter(
+                    productoid=producto, proveedorid=proveedor).exists():
+                continue
+
+            batch.append(PreciosProveedor(
+                productoid=producto,
+                proveedorid=proveedor,
+                precio=precio_dec
+            ))
+
+        if not batch:
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps({
+                    "__all__": [{"message": "Nada que guardar."}]
+                })
+            })
+
+        PreciosProveedor.objects.bulk_create(batch)
+        return JsonResponse({"success": True})
+
+
+# ──────────────────────────────────────────────────────────────
+# 2. Autocompletados (mismo patrón que inventario)
+# ──────────────────────────────────────────────────────────────
+class ProveedorSinPreciosAutocomplete(PaginatedAutocompleteMixin):
+    """Sólo proveedores que aún no tienen precios."""
+    model = Proveedor
+
+    def extra_filter(self, qs, request):
+        return qs.annotate(cnt=Count("preciosproveedor")).filter(cnt=0)
+
+
+class ProductoExcludingAutocomplete(PaginatedAutocompleteMixin):
+    """Productos excluyendo IDs ya listados en el front (query param excluded)."""
+    model     = Producto
+    id_field  = "productoid"
+
+    def extra_filter(self, qs, request):
+        excluded = request.GET.get("excluded", "")
+        ids      = [int(x) for x in excluded.split(",") if x.isdigit()]
+        return qs.exclude(productoid__in=ids) if ids else qs
 
 
 @login_required

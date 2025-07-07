@@ -23,7 +23,10 @@ from .views import (
                     ProductoInventarioAutocompleteView,
                     ProveedorCreateView,
                     ProveedorListView,
-                    ProveedorUpdateView,)
+                    ProveedorUpdateView,
+                    PreciosProveedorCreateAJAXView,
+                    ProveedorSinPreciosAutocomplete,
+                    ProductoExcludingAutocomplete,)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -65,9 +68,21 @@ urlpatterns = [
     path("editar_proveedor/<int:proveedor_id>/", ProveedorUpdateView.as_view(), name="editar_proveedor"),
     
     
-    path('agregar_productos_precios_proveedor/', views.agregar_productos_precios_proveedor_view, name='agregar_productos_precios_proveedor'),
-    path('autocomplete/proveedor/', views.proveedor_precios_autocomplete, name='proveedor_precios_autocomplete'),
-    path('autocomplete/producto/', views.producto_precios_autocomplete, name='producto_precios_autocomplete'),
+    path(
+        "agregar_productos_precios_proveedor/",
+        PreciosProveedorCreateAJAXView.as_view(),
+        name="agregar_productos_precios_proveedor",
+    ),
+    path(
+        "autocomplete/proveedor_precios/",
+        ProveedorSinPreciosAutocomplete.as_view(),
+        name="proveedor_precios_autocomplete",
+    ),
+    path(
+        "autocomplete/producto_precios/",
+        ProductoExcludingAutocomplete.as_view(),
+        name="producto_precios_autocomplete",
+    ),
     path('visualizar_productos_precios_proveedores/', views.visualizar_productos_precios_proveedores_view, name='visualizar_productos_precios_proveedores'),
     path('autocomplete/proveedor_con_productos/', views.proveedor_con_productos_autocomplete, name='proveedor_con_productos_autocomplete'),
     path('precios_proveedor/eliminar/<int:id>/', views.eliminar_precio_proveedor_view, name='eliminar_precio_proveedor'),
