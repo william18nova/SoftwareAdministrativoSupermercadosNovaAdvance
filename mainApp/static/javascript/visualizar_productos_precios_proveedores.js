@@ -1,145 +1,96 @@
-$(document).ready(function() {
-    // Inicializar DataTable
-    var table = $('#productos-precios-list').DataTable({
-        paging: false,
-        searching: true,
-        info: false,
-        language: {
-            search: "Buscar:",
-            zeroRecords: "No se encontraron resultados",
-            emptyTable: "No hay productos para mostrar"
-        }
-    });
+/*  visualizar_productos_precios_proveedores.js
+    ────────────────────────────────────────────
+    • DataTable responsivo + castellano
+    • Autocomplete proveedor (scroll infinito + debounce)
+    • Eliminación vía AJAX
+--------------------------------------------------------------*/
+$(function () {
+  "use strict";
 
-    // Función para mostrar mensajes de alerta
-    function mostrarMensaje(mensaje, clase) {
-        $('.alert').remove();
-        var alertDiv = $('<div class="alert ' + clase + '">' + mensaje + '</div>');
-        $('#proveedorForm').before(alertDiv);
+  /* ---------- DataTable ---------- */
+  const $tbl = $("#preciosTable");
+  const dt   = $tbl.length ? $tbl.DataTable({
+    paging:true, searching:true, info:true, responsive:true,
+    language:{
+      search:"", zeroRecords:"Sin registros",
+      info:"Mostrando _START_ a _END_ de _TOTAL_",
+      paginate:{ first:"Prim.", last:"Últ.", next:"Sig.", previous:"Ant." }
+    },
+    columnDefs:[{ targets:"no-sort", orderable:false }]
+  }) : null;
+
+  /* ---------- flash helper ---------- */
+  const $flash = $("<div class='alert' style='display:none'></div>")
+                 .insertAfter("h2");
+  const showFlash = (ok,msg) =>
+    $flash.removeClass("alert-success alert-error")
+          .addClass(ok?"alert-success":"alert-error")
+          .text(msg).show();
+
+  /* ---------- eliminar precio ---------- */
+  $tbl.on("click",".btn-eliminar",function(){
+    const $btn = $(this), id = $btn.data("precio-id");
+    if (!id || !confirm("¿Eliminar este precio?")) return;
+
+    $.post(eliminarPrecioUrl.replace("0", id), {
+      csrfmiddlewaretoken: $("input[name=csrfmiddlewaretoken]").val()
+    })
+    .done(res=>{
+      if(res.success && dt){ dt.row($btn.closest("tr")).remove().draw(false); }
+      showFlash(res.success, res.message);
+    })
+    .fail(()=> showFlash(false,"Error al eliminar el precio."));
+  });
+
+  /* ---------- autocomplete proveedor ---------- */
+  const $inp = $("#id_proveedor_autocomplete"),
+        $hid = $("#id_proveedor"),
+        $box = $("#proveedor-autocomplete-results");
+
+  let page=1, term="", loading=false, more=true;
+
+  const fetchProv = ()=>{
+    if(loading||!more) return;
+    loading=true;
+    $.getJSON(proveedorAutocompleteUrl, { term, page })
+      .done(data=>{
+        if(page===1){ $box.empty(); }
+        if(data.results.length){
+          data.results.forEach(r=>{
+            $("<div>",{"class":"autocomplete-option",text:r.text,"data-id":r.id})
+              .appendTo($box);
+          });
+          more=data.has_more;
+        }else if(page===1){
+          $box.html('<div class="autocomplete-no-result">Sin resultados</div>');
+          more=false;
+        }
+        $box.show(); loading=false;
+      })
+      .fail(()=> loading=false);
+  };
+  const deb = (fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(fn,ms,...a);};};
+
+  const kick = deb(()=>{page=1;more=true;fetchProv();},250);
+
+  $inp.on("input",()=>{
+    $hid.val(""); term=$.trim($inp.val()); kick();
+  }).on("focus",()=>{
+    term=$.trim($inp.val()); page=1; more=true; fetchProv();
+  });
+
+  $box.on("click",".autocomplete-option",function(){
+    $inp.val($(this).text()); $hid.val($(this).data("id"));
+    $box.hide(); $("#proveedorForm").submit();
+  }).on("scroll",function(){
+    if(this.scrollTop + this.clientHeight >= this.scrollHeight-4 && more && !loading){
+      page++; fetchProv();
     }
+  });
 
-    // Manejo de eliminación de precio vía AJAX
-    $('#productos-precios-list').on('click', '.btn-eliminar', function(event) {
-        event.preventDefault();
-        var button = $(this);
-        var id = button.data('id');
-        var row = button.closest('tr');
-        if (confirm('¿Estás seguro de que deseas eliminar este precio del proveedor?')) {
-            $.ajax({
-                url: eliminarPrecioUrlPattern.replace('0', id),
-                type: 'POST',
-                data: {
-                    csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
-                },
-                success: function(response) {
-                    if (response.success) {
-                        table.row(row).remove().draw(false);
-                        mostrarMensaje(response.message, 'alert-success');
-                    } else {
-                        mostrarMensaje(response.message, 'alert-error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    mostrarMensaje('Ocurrió un error al eliminar el precio del proveedor.', 'alert-error');
-                }
-            });
-        }
-    });
-
-    /* Autocomplete para Proveedor (vinculado con productos) */
-    var proveedorInput = $('#id_proveedor_autocomplete');
-    var proveedorResults = $('#proveedor-autocomplete-results');
-    var proveedorIdInput = $('#id_proveedor');
-    var currentPage = 1;
-    var isLoading = false;
-    var hasMore = true;
-    var currentTerm = '';
-
-    function fetchProveedores(term, page) {
-        console.log("Fetch proveedores:", term, "page:", page);
-        if (isLoading) return;
-        isLoading = true;
-        $.ajax({
-            url: proveedorAutocompleteUrl,
-            data: { term: term, page: page },
-            dataType: "json",
-            success: function(data) {
-                console.log("Datos recibidos:", data);
-                if (page === 1) {
-                    proveedorResults.empty();
-                }
-                if (data.results && data.results.length > 0) {
-                    $.each(data.results, function(i, item) {
-                        var option = $('<div class="autocomplete-option"></div>')
-                            .text(item.text)
-                            .attr('data-id', item.id);
-                        proveedorResults.append(option);
-                    });
-                    hasMore = data.has_more;
-                } else if (page === 1) {
-                    proveedorResults.append('<div class="autocomplete-no-result">No se encontraron resultados</div>');
-                    hasMore = false;
-                }
-                proveedorResults.show();
-                isLoading = false;
-            },
-            error: function() {
-                console.error("Error en la petición de proveedores.");
-                isLoading = false;
-            }
-        });
+  $(document).on("click",e=>{
+    if(!$(e.target).closest("#id_proveedor_autocomplete, #proveedor-autocomplete-results").length){
+      $box.hide();
     }
-
-    function debounce(func, delay) {
-        var timeout;
-        return function() {
-            var context = this, args = arguments;
-            clearTimeout(timeout);
-            timeout = setTimeout(function() {
-                func.apply(context, args);
-            }, delay);
-        };
-    }
-    var debouncedFetchProveedores = debounce(function() {
-        currentPage = 1;
-        currentTerm = proveedorInput.val().trim();
-        fetchProveedores(currentTerm, currentPage);
-    }, 300);
-
-    proveedorInput.on('input', function() {
-        proveedorIdInput.val('');
-        hasMore = true;
-        debouncedFetchProveedores();
-    });
-
-    // Al hacer focus, se muestra el autocomplete incluso si el campo está vacío
-    proveedorInput.on('focus', function() {
-        currentTerm = proveedorInput.val().trim();
-        currentPage = 1;
-        fetchProveedores(currentTerm, currentPage);
-    });
-
-    proveedorResults.on('click', '.autocomplete-option', function() {
-        var selectedText = $(this).text();
-        var selectedId = $(this).data('id');
-        proveedorInput.val(selectedText);
-        proveedorIdInput.val(selectedId);
-        proveedorResults.hide();
-        $('#proveedorForm').submit();
-    });
-
-    $(document).on('click', function(e) {
-        if (!$(e.target).closest('#id_proveedor_autocomplete, #proveedor-autocomplete-results').length) {
-            proveedorResults.hide();
-        }
-    });
-
-    proveedorResults.on('scroll', function() {
-        if (proveedorResults.scrollTop() + proveedorResults.innerHeight() >= proveedorResults[0].scrollHeight - 5) {
-            if (hasMore && !isLoading) {
-                currentPage++;
-                fetchProveedores(currentTerm, currentPage);
-            }
-        }
-    });
+  });
 });

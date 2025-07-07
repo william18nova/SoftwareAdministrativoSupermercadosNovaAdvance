@@ -1002,23 +1002,37 @@ class ProductoExcludingAutocomplete(PaginatedAutocompleteMixin):
         return qs.exclude(productoid__in=ids) if ids else qs
 
 
-@login_required
-def visualizar_productos_precios_proveedores_view(request):
-    proveedores = Proveedor.objects.annotate(product_count=Count('preciosproveedor')).filter(product_count__gt=0)
-    productos_precios = None
-    proveedor_seleccionado = None
+class PreciosProveedorListView(LoginRequiredMixin, View):
+    template_name = "visualizar_productos_precios_proveedores.html"
 
-    if request.method == 'POST':
-        proveedor_id = request.POST.get('proveedor')
-        if proveedor_id:
-            proveedor_seleccionado = get_object_or_404(Proveedor, pk=proveedor_id)
-            productos_precios = PreciosProveedor.objects.filter(proveedorid=proveedor_seleccionado)
+    # ---------- GET ----------
+    def get(self, request):
+        ctx = self._base_context()
+        return render(request, self.template_name, ctx)
 
-    return render(request, 'visualizar_productos_precios_proveedores.html', {
-        'proveedores': proveedores,
-        'productos_precios': productos_precios,
-        'proveedor_seleccionado': proveedor_seleccionado,
-    })
+    # ---------- POST (filtro) ----------
+    def post(self, request):
+        ctx = self._base_context()
+        pid = request.POST.get("proveedor")
+        if pid:
+            ctx["proveedor_seleccionado"] = prov = get_object_or_404(Proveedor, pk=pid)
+            ctx["productos_precios"] = (
+                PreciosProveedor.objects.filter(proveedorid=prov)
+            )
+        return render(request, self.template_name, ctx)
+
+    # ---------- contexto común ----------
+    def _base_context(self):
+        proveedores = (
+            Proveedor.objects.annotate(num=Count("preciosproveedor"))
+                             .filter(num__gt=0)
+        )
+        return {
+            "proveedores": proveedores,
+            "productos_precios": None,
+            "proveedor_seleccionado": None,
+        }
+
 
 @login_required
 def proveedor_con_productos_autocomplete(request):
