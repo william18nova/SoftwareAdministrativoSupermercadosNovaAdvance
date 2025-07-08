@@ -48,7 +48,7 @@ from .forms import (
     DevolucionForm,
 )
 from dal import autocomplete
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.urls import reverse, reverse_lazy
 from itertools import zip_longest
 from django.forms import formset_factory 
@@ -984,11 +984,20 @@ class PreciosProveedorCreateAJAXView(LoginRequiredMixin, View):
 # 2. Autocompletados (mismo patrón que inventario)
 # ──────────────────────────────────────────────────────────────
 class ProveedorSinPreciosAutocomplete(PaginatedAutocompleteMixin):
-    """Sólo proveedores que aún no tienen precios."""
-    model = Proveedor
+    """
+    • Devuelve todos los proveedores SIN precios
+    • + el proveedor indicado en ?current=<id> (aunque tenga precios)
+    """
+    model = Proveedor    # el mixin usa id_field y text_field por defecto
 
     def extra_filter(self, qs, request):
-        return qs.annotate(cnt=Count("preciosproveedor")).filter(cnt=0)
+        sin_precios = qs.annotate(cnt=Count("preciosproveedor")).filter(cnt=0)
+
+        cur = request.GET.get("current", "").strip()
+        if cur.isdigit():
+            sin_precios = sin_precios | qs.filter(pk=cur)
+
+        return sin_precios.distinct()
 
 
 class ProductoExcludingAutocomplete(PaginatedAutocompleteMixin):
@@ -1034,41 +1043,29 @@ class PreciosProveedorListView(LoginRequiredMixin, View):
         }
 
 
-@login_required
-def proveedor_con_productos_autocomplete(request):
+class ProveedorConProductosAutocomplete(PaginatedAutocompleteMixin):
     """
-    Autocomplete de Proveedores que ya están vinculados con productos,
-    es decir, aquellos que tienen al menos un registro en PreciosProveedor.
-    Soporta paginación y manejo de términos vacíos.
+    • Devuelve únicamente los proveedores que YA tienen al menos un
+      producto en la tabla `PreciosProveedor`.
+    • Soporta paginación (`page`, `per_page`) y búsqueda (`term`)
+      exactamente igual que los demás autocompletes de la app.
     """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page = 10
+    model       = Proveedor
+    text_field  = "nombre"        # lo que verá el usuario
+    id_field    = "proveedorid"   # value que se enviará al servidor
+    per_page    = 10              # por coherencia con tus otros autocompletes
 
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    qs = Proveedor.objects.annotate(product_count=Count('preciosproveedor'))\
-                           .filter(product_count__gt=0)\
-                           .order_by('nombre')
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-    
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    results = [{'id': prov.proveedorid, 'text': prov.nombre} for prov in qs]
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
+    # ——— filtro adicional ———
+    def extra_filter(self, qs, request):
+        """
+        · El mixin ya aplica «term» y la paginación.
+        · Aquí sólo restringimos a “con productos”.
+        """
+        return (
+            qs.filter(preciosproveedor__isnull=False)   # al menos un registro
+              .distinct()
+              .order_by("nombre")
+        )
 
 
 @login_required
@@ -1081,106 +1078,128 @@ def eliminar_precio_proveedor_view(request, id):
     return JsonResponse({'success': False, 'message': 'Error al eliminar el producto.'})
 
 
-@login_required
-def editar_productos_precios_proveedor_view(request, proveedor_id):
-    proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
-    
-    if request.method == 'POST':
-        form = EditarPreciosProveedorForm(request.POST)
-        if form.is_valid():
-            # 1. Cargamos el JSON de precios_temp
-            precios_temp_str = form.cleaned_data.get('precios_temp', '')
-            try:
-                precios_data = json.loads(precios_temp_str) if precios_temp_str else []
-            except ValueError:
-                precios_data = []
+@method_decorator(transaction.atomic, name="dispatch")
+class PreciosProveedorUpdateAJAXView(LoginRequiredMixin, View):
+    """
+    · GET  →  muestra el formulario con los productos del proveedor.
+    · POST →  guarda los cambios recibidos en `precios_temp` (JSON):
+              crea / actualiza / elimina, y si el usuario cambió
+              de proveedor, desvincula todos los productos del anterior.
+    """
+    template_name = "editar_productos_precios_proveedor.html"
+    form_class    = EditarPreciosProveedorForm
 
-            # 2. Convertimos a dict => { str(productId): 'price' }
-            nuevos_dict = {}
-            for item in precios_data:
-                pid = item.get('productId')
-                price = item.get('price')
-                if pid and price is not None:
-                    nuevos_dict[str(pid)] = price
+    # ---------- GET ----------
+    def get(self, request, proveedor_id):
+        proveedor = get_object_or_404(Proveedor, pk=proveedor_id)
 
-            # 3. Obtener todos los PreciosProveedor actuales de este proveedor en una sola consulta
-            existentes_qs = PreciosProveedor.objects.filter(proveedorid=proveedor)
-            existentes_map = { str(pp.productoid_id): pp for pp in existentes_qs }
+        # --- productos actuales -> JSON que inyectamos al JS ---
+        existentes = (
+            PreciosProveedor.objects
+            .filter(proveedorid=proveedor)
+            .select_related("productoid")
+        )
+        productos_json = json.dumps([
+            {
+                "productId"  : pp.productoid_id,
+                "productName": pp.productoid.nombre,
+                "price"      : str(pp.precio),
+            } for pp in existentes
+        ])
 
-            # Preparar listas para bulk operations
-            a_crear = []     # Lista de PreciosProveedor (nuevos)
-            a_actualizar = []# Lista de PreciosProveedor (existen, hay que actualizar)
-            
-            # 4. Revisar cada productId en nuevos_dict
-            nuevos_product_ids = set(nuevos_dict.keys())
-
-            for product_id_str in nuevos_product_ids:
-                if product_id_str in existentes_map:
-                    # Ya existe => actualizar
-                    obj = existentes_map[product_id_str]
-                    nuevo_precio = Decimal(nuevos_dict[product_id_str])
-                    if obj.precio != nuevo_precio:
-                        obj.precio = nuevo_precio
-                        a_actualizar.append(obj)
-                    # Eliminamos de existentes_map para no borrarlo después
-                    del existentes_map[product_id_str]
-                else:
-                    # No existe => crear
-                    producto_id_int = int(product_id_str)
-                    nuevo_precio = Decimal(nuevos_dict[product_id_str])
-                    a_crear.append(
-                        PreciosProveedor(
-                            proveedorid=proveedor,
-                            productoid_id=producto_id_int,
-                            precio=nuevo_precio
-                        )
-                    )
-
-            # 5. Los objetos que quedan en existentes_map son los que ya no existen en el JSON => borrar
-            # Si deseas la misma lógica de "eliminar lo que no aparece", puedes hacerlo:
-            a_borrar_ids = [pp.pk for pid, pp in existentes_map.items()]
-            
-            # 6. Ejecutar las operaciones en bloque:
-            #  6a) Borrar
-            if a_borrar_ids:
-                PreciosProveedor.objects.filter(pk__in=a_borrar_ids).delete()
-            
-            #  6b) Crear
-            if a_crear:
-                PreciosProveedor.objects.bulk_create(a_crear)
-
-            #  6c) Actualizar
-            if a_actualizar:
-                PreciosProveedor.objects.bulk_update(a_actualizar, ['precio'])
-            
-            messages.success(request, f'Productos y precios actualizados exitosamente para el proveedor {proveedor.nombre}.')
-            redirect_url = reverse('visualizar_productos_precios_proveedores')
-            return JsonResponse({'success': True, 'redirect_url': redirect_url})
-        else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        # GET => cargar formulario y productos existentes
-        form = EditarPreciosProveedorForm(initial={
-            'proveedor': proveedor.pk,
-            'proveedor_autocomplete': proveedor.nombre,
+        form = self.form_class(initial={
+            "proveedor_autocomplete": proveedor.nombre,
+            "proveedor"             : proveedor.pk,
         })
-        # Construimos la lista para JS
-        existentes = PreciosProveedor.objects.filter(proveedorid=proveedor).select_related('productoid')
-        productos_existentes = []
-        for pp in existentes:
-            productos_existentes.append({
-                'productId': pp.productoid.productoid,
-                'productName': pp.productoid.nombre,
-                'price': str(pp.precio),
+
+        ctx = {
+            "form"                     : form,
+            "proveedor"                : proveedor,
+            "productos_existentes_json": productos_json,
+        }
+        return render(request, self.template_name, ctx)
+
+    # ---------- POST ----------
+    def post(self, request, proveedor_id):
+        old_prov = get_object_or_404(Proveedor, pk=proveedor_id)   # (1) URL
+        form     = self.form_class(request.POST)
+
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors" : json.dumps(form.errors.get_json_data(escape_html=True))
             })
-        
-        return render(request, 'editar_productos_precios_proveedor.html', {
-            'form': form,
-            'proveedor': proveedor,
-            'productos_existentes_json': json.dumps(productos_existentes),
-        })
 
+        new_prov = form.cleaned_data["proveedor"]                  # (2) HIDDEN
+        prov_has_changed = old_prov.pk != new_prov.pk              # (3) ¿cambió?
+
+        # ───── si cambió, borramos TODO lo del proveedor anterior ─────
+        if prov_has_changed:
+            PreciosProveedor.objects.filter(proveedorid=old_prov).delete()
+
+        prov = new_prov  # a partir de aquí siempre trabajamos con 'prov'
+
+        # ---------- 1) JSON entrante ----------
+        raw_json = request.POST.get("precios_temp", "[]")
+        try:
+            nuevos = json.loads(raw_json)
+        except json.JSONDecodeError:
+            nuevos = []
+
+        # ---------- 2) normalizar ----------
+        nuevos_map = {}
+        for it in nuevos:
+            pid, price = it.get("productId"), it.get("price")
+            if not (pid and price):
+                continue
+            try:
+                precio_dec = Decimal(price)
+                if precio_dec <= 0:
+                    raise InvalidOperation
+            except (InvalidOperation, ValueError):
+                continue
+            nuevos_map[str(pid)] = precio_dec
+
+        # ---------- 3) registros existentes del proveedor ----------
+        existentes_qs   = PreciosProveedor.objects.filter(proveedorid=prov)
+        existentes_dict = {str(pp.productoid_id): pp for pp in existentes_qs}
+
+        to_create, to_update = [], []
+
+        # ---------- 4) create / update ----------
+        for pid, new_price in nuevos_map.items():
+            if pid in existentes_dict:
+                obj = existentes_dict.pop(pid)      # ya existe → quizás actualizar
+                if obj.precio != new_price:
+                    obj.precio = new_price
+                    to_update.append(obj)
+            else:                                   # nuevo
+                to_create.append(
+                    PreciosProveedor(
+                        proveedorid   = prov,
+                        productoid_id = int(pid),
+                        precio        = new_price
+                    )
+                )
+
+        # ---------- 5) delete (los que quedaron fuera del JSON) ----------
+        if existentes_dict:
+            PreciosProveedor.objects.filter(pk__in=existentes_dict).delete()
+
+        # ---------- 6) bulk ops ----------
+        if to_create:
+            PreciosProveedor.objects.bulk_create(to_create)
+        if to_update:
+            PreciosProveedor.objects.bulk_update(to_update, ["precio"])
+
+        messages.success(
+            request,
+            f"Productos y precios actualizados exitosamente para «{prov.nombre}»."
+        )
+        return JsonResponse({
+            "success"     : True,
+            "redirect_url": reverse("visualizar_productos_precios_proveedores")
+        })
 
 @login_required
 def agregar_punto_pago_view(request):

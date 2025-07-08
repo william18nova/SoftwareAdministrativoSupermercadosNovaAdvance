@@ -27,7 +27,9 @@ from .views import (
                     PreciosProveedorCreateAJAXView,
                     ProveedorSinPreciosAutocomplete,
                     ProductoExcludingAutocomplete,
-                    PreciosProveedorListView)
+                    PreciosProveedorListView,
+                    PreciosProveedorUpdateAJAXView,
+                    ProveedorConProductosAutocomplete)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -69,21 +71,13 @@ urlpatterns = [
     path("editar_proveedor/<int:proveedor_id>/", ProveedorUpdateView.as_view(), name="editar_proveedor"),
     
     
-    path(
-        "agregar_productos_precios_proveedor/",
-        PreciosProveedorCreateAJAXView.as_view(),
-        name="agregar_productos_precios_proveedor",
-    ),
+    path("agregar_productos_precios_proveedor/",PreciosProveedorCreateAJAXView.as_view(),name="agregar_productos_precios_proveedor"),
     path("autocomplete/proveedor_precios/", ProveedorSinPreciosAutocomplete.as_view(), name="proveedor_precios_autocomplete"),
     path("autocomplete/producto_precios/", ProductoExcludingAutocomplete.as_view(), name="producto_precios_autocomplete"),
-    path(
-        "visualizar_precios_proveedor/",
-        PreciosProveedorListView.as_view(),
-        name="visualizar_productos_precios_proveedores",
-    ),
-    path('autocomplete/proveedor_con_productos/', views.proveedor_con_productos_autocomplete, name='proveedor_con_productos_autocomplete'),
+    path("visualizar_precios_proveedor/", PreciosProveedorListView.as_view(), name="visualizar_productos_precios_proveedores"),
+    path("autocomplete/proveedor_con_productos/", ProveedorConProductosAutocomplete.as_view(), name="proveedor_con_productos_autocomplete"),
     path('precios_proveedor/eliminar/<int:id>/', views.eliminar_precio_proveedor_view, name='eliminar_precio_proveedor'),
-    path('editar_productos_precios_proveedor/<int:proveedor_id>/', views.editar_productos_precios_proveedor_view, name='editar_productos_precios_proveedor'),
+    path("editar_productos_precios_proveedor/<int:proveedor_id>/", PreciosProveedorUpdateAJAXView.as_view(), name="editar_productos_precios_proveedor"),
 
     path('agregar_punto_pago/', views.agregar_punto_pago_view, name='agregar_punto_pago'),
     path('sucursal_punto_pago_autocomplete/', views.sucursal_punto_pago_autocomplete, name='sucursal_punto_pago_autocomplete'),

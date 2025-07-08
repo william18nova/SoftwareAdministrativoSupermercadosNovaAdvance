@@ -1425,69 +1425,57 @@ class PreciosProveedorForm(forms.Form):
     
 
 class EditarPreciosProveedorForm(forms.Form):
-    """
-    Form para 'Editar Productos y Precios' de un Proveedor existente.
-    Se asume que se permita editar un proveedor que ya tiene productos.
-    """
+    """Valida mínimamente proveedor + precio unitario para edición."""
+
     proveedor_autocomplete = forms.CharField(
-        required=True,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar proveedor...',
-            'autocomplete': 'off',
-        })
-    )
-    proveedor = forms.ModelChoiceField(
-        queryset=Proveedor.objects.all(),  # Permitir todos los proveedores
-        widget=forms.HiddenInput(),
-        required=True,
-    )
+            "class": "form-control",
+            "placeholder": "Escriba para buscar proveedor…",
+            "autocomplete": "off",
+        }), required=True)
 
     producto_autocomplete = forms.CharField(
-        required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar producto...',
-            'autocomplete': 'off',
-        })
-    )
-    productoid = forms.ModelChoiceField(
-        queryset=Producto.objects.all(),
-        widget=forms.HiddenInput(),
-        required=False,
-    )
+            "class": "form-control",
+            "placeholder": "Escriba para buscar producto…",
+            "autocomplete": "off",
+        }), required=False)
 
     precio = forms.DecimalField(
-        required=False,
+        min_value=0.01,
         widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingrese el precio',
-            'min': '0.01',
-            'step': '0.01'
-        })
-    )
+            "class": "form-control",
+            "placeholder": "Ingrese el precio",
+            "min": "0.01",
+            "step": "0.01",
+        }), required=False)
 
-    precios_temp = forms.CharField(
-        required=False,
-        widget=forms.HiddenInput()
-    )
+    # ocultos
+    proveedor  = forms.ModelChoiceField(
+        queryset=Proveedor.objects.all(),
+        widget=forms.HiddenInput(), required=True)
+
+    productoid = forms.ModelChoiceField(
+        queryset=Producto.objects.all(),
+        widget=forms.HiddenInput(), required=False)
+
+    precios_temp = forms.CharField(widget=forms.HiddenInput(), required=False)
 
     class Meta:
-        fields = ['proveedor', 'productoid', 'precio', 'precios_temp']
+        fields = (
+            "proveedor", "productoid", "precio", "precios_temp",
+        )
 
+    # ---------- validación cruzada ----------
     def clean(self):
-        cleaned_data = super().clean()
-        prov_obj = cleaned_data.get('proveedor')
-        prod_obj = cleaned_data.get('productoid')
-        precio_val = cleaned_data.get('precio')
+        cd = super().clean()
 
-        if not prov_obj:
-            self.add_error('proveedor', 'Debe seleccionar un proveedor válido.')
+        if not cd.get("proveedor"):
+            self.add_error("proveedor", "Seleccione un proveedor válido.")
 
-        if prod_obj and (not precio_val or precio_val <= 0):
-            self.add_error('precio', 'El precio debe ser mayor que 0.')
-
-        return cleaned_data
+        if cd.get("productoid") and not cd.get("precio"):
+            self.add_error("precio", "El precio debe ser mayor que 0.")
+        return cd
 
 
 class PuntosPagoForm(forms.Form):
