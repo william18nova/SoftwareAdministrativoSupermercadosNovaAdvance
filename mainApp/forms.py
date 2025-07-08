@@ -1479,81 +1479,62 @@ class EditarPreciosProveedorForm(forms.Form):
 
 
 class PuntosPagoForm(forms.Form):
-    """
-    Form para 'Agregar Puntos de Pago' con autocompletado de Sucursal
-    y campos para nombre, descripción, dinero en caja.
-    Maneja validaciones mínimas (el resto las hacemos en la vista).
-    """
+    """Formulario mínimo; toda la lógica pesada se maneja en la vista."""
 
-    # Autocomplete de Sucursal
+    # visibles
     sucursal_autocomplete = forms.CharField(
-        required=True,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar sucursal...',
-            'autocomplete': 'off',
-        })
-    )
+            "class": "form-control",
+            "placeholder": "Escriba para buscar sucursal…",
+            "autocomplete": "off",
+        }), required=True)
 
-    # ID oculto de la sucursal
+    nombre = forms.CharField(
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Nombre del punto de pago…",
+        }), required=False)
+
+    descripcion = forms.CharField(
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Descripción (opcional)…",
+        }), required=False)
+
+    dinerocaja = forms.DecimalField(
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "placeholder": "Dinero en caja",
+            "step": "0.01",
+        }), required=False)
+
+    # ocultos
     sucursal = forms.ModelChoiceField(
         queryset=Sucursal.objects.none(),
-        widget=forms.HiddenInput(),
-        required=True,
-    )
-
-    # Campos para añadir un solo “punto de pago” si deseas (aunque luego iremos a la tabla)
-    nombre = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Nombre del punto de pago...',
-        })
-    )
-    descripcion = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Descripción (opcional)...',
-        })
-    )
-    dinerocaja = forms.DecimalField(
-        required=False,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Dinero en caja...',
-            'min': '0.00',
-            'step': '0.01'
-        })
-    )
+        widget=forms.HiddenInput(), required=True)
 
     class Meta:
-        fields = ['sucursal', 'nombre', 'descripcion', 'dinerocaja']
+        fields = ("sucursal", "nombre", "descripcion", "dinerocaja")
 
+    # ---------- queryset dinámico ----------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Filtrar Sucursales que no tengan Puntos de Pago (o la lógica que necesites)
-        # Aquí, asumiendo que solo quieres sucursales sin puntos de pago en 'puntospago'.
-        # Ojo: Si la lógica es que cada sucursal puede tener muchos puntos de pago,
-        #      no hagas filter en el queryset.
-        subquery = PuntosPago.objects.filter(sucursalid=OuterRef('pk'))
-        self.fields['sucursal'].queryset = (
-            Sucursal.objects
-                    .annotate(tiene_puntos=Exists(subquery))
-                    .filter(tiene_puntos=False)
-        )
+        sin_pp = Sucursal.objects.annotate(
+            tiene_pp=Exists(
+                PuntosPago.objects.filter(sucursalid=OuterRef("pk"))
+            )
+        ).filter(tiene_pp=False)
 
+        self.fields["sucursal"].queryset = sin_pp
+
+    # ---------- validación mínima ----------
     def clean(self):
-        cleaned_data = super().clean()
-        # Validaciones mínimas
-        sucursal_obj = cleaned_data.get('sucursal')
-        if not sucursal_obj:
-            self.add_error('sucursal', 'Debe seleccionar una sucursal válida.')
-
-        # No forzamos a que “nombre” sea obligatorio, puesto que
-        # se agregarán varios nombres en la tabla
-        return cleaned_data
+        cd = super().clean()
+        if not cd.get("sucursal"):
+            self.add_error("sucursal", "Seleccione una sucursal válida.")
+        return cd
 
 class PuntosPagoEditarForm(forms.Form):
     """

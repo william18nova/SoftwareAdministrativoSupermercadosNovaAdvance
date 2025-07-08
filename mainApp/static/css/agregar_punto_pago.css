@@ -1,375 +1,208 @@
-/* agregar_punto_pago.css */
+/*  static/css/agregar_punto_pago.css
+   ──────────────────────────────────────────────
+   – Tabla responsive sin scroll-x (vista tarjeta)
+   – Colores, buscador y zebra coherentes con el resto de módulos
+*/
 
+/* ---------- Google Font ---------- */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* Variables */
-:root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
-    --color-rojo: #ff0000;
-    --color-verde: #3c763d;
-    --color-gris-claro: #f0f8ff;
-    --color-gris: #ccc;
-    --color-gris-hover: #aaa;
-    --color-boton: #3b5998;
-    --color-boton-hover: #2b467d;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
-    --tamanio-icono: 90px;
+/* ---------- VARIABLES ---------- */
+:root{
+  --azul             : #005091;
+  --azul-claro       : #ADD8E6;
+  --blanco           : #ffffff;
+  --rojo             : #ff0000;
+  --verde            : #3c763d;
+  --gris             : #ccc;
+  --gris-lite        : #f0f8ff;
+  --gris-hover       : #aaa;
+  --btn              : #3b5998;
+  --btn-hover        : #2b467d;
+  --font             : 'Roboto',Arial,sans-serif;
+  --icon             : 90px;
+  --radius           : 10px;
+  --shadow           : 0 4px 8px rgba(0,0,0,.2);
+
+  /* zebra/hover tabla */
+  --gris-table       : #f9f9f9;
+  --gris-table-hover : #e9f3ff;
 }
 
-/* Reset básico */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* ---------- RESET ---------- */
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ---------- BODY ---------- */
+body{
+  min-height:100vh;display:flex;justify-content:center;align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:var(--font);color:var(--blanco);text-align:center;
+  padding:20px;position:relative;overflow:auto
+}
+body::before{
+  content:"";position:fixed;inset:0;background:inherit;
+  filter:blur(20px);z-index:-1
 }
 
-body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-    font-family: var(--fuente-principal);
-    text-align: center;
-    color: var(--color-blanco);
-    overflow: auto;
-    position: relative;
-    padding: 20px;
+/* ---------- TARJETA ---------- */
+.container-punto-pago{
+  width:95%;max-width:600px;margin:auto;
+  background:rgba(255,255,255,.1);padding:40px;border-radius:var(--radius);
+  box-shadow:var(--shadow)
+}
+.icon-punto-pago{font-size:var(--icon);margin-bottom:10px}
+h2{font-size:24px;margin-bottom:10px;font-weight:700}
+
+/* ---------- TEXTOS SECUNDARIOS ---------- */
+.obligatorio-texto{font-size:14px;font-style:italic;margin-bottom:20px}
+
+/* ---------- ALERTAS ---------- */
+.alert{padding:15px;border-radius:4px;margin:20px 0;font-size:16px;display:none}
+.alert-success{background:#dff0d8;color:var(--verde)}
+.alert-error  {background:#f2dede;color:var(--rojo)}
+
+/* ---------- FORM GROUP ---------- */
+.form-group-punto-pago{margin-bottom:20px;text-align:left;position:relative}
+.form-group-punto-pago label{
+  display:block;margin-bottom:5px;font-weight:700;color:var(--blanco);font-size:16px
 }
 
-body::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    filter: blur(20px);
-    z-index: -1;
-    pointer-events: none;
+/* ---------- INPUTS ---------- */
+input[type="text"],
+input[type="number"]{
+  width:100%;padding:10px 12px;border:1px solid var(--gris);
+  border-radius:5px;background:var(--gris-lite);font-size:16px;color:#333;transition:.25s
+}
+input:hover{background:#e0e8ff;border-color:var(--gris-hover)}
+input:focus{
+  outline:none;border-color:var(--azul);
+  box-shadow:0 0 5px rgba(0,80,145,.5)
 }
 
-/* Contenedor principal */
-.container-punto-pago {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 600px;
-    text-align: center;
-    box-sizing: border-box;
-    margin: 20px auto;
-    position: relative;
-    overflow-x: auto;
+/* ---------- AUTOCOMPLETE ---------- */
+.autocomplete-results{
+  position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:20;
+  max-height:220px;overflow-y:auto;display:none;
+  background:var(--gris-lite);border:1px solid var(--gris);
+  border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.2)
+}
+.autocomplete-option{padding:10px;font-size:16px;color:#333;cursor:pointer}
+.autocomplete-option:hover{background:var(--btn-hover);color:var(--blanco)}
+.autocomplete-no-result{padding:10px;font-size:16px;color:#999}
+
+/* ---------- FIELD ERRORS ---------- */
+.field-error{
+  margin-top:5px;font-size:14px;color:var(--rojo);
+  opacity:0;transition:opacity .3s;display:none
+}
+.field-error.visible{opacity:1;display:block}
+.field-error i{margin-right:5px}
+
+/* ► remarca inputs con error ◄ */
+.input-error{
+  border-color:var(--rojo)!important;
+  box-shadow:0 0 4px rgba(255,0,0,.35)!important;
 }
 
-.container-punto-pago h2 {
-    color: var(--color-blanco);
-    margin-bottom: 10px;
-    font-size: 24px;
-}
-
-/* Ícono */
-.icon-punto-pago {
-    font-size: var(--tamanio-icono);
-    margin-bottom: 10px;
-    color: var(--color-blanco);
-}
-
-/* Texto explicativo */
-.obligatorio-texto {
-    font-style: italic;
-    color: var(--color-blanco);
-    margin-bottom: 20px;
-    font-size: 14px;
-}
-
-/* Alertas */
-.alert {
-    padding: 15px;
-    margin-top: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-    font-size: 16px;
-    margin-bottom: 20px;
-}
-
-.alert-success {
-    color: var(--color-verde);
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-}
-
-.alert-error {
-    color: var(--color-rojo);
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    position: relative;
-    z-index: 9999;
-}
-
-/* Grupos de formulario */
-.form-group-punto-pago {
-    margin-bottom: 20px;
-    text-align: left;
-    position: relative;
-}
-
-.form-group-punto-pago label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--color-blanco);
-    font-weight: bold;
-    font-size: 16px;
-}
-
-.form-group-punto-pago input[type="text"],
-.form-group-punto-pago input[type="number"] {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--color-gris);
-    border-radius: 5px;
-    background-color: var(--color-gris-claro);
-    font-size: 16px;
-    color: #333;
-    transition: background-color 0.3s, border-color 0.3s;
-}
-
-/* Hover y Focus */
-.form-group-punto-pago input[type="text"]:hover,
-.form-group-punto-pago input[type="number"]:hover {
-    background-color: #e0e8ff;
-    border-color: var(--color-gris-hover);
-}
-
-.form-group-punto-pago input[type="text"]:focus,
-.form-group-punto-pago input[type="number"]:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
-}
-
-/* Autocomplete results */
-.autocomplete-results {
-    position: absolute;
-    top: calc(100% + 5px); 
-    left: 0;
-    right: 0;
-    background-color: var(--color-gris-claro);
-    border: 1px solid var(--color-gris);
-    z-index: 9999; 
-    max-height: 200px;
-    overflow-y: auto;
-    display: none;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-.autocomplete-option {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #333;
-}
-
-.autocomplete-option:hover {
-    background-color: var(--color-boton-hover);
-    color: var(--color-blanco);
-}
-
-.autocomplete-no-result {
-    padding: 10px;
-    color: #999;
-    font-size: 16px;
-}
-
-/* Botones */
+/* ---------- BUTTONS ---------- */
 .btn-agregar-punto-pago,
-.btn-submit-punto-pago {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    cursor: pointer;
-    padding: 12px;
-    text-align: center;
-    width: 100%;
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-    margin-top: 10px;
-    display: block;
-    font-weight: bold;
+.btn-submit-punto-pago{
+  width:100%;padding:12px;border:none;border-radius:5px;
+  background:var(--btn);color:var(--blanco);font-size:18px;font-weight:700;
+  cursor:pointer;transition:background .25s
 }
-
 .btn-agregar-punto-pago:hover,
-.btn-submit-punto-pago:hover {
-    background-color: var(--color-boton-hover);
+.btn-submit-punto-pago:hover{background:var(--btn-hover)}
+
+.btn-eliminar{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:35px;height:35px;border:none;border-radius:6px;background:#e74c3c;
+  color:#fff;cursor:pointer;transition:background .25s
+}
+.btn-eliminar:hover{background:#c0392b}
+
+/* ========== TABLA / DATATABLE DESKTOP ========== */
+.table-container-punto-pago{
+  margin:20px 0;padding:10px;border-radius:10px;background:var(--blanco);
+  box-shadow:0 2px 4px rgba(0,0,0,.1)
+}
+.table-container-punto-pago .table{
+  width:100%!important;border-collapse:collapse
+}
+.table-container-punto-pago thead{background:var(--azul);color:var(--blanco)}
+.table-container-punto-pago thead th{
+  padding:12px;font-weight:700;position:sticky;top:0;text-align:center
+}
+.table-container-punto-pago tbody tr:nth-child(even){background:var(--gris-table)}
+.table-container-punto-pago tbody tr:hover{background:var(--gris-table-hover)}
+.table-container-punto-pago tbody td{
+  padding:10px;color:#000;text-align:center;vertical-align:middle
 }
 
-/* Errores de campo */
-.field-error {
-    color: var(--color-rojo);
-    font-size: 14px;
-    margin-top: 5px;
-    text-align: left;
-    display: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+/* zebra override para DataTables */
+table.dataTable tbody tr:nth-child(even) td{background:var(--gris-table)!important}
+table.dataTable tbody tr:nth-child(odd)  td{background:var(--gris-lite)!important}
+table.dataTable tbody tr:hover           td{background:var(--gris-table-hover)!important}
+
+/* encabezado sortable */
+table.dataTable thead th.sorting,
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc{
+  background-image:none!important;cursor:pointer;position:relative
+}
+table.dataTable thead th.sorting::after      {content:'\f0dc'}
+table.dataTable thead th.sorting_asc::after  {content:'\f106'}
+table.dataTable thead th.sorting_desc::after {content:'\f107'}
+table.dataTable thead th::after{
+  font-family:'Font Awesome 6 Free';font-weight:900;position:absolute;right:8px
 }
 
-.field-error.visible {
-    display: block !important;
-    opacity: 1 !important;
-    color: var(--color-rojo);
+/* buscador */
+.table-container-punto-pago .dataTables_filter{
+  text-align:left;margin-bottom:8px
 }
-
-.field-error i {
-    margin-right: 5px;
+.table-container-punto-pago .dataTables_filter label{
+  font-weight:700;color:var(--azul);display:flex;align-items:center;gap:6px
 }
-
-/* Tabla con DataTables */
-.table-container-punto-pago {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    background-color: #ffffff;
-    padding: 10px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    overflow-x: auto;
+.table-container-punto-pago .dataTables_filter input{
+  flex:1 1 auto;padding:6px 8px;border:1px solid var(--gris);
+  border-radius:5px;background:var(--gris-lite);color:#333
 }
+.table-container-punto-pago .dataTables_filter input::placeholder{color:var(--gris-hover)}
 
-/* Usamos table-layout: fixed para que las celdas conserven sus proporciones */
-.table-container-punto-pago .table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    table-layout: fixed; /* importante */
-}
+/* ========== RESPONSIVE ≤ 768 px → CARDS ========== */
+@media(max-width:768px){
+  .container-punto-pago{padding:20px}
+  .icon-punto-pago{font-size:60px}
+  h2{font-size:22px}
+  input[type="text"],
+  input[type="number"]{font-size:14px;padding:8px}
+  .btn-agregar-punto-pago,
+  .btn-submit-punto-pago{font-size:16px}
 
-.table-container-punto-pago .table th,
-.table-container-punto-pago .table td {
-    padding: 10px;
-    border: 1px solid #ddd;
-    word-wrap: break-word;
-    /* Evita que se expanda más de la cuenta */
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+  /* buscador 100 % */
+  .table-container-punto-pago .dataTables_filter{margin-bottom:12px}
+  .table-container-punto-pago .dataTables_filter label{
+    flex-direction:column;align-items:flex-start
+  }
+  .table-container-punto-pago .dataTables_filter input{
+    width:100%;margin:4px 0 0
+  }
 
-/* Cabecera */
-.table-container-punto-pago .table th {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-}
+  /* tarjetas */
+  .table-container-punto-pago thead{display:none}
+  .table-container-punto-pago tbody tr{
+    display:block;margin:12px 0;border:1px solid #ccc;border-radius:10px;
+    background:var(--blanco)!important;box-shadow:0 2px 4px rgba(0,0,0,.1)
+  }
+  .table-container-punto-pago tbody td{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:8px 12px;font-size:14px;border-bottom:1px solid #f0f0f0
+  }
+  .table-container-punto-pago tbody td:last-child{border-bottom:none}
+  .table-container-punto-pago tbody td::before{
+    content:attr(data-label);font-weight:700;color:var(--azul);margin-right:10px
+  }
 
-/* Celdas del body */
-.table-container-punto-pago .table td {
-    background-color: #f9f9f9;
-    color: #333;
-}
-
-/* Ajustes para inputs en celdas */
-.table-container-punto-pago .table td input[type="text"],
-.table-container-punto-pago .table td input[type="number"] {
-    width: 100%;               /* que ocupe todo el espacio de la celda */
-    max-width: 100%;           /* no exceder el ancho disponible */
-    box-sizing: border-box;     /* tomar en cuenta el padding y borde */
-    padding: 5px;
-    border: 1px solid var(--color-gris);
-    border-radius: 3px;
-    background-color: var(--color-gris-claro);
-    font-size: 14px;
-    color: #333;
-}
-
-/* Hover y focus en inputs dentro de la tabla */
-.table-container-punto-pago .table td input[type="text"]:hover,
-.table-container-punto-pago .table td input[type="number"]:hover {
-    background-color: #e0e8ff;
-    border-color: var(--color-gris-hover);
-}
-
-.table-container-punto-pago .table td input[type="text"]:focus,
-.table-container-punto-pago .table td input[type="number"]:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
-}
-
-/* Botón Eliminar */
-.btn-eliminar {
-    background-color: #e74c3c;
-    color: #fff;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-}
-
-.btn-eliminar:hover {
-    background-color: #c0392b;
-}
-
-/* Responsividad */
-@media (max-width: 768px) {
-    .container-punto-pago {
-        padding: 20px;
-    }
-
-    .icon-punto-pago {
-        font-size: 60px;
-        margin-bottom: 10px;
-    }
-
-    .container-punto-pago h2 {
-        font-size: 22px;
-    }
-
-    .form-group-punto-pago input[type="text"],
-    .form-group-punto-pago input[type="number"] {
-        font-size: 14px;
-        padding: 8px;
-    }
-
-    .btn-agregar-punto-pago,
-    .btn-submit-punto-pago {
-        font-size: 16px;
-    }
-
-    .alert {
-        font-size: 14px;
-    }
-
-    .table-container-punto-pago {
-        padding: 10px;
-        overflow-x: auto;
-    }
-
-    .table-container-punto-pago .table th,
-    .table-container-punto-pago .table td {
-        padding: 8px;
-        font-size: 14px;
-    }
-
-    .btn-eliminar {
-        width: 30px;
-        height: 30px;
-        padding: 5px;
-    }
-}
-
-@media (min-width: 769px) {
-    .table-container-punto-pago .table td {
-        width: auto;
-    }
+  .btn-eliminar{width:32px;height:32px;padding:0}
 }
