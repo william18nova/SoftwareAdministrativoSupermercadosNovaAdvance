@@ -1318,24 +1318,36 @@ class SucursalSinPuntoPagoAutocomplete(PaginatedAutocompleteMixin):
         )
 
 
-@login_required
-def visualizar_puntos_pago_view(request):
-    # Obtener sucursales que ya tienen puntos de pago vinculados
-    sucursales = Sucursal.objects.annotate(punto_count=Count('puntospago')).filter(punto_count__gt=0)
-    puntos_pago = None
-    sucursal_seleccionada = None
+class PuntosPagoListView(LoginRequiredMixin, View):
+    """Listado + filtro por sucursal que YA tiene puntos de pago"""
 
-    if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal')
-        if sucursal_id:
-            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
-            puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_seleccionada)
+    template_name = "visualizar_puntos_pago.html"
 
-    return render(request, 'visualizar_puntos_pago.html', {
-        'sucursales': sucursales,
-        'puntos_pago': puntos_pago,
-        'sucursal_seleccionada': sucursal_seleccionada,
-    })
+    # ---------- GET ----------
+    def get(self, request):
+        ctx = self._base_context()
+        return render(request, self.template_name, ctx)
+
+    # ---------- POST (filtro) ----------
+    def post(self, request):
+        ctx = self._base_context()
+        sid = request.POST.get("sucursal")
+        if sid:
+            ctx["sucursal_seleccionada"] = suc = get_object_or_404(Sucursal, pk=sid)
+            ctx["puntos_pago"] = PuntosPago.objects.filter(sucursalid=suc)
+        return render(request, self.template_name, ctx)
+
+    # ---------- contexto común ----------
+    def _base_context(self):
+        sucursales = (
+            Sucursal.objects.annotate(num=Count("puntospago"))
+                            .filter(num__gt=0)
+        )
+        return {
+            "sucursales"          : sucursales,
+            "puntos_pago"         : None,
+            "sucursal_seleccionada": None,
+        }
 
 @login_required
 def eliminar_punto_pago_view(request, puntopagoid):
@@ -1355,60 +1367,22 @@ def eliminar_punto_pago_view(request, puntopagoid):
             })
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
 
-@login_required
-def visualizar_sucursal_punto_pago_autocomplete(request):
+class SucursalConPuntosAutocomplete(PaginatedAutocompleteMixin):
     """
-    Autocomplete para sucursales CON puntos de pago (puntos_count > 0).
-    Paginación + Respuesta JSON.
+    Autocomplete ▸ solo sucursales que YA tienen al menos un Punto de Pago.
+    Conserva term, page, per_page y JSON estándar.
     """
-    from django.db.models import Count
-    
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '10').strip()
+    model        = Sucursal
+    label_field  = "nombre"
+    per_page     = 10
 
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    try:
-        per_page = int(per_page_str)
-        if per_page < 1:
-            per_page = 10
-    except ValueError:
-        per_page = 10
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    # Filtrar sucursales que tengan al menos un punto de pago
-    qs = (Sucursal.objects
-          .annotate(puntos_count=Count('puntospago'))
-          .filter(puntos_count__gt=0)
-          .order_by('nombre'))
-
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    results = []
-    for suc in qs:
-        results.append({
-            'id': suc.sucursalid,
-            'text': suc.nombre,
-        })
-
-    has_more = end < total_results
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
-
+    def extra_filter(self, qs, request):
+        sub = PuntosPago.objects.filter(sucursalid=OuterRef("pk"))
+        return (
+            qs.annotate(has_pp=Exists(sub))        # True si existe ≥1 punto
+              .filter(has_pp=True)                 # ← elimina sucursales vacías
+              .order_by("nombre")                  # orden alfabético consistente
+        )
 
 @login_required
 def editar_puntos_pago_view(request, sucursal_id):

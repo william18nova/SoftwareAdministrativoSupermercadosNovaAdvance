@@ -31,7 +31,9 @@ from .views import (
                     PreciosProveedorUpdateAJAXView,
                     ProveedorConProductosAutocomplete,
                     PuntosPagoCreateAJAXView,
-                    SucursalSinPuntoPagoAutocomplete,)
+                    SucursalSinPuntoPagoAutocomplete,
+                    PuntosPagoListView,
+                    SucursalConPuntosAutocomplete)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -81,19 +83,15 @@ urlpatterns = [
     path('precios_proveedor/eliminar/<int:id>/', views.eliminar_precio_proveedor_view, name='eliminar_precio_proveedor'),
     path("editar_productos_precios_proveedor/<int:proveedor_id>/", PreciosProveedorUpdateAJAXView.as_view(), name="editar_productos_precios_proveedor"),
 
-    path(
-        "agregar_punto_pago/",
-        PuntosPagoCreateAJAXView.as_view(),
-        name="agregar_punto_pago",
+    path("agregar_punto_pago/", PuntosPagoCreateAJAXView.as_view(), name="agregar_punto_pago"),
+    path("autocomplete/sucursal_punto_pago/", SucursalSinPuntoPagoAutocomplete.as_view(), name="sucursal_punto_pago_autocomplete",),
+     path(
+        "visualizar_puntos_pago/",
+        PuntosPagoListView.as_view(),
+        name="visualizar_puntos_pago",
     ),
-    path(
-        "autocomplete/sucursal_punto_pago/",
-        SucursalSinPuntoPagoAutocomplete.as_view(),
-        name="sucursal_punto_pago_autocomplete",
-    ),
-    path('visualizar_puntos_pago/', views.visualizar_puntos_pago_view, name='visualizar_puntos_pago'),
     path('eliminar_punto_pago/<int:puntopagoid>/', views.eliminar_punto_pago_view, name='eliminar_punto_pago'),
-    path('autocomplete/sucursal_punto_pago/', views.visualizar_sucursal_punto_pago_autocomplete, name='sucursal_punto_pago_autocomplete'),
+    path('autocomplete/sucursal_punto_pago_visualizar/',  SucursalConPuntosAutocomplete.as_view(), name='sucursal_punto_pago_visualizar_autocomplete'),
     path('editar-puntos-pago/<int:sucursal_id>/', views.editar_puntos_pago_view, name='editar_puntos_pago'),
     path('sucursal_editar_punto_pago_autocomplete/', views.sucursal_editar_punto_pago_autocomplete, name='sucursal_editar_punto_pago_autocomplete'),
 
