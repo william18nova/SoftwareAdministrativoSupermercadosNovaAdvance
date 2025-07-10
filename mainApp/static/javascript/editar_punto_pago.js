@@ -1,409 +1,253 @@
-// static/javascript/editar_punto_pago.js
+/*  static/javascript/editar_punto_pago.js
+    ────────────────────────────────────────────────────────────
+    · Misma arquitectura que agregar_punto_pago.js
+    · Autocomplete (scroll-infinito + caché)
+    · DataTable card-view ≤ 768 px
+    · Inputs con borde rojo (.input-error)
+    · ✨ NUEVO: muestra error si el nombre ya existe
+----------------------------------------------------------------*/
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    /* =======================
-       1. Inicializar DataTable
-    ======================= */
-    const dataTable = $('#puntos-pago-list').DataTable({
-      paging: false,
-      searching: true,
-      info: false,
-      responsive: true,
-      language: {
-        search: "Buscar:",
-        zeroRecords: "No se encontraron resultados",
-        emptyTable: "No hay puntos de pago para mostrar",
-      },
-    });
-  
-    /* ======================
-       2. Variables Generales
-    ====================== */
-    const form = document.getElementById('puntoPagoForm');
-  
-    // Inputs del formulario
-    const nombreInput      = document.getElementById('id_nombre');
-    const descripcionInput = document.getElementById('id_descripcion');
-    const dinerocajaInput  = document.getElementById('id_dinerocaja');
-  
-    // Autocomplete de sucursal
-    const sucursalInput    = document.getElementById('id_sucursal_autocomplete');
-    const sucursalIdInput  = document.getElementById('id_sucursal');
-    const sucursalResults  = document.getElementById('sucursal-autocomplete-results');
-    
-    // var sucursalAutocompleteUrl = "...";
-  
-    // Array temporal donde se almacenarán los puntos
-    let puntosTemp = [];
-  
-    /* ==========================
-       3. Funciones de ayuda
-    ========================== */
-    function clearErrors() {
-      const errorFields = document.querySelectorAll('.field-error');
-      errorFields.forEach(e => {
-        e.innerHTML = '';
-        e.style.display = 'none';
-        e.classList.remove('visible');
+  /* ───── helpers ───── */
+  const $id  = id => document.getElementById(id);
+  const $qs  = s  => document.querySelector(s);
+  const $qsa = s  => document.querySelectorAll(s);
+
+  /* ───── refs DOM ───── */
+  const dom = {
+    form   : $id("puntoPagoForm"),
+
+    sucInp : $id("id_sucursal_autocomplete"),
+    sucHid : $id("id_sucursal"),
+    sucBox : $id("sucursal-autocomplete-results"),
+
+    nomInp : $id("id_nombre"),
+    desInp : $id("id_descripcion"),
+    cajaInp: $id("id_dinerocaja"),
+
+    btnAdd : $id("agregarPuntoPagoBtn"),
+    tbody  : $id("puntos-pago-body"),
+    hidden : $id("id_puntos_temp"),
+
+    alertErr: $id("error-message"),
+    alertOk : $id("success-message"),
+  };
+
+  /* ───── DataTable ───── */
+  const HEADS = ["Nombre","Descripción","Dinero en Caja","Acciones"];
+  const dt = $("#puntos-pago-list").DataTable({
+    paging:false, searching:true, info:false, responsive:true,
+    language:{
+      search:"Buscar:",
+      zeroRecords:"No se encontraron resultados",
+      emptyTable:"No hay puntos de pago para mostrar"
+    }
+  });
+  const setLabels = $row =>
+    $row.find("td").each((i,td)=>td.setAttribute("data-label", HEADS[i]||""));
+
+  /* ───── state ───── */
+  const state = {
+    suc  : { page:1, term:"", loading:false, more:true },
+    items: []   // [{id?, nombre, descripcion, dinerocaja}]
+  };
+
+  /* ───── UI helpers ───── */
+  const UI = {
+    clrAlerts(){
+      [dom.alertErr, dom.alertOk].forEach(el=>{ el.style.display="none"; el.innerHTML=""; });
+    },
+    ok(msg){
+      dom.alertOk.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
+      dom.alertOk.style.display="block";
+    },
+    err(msg){
+      dom.alertErr.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+      dom.alertErr.style.display="block";
+    },
+    clrFieldErr(){
+      $qsa(".field-error").forEach(e=>{ e.innerHTML=""; e.classList.remove("visible"); });
+      $qsa(".input-error").forEach(i=>i.classList.remove("input-error"));
+    },
+    fErr(field,msg){
+      const box=$qs(`#error-id_${field}`);
+      if(box){
+        box.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+        box.classList.add("visible");
+      }
+      const map={sucursal:dom.sucInp, nombre:dom.nomInp};
+      (map[field]||null)?.classList.add("input-error");
+    }
+  };
+
+  /* ───── cache + debounce ───── */
+  const cSuc = Object.create(null);
+  const fetchC = async(url,cache)=>{
+    if(cache[url]) return cache[url];
+    const r = await fetch(url); const j = await r.json();
+    cache[url]=j; return j;
+  };
+  const debounce = (fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+
+  /* ───── autocomplete sucursal ───── */
+  const renderSuc = async()=>{
+    const st = state.suc;
+    if(st.loading || !st.more) return;
+    st.loading = true;
+
+    const qs = new URLSearchParams({term:st.term,page:st.page});
+    const data = await fetchC(`${sucursalAutocompleteUrl}&${qs}`, cSuc);
+
+    if(st.page===1) dom.sucBox.innerHTML="";
+    if(data.results.length){
+      data.results.forEach(r=>{
+        const d=document.createElement("div");
+        d.className="autocomplete-option"; d.dataset.id=r.id; d.textContent=r.text;
+        dom.sucBox.appendChild(d);
       });
-      const globalError = document.getElementById('error-message');
-      if (globalError) {
-        globalError.style.display = 'none';
-        globalError.innerHTML = '';
-      }
-      const successMessage = document.getElementById('success-message');
-      if (successMessage) {
-        successMessage.style.display = 'none';
-        successMessage.innerHTML = '';
-      }
+      st.more = data.has_more;
+    }else if(st.page===1){
+      dom.sucBox.innerHTML='<div class="autocomplete-no-result">No se encontraron resultados</div>';
+      st.more = false;
     }
-  
-    function showFieldError(field, message) {
-      const errorDiv = document.getElementById(`error-id_${field}`);
-      if (errorDiv) {
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        errorDiv.style.display = 'block';
-        errorDiv.classList.add('visible');
-      }
+    dom.sucBox.style.display="block";
+    st.loading = false;
+  };
+  const debSuc = debounce(()=>{ state.suc.page=1; state.suc.more=true; renderSuc(); });
+
+  dom.sucInp.addEventListener("input",()=>{
+    dom.sucHid.value="";
+    state.suc.term = dom.sucInp.value.trim();
+    debSuc();
+  });
+  dom.sucInp.addEventListener("focus",()=>{
+    state.suc.term = dom.sucInp.value.trim();
+    state.suc.page = 1; state.suc.more = true;
+    renderSuc();
+  });
+  dom.sucBox.addEventListener("scroll",()=>{
+    if(dom.sucBox.scrollTop+dom.sucBox.clientHeight>=dom.sucBox.scrollHeight-4 && state.suc.more && !state.suc.loading){
+      state.suc.page++; renderSuc();
     }
-  
-    function showGlobalError(message) {
-      const errorDiv = document.getElementById('error-message');
-      if (errorDiv) {
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        errorDiv.style.display = 'block';
-      }
+  });
+  dom.sucBox.addEventListener("click",e=>{
+    const opt=e.target.closest(".autocomplete-option"); if(!opt) return;
+    dom.sucInp.value = opt.textContent;
+    dom.sucHid.value = opt.dataset.id;
+    dom.sucBox.style.display="none";
+  });
+  document.addEventListener("click",e=>{
+    if(!dom.sucInp.contains(e.target)&&!dom.sucBox.contains(e.target)) dom.sucBox.style.display="none";
+  });
+
+  /* ───── precarga BD (existingPuntos) ───── */
+  existingPuntos.forEach(p=>{
+    state.items.push({id:p.puntopagoid,nombre:p.nombre,descripcion:p.descripcion,dinerocaja:p.dinerocaja});
+    const node = dt.row.add([
+      p.nombre,
+      `<input type="text"  class="edit-descripcion" data-nombre="${p.nombre}" value="${p.descripcion}">`,
+      `<input type="number" class="edit-dinerocaja"  data-nombre="${p.nombre}" value="${p.dinerocaja}" min="0" step="0.01">`,
+      `<button type="button" class="btn-eliminar" data-nombre="${p.nombre}">
+         <i class="fas fa-trash-alt"></i>
+       </button>`
+    ]).draw(false).node();
+    setLabels($(node));
+  });
+
+  /* ───── agregar punto ───── */
+  dom.btnAdd.addEventListener("click",()=>{
+    UI.clrAlerts(); UI.clrFieldErr();
+
+    const sid   = dom.sucHid.value.trim();
+    const nombre= dom.nomInp.value.trim();
+    const descr = dom.desInp.value.trim();
+    const caja  = dom.cajaInp.value.trim() || "0";
+
+    let bad=false;
+    if(!sid){   UI.fErr("sucursal","Seleccione una sucursal."); bad=true;}
+    if(!nombre){UI.fErr("nombre","El nombre es obligatorio.");  bad=true;}
+    if(bad) return;
+
+    /* ── Duplicado: mostramos error y salimos ── */
+    const dup = state.items.find(i=>i.nombre.trim().toLowerCase()===nombre.toLowerCase());
+    if(dup){
+      UI.fErr("nombre", `«${nombre}» ya está en la lista.`);
+      return;
     }
-  
-    function showSuccess(message) {
-      const successDiv = document.getElementById('success-message');
-      if (successDiv) {
-        successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-        successDiv.style.display = 'block';
-      }
+
+    /* ✔ Alta normal */
+    state.items.push({id:null,nombre,descripcion:descr,dinerocaja:caja});
+    const node = dt.row.add([
+      nombre,
+      `<input type="text"  class="edit-descripcion" data-nombre="${nombre}" value="${descr}">`,
+      `<input type="number" class="edit-dinerocaja"  data-nombre="${nombre}" value="${caja}" min="0" step="0.01">`,
+      `<button type="button" class="btn-eliminar" data-nombre="${nombre}">
+         <i class="fas fa-trash-alt"></i>
+       </button>`
+    ]).draw(false).node();
+    setLabels($(node));
+
+    dom.nomInp.value=""; dom.desInp.value=""; dom.cajaInp.value="";
+  });
+
+  /* ───── eliminar ───── */
+  dom.tbody.addEventListener("click",e=>{
+    const btn=e.target.closest(".btn-eliminar"); if(!btn) return;
+    const nombre=btn.dataset.nombre.toLowerCase();
+    dt.row(btn.closest("tr")).remove().draw(false);
+    state.items = state.items.filter(i=>i.nombre.toLowerCase()!==nombre);
+  });
+
+  /* ───── edición inline ───── */
+  dom.tbody.addEventListener("input",e=>{
+    const t=e.target;
+    if(!t.dataset.nombre) return;
+    const nombre=t.dataset.nombre.toLowerCase();
+    const idx=state.items.findIndex(i=>i.nombre.toLowerCase()===nombre);
+    if(idx<0) return;
+    if(t.classList.contains("edit-descripcion")) state.items[idx].descripcion = t.value;
+    if(t.classList.contains("edit-dinerocaja"))  state.items[idx].dinerocaja  = t.value;
+  });
+
+  /* ───── submit ───── */
+  dom.form.addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    UI.clrAlerts(); UI.clrFieldErr();
+
+    if(!dom.sucHid.value.trim()){
+      UI.fErr("sucursal","Seleccione una sucursal."); return;
     }
-  
-    // Obtener la cookie CSRF
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-          cookie = cookie.trim();
-          if (cookie.startsWith(name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
+    if(!state.items.length){
+      UI.err("Debe agregar al menos un punto de pago."); return;
     }
-  
-    /* ================================
-       4. Cargar puntos existentes
-    ================================ */
-    function loadExistingPoints() {
-      existingPuntos.forEach(function(punto) {
-        const idVal = punto.puntopagoid;
-        const nombreVal = punto.nombre;
-        const descVal = punto.descripcion || '';
-        const dinerocajaVal = punto.dinerocaja != null ? punto.dinerocaja : '0.00';
-  
-        puntosTemp.push({
-          id: idVal,
-          nombre: nombreVal,
-          descripcion: descVal,
-          dinerocaja: dinerocajaVal
-        });
-  
-        dataTable.row.add([
-          // Col 1: Nombre (solo texto)
-          nombreVal,
-          // Col 2: Input para descripción
-          `<input type="text" class="edit-descripcion" data-nombre="${nombreVal}" value="${descVal}" />`,
-          // Col 3: Input para dinero en caja
-          `<input type="number" min="0" step="0.01" class="edit-dinerocaja" data-nombre="${nombreVal}" value="${dinerocajaVal}" />`,
-          // Col 4: Botón eliminar
-          `<button type="button" class="btn-eliminar" data-id="${idVal}" data-nombre="${nombreVal}">
-             <i class="fas fa-trash-alt"></i>
-           </button>`
-        ]).draw(false);
-      });
-    }
-    loadExistingPoints();
-  
-    /* =========================
-       5. Autocomplete Sucursal
-       (para cambiar la sucursal)
-    ========================= */
-    let isLoadingSucursal  = false;
-    let hasMoreSucursal    = true;
-    let currentPageSucursal= 1;
-    let currentTermSucursal= '';
-  
-    function fetchSucursales(term, page = 1) {
-      if (isLoadingSucursal || !hasMoreSucursal) return;
-      isLoadingSucursal = true;
-  
-      const url = `${sucursalAutocompleteUrl}&term=${encodeURIComponent(term)}&page=${page}`;
-      fetch(url)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (page === 1) {
-            sucursalResults.innerHTML = '';
-          }
-          if (data.results.length > 0) {
-            data.results.forEach(item => {
-              const opt = document.createElement('div');
-              opt.classList.add('autocomplete-option');
-              opt.textContent = item.text;
-              opt.dataset.id  = item.id;
-              sucursalResults.appendChild(opt);
-            });
-            hasMoreSucursal = data.has_more;
-          } else if (page === 1) {
-            const noResult = document.createElement('div');
-            noResult.classList.add('autocomplete-no-result');
-            noResult.textContent = 'No se encontraron resultados';
-            sucursalResults.appendChild(noResult);
-            hasMoreSucursal = false;
-          }
-          sucursalResults.style.display = 'block';
-          isLoadingSucursal = false;
-        })
-        .catch(error => {
-          console.error('fetchSucursales error:', error);
-          isLoadingSucursal = false;
-        });
-    }
-  
-    function debounce(fn, delay) {
-      let timeout;
-      return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => fn.apply(this, args), delay);
-      };
-    }
-  
-    const DEBOUNCE_TIME = 300;
-    const debouncedFetchSucursales = debounce(function() {
-      fetchSucursales(currentTermSucursal, currentPageSucursal);
-    }, DEBOUNCE_TIME);
-  
-    sucursalInput.addEventListener('input', function() {
-      sucursalIdInput.value = '';
-      hasMoreSucursal = true;
-      currentPageSucursal = 1;
-      currentTermSucursal = sucursalInput.value.trim();
-  
-      // Llamamos siempre, aunque esté vacío
-      debouncedFetchSucursales();
-    });
-  
-    sucursalInput.addEventListener('focus', function() {
-      hasMoreSucursal = true;
-      currentPageSucursal = 1;
-      currentTermSucursal = sucursalInput.value.trim();
-      debouncedFetchSucursales();
-    });
-  
-    sucursalResults.addEventListener('scroll', function() {
-      if (sucursalResults.scrollTop + sucursalResults.clientHeight >= sucursalResults.scrollHeight - 5) {
-        if (hasMoreSucursal && !isLoadingSucursal) {
-          currentPageSucursal += 1;
-          fetchSucursales(currentTermSucursal, currentPageSucursal);
-        }
-      }
-    });
-  
-    sucursalResults.addEventListener('click', function(e) {
-      if (e.target && e.target.classList.contains('autocomplete-option')) {
-        sucursalInput.value   = e.target.textContent;
-        sucursalIdInput.value = e.target.dataset.id;
-        sucursalResults.innerHTML = '';
-        sucursalResults.style.display = 'none';
-        hasMoreSucursal = false;
-      }
-    });
-  
-    document.addEventListener('click', function(e) {
-      if (!sucursalInput.contains(e.target) && !sucursalResults.contains(e.target)) {
-        sucursalResults.innerHTML = '';
-        sucursalResults.style.display = 'none';
-        hasMoreSucursal = false;
-      }
-    });
-  
-    /* =========================
-       6. Agregar/actualizar punto
-    ========================= */
-    const btnAgregarPP = document.getElementById('agregarPuntoPagoBtn');
-    btnAgregarPP.addEventListener('click', function() {
-      clearErrors();
-      const nombreVal = nombreInput.value.trim();
-      const descVal   = descripcionInput.value.trim();
-      const dineroVal = dinerocajaInput.value.trim() || '0.00';
-  
-      if (!nombreVal) {
-        showFieldError('nombre', 'El nombre del Punto de Pago es obligatorio.');
-        return;
-      }
-  
-      let existingIndex = -1;
-      for (let i = 0; i < puntosTemp.length; i++) {
-        if (puntosTemp[i].nombre.toLowerCase() === nombreVal.toLowerCase()) {
-          existingIndex = i;
-          break;
-        }
-      }
-  
-      if (existingIndex !== -1) {
-        // Remover de dataTable
-        const rows = dataTable.rows().indexes().filter((idx) => {
-          const rowData = dataTable.row(idx).data();
-          return rowData[0].toLowerCase() === nombreVal.toLowerCase();
-        });
-        dataTable.rows(rows).remove().draw(false);
-  
-        const oldId = puntosTemp[existingIndex].id;
-        puntosTemp.splice(existingIndex, 1);
-  
-        puntosTemp.push({
-          id: oldId || null,
-          nombre: nombreVal,
-          descripcion: descVal,
-          dinerocaja: dineroVal
-        });
-      } else {
-        puntosTemp.push({
-          id: null,
-          nombre: nombreVal,
-          descripcion: descVal,
-          dinerocaja: dineroVal
-        });
-      }
-  
-      dataTable.row.add([
-        nombreVal,
-        `<input type="text" class="edit-descripcion" data-nombre="${nombreVal}" value="${descVal}" />`,
-        `<input type="number" min="0" step="0.01" class="edit-dinerocaja" data-nombre="${nombreVal}" value="${dineroVal}" />`,
-        `<button type="button" class="btn-eliminar" data-id="" data-nombre="${nombreVal}">
-           <i class="fas fa-trash-alt"></i>
-         </button>`
-      ]).draw(false);
-  
-      nombreInput.value = '';
-      descripcionInput.value = '';
-      dinerocajaInput.value = '';
-    });
-  
-    /* ==========================
-       7. Eliminar de la tabla
-    ========================== */
-    document.getElementById('puntos-pago-body').addEventListener('click', function(e) {
-      if (e.target.closest('.btn-eliminar')) {
-        const button = e.target.closest('.btn-eliminar');
-        const nombreVal = button.getAttribute('data-nombre');
-        const row = button.closest('tr');
-        dataTable.row(row).remove().draw(false);
-        // Remover del array
-        puntosTemp = puntosTemp.filter(p => p.nombre.toLowerCase() !== nombreVal.toLowerCase());
-      }
-    });
-  
-    /* ================================================
-       8. Editar descripción/dinero en la tabla
-    ================================================ */
-    document.getElementById('puntos-pago-body').addEventListener('input', function(e) {
-      const target = e.target;
-      if (target.classList.contains('edit-descripcion')) {
-        const nombre = target.getAttribute('data-nombre');
-        const newDesc = target.value;
-        const index = puntosTemp.findIndex(x => x.nombre.toLowerCase() === nombre.toLowerCase());
-        if (index !== -1) {
-          puntosTemp[index].descripcion = newDesc;
-        }
-      }
-      if (target.classList.contains('edit-dinerocaja')) {
-        const nombre = target.getAttribute('data-nombre');
-        const newDinero = target.value;
-        const index = puntosTemp.findIndex(x => x.nombre.toLowerCase() === nombre.toLowerCase());
-        if (index !== -1) {
-          puntosTemp[index].dinerocaja = newDinero;
-        }
-      }
-    });
-  
-    /* =========================
-       9. Submit del Formulario
-    ========================= */
-    form.addEventListener('submit', function(event) {
-      event.preventDefault();
-      clearErrors();
-  
-      // Validar que se haya elegido una sucursal
-      if (!sucursalIdInput.value.trim()) {
-        showFieldError('sucursal', 'Debe seleccionar una sucursal.');
-        return;
-      }
-  
-      if (puntosTemp.length === 0) {
-        showGlobalError('Debe agregar al menos un Punto de Pago antes de guardar.');
-        return;
-      }
-  
-      // Creamos JSON con los puntos
-      const puntosTempInput = document.getElementById('id_puntos_temp');
-      puntosTempInput.value = JSON.stringify(puntosTemp);
-  
-      // Enviar vía AJAX
-      const formData = new FormData(form);
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCookie('csrftoken'),
-          'Accept': 'application/json',
+    dom.hidden.value = JSON.stringify(state.items);
+
+    try{
+      const r = await fetch(dom.form.action,{
+        method:"POST",
+        headers:{
+          "X-CSRFToken":document.cookie.split(";").find(c=>c.trim().startsWith("csrftoken="))?.split("=")[1]||"",
+          Accept:"application/json"
         },
-        body: formData
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data.success) {
-          // Redirigir a la URL que viene en 'redirect_url'
-          if (data.redirect_url) {
-            window.location.href = data.redirect_url;
-          } else {
-            // Fallback: mostrar éxito local
-            showSuccess('Puntos de pago actualizados exitosamente.');
-          }
-        } else {
-          // Manejo de errores
-          const errors = JSON.parse(data.errors);
-          for (let field in errors) {
-            const fieldErrors = errors[field];
-            fieldErrors.forEach(error => {
-              if (field === 'puntos_temp') {
-                showGlobalError(error.message);
-              } else {
-                showFieldError(field, error.message);
-              }
-            });
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        showGlobalError('Ocurrió un error inesperado al guardar.');
+        body:new FormData(dom.form)
       });
-    });
-  });  
+      const data = await r.json();
+
+      if(data.success){
+        window.location.href = data.redirect_url;
+      }else{
+        const errs = JSON.parse(data.errors||"{}");
+        Object.entries(errs).forEach(([f,arr])=>
+          arr.forEach(e=>{
+            if(f==="puntos_temp"){ UI.err(e.message); }
+            else                 { UI.fErr(f,e.message); }
+          })
+        );
+      }
+    }catch(e){
+      console.error(e);
+      UI.err("Ocurrió un error inesperado.");
+    }
+  });
+})();
