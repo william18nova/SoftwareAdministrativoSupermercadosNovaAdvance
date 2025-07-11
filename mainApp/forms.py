@@ -1142,38 +1142,43 @@ class RolForm(forms.ModelForm):
         max_length=50,
         validators=[
             RegexValidator(
-                regex=r'^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$',
-                message='El nombre del rol solo debe contener letras y espacios.'
+                regex=r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$",
+                message="El nombre solo debe contener letras y espacios."
             )
         ],
-        required=True,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el nombre del rol',
-            'required': 'required'
-        })
-    )
-    descripcion = forms.CharField(
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa la descripción del rol',
-            'rows': 4
+            "class"      : "form-control",
+            "placeholder": "Ingresa el nombre del rol",
+            "required"   : True,
         }),
-        required=False
+        error_messages={
+            "required"  : "El nombre es obligatorio.",
+            "max_length": "Máximo 50 caracteres.",
+        },
     )
-    
+
+    descripcion = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class"      : "form-control",
+            "placeholder": "Ingresa la descripción (opcional)",
+            "rows"       : 4
+        }),
+    )
+
     class Meta:
-        model = Rol
-        fields = ['nombre', 'descripcion']
+        model  = Rol
+        fields = ("nombre", "descripcion")
         labels = {
-            'nombre': 'Nombre del Rol',
-            'descripcion': 'Descripción',
+            "nombre"     : "Nombre del Rol",
+            "descripcion": "Descripción",
         }
-    
+
+    # --------- unicidad case-insensitive ---------
     def clean_nombre(self):
-        nombre = self.cleaned_data.get('nombre')
+        nombre = self.cleaned_data["nombre"].strip()
         if Rol.objects.filter(nombre__iexact=nombre).exists():
-            raise forms.ValidationError('Ya existe un rol con ese nombre.')
+            raise forms.ValidationError("Ya existe un rol con ese nombre.")
         return nombre
     
 class RolEditarForm(forms.ModelForm):

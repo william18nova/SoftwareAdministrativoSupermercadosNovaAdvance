@@ -1568,19 +1568,38 @@ class SucursalEditarPuntoPagoAutocomplete(PaginatedAutocompleteMixin):
         return qs.order_by("nombre")
 
 
-@login_required
-def agregar_rol_view(request):
-    if request.method == 'POST':
-        form = RolForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return JsonResponse({'success': True, 'message': 'Rol agregado exitosamente.'})
-        else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = RolForm()
-    return render(request, 'agregar_rol.html', {'form': form})
+class RolCreateAJAXView(LoginRequiredMixin, FormView):
+    """
+    • GET  → renderiza formulario clásico
+    • POST → alta AJAX; responde JSON {success, message | errors}
+    """
+    template_name = "agregar_rol.html"
+    form_class    = RolForm
+
+    # ---------- POST OK ----------
+    def form_valid(self, form):
+        rol = form.save()
+
+        # Llamada AJAX (fetch) → devolvemos JSON
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "message": "Rol agregado exitosamente.",
+                "rol": {
+                    "id":   rol.pk,
+                    "name": rol.nombre
+                }
+            })
+
+        # Petición clásica → redirección donde corresponda
+        return redirect("listar_roles")  # ajusta a tu flujo
+
+    # ---------- POST errores ----------
+    def form_invalid(self, form):
+        return JsonResponse(
+            {"success": False, "errors": form.errors.get_json_data()},
+            status=400
+        )
 
 
 @login_required

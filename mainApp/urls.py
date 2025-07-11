@@ -35,7 +35,8 @@ from .views import (
                     PuntosPagoListView,
                     SucursalConPuntosAutocomplete,
                     PuntosPagoUpdateAJAXView,
-                    SucursalEditarPuntoPagoAutocomplete,)
+                    SucursalEditarPuntoPagoAutocomplete,
+                    RolCreateAJAXView,)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -86,26 +87,14 @@ urlpatterns = [
     path("editar_productos_precios_proveedor/<int:proveedor_id>/", PreciosProveedorUpdateAJAXView.as_view(), name="editar_productos_precios_proveedor"),
 
     path("agregar_punto_pago/", PuntosPagoCreateAJAXView.as_view(), name="agregar_punto_pago"),
-    path("autocomplete/sucursal_punto_pago/", SucursalSinPuntoPagoAutocomplete.as_view(), name="sucursal_punto_pago_autocomplete",),
-    path(
-        "visualizar_puntos_pago/",
-        PuntosPagoListView.as_view(),
-        name="visualizar_puntos_pago",
-    ),
+    path("autocomplete/sucursal_punto_pago/", SucursalSinPuntoPagoAutocomplete.as_view(), name="sucursal_punto_pago_autocomplete"),
+    path("visualizar_puntos_pago/", PuntosPagoListView.as_view(), name="visualizar_puntos_pago"),
     path('eliminar_punto_pago/<int:puntopagoid>/', views.eliminar_punto_pago_view, name='eliminar_punto_pago'),
     path('autocomplete/sucursal_punto_pago_visualizar/',  SucursalConPuntosAutocomplete.as_view(), name='sucursal_punto_pago_visualizar_autocomplete'),
-    path(
-        "editar-puntos-pago/<int:sucursal_id>/",
-        PuntosPagoUpdateAJAXView.as_view(),
-        name="editar_puntos_pago",
-    ),
-    path(
-        "sucursal_editar_punto_pago_autocomplete/",
-        SucursalEditarPuntoPagoAutocomplete.as_view(),
-        name="sucursal_editar_punto_pago_autocomplete",
-    ),
+    path("editar-puntos-pago/<int:sucursal_id>/", PuntosPagoUpdateAJAXView.as_view(), name="editar_puntos_pago"),
+    path("sucursal_editar_punto_pago_autocomplete/", SucursalEditarPuntoPagoAutocomplete.as_view(), name="sucursal_editar_punto_pago_autocomplete"),
 
-    path('agregar_rol/', views.agregar_rol_view, name='agregar_rol'),
+    path("agregar_rol/", RolCreateAJAXView.as_view(), name="agregar_rol"),
     path('visualizar_roles/', views.visualizar_roles_view, name='visualizar_roles'),
     path('editar_rol/<int:rol_id>/', views.editar_rol_view, name='editar_rol'),
     path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
