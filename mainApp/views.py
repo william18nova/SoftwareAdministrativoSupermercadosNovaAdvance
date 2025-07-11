@@ -1697,10 +1697,25 @@ class RolAutocompleteView(PaginatedAutocompleteMixin):
     per_page   = 10
 
 
-@login_required
-def visualizar_usuarios_view(request):
-    usuarios = Usuario.objects.all()
-    return render(request, 'visualizar_usuarios.html', {'usuarios': usuarios})
+class UsuarioListView(LoginRequiredMixin, ListView):
+    """
+    Muestra los usuarios en una tabla paginada con DataTables.
+
+    • `select_related('rolid')` evita el N+1 al traer el Rol.
+    • Se ordena alfabéticamente por nombre de usuario.
+    • `context_object_name = "usuarios"` → variable en la plantilla.
+    """
+    model               = Usuario
+    template_name       = "visualizar_usuarios.html"
+    context_object_name = "usuarios"
+    paginate_by         = 50
+
+    def get_queryset(self):
+        return (
+            Usuario.objects
+            .select_related("rolid")
+            .order_by("nombreusuario")
+        )
 
 @login_required
 def eliminar_usuario_view(request, usuarioid):
