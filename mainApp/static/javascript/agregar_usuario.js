@@ -1,308 +1,146 @@
-// static/javascript/agregar_usuario.js
+/*  static/javascript/agregar_usuario.js
+    — Patrón “agregar_producto.js”: debounce + caché + resaltado de errores — */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    /* ======================
-       1. Variables Generales
-    ====================== */
-    const form = document.getElementById('usuarioForm');
-  
-    // --- Autocomplete de Rol ---
-    const rolInput    = document.getElementById('id_rol_autocomplete');
-    const rolIdInput  = document.getElementById('id_rolid');
-    const rolResults  = document.getElementById('rol-autocomplete-results');
-    let isLoadingRol  = false;
-    let hasMoreRol    = true;
-    let currentPageRol= 1;
-    let currentTermRol= '';
-  
-    // --- Campos de Usuario ---
-    const nombreusuarioInput = document.getElementById('id_nombreusuario');
-    const passwordInput      = document.getElementById('id_contraseña');
-    const confirmInput       = document.getElementById('id_confirmar_contraseña');
-  
-    /* =============================
-       2. Variables de Debounce/Cache
-    ============================= */
-    const DEBOUNCE_TIME = 300;
-    let debounceTimeoutRol = null;
-    const cacheRol = {};
-  
-    /* ========================
-       3. Manejo de Errores/Alertas
-    ======================== */
-    function clearErrors() {
-      const errorFields = document.querySelectorAll('.field-error');
-      errorFields.forEach(e => {
-        e.innerHTML = '';
-        e.style.display = 'none';
-        e.classList.remove('visible');
+  /* ----- helpers DOM / CSRF ----- */
+  const $  = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+  const csrftoken = document.cookie.split(";").map(c=>c.trim())
+                     .find(c=>c.startsWith("csrftoken="))?.split("=")[1] || "";
+
+  const icon   = txt => `<i class="fas fa-exclamation-circle"></i> ${txt}`;
+  const okIcon = txt => `<i class="fas fa-check-circle"></i> ${txt}`;
+
+  const show = (el, html) => { el.innerHTML = html; el.style.display = "block"; };
+  const hide = el         => { el.style.display = "none"; el.innerHTML = ""; };
+
+  /* ----- refs ----- */
+  const form   = $("#usuarioForm"),
+        okBox  = $("#success-message"),
+        errBox = $("#error-message");
+
+  const rolInp   = $("#id_rol_autocomplete"),
+        rolHid   = $("#id_rolid"),
+        rolBox   = $("#rol-autocomplete-results");
+
+  /* ====================================================================== */
+  /* 1. AUTOCOMPLETE “ROL”                                                  */
+  /* ====================================================================== */
+  let term="", page=1, more=true, busy=false, debounce;
+  const cache = Object.create(null);
+
+  function resetBox(){ rolBox.innerHTML=""; rolBox.classList.remove("visible"); page=1; more=true; busy=false; }
+
+  function fetchRol(){
+    if (busy || !more) return;
+    busy = true;
+
+    const key = `${term}_${page}`;
+    const handler = data => {
+      if (page===1) rolBox.innerHTML="";
+      data.results.forEach(o=>{
+        rolBox.insertAdjacentHTML("beforeend",
+          `<div class="autocomplete-option" data-id="${o.id}">${o.text}</div>`);
       });
-      const globalError = document.getElementById('error-message');
-      if (globalError) {
-        globalError.style.display = 'none';
-        globalError.innerHTML = '';
+      if (!data.results.length && page===1){
+        rolBox.innerHTML = '<div class="autocomplete-no-result">Sin resultados</div>';
       }
-      const successMessage = document.getElementById('success-message');
-      if (successMessage) {
-        successMessage.style.display = 'none';
-        successMessage.innerHTML = '';
-      }
-    }
-  
-    function showFieldError(field, message) {
-      const errorDiv = document.getElementById(`error-id_${field}`);
-      if (errorDiv) {
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        errorDiv.classList.add('visible');
-        errorDiv.style.display = 'block';
-      }
-    }
-  
-    function showGlobalError(message) {
-      const errorDiv = document.getElementById('error-message');
-      if (errorDiv) {
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        errorDiv.style.display = 'block';
-      }
-    }
-  
-    function showSuccess(message) {
-      const successDiv = document.getElementById('success-message');
-      if (successDiv) {
-        successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-        successDiv.style.display = 'block';
-      }
-    }
-  
-    /* ==============================
-       4. Funciones de Autocompletado
-    ============================== */
-    function fetchWithCache(url, cache, term, page, callback) {
-      const cacheKey = `${term}_${page}`;
-      if (cache[cacheKey]) {
-        callback(cache[cacheKey]);
-        return;
-      }
-      fetch(url)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          cache[cacheKey] = data;
-          callback(data);
-        })
-        .catch(error => {
-          console.error('fetchWithCache error:', error);
-        });
-    }
-  
-    function fetchRoles(term, page = 1) {
-      if (isLoadingRol || !hasMoreRol) return;
-      isLoadingRol = true;
-  
-      const url = `${rolAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-      fetchWithCache(url, cacheRol, term, page, function(data) {
-        if (page === 1) {
-          rolResults.innerHTML = '';
-        }
-        if (data.results.length > 0) {
-          data.results.forEach(item => {
-            const opt = document.createElement('div');
-            opt.classList.add('autocomplete-option');
-            opt.textContent = item.text;
-            opt.dataset.id  = item.id;
-            rolResults.appendChild(opt);
-          });
-          hasMoreRol = data.has_more;
-        } else if (page === 1) {
-          const noResult = document.createElement('div');
-          noResult.classList.add('autocomplete-no-result');
-          noResult.textContent = 'No se encontraron resultados';
-          rolResults.appendChild(noResult);
-          hasMoreRol = false;
-        }
-        rolResults.style.display = 'block';
-        isLoadingRol = false;
-      });
-    }
-  
-    // Debounce
-    function debounce(fn, delay) {
-      let timeout;
-      return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => fn.apply(this, args), delay);
-      };
-    }
-  
-    const debouncedFetchRoles = debounce(function() {
-      fetchRoles(currentTermRol, currentPageRol);
-    }, DEBOUNCE_TIME);
-  
-    // --- Eventos de autocomplete (Rol) ---
-    rolInput.addEventListener('input', function() {
-      rolIdInput.value = '';
-      hasMoreRol = true;
-      currentPageRol = 1;
-      currentTermRol = rolInput.value.trim();
-      if (!currentTermRol) {
-        rolResults.innerHTML = '';
-        rolResults.style.display = 'none';
-        return;
-      }
-      debouncedFetchRoles();
-    });
-  
-    rolInput.addEventListener('focus', function() {
-      currentTermRol = rolInput.value.trim();
-      hasMoreRol = true;
-      currentPageRol = 1;
-      debouncedFetchRoles();
-    });
-  
-    rolResults.addEventListener('scroll', function() {
-      if (rolResults.scrollTop + rolResults.clientHeight >= rolResults.scrollHeight - 5) {
-        if (hasMoreRol && !isLoadingRol) {
-          currentPageRol += 1;
-          fetchRoles(currentTermRol, currentPageRol);
-        }
-      }
-    });
-  
-    rolResults.addEventListener('click', function(e) {
-      if (e.target && e.target.classList.contains('autocomplete-option')) {
-        rolInput.value   = e.target.textContent;
-        rolIdInput.value = e.target.dataset.id;
-        rolResults.innerHTML = '';
-        rolResults.style.display = 'none';
-        hasMoreRol = false;
-      }
-    });
-  
-    document.addEventListener('click', function(e) {
-      if (!rolInput.contains(e.target) && !rolResults.contains(e.target)) {
-        rolResults.innerHTML = '';
-        rolResults.style.display = 'none';
-        hasMoreRol = false;
-      }
-    });
-  
-    /* ==============================
-       5. Toggle Password Visibility
-    ============================== */
-    window.togglePassword = function(id) {
-      const input = document.getElementById(id);
-      if (!input) return;
-      const icon = input.nextElementSibling; // El <i> contiguo
-  
-      if (input.type === 'password') {
-        input.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-      } else {
-        input.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-      }
+      more = data.has_more; busy=false; rolBox.classList.add("visible");
     };
-  
-    /* =========================
-       6. Evento Submit Form
-    ========================= */
-    form.addEventListener('submit', function(event) {
-      event.preventDefault();
-      clearErrors();
-  
-      // Validaciones mínimas en el frontend
-      const rolIdVal  = rolIdInput.value.trim();
-      const userVal   = nombreusuarioInput.value.trim();
-      const passVal   = passwordInput.value.trim();
-      const confVal   = confirmInput.value.trim();
-  
-      let hasLocalErrors = false;
-  
-      if (!rolIdVal) {
-        showFieldError('rolid', 'Debe seleccionar un Rol.');
-        hasLocalErrors = true;
-      }
-      if (!userVal) {
-        showFieldError('nombreusuario', 'El nombre de usuario es obligatorio.');
-        hasLocalErrors = true;
-      }
-      if (!passVal) {
-        showFieldError('contraseña', 'La contraseña es obligatoria.');
-        hasLocalErrors = true;
-      }
-      if (!confVal) {
-        showFieldError('confirmar_contraseña', 'Debe confirmar la contraseña.');
-        hasLocalErrors = true;
-      }
-      if (passVal && confVal && passVal !== confVal) {
-        showFieldError('confirmar_contraseña', 'Las contraseñas no coinciden.');
-        hasLocalErrors = true;
-      }
-  
-      if (hasLocalErrors) return;
-  
-      // Enviar vía AJAX
-      const formData = new FormData(form);
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCookie('csrftoken'),
-          'Accept': 'application/json',
-        },
-        body: formData
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data.success) {
-          // Éxito
-          showSuccess('Usuario creado exitosamente.');
-          form.reset();
-          rolResults.innerHTML = '';
-          rolResults.style.display = 'none';
-        } else {
-          // Errores devueltos por el backend
-          const errors = JSON.parse(data.errors);
-          for (let field in errors) {
-            const fieldErrors = errors[field];
-            fieldErrors.forEach(err => {
-              showFieldError(field, err.message);
-            });
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        showGlobalError('Ocurrió un error inesperado al guardar.');
-      });
-    });
-  
-    /* ========================
-       7. Obtener Cookie
-    ======================== */
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-          cookie = cookie.trim();
-          if (cookie.startsWith(name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
+
+    if (cache[key]) { handler(cache[key]); return; }
+
+    fetch(`${rolAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`)
+      .then(r=>r.json()).then(json=>{ cache[key]=json; handler(json); })
+      .catch(()=>busy=false);
+  }
+
+  rolInp.addEventListener("input", e=>{
+    term = e.target.value.trim(); page=1; more=true; rolHid.value="";
+    clearTimeout(debounce); debounce = setTimeout(fetchRol, 300);
+  });
+  rolInp.addEventListener("focus", ()=>{ if (!rolBox.childElementCount) fetchRol(); });
+
+  rolBox.addEventListener("scroll", ()=>{
+    if (rolBox.scrollTop + rolBox.clientHeight >= rolBox.scrollHeight - 4 && more && !busy){
+      page++; fetchRol();
     }
   });
-  
+
+  rolBox.addEventListener("click", e=>{
+    const opt = e.target.closest(".autocomplete-option");
+    if (!opt) return;
+    rolInp.value  = opt.textContent;
+    rolHid.value  = opt.dataset.id;
+    resetBox();
+  });
+
+  document.addEventListener("click", e=>{
+    if (!rolInp.contains(e.target) && !rolBox.contains(e.target)) resetBox();
+  });
+
+  /* ====================================================================== */
+  /* 2. TOGGLE PASSWORD VISIBILITY                                          */
+  /* ====================================================================== */
+  window.togglePassword = id => {
+    const inp  = document.getElementById(id);
+    const icon = inp.nextElementSibling;
+    if (!inp) return;
+    if (inp.type === "password") {
+      inp.type = "text";  icon.classList.replace("fa-eye", "fa-eye-slash");
+    } else {
+      inp.type = "password"; icon.classList.replace("fa-eye-slash", "fa-eye");
+    }
+  };
+
+  /* ====================================================================== */
+  /* 3. SUBMIT (AJAX)                                                       */
+  /* ====================================================================== */
+  form.addEventListener("submit", async ev=>{
+    ev.preventDefault();
+
+    /* limpiar estado anterior */
+    [okBox, errBox].forEach(hide);
+    $$(".field-error").forEach(div=>{ div.innerHTML=""; div.classList.remove("visible"); });
+    $$(".input-error").forEach(i=>i.classList.remove("input-error"));
+
+    /* mínimo: rol seleccionado */
+    if (!rolHid.value){
+      show($("#error-id_rolid"), icon("Seleccione un rol.")); $("#error-id_rolid").classList.add("visible");
+      show(errBox, icon("Corrige los errores antes de continuar."));
+      return;
+    }
+
+    try{
+      const resp = await fetch(form.action,{
+        method : "POST",
+        headers: { "X-CSRFToken": csrftoken, "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+        body   : new FormData(form)
+      });
+      const data = await resp.json();
+
+      if (data.success){
+        show(okBox, okIcon("Usuario creado exitosamente.")); okBox.style.display="flex";
+        form.reset(); resetBox(); return;
+      }
+      renderErrors(data.errors);
+
+    }catch(err){
+      console.error(err);
+      show(errBox, icon("Ocurrió un error inesperado."));
+    }
+  });
+
+  function renderErrors(errorsJSON){
+    const errors = typeof errorsJSON === "string" ? JSON.parse(errorsJSON) : errorsJSON;
+    if (errors.__all__) show(errBox, errors.__all__.map(e=>icon(e.message)).join("<br>"));
+    Object.entries(errors).forEach(([field,arr])=>{
+      if (field==="__all__") return;
+      const div   = $("#error-id_"+field);
+      const input = $("#id_"+field);
+      if (div){ div.innerHTML = arr.map(e=>icon(e.message)).join("<br>"); div.classList.add("visible"); }
+      if (input){ input.classList.add("input-error"); }
+    });
+  }
+})();

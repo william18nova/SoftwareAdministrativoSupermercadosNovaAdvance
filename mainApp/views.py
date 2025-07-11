@@ -1658,99 +1658,43 @@ def eliminar_rol_view(request, rol_id):
     return JsonResponse({'success': False, 'message': 'Error al eliminar el rol.'})
 
 
-@login_required
-def agregar_usuario_view(request):
-    """
-    Vista para agregar un nuevo Usuario.
-    Maneja GET (muestra formulario) y POST (valida y guarda).
-    Devuelve JSON en caso de POST.
-    """
-    if request.method == 'POST':
-        form = UsuarioForm(request.POST)
-        if form.is_valid():
-            nombreusuario = form.cleaned_data['nombreusuario']
-            password = form.cleaned_data['contraseña']
-            rol_obj = form.cleaned_data['rolid']
+class UsuarioCreateAJAXView(LoginRequiredMixin, FormView):
+    template_name = "agregar_usuario.html"
+    form_class    = UsuarioForm
+    success_url   = reverse_lazy("visualizar_usuarios")   # ajusta la URL si existe
 
-            # Validar si ya existe un usuario con ese nombre
-            if Usuario.objects.filter(nombreusuario=nombreusuario).exists():
-                errors = {
-                    'nombreusuario': [{'message': f'El nombre de usuario "{nombreusuario}" ya existe.'}]
-                }
-                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
+    # ----- POST ↩︎ JSON ----------------------------------------------------
+    def form_valid(self, form):
+        usuario = form.save()
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "message": "Usuario creado exitosamente.",
+                "redirect_url": str(self.success_url),
+            })
+        messages.success(self.request, "Usuario creado exitosamente.")
+        return redirect(self.success_url)
 
-            # Crear el nuevo usuario
-            nuevo_usuario = Usuario(
-                nombreusuario=nombreusuario,
-                rolid=rol_obj.rolid  # asumiendo que 'rolid' es un int en la DB
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400
             )
-            # Encriptar la contraseña
-            nuevo_usuario.set_password(password)
-            nuevo_usuario.save()
-
-            return JsonResponse({'success': True})
-        else:
-            # Convertir errores del formulario a JSON
-            errors = form.errors.get_json_data()
-            processed_errors = {}
-            for field, field_errors in errors.items():
-                processed_errors[field] = [{'message': e['message']} for e in field_errors]
-            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
-    else:
-        # GET
-        form = UsuarioForm()
-
-    # Render normal (si es GET)
-    return render(request, 'agregar_usuario.html', {'form': form})
+        return self.render_to_response(self.get_context_data(form=form))
 
 
-@login_required
-def rol_autocomplete(request):
+# ──────────────────────────────────────────────────────────────────
+#  Autocomplete «Rol»
+# ──────────────────────────────────────────────────────────────────
+class RolAutocompleteView(PaginatedAutocompleteMixin):
     """
-    Autocomplete para Rol.
-    Implementa paginación y responde con JSON.
+    Devuelve roles paginados para el componente de autocompletado.
     """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '10').strip()
-
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    try:
-        per_page = int(per_page_str)
-        if per_page < 1:
-            per_page = 10
-    except ValueError:
-        per_page = 10
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    qs = Rol.objects.all().order_by('nombre')
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    results = []
-    for rol in qs:
-        results.append({
-            'id': rol.rolid,
-            'text': rol.nombre,
-        })
-
-    has_more = end < total_results
-
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
+    model      = Rol
+    text_field = "nombre"
+    id_field   = "rolid"
+    per_page   = 10
 
 
 @login_required

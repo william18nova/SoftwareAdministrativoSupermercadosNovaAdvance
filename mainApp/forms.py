@@ -1610,64 +1610,87 @@ class PuntosPagoEditarForm(forms.Form):
             self.add_error('sucursal', 'Sucursal no válida.')
         return cleaned_data
     
-class UsuarioForm(forms.Form):
+class UsuarioForm(forms.ModelForm):
     """
-    Form para 'Agregar Usuario' con autocompletado de Rol,
-    campos para nombre de usuario y contraseñas.
+    Formulario para crear usuarios con:
+      • autocompletado de Rol
+      • verificación de nombre único
+      • confirmación de contraseña
     """
-    # Autocomplete de Rol
+
+    # ---------- campo visible del autocomplete ----------
     rol_autocomplete = forms.CharField(
-        required=True,
+        label="Rol",
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar rol...',
-            'autocomplete': 'off',
+            "class": "form-control",
+            "placeholder": "Escribe para buscar rol…",
+            "autocomplete": "off",
+            "required": True,
         })
-    )
-    rolid = forms.ModelChoiceField(
-        queryset=Rol.objects.none(),
-        widget=forms.HiddenInput(),
-        required=True,
     )
 
-    nombreusuario = forms.CharField(
-        required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Nombre de usuario',
-        })
-    )
-    contraseña = forms.CharField(
-        required=True,
+    # ---------- los dos Password ----------
+    password1 = forms.CharField(
+        label="Contraseña",
         widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Contraseña',
-        })
+            "class": "form-control",
+            "placeholder": "Contraseña",
+            "required": True,
+        }),
+        min_length=6,
+        error_messages={"required": "La contraseña es obligatoria."},
     )
-    confirmar_contraseña = forms.CharField(
-        required=True,
+    password2 = forms.CharField(
+        label="Confirmar contraseña",
         widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Confirmar contraseña',
-        })
+            "class": "form-control",
+            "placeholder": "Confirma la contraseña",
+            "required": True,
+        }),
+        min_length=6,
     )
 
     class Meta:
-        fields = ['rolid', 'nombreusuario', 'contraseña', 'confirmar_contraseña']
+        model  = Usuario
+        fields = ("rolid", "nombreusuario", "password1", "password2")
+        labels = {
+            "nombreusuario": "Nombre de usuario",
+        }
+        widgets = {
+            "rolid": forms.HiddenInput(),
+            "nombreusuario": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Nombre de usuario",
+                "required": True,
+            }),
+        }
 
+    # ---------- init ----------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Si deseas filtrar roles de alguna manera, puedes hacerlo aquí.
-        self.fields['rolid'].queryset = Rol.objects.all()
+        self.fields["rolid"].queryset = Rol.objects.all()
+
+    # ---------- validaciones ----------
+    def clean_nombreusuario(self):
+        nombre = self.cleaned_data["nombreusuario"].strip()
+        if Usuario.objects.filter(nombreusuario__iexact=nombre).exists():
+            raise forms.ValidationError("Ese nombre de usuario ya existe.")
+        return nombre
 
     def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('contraseña')
-        confirm = cleaned_data.get('confirmar_contraseña')
-        if password and confirm and password != confirm:
-            self.add_error('confirmar_contraseña', 'Las contraseñas no coinciden.')
+        cd = super().clean()
+        p1, p2 = cd.get("password1"), cd.get("password2")
+        if p1 and p2 and p1 != p2:
+            self.add_error("password2", "Las contraseñas no coinciden.")
+        return cd
 
-        return cleaned_data
+    # ---------- crear usuario ----------
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        if commit:
+            user.save()
+        return user
 
 class UsuarioEditarForm(forms.Form):
     """
