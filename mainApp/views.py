@@ -1602,10 +1602,13 @@ class RolCreateAJAXView(LoginRequiredMixin, FormView):
         )
 
 
-@login_required
-def visualizar_roles_view(request):
-    roles = Rol.objects.all()
-    return render(request, 'visualizar_roles.html', {'roles': roles})
+class RolListView(LoginRequiredMixin, ListView):
+    """
+    Muestra la tabla de roles con DataTable.
+    """
+    template_name       = "visualizar_roles.html"
+    model               = Rol
+    context_object_name = "roles"
 
 
 def editar_rol_view(request, rol_id):

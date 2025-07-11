@@ -1,28 +1,41 @@
-$(document).ready(function() {
-    // Inicializar DataTable con búsqueda, paginación y responsive
-    const table = $('#rolesTable').DataTable({
-        paging: true,
-        searching: true,
-        info: true,
-        responsive: true,
-        language: {
-            search: "Buscar:",
-            zeroRecords: "No se encontraron resultados",
-            emptyTable: "No hay roles para mostrar"
-        }
-    });
+/*  visualizar_roles.js
+    ────────────────────────────────────────────────
+    • DataTable responsive + castellano
+    • Eliminación con confirmación vía formulario oculto
+--------------------------------------------------*/
+$(function () {
+  "use strict";
 
-    // Manejar la eliminación con confirmación
-    $('#rolesTable').on('click', '.btn.borrar', function(event) {
-        event.preventDefault();
-        const button = $(this);
-        const rolId = button.data('rol-id');
-        const rolNombre = button.data('rol-nombre');
-        // Formulario oculto que hará la petición POST
-        const form = $('#eliminar-form-' + rolId);
+  /* ───── DataTable ───── */
+  const table = $("#rolesTable").DataTable({
+    paging    : true,
+    searching : true,
+    info      : true,
+    responsive: true,
+    columnDefs: [{ targets: "no-sort", orderable: false }],
+    language  : {
+      search      : "",
+      zeroRecords : "No se encontraron roles",
+      info        : "Mostrando _START_ a _END_ de _TOTAL_",
+      infoEmpty   : "Mostrando 0 a 0 de 0",
+      paginate    : {
+        first   : "Primero",
+        last    : "Último",
+        next    : "Siguiente",
+        previous: "Anterior"
+      }
+    }
+  });
 
-        if (confirm(`¿Está seguro de que desea eliminar el rol "${rolNombre}"?`)) {
-            form.submit();
-        }
-    });
+  /* ───── Eliminar rol ───── */
+  $("#rolesTable").on("click", ".btn.borrar", function (e) {
+    e.preventDefault();
+    const $btn  = $(this);
+    const id    = $btn.data("id");
+    const nombre= $btn.data("nombre");
+
+    if (confirm(`¿Eliminar el rol «${nombre}»?`)) {
+      $(`#eliminar-form-${id}`)[0].submit();
+    }
+  });
 });
