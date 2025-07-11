@@ -37,7 +37,8 @@ from .views import (
                     PuntosPagoUpdateAJAXView,
                     SucursalEditarPuntoPagoAutocomplete,
                     RolCreateAJAXView,
-                    RolListView,)
+                    RolListView,
+                    RolUpdateAJAXView)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -97,7 +98,7 @@ urlpatterns = [
 
     path("agregar_rol/", RolCreateAJAXView.as_view(), name="agregar_rol"),
     path("visualizar_roles/", RolListView.as_view(), name="visualizar_roles"),
-    path('editar_rol/<int:rol_id>/', views.editar_rol_view, name='editar_rol'),
+    path("roles/editar/<int:rol_id>/", RolUpdateAJAXView.as_view(), name="editar_rol"),
     path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
 
     path('agregar_usuario/', views.agregar_usuario_view, name='agregar_usuario'),

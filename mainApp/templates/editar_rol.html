@@ -1,61 +1,46 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Editar Rol{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/agregar_rol.css' %}">
+  <script defer
+          src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar Rol</title>
-    <!-- Font Awesome CDN para iconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Enlace al CSS específico -->
-    <link rel="stylesheet" href="{% static 'css/agregar_rol.css' %}">
-</head>
-<body>
-    <div class="container">
-        <i class="fas fa-user-tag icon"></i>  <!-- Ícono de rol -->
-        <h2>Editar Rol</h2>
-        <p class="obligatorio-texto">
-            Todos los campos con <span class="required">*</span> son obligatorios.
-        </p>
+  <div class="container">
+    <i class="fas fa-user-tag icon"></i>
+    <h2>Editar Rol</h2>
 
-        <!-- Mensajes de error y éxito -->
-        <div id="error-message" class="alert alert-error" style="display: none;"></div>
-        <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <p class="obligatorio-texto">
+      Los campos marcados con <span class="required">*</span> son obligatorios.
+    </p>
 
-        <!-- Form de edición -->
-        <form id="rolForm" method="POST" action="{% url 'editar_rol' rol.rolid %}">
-            {% csrf_token %}
+    <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
+    <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
-            <!-- Campo Nombre -->
-            <div class="form-group">
-                <label for="{{ form.nombre.id_for_label }}">
-                    {{ form.nombre.label }} <span class="required">*</span>
-                </label>
-                {{ form.nombre }}
-                <div class="field-error" id="error-id_nombre"></div>
-            </div>
+    <form  id="rolForm"
+           method="post"
+           action="{% url 'editar_rol' rol.pk %}">
+      {% csrf_token %}
 
-            <!-- Campo Descripción -->
-            <div class="form-group">
-                <label for="{{ form.descripcion.id_for_label }}">
-                    {{ form.descripcion.label }}
-                </label>
-                {{ form.descripcion }}
-                <div class="field-error" id="error-id_descripcion"></div>
-            </div>
+      {% for field in form.visible_fields %}
+        <div class="form-group">
+          <label for="{{ field.id_for_label }}">
+            {{ field.label }}{% if field.field.required %} <span class="required">*</span>{% endif %}
+          </label>
+          {{ field }}
+          <div class="field-error" id="error-id_{{ field.name }}"></div>
+        </div>
+      {% endfor %}
 
-            <!-- Botón para actualizar -->
-            <div class="form-group">
-                <button type="submit" class="btn-agregar-rol">Actualizar Rol</button>
-            </div>
-        </form>
-    </div>
+      <button type="submit" class="btn-agregar-rol">
+        Guardar cambios
+      </button>
+    </form>
+  </div>
 
-    <!-- Incluir el archivo JavaScript específico para esta página -->
-    <script src="{% static 'javascript/editar_rol.js' %}"></script>
-</body>
-</html>
+  <script defer src="{% static 'javascript/editar_rol.js' %}"></script>
 {% endblock %}

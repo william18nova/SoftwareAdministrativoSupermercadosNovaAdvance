@@ -1183,58 +1183,61 @@ class RolForm(forms.ModelForm):
     
 class RolEditarForm(forms.ModelForm):
     """
-    Form para Editar Rol (similar a RolForm, pero permite
-    usar el mismo nombre del rol sin considerarlo duplicado
-    si no ha cambiado).
+    ▸ Formulario para editar un Rol.
+    ▸ - Permite conservar el mismo nombre sin lanzar error.
+    ▸ - Si el nombre cambia, verifica duplicados (case-insensitive),
+         excluyendo el propio registro.
     """
+
     nombre = forms.CharField(
+        label="Nombre del Rol",
         max_length=50,
         validators=[
             RegexValidator(
-                regex=r'^[A-Za-záéíóúÁÉÍÓÚñÑ\s]+$',
-                message='El nombre del rol solo debe contener letras y espacios.'
+                regex=r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$",
+                message="El nombre solo debe contener letras y espacios."
             )
         ],
-        required=True,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el nombre del rol',
-            'required': 'required'
-        })
-    )
-    descripcion = forms.CharField(
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa la descripción del rol',
-            'rows': 4
+            "class"      : "form-control",
+            "placeholder": "Ingresa el nombre del rol",
+            "required"   : True,
         }),
-        required=False
+        error_messages={
+            "required"   : "El nombre es obligatorio.",
+            "max_length" : "El nombre no puede superar 50 caracteres.",
+        },
+    )
+
+    descripcion = forms.CharField(
+        label="Descripción",
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class"      : "form-control",
+            "placeholder": "Ingresa la descripción del rol",
+            "rows"       : 4,
+        }),
     )
 
     class Meta:
-        model = Rol
-        fields = ['nombre', 'descripcion']
-        labels = {
-            'nombre': 'Nombre del Rol',
-            'descripcion': 'Descripción',
-        }
+        model  = Rol
+        fields = ("nombre", "descripcion")
 
-    def __init__(self, *args, **kwargs):
-        self.instance = kwargs.get('instance', None)
-        super().__init__(*args, **kwargs)
-
+    # ---------- validación de unicidad ----------
     def clean_nombre(self):
-        """
-        Permite el mismo nombre si no ha cambiado.
-        Si cambió, verificamos duplicados.
-        """
-        nombre = self.cleaned_data.get('nombre')
-        if self.instance and self.instance.nombre.lower() == nombre.lower():
-            # El usuario no cambió el nombre, no chequeamos duplicado.
+        nombre = self.cleaned_data.get("nombre", "").strip()
+
+        # Si el usuario NO cambió el nombre, lo aceptamos tal cual
+        if self.instance and nombre.lower() == self.instance.nombre.lower():
             return nombre
-        # Si cambió, comprobamos que no exista.
-        if Rol.objects.filter(nombre__iexact=nombre).exists():
-            raise forms.ValidationError('Ya existe un rol con ese nombre.')
+
+        # Si lo cambió, comprobamos duplicados excluyendo el propio ID
+        existe = Rol.objects.filter(
+            nombre__iexact=nombre
+        ).exclude(pk=self.instance.pk).exists()
+
+        if existe:
+            raise forms.ValidationError("Ya existe un rol con ese nombre.")
         return nombre
 
 class InventarioForm(forms.Form):

@@ -1611,39 +1611,39 @@ class RolListView(LoginRequiredMixin, ListView):
     context_object_name = "roles"
 
 
-def editar_rol_view(request, rol_id):
+class RolUpdateAJAXView(LoginRequiredMixin, UpdateView):
     """
-    Vista para editar un Rol con AJAX. 
-    Si todo va bien, redirige a visualizar_roles al final.
+    ▸ Edita un rol vía AJAX manteniendo la UX de ‘Editar Sucursal’.
     """
-    rol = get_object_or_404(Rol, pk=rol_id)
+    model         = Rol
+    pk_url_kwarg  = "rol_id"
+    form_class    = RolEditarForm
+    template_name = "editar_rol.html"
+    success_url   = reverse_lazy("visualizar_roles")
 
-    if request.method == 'POST':
-        form = RolEditarForm(request.POST, instance=rol)
-        if form.is_valid():
-            form.save()
-            # Mensaje de éxito con Django messages
-            messages.success(request, f'Rol "{rol.nombre}" actualizado correctamente.')
-            
-            # Devolvemos JSON indicando que todo salió bien y la URL a la que redirigir
+    # -------- AJAX OK --------
+    def form_valid(self, form):
+        self.object = form.save()
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
-                'success': True, 
-                'redirect_url': reverse('visualizar_roles')
+                "success": True,
+                "message": f'Rol «{self.object.nombre}» actualizado.',
+                "redirect_url": str(self.success_url),
             })
-        else:
-            errors_json = form.errors.as_json()
-            return JsonResponse({
-                'success': False, 
-                'errors': errors_json
-            })
-    else:
-        # GET
-        form = RolEditarForm(instance=rol)
+        messages.success(
+            self.request,
+            f'Rol «{self.object.nombre}» actualizado correctamente.',
+        )
+        return super().form_valid(form)
 
-    return render(request, 'editar_rol.html', {
-        'form': form,
-        'rol': rol,
-    })
+    # -------- AJAX KO --------
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400,
+            )
+        return super().form_invalid(form)
 
 
 @login_required
