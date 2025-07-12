@@ -1692,95 +1692,114 @@ class UsuarioForm(forms.ModelForm):
             user.save()
         return user
 
-class UsuarioEditarForm(forms.Form):
+class UsuarioEditarForm(forms.ModelForm):
     """
-    Form para 'Editar Usuario' con autocompletado de Rol,
-    campos para nombre de usuario y contraseñas (opcionales si se deja en blanco).
+    ▸ Edita un usuario existente (rol, username y contraseña opcional).
+    ▸ `rol_autocomplete` es el campo visible; `rolid` queda oculto.
     """
-    # Autocomplete de Rol
+
+    # ─────────── Campos visibles extra ───────────
     rol_autocomplete = forms.CharField(
+        label="Rol",
         required=True,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar rol...',
-            'autocomplete': 'off',
-        })
-    )
-    rolid = forms.ModelChoiceField(
-        queryset=Rol.objects.none(),
-        widget=forms.HiddenInput(),
-        required=True,
+            "class": "form-control",
+            "placeholder": "Escribe para buscar rol…",
+            "autocomplete": "off",
+        }),
     )
 
-    nombreusuario = forms.CharField(
-        required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Nombre de usuario',
-        })
-    )
     contraseña = forms.CharField(
-        required=False,  # Si está vacío, no se cambia
+        label="Contraseña",
+        required=False,                         # ← dejar vacío ⇒ no cambia
         widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Contraseña (dejar en blanco para no cambiar)',
-        })
+            "class": "form-control",
+            "placeholder": "Contraseña (vacío = sin cambios)",
+        }),
     )
     confirmar_contraseña = forms.CharField(
-        required=False,  # idem
+        label="Confirmar contraseña",
+        required=False,
         widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Confirmar contraseña (dejar en blanco)',
-        })
+            "class": "form-control",
+            "placeholder": "Confirmar contraseña",
+        }),
     )
 
+    # ─────────── Meta ───────────
     class Meta:
-        fields = ['rolid', 'nombreusuario', 'contraseña', 'confirmar_contraseña']
+        model  = Usuario
+        fields = ("rolid", "nombreusuario")     # los extras se añaden arriba
+        labels = {
+            "rolid"        : "Rol",
+            "nombreusuario": "Nombre de usuario",
+        }
+        widgets = {
+            "rolid": forms.HiddenInput(),
+            "nombreusuario": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Nombre de usuario",
+                "required": True,
+            }),
+        }
 
+    # ─────────── init ───────────
     def __init__(self, *args, **kwargs):
-        # Recibir instance, que debería ser un objeto de Usuario
-        self.instance = kwargs.get('instance', None)
-        if 'instance' in kwargs:
-            del kwargs['instance']
         super().__init__(*args, **kwargs)
-        
-        # Poner queryset de Roles (todos, o filtrar)
-        self.fields['rolid'].queryset = Rol.objects.all()
 
-        # Si el instance existe, precargar 'rolid' y autocompletado del rol
-        if self.instance:
-            # Prellenar rol_autocomplete con el nombre del rol
-            rol_obj = Rol.objects.filter(rolid=self.instance.rolid).first()
+        # queryset completo para el <select> oculto
+        self.fields["rolid"].queryset = Rol.objects.all()
+
+        # precargar datos del usuario que se está editando
+        if self.instance.pk:
+            rol_obj = getattr(self.instance, "rolid", None)  # ↲ ya es Rol
             if rol_obj:
-                self.fields['rol_autocomplete'].initial = rol_obj.nombre
-                self.fields['rolid'].initial = rol_obj.pk
-            # Prellenar nombre de usuario
-            self.fields['nombreusuario'].initial = self.instance.nombreusuario
+                self.fields["rol_autocomplete"].initial = rol_obj.nombre
+                self.fields["rolid"].initial            = rol_obj.pk
 
+    # ─────────── validaciones ───────────
     def clean_nombreusuario(self):
-        nombreusuario = self.cleaned_data.get('nombreusuario')
-        if not self.instance:  # Caso raro
-            return nombreusuario
-
-        # Si no cambió el nombre, lo dejamos
-        if self.instance.nombreusuario.lower() == nombreusuario.lower():
-            return nombreusuario
-
-        # Si cambió, verificar duplicado
-        from .models import Usuario
-        if Usuario.objects.filter(nombreusuario__iexact=nombreusuario).exclude(usuarioid=self.instance.usuarioid).exists():
-            raise forms.ValidationError(f'El nombre de usuario "{nombreusuario}" ya existe.')
-        return nombreusuario
+        nombre = self.cleaned_data["nombreusuario"].strip()
+        qs = (
+            Usuario.objects
+            .filter(nombreusuario__iexact=nombre)
+            .exclude(pk=self.instance.pk)
+        )
+        if qs.exists():
+            raise ValidationError(
+                f'El nombre de usuario «{nombre}» ya existe.',
+                code="duplicate",
+            )
+        return nombre
 
     def clean(self):
-        cleaned_data = super().clean()
-        password = cleaned_data.get('contraseña')
-        confirm = cleaned_data.get('confirmar_contraseña')
-        # Solo validamos "no coinciden" si uno de los dos fue ingresado
-        if password or confirm:
-            if password != confirm:
-                self.add_error('confirmar_contraseña', 'Las contraseñas no coinciden.')
-        return cleaned_data
+        cleaned = super().clean()
+        pwd1, pwd2 = cleaned.get("contraseña"), cleaned.get("confirmar_contraseña")
+        if pwd1 or pwd2:                       # sólo si al menos uno viene
+            if pwd1 != pwd2:
+                self.add_error("confirmar_contraseña", "Las contraseñas no coinciden.")
+        return cleaned
+
+    # ─────────── save ───────────
+    def save(self, commit=True):
+        """
+        • Actualiza rol, usuario y contraseña (si se indicó).
+        • Al ser ForeignKey, podemos asignar el objeto Rol directamente.
+          - Si tu campo es int, usa:  usuario.rolid_id = self.cleaned_data["rolid"].pk
+        """
+        usuario = super().save(commit=False)
+
+        # Rol
+        usuario.rolid = self.cleaned_data["rolid"]          # objeto Rol
+
+        # Contraseña (opcional)
+        pwd = self.cleaned_data.get("contraseña")
+        if pwd:
+            usuario.set_password(pwd)
+
+        if commit:
+            usuario.save()
+        return usuario
 
 class GenerarVentaForm(forms.Form):
     cliente_id = forms.IntegerField(required=False)

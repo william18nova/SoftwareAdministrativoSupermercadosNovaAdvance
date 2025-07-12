@@ -1726,56 +1726,62 @@ def eliminar_usuario_view(request, usuarioid):
     return redirect('visualizar_usuarios')
 
 
-@login_required
-def editar_usuario_view(request, usuarioid):
+class UsuarioUpdateAJAXView(LoginRequiredMixin, UpdateView):
     """
-    Vista para EDITAR Usuario usando AJAX.
-    - GET: muestra form con los datos actuales.
-    - POST: valida form, si ok => actualiza y retorna JSON con redirect_url.
+    Vista de actualización de usuarios:
+
+    • GET  → Renderiza el formulario “editar_usuario.html”.
+    • POST →   – Fetch/AJAX  ⇒ JSON   (success / errors)
+               – Navegación   ⇒ redirect + messages.
+
+    save() del formulario ya gestiona el cambio de contraseña.
     """
-    usuario = get_object_or_404(Usuario, pk=usuarioid)
+    model         = Usuario
+    form_class    = UsuarioEditarForm
+    template_name = "editar_usuario.html"
+    pk_url_kwarg  = "usuario_id"              # /usuarios/editar/<usuario_id>/
 
-    if request.method == 'POST':
-        form = UsuarioEditarForm(request.POST, instance=usuario)
-        if form.is_valid():
-            cd = form.cleaned_data
-            # 1. Rol
-            rol_obj = cd['rolid']
-            usuario.rolid = rol_obj.pk  # asumiendo que rolid en Usuario es un int
+    # ---------------------------------------------------------------- helpers
+    @staticmethod
+    def _is_ajax(request) -> bool:
+        return request.headers.get("x-requested-with") == "XMLHttpRequest"
 
-            # 2. nombreusuario (si cambió, el form ya verificó duplicado)
-            usuario.nombreusuario = cd['nombreusuario']
+    # ---------------------------------------------------------------- context
+    def get_context_data(self, **kwargs):
+        """Inyectamos la lista de campos de contraseña para el bucle del template."""
+        ctx = super().get_context_data(**kwargs)
+        frm = ctx["form"]
+        ctx["password_fields"] = [frm["contraseña"], frm["confirmar_contraseña"]]
+        return ctx
 
-            # 3. Contraseña (si la ingresaron)
-            password = cd['contraseña']
-            if password:
-                # Cambiamos la contraseña
-                usuario.set_password(password)
-            
-            usuario.save()
+    # ---------------------------------------------------------------- POST
+    def form_valid(self, form):
+        usuario = form.save()  # El ModelForm setea rol y contraseña si aplica
 
-            # Guardar mensaje de éxito y retornar JSON
-            messages.success(request, f'Usuario "{usuario.nombreusuario}" actualizado exitosamente.')
+        if self._is_ajax(self.request):
             return JsonResponse({
-                'success': True,
-                'redirect_url': reverse('visualizar_usuarios')
+                "success"     : True,
+                "redirect_url": reverse("visualizar_usuarios"),
+                "nombre"      : usuario.nombreusuario,
             })
-        else:
-            # Retornar errores
-            errors_dict = form.errors.get_json_data()  
-            # Pasarlo a un JSON string si quieres
-            return JsonResponse({
-                'success': False,
-                'errors': json.dumps(errors_dict)
-            })
-    else:
-        # GET
-        form = UsuarioEditarForm(instance=usuario)
 
-    return render(request, 'editar_usuario.html', {
-        'form': form,
-        'usuario': usuario
-    })
+        messages.success(
+            self.request,
+            f'Usuario «{usuario.nombreusuario}» actualizado correctamente.'
+        )
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self._is_ajax(self.request):
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400,
+            )
+        return super().form_invalid(form)
+
+    # ---------------------------------------------------------------- redirect
+    def get_success_url(self):
+        return reverse_lazy("visualizar_usuarios")
 
 
 

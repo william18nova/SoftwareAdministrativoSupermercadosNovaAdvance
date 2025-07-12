@@ -41,7 +41,8 @@ from .views import (
                     RolUpdateAJAXView,
                     UsuarioCreateAJAXView,
                     RolAutocompleteView,
-                    UsuarioListView)
+                    UsuarioListView,
+                    UsuarioUpdateAJAXView)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -108,11 +109,13 @@ urlpatterns = [
     path("rol_autocomplete/",     RolAutocompleteView.as_view(),   name="rol_autocomplete"),
    path(
         "visualizar_usuarios/",
-        views.UsuarioListView.as_view(),
+        UsuarioListView.as_view(),
         name="visualizar_usuarios",
     ),
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
-    path('editar_usuario/<int:usuarioid>/', views.editar_usuario_view, name='editar_usuario'),
+    path("usuarios/editar/<int:usuario_id>/",
+         UsuarioUpdateAJAXView.as_view(),
+         name="editar_usuario"),
 
     path('agregar_empleado/', views.agregar_empleado_view, name='agregar_empleado'),
     path('autocomplete/usuario/', views.usuario_autocomplete, name='usuario_autocomplete'),
