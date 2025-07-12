@@ -1014,6 +1014,109 @@ class ProductoForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError("El código de barras ya está registrado.", code="duplicate")
         return ean
+
+
+class ProductoEditarForm(forms.ModelForm):
+    """
+    Formulario **único** para crear / editar productos.
+    El autocompletado de categoría se maneja con:
+      • id_categoria_autocomplete  → solo texto visible
+      • categoria (HiddenInput)    → PK real que se envía
+    """
+
+    # ---------- campo técnico (hidden) ----------
+    categoria = forms.ModelChoiceField(
+        queryset=Categoria.objects.none(),      # se llena en __init__
+        widget=forms.HiddenInput(),
+        required=True,
+        label="Categoría",
+    )
+
+    class Meta:
+        model  = Producto
+        fields = (
+            "nombre",
+            "descripcion",
+            "precio",
+            "categoria",            # hidden – lo llena el JS
+            "codigo_de_barras",
+            "iva",
+        )
+        labels = {
+            "nombre"          : "Nombre",
+            "descripcion"     : "Descripción",
+            "precio"          : "Precio",
+            "codigo_de_barras": "Código de barras",
+            "iva"             : "IVA (0 – 1)",
+        }
+        widgets = {
+            "nombre": forms.TextInput(attrs={
+                "class"      : "form-control",
+                "placeholder": "Nombre del producto",
+                "required"   : True,
+            }),
+            "descripcion": forms.TextInput(attrs={
+                "class"      : "form-control",
+                "placeholder": "Descripción (opcional)",
+            }),
+            "precio": forms.NumberInput(attrs={
+                "class"      : "form-control",
+                "step"       : "0.01",
+                "min"        : "0",
+                "placeholder": "Precio",
+                "required"   : True,
+            }),
+            "codigo_de_barras": forms.TextInput(attrs={
+                "class"      : "form-control",
+                "placeholder": "EAN / código de barras",
+            }),
+            "iva": forms.NumberInput(attrs={
+                "class"      : "form-control",
+                "step"       : "0.01",
+                "min"        : "0",
+                "max"        : "1",
+                "placeholder": "IVA (ej. 0.19)",
+                "required"   : True,
+            }),
+        }
+
+    # ---------------------- init ----------------------
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # queryset completo (o filtra a gusto)
+        self.fields["categoria"].queryset = Categoria.objects.all()
+
+        # guardamos la PK para validaciones de duplicados
+        self._pk = self.instance.pk
+
+        # si estamos editando, enviamos el nombre de la categoría al template
+        if self.instance.pk and self.instance.categoria:
+            self.initial["id_categoria_autocomplete_initial"] = (
+                self.instance.categoria.nombre
+            )
+
+    # ------------------ validaciones ------------------
+    def clean_nombre(self):
+        nombre = self.cleaned_data["nombre"].strip()
+        qs = Producto.objects.filter(nombre__iexact=nombre)
+        if self._pk:
+            qs = qs.exclude(pk=self._pk)
+        if qs.exists():
+            raise ValidationError("El nombre ya está registrado.", code="duplicate")
+        return nombre
+
+    def clean_codigo_de_barras(self):
+        ean = self.cleaned_data.get("codigo_de_barras", "").strip()
+        if not ean:
+            return ean
+        qs = Producto.objects.filter(codigo_de_barras=ean)
+        if self._pk:
+            qs = qs.exclude(pk=self._pk)
+        if qs.exists():
+            raise ValidationError("El código de barras ya está registrado.", code="duplicate")
+        return ean
+
     
     
     

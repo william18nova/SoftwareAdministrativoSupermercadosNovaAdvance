@@ -23,6 +23,7 @@ from .forms import (
     HorariosNegocioForm,
     SucursalForm,
     ProductoForm,
+    ProductoEditarForm,
     ProveedorForm,
     RolForm,
     InventarioForm, 
@@ -401,32 +402,37 @@ def eliminar_producto(request, producto_id):
 
 
 class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
+    """
+    · Renderiza el formulario de edición con template + JS.
+    · Si la petición es AJAX (fetch), responde JSON.
+    · Para navegación clásica usa messages y redirect normal.
+    """
     model         = Producto
-    form_class    = ProductoForm
+    form_class    = ProductoEditarForm
     template_name = "editar_producto.html"
-    pk_url_kwarg  = "producto_id"          # /editar/<producto_id>/
+    pk_url_kwarg  = "producto_id"      #  /productos/editar/<producto_id>/
 
+    # -------------------- POST OK --------------------
     def form_valid(self, form):
         producto = form.save()
 
-        # ¿La petición viene de fetch/ajax?
+        # AJAX
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
-            # ①  NO guardamos mensaje de Django
             return JsonResponse({
                 "success"     : True,
-                "redirect_url": reverse_lazy("visualizar_productos"),
-                "nombre"      : producto.nombre        # opcional
+                "redirect_url": reverse("visualizar_productos"),
+                "nombre"      : producto.nombre,
             })
 
-        # ②  Navegación tradicional → sí usamos messages
+        # Navegación normal
         messages.success(
             self.request,
             f'Producto «{producto.nombre}» actualizado correctamente.'
         )
         return super().form_valid(form)
 
+    # ------------------ POST con errores -------------
     def form_invalid(self, form):
-        # Para AJAX devolvemos los errores en JSON
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse(
                 {"success": False, "errors": form.errors.get_json_data()},
@@ -434,6 +440,7 @@ class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
             )
         return super().form_invalid(form)
 
+    # --------------------- redirect ------------------
     def get_success_url(self):
         return reverse_lazy("visualizar_productos")
 

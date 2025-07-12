@@ -63,7 +63,7 @@ urlpatterns = [
     path("categoria_autocomplete/", CategoriaAutocompleteView.as_view(), name="categoria_autocomplete"),
     path('visualizar_productos/',  ProductoListView.as_view(), name='visualizar_productos'),
     path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
-    path('productos/editar/<int:producto_id>/', ProductoUpdateAJAXView.as_view(), name='editar_producto'),
+    path("productos/editar/<int:producto_id>/", ProductoUpdateAJAXView.as_view(), name="editar_producto"),
     
     
     path('agregar_inventario/', InventarioCreateAJAXView.as_view(), name='agregar_inventario'),
@@ -107,15 +107,8 @@ urlpatterns = [
 
     path("agregar_usuario/",      UsuarioCreateAJAXView.as_view(), name="agregar_usuario"),
     path("rol_autocomplete/",     RolAutocompleteView.as_view(),   name="rol_autocomplete"),
-   path(
-        "visualizar_usuarios/",
-        UsuarioListView.as_view(),
-        name="visualizar_usuarios",
-    ),
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
-    path("usuarios/editar/<int:usuario_id>/",
-         UsuarioUpdateAJAXView.as_view(),
-         name="editar_usuario"),
+    path("usuarios/editar/<int:usuario_id>/", UsuarioUpdateAJAXView.as_view(), name="editar_usuario"),
 
     path('agregar_empleado/', views.agregar_empleado_view, name='agregar_empleado'),
     path('autocomplete/usuario/', views.usuario_autocomplete, name='usuario_autocomplete'),
