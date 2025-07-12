@@ -18,7 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 from .forms import (
     CategoriaForm,
     ClienteForm,
-    EmpleadoForm,
+    EmpleadoCreateForm,
     HorarioCajaForm,
     HorariosNegocioForm,
     SucursalForm,
@@ -1793,145 +1793,80 @@ class UsuarioUpdateAJAXView(LoginRequiredMixin, UpdateView):
 
 
 
-@login_required
-def agregar_empleado_view(request):
-    if request.method == 'POST':
-        form = EmpleadoForm(request.POST)
-        if form.is_valid():
-            try:
-                form.save()
-                logger.info(f"Empleado agregado: {form.cleaned_data}")
-                return JsonResponse({'success': True, 'message': 'Empleado agregado exitosamente.'})
-            except Exception as e:
-                logger.error(f"Error al guardar el empleado: {e}")
-                return JsonResponse({'success': False, 'errors': {'__all__': [{'message': 'Ocurrió un error al guardar el empleado.'}]}})
-        else:
-            logger.warning(f"Formulario inválido: {form.errors}")
-            errors = form.errors.get_json_data()  # Obtener errores como dict
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = EmpleadoForm()
-    return render(request, 'agregar_empleado.html', {'form': form})
+@method_decorator(transaction.atomic, name="dispatch")
+class EmpleadoCreateAJAXView(LoginRequiredMixin, View):
+    template_name = "agregar_empleado.html"
+    form_class    = EmpleadoCreateForm
 
-@login_required
-def usuario_autocomplete(request):
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    empleado_id_str = request.GET.get('empleadoid', '').strip()  # <-- nuevo
-    per_page = 10
-    
-    # Convertir page
-    try:
-        page = int(page_str)
-        if page < 1: page = 1
-    except ValueError:
-        page = 1
+    # ---------- GET ----------
+    def get(self, request):
+        form = self.form_class()
+        return render(request, self.template_name, {"form": form})
 
-    # Convertir empleadoid
-    empleado_id = None
-    try:
-        empleado_id = int(empleado_id_str)
-    except (ValueError, TypeError):
-        empleado_id = None
+    # ---------- POST ----------
+    def post(self, request):
+        form = self.form_class(request.POST)
 
-    start = (page - 1) * per_page
-    end = start + per_page
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors" : json.dumps(form.errors.get_json_data(escape_html=True))
+            })
 
-    # Caso base: Filtrar usuarios sin empleado
-    # y que nombreusuario contenga `term`
-    qs = Usuario.objects.filter(
-        Q(nombreusuario__icontains=term),
-        Q(empleado__isnull=True)
-    ).order_by('nombreusuario')
-
-    # Si “empleado_id” existe, incluir el USUARIO que ya estaba asignado a ese empleado
-    # => Ejemplo: si Empleado xyz tenía usuario X, no lo excluimos
-    if empleado_id:
         try:
-            empleado = Empleado.objects.select_related('usuarioid').get(pk=empleado_id)
-            if empleado.usuarioid:
-                # Incluir el “usuarioid actual” en el queryset
-                # De modo que si ya está asignado a “empleado”, no se excluya
-                qs = qs.union(
-                    Usuario.objects.filter(pk=empleado.usuarioid.pk)
-                )
-        except Empleado.DoesNotExist:
-            pass
+            emp = form.save()
+            logger.info("Empleado creado %s", emp.pk)
+        except Exception as exc:
+            logger.exception("Error al guardar empleado")
+            return JsonResponse({
+                "success": False,
+                "errors" : json.dumps({
+                    "__all__": [{"message": "Ocurrió un error inesperado."}]
+                })
+            })
 
-    total_results = qs.count()
-    qs = qs[start:end]
+        return JsonResponse({"success": True})
 
-    results = []
-    for usuario in qs:
-        results.append({
-            'id': usuario.pk,
-            'text': usuario.nombreusuario,
-        })
 
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
-
-@login_required
-def sucursal_autocomplete(request):
+# ─────────────────────────────────────────────────────────────
+# 2. Autocompletados
+# ─────────────────────────────────────────────────────────────
+class UsuarioDisponibleAutocomplete(PaginatedAutocompleteMixin):
     """
-    Autocomplete para Sucursal: muestra TODAS las sucursales,
-    con paginación y soporte para 'term'.
+    • Devuelve usuarios que **no** tienen empleado asociado
+    • Incluye (?current=<id>) al editar para que siga apareciendo el usuario ya asignado
     """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '50').strip()
+    model       = Usuario
+    id_field    = "pk"
+    text_field  = "nombreusuario"
 
-    # 1. Convertir 'page'
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
+    def extra_filter(self, qs, request):
+        # Excluir los que ya están vinculados, sin depender de related_name
+        sub = Empleado.objects.filter(usuarioid=OuterRef("pk"))
+        qs  = qs.annotate(has_emp=Exists(sub)).filter(has_emp=False)
 
-    # 2. Convertir 'per_page'
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 50
-    if per_page < 1:
-        per_page = 50
+        # incluir el usuario actual (modo edición)
+        cur = request.GET.get("current", "").strip()
+        if cur.isdigit():
+            qs = qs | Usuario.objects.filter(pk=cur)
 
-    start = (page - 1) * per_page
-    end = start + per_page
+        # búsqueda por término
+        term = request.GET.get("term", "").strip()
+        if term:
+            qs = qs.filter(nombreusuario__icontains=term)
 
-    # 3. Tomar TODAS las sucursales (SIN filtrar por horarios)
-    qs = Sucursal.objects.all()
+        return qs.distinct().order_by("nombreusuario")
 
-    # 4. Filtro por 'term'
-    if term:
-        qs = qs.filter(nombre__icontains=term)
 
-    # 5. Ordenar
-    qs = qs.order_by('nombre')
+class SucursalAutocomplete(PaginatedAutocompleteMixin):
+    """Todas las sucursales con búsqueda por nombre."""
+    model     = Sucursal
+    id_field  = "pk"
+    text_field = "nombre"
 
-    # 6. Paginación
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    # 7. Construir 'results'
-    results = []
-    for sucursal in qs:
-        results.append({
-            'id': sucursal.pk,
-            'text': sucursal.nombre,
-        })
-
-    # Saber si hay más resultados
-    has_more = end < total_results
-
-    # Retornar en formato JSON para el autocomplete
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
+    def extra_filter(self, qs, request):
+        term = request.GET.get("term", "").strip()
+        return qs.filter(nombre__icontains=term) if term else qs
 
 
 

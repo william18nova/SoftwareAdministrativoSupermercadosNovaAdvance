@@ -1,467 +1,184 @@
-// agregar_empleado.js
+/*  static/javascript/agregar_empleado.js
+    — Patrón y naming idénticos a agregar_precios_proveedor.js
+------------------------------------------------------------------------ */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    /* ======================
-       1. Variables Generales
-    ====================== */
-    const form = document.getElementById('form-agregar-empleado');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
-    const successTextSpan = document.getElementById('success-text');
-    
-    // Campos de Autocompletado
-    const usuarioInput = document.getElementById('id_usuario_autocomplete');
-    const usuarioIdInput = document.getElementById('id_usuarioid'); // Cambiado a 'id_usuarioid'
-    const usuarioAutocompleteResults = document.getElementById('usuario-autocomplete-results');
-    
-    const sucursalInput = document.getElementById('id_sucursal_autocomplete');
-    const sucursalIdInput = document.getElementById('id_sucursalid'); // Cambiado a 'id_sucursalid'
-    const sucursalAutocompleteResults = document.getElementById('sucursal-autocomplete-results');
-    
-    /* ==========================
-       2. Variables de Debounce y Caching
-    ========================== */
-    const DEBOUNCE_TIME = 300; // 300 ms
-    let debounceTimeoutUsuario = null;
-    let debounceTimeoutSucursal = null;
-    
-    // Caches para almacenar respuestas anteriores
-    const cacheUsuario = {};
-    const cacheSucursal = {};
-    
-    // Variables para paginación
-    let currentPageUsuario = 1;
-    let isLoadingUsuario = false;
-    let hasMoreUsuario = true;
-    let currentTermUsuario = '';
-    
-    let currentPageSucursal = 1;
-    let isLoadingSucursal = false;
-    let hasMoreSucursal = true;
-    let currentTermSucursal = '';
-    
-    /* ======================
-       3. Funciones de Utilidad
-    ====================== */
-    
-    /**
-     * Función genérica para fetch con caching
-     */
-    function fetchWithCache(url, cache, term, page, callback) {
-        const cacheKey = `${term}_${page}`;
-        if (cache[cacheKey]) {
-            callback(cache[cacheKey]);
-            return;
-        }
+  /* ───────── helpers ───────── */
+  const $  = q => document.querySelector(q);
+  const $$ = q => document.querySelectorAll(q);
 
-        fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP Error: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                cache[cacheKey] = data; // Guardar en caché
-                callback(data);
-            })
-            .catch(error => {
-                console.error('fetchWithCache error:', error);
-            });
+  const csrftoken =
+    (document.cookie.split(";").map(c => c.trim())
+      .find(c => c.startsWith("csrftoken=")) || "")
+      .split("=")[1] || "";
+
+  const iconErr = txt => `<i class="fas fa-exclamation-circle"></i> ${txt}`;
+  const show    = (el, html) => { el.innerHTML = html; el.style.display = "block"; };
+  const hide    = el  => { el.style.display = "none"; el.innerHTML = ""; };
+
+  /* ───────── refs DOM ───────── */
+  const form      = $("#empleadoForm");
+
+  const errBox    = $("#error-message");     // ← sólo para errores “graves”
+  const okBox     = $("#success-message");
+
+  const usrInp    = $("#id_usuario_autocomplete");
+  const usrHid    = $("#id_usuarioid");
+  const usrBox    = $("#usuario-autocomplete-results");
+
+  const sucInp    = $("#id_sucursal_autocomplete");
+  const sucHid    = $("#id_sucursalid");
+  const sucBox    = $("#sucursal-autocomplete-results");
+
+  /* ───────── UI reset ───────── */
+  function resetUI () {
+    hide(errBox); hide(okBox);
+
+    $$(".field-error").forEach(d => {
+      d.classList.remove("visible");
+      d.innerHTML = "";
+      d.style.display = "none";
+    });
+    $$(".input-error").forEach(i => i.classList.remove("input-error"));
+  }
+
+  function fieldErr(name, msg){
+    const div = $(`#error-id_${name}`);
+    const inp = name === "usuarioid" ? usrInp
+              : name === "sucursalid" ? sucInp
+              : $(`#id_${name}`);
+
+    if (div){
+      div.innerHTML     = iconErr(msg);
+      div.classList.add("visible");
+      div.style.display = "block";
     }
-    
-    /**
-     * Función para mostrar errores específicos de campo
-     */
-    function showFieldError(field, message) {
-        const errorDiv = document.getElementById(`error-id_${field}`);
-        if (errorDiv) {
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-            errorDiv.classList.add('visible');
-            errorDiv.style.display = 'block';
+    if (inp) inp.classList.add("input-error");
+  }
+
+  /* ───────── Autocomplete factory ───────── */
+  const cacheUsr = Object.create(null);
+  const cacheSuc = Object.create(null);
+
+  function makeAuto({inp, hid, box, url, cache}){
+    const st = {page:1, term:"", more:true, busy:false, tmr:null};
+
+    const fetchData = (q, p=1) => {
+      if (st.busy || !st.more) return;
+      st.busy = true;
+
+      const key = `${q}_${p}`;
+      const prom = cache[key]
+        ? Promise.resolve(cache[key])
+        : fetch(`${url}?term=${encodeURIComponent(q)}&page=${p}`)
+            .then(r => r.json()).then(j => (cache[key] = j, j));
+
+      prom.then(data => {
+        if (p === 1) box.innerHTML = "";
+        if (data.results.length){
+          data.results.forEach(r => {
+            const d = document.createElement("div");
+            d.className   = "autocomplete-option";
+            d.dataset.id  = r.id;
+            d.textContent = r.text;
+            box.appendChild(d);
+          });
+          st.more = data.has_more;
+        }else if (p === 1){
+          box.innerHTML = '<div class="autocomplete-no-result">Sin resultados</div>';
+          st.more = false;
         }
+        box.classList.add("visible");
+        box.style.display = "block";
+      }).finally(() => st.busy = false);
+    };
+
+    const deb = () => {
+      clearTimeout(st.tmr);
+      st.tmr = setTimeout(() => {
+        st.page = 1; st.more = true;
+        fetchData(st.term, 1);
+      }, 300);
+    };
+
+    inp.addEventListener("input", () => {
+      hid.value  = "";
+      st.term    = inp.value.trim();
+      deb();
+    });
+
+    inp.addEventListener("focus", () => {
+      st.term = inp.value.trim();
+      st.page = 1; st.more = true;
+      fetchData(st.term, 1);
+    });
+
+    box.addEventListener("scroll", () => {
+      if (box.scrollTop + box.clientHeight >= box.scrollHeight - 4)
+        if (st.more && !st.busy){ st.page++; fetchData(st.term, st.page); }
+    });
+
+    box.addEventListener("click", e => {
+      const opt = e.target.closest(".autocomplete-option");
+      if (!opt) return;
+      inp.value  = opt.textContent;
+      hid.value  = opt.dataset.id;
+      box.classList.remove("visible");
+      box.style.display = "none";
+      /* limpiar cache de usuarios cuando vinculamos uno nuevo */
+      if (hid === usrHid) Object.keys(cacheUsr).forEach(k => delete cacheUsr[k]);
+    });
+
+    document.addEventListener("click", e => {
+      if (!inp.contains(e.target) && !box.contains(e.target)){
+        box.classList.remove("visible");
+        box.style.display = "none";
+      }
+    });
+  }
+
+  makeAuto({inp: usrInp, hid: usrHid, box: usrBox, url: usuarioAutocompleteUrl,  cache: cacheUsr});
+  makeAuto({inp: sucInp, hid: sucHid, box: sucBox, url: sucursalAutocompleteUrl, cache: cacheSuc});
+
+  /* ───────── submit ───────── */
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    resetUI();
+
+    let bad = false;
+    if (!usrHid.value){ fieldErr("usuarioid",  "Debe seleccionar un usuario.");  bad = true; }
+    if (!sucHid.value){ fieldErr("sucursalid", "Debe seleccionar una sucursal."); bad = true; }
+    if (bad) return;                              // ← sin alert global
+
+    try{
+      const r = await fetch(form.action, {
+        method : "POST",
+        headers: {
+          "X-CSRFToken"     : csrftoken,
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept"          : "application/json"
+        },
+        body : new FormData(form)
+      });
+
+      const data = await r.json();
+
+      if (data.success){
+        show(okBox, `<i class="fas fa-check-circle"></i> Empleado agregado correctamente.`);
+        form.reset();
+        usrHid.value = ""; sucHid.value = "";
+        Object.keys(cacheUsr).forEach(k => delete cacheUsr[k]);
+      } else {
+        const errs = typeof data.errors === "string"
+          ? JSON.parse(data.errors)
+          : data.errors;
+        for (const [f, arr] of Object.entries(errs))
+          arr.forEach(e => fieldErr(f, e.message));
+      }
+    }catch(err){
+      console.error(err);
+      show(errBox, iconErr("Ocurrió un error inesperado."));   // ← sólo aquí usamos el alert global
     }
-    
-    /**
-     * Función para mostrar mensajes de error generales
-     */
-    function showGlobalError(message) {
-        const errorDiv = document.getElementById('error-message');
-        if (errorDiv) {
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-            errorDiv.style.display = 'block';
-        }
-    }
-    
-    /**
-     * Función para mostrar mensajes de éxito
-     */
-    function showSuccess(message) {
-        const successDiv = document.getElementById('success-message');
-        if (successDiv) {
-            successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-            successDiv.style.display = 'flex';
-        }
-    }
-    
-    /**
-     * Función para limpiar mensajes de error y éxito
-     */
-    function clearMessages() {
-        // Limpiar errores específicos de campos
-        const errorFields = document.querySelectorAll('.field-error');
-        errorFields.forEach(function(errorField) {
-            errorField.innerHTML = '';
-            errorField.classList.remove('visible');
-            errorField.style.display = 'none';
-        });
-        
-        // Ocultar mensajes generales
-        const errorDiv = document.getElementById('error-message');
-        if (errorDiv) {
-            errorDiv.style.display = 'none';
-            errorDiv.innerHTML = '';
-        }
-        
-        const successDiv = document.getElementById('success-message');
-        if (successDiv) {
-            successDiv.style.display = 'none';
-            successDiv.innerHTML = '';
-        }
-        
-        // Remover clases de error de los inputs
-        const inputs = form.querySelectorAll('input, textarea, select');
-        inputs.forEach(function(input) {
-            input.classList.remove('input-error');
-        });
-    }
-    
-    /**
-     * Función para manejar la selección de una opción de autocompletado
-     */
-    function handleSelection(inputElement, hiddenInput, resultsContainer, selectedText, selectedId) {
-        inputElement.value = selectedText;
-        hiddenInput.value = selectedId;
-        resultsContainer.innerHTML = '';
-        resultsContainer.classList.remove('visible');
-        resultsContainer.style.display = 'none';
-        
-        // Resetear paginación y flags si es necesario
-        if (resultsContainer.id === 'usuario-autocomplete-results') {
-            hasMoreUsuario = false;
-        } else if (resultsContainer.id === 'sucursal-autocomplete-results') {
-            hasMoreSucursal = false;
-        }
-    }
-    
-    /**
-     * Función para obtener el valor de una cookie por nombre
-     */
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                cookie = cookie.trim();
-                // Verificar si la cookie empieza con el nombre buscado
-                if (cookie.startsWith(name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    
-    /* ======================
-       4. Funciones de Autocompletado Mejoradas
-    ====================== */
-    
-    /**
-     * Función para fetch de Usuarios con caching y paginación
-     */
-    function fetchUsuarios(term, page = 1) {
-        if (isLoadingUsuario || !hasMoreUsuario) return;
-        isLoadingUsuario = true;
-        console.log(`Fetching usuarios: term='${term}', page=${page}`);
-    
-        const url = `${usuarioAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-        
-        fetchWithCache(url, cacheUsuario, term, page, function(data) {
-            if (page === 1) {
-                usuarioAutocompleteResults.innerHTML = '';
-            }
-            if (data.results.length > 0) {
-                data.results.forEach(item => {
-                    const opt = document.createElement('div');
-                    opt.classList.add('autocomplete-option');
-                    opt.textContent = item.text;
-                    opt.dataset.id = item.id;
-                    usuarioAutocompleteResults.appendChild(opt);
-                });
-                hasMoreUsuario = data.has_more;
-            } else if (page === 1) {
-                const noResult = document.createElement('div');
-                noResult.classList.add('autocomplete-no-result');
-                noResult.textContent = 'No se encontraron resultados';
-                usuarioAutocompleteResults.appendChild(noResult);
-                hasMoreUsuario = false;
-            }
-            usuarioAutocompleteResults.style.display = 'block';
-            usuarioAutocompleteResults.classList.add('visible');
-            isLoadingUsuario = false;
-            console.log('Usuarios fetch completado:', data);
-        });
-    }
-    
-    /**
-     * Función para fetch de Sucursales con caching y paginación
-     */
-    function fetchSucursales(term, page = 1) {
-        if (isLoadingSucursal || !hasMoreSucursal) return;
-        isLoadingSucursal = true;
-        console.log(`Fetching sucursales: term='${term}', page=${page}`);
-    
-        const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-        
-        fetchWithCache(url, cacheSucursal, term, page, function(data) {
-            if (page === 1) {
-                sucursalAutocompleteResults.innerHTML = '';
-            }
-            if (data.results.length > 0) {
-                data.results.forEach(item => {
-                    const opt = document.createElement('div');
-                    opt.classList.add('autocomplete-option');
-                    opt.textContent = item.text;
-                    opt.dataset.id = item.id;
-                    sucursalAutocompleteResults.appendChild(opt);
-                });
-                hasMoreSucursal = data.has_more;
-            } else if (page === 1) {
-                const noResult = document.createElement('div');
-                noResult.classList.add('autocomplete-no-result');
-                noResult.textContent = 'No se encontraron resultados';
-                sucursalAutocompleteResults.appendChild(noResult);
-                hasMoreSucursal = false;
-            }
-            sucursalAutocompleteResults.style.display = 'block';
-            sucursalAutocompleteResults.classList.add('visible');
-            isLoadingSucursal = false;
-            console.log('Sucursales fetch completado:', data);
-        });
-    }
-    
-    /* ======================
-       5. Eventos de Autocompletado Mejorados
-    ====================== */
-    
-    /**
-     * Evento de entrada para Usuario Autocompletar
-     */
-    usuarioInput.addEventListener('input', function() {
-        currentTermUsuario = usuarioInput.value.trim();
-        usuarioIdInput.value = ''; // Limpiar el campo oculto
-        hasMoreUsuario = true;
-        currentPageUsuario = 1;
-    
-        if (debounceTimeoutUsuario) {
-            clearTimeout(debounceTimeoutUsuario);
-        }
-    
-        debounceTimeoutUsuario = setTimeout(function() {
-            if (currentTermUsuario.length === 0) {
-                fetchUsuarios('', 1);
-            } else {
-                fetchUsuarios(currentTermUsuario, 1);
-            }
-        }, DEBOUNCE_TIME);
-    });
-    
-    /**
-     * Evento de enfoque para Usuario Autocompletar
-     */
-    usuarioInput.addEventListener('focus', function() {
-        currentTermUsuario = usuarioInput.value.trim();
-        hasMoreUsuario = true;
-        currentPageUsuario = 1;
-        fetchUsuarios(currentTermUsuario, currentPageUsuario);
-    });
-    
-    /**
-     * Evento de scroll para Usuario Autocompletar (scroll infinito)
-     */
-    usuarioAutocompleteResults.addEventListener('scroll', function() {
-        if (usuarioAutocompleteResults.scrollTop + usuarioAutocompleteResults.clientHeight >= usuarioAutocompleteResults.scrollHeight - 5) {
-            if (hasMoreUsuario && !isLoadingUsuario) {
-                currentPageUsuario += 1;
-                fetchUsuarios(currentTermUsuario, currentPageUsuario);
-            }
-        }
-    });
-    
-    /**
-     * Evento de clic en opciones de Usuario Autocompletar
-     */
-    usuarioAutocompleteResults.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('autocomplete-option')) {
-            const selectedText = e.target.textContent;
-            const selectedId = e.target.dataset.id;
-            handleSelection(usuarioInput, usuarioIdInput, usuarioAutocompleteResults, selectedText, selectedId);
-        }
-    });
-    
-    /**
-     * Evento de entrada para Sucursal Autocompletar
-     */
-    sucursalInput.addEventListener('input', function() {
-        currentTermSucursal = sucursalInput.value.trim();
-        sucursalIdInput.value = ''; // Limpiar el campo oculto
-        hasMoreSucursal = true;
-        currentPageSucursal = 1;
-    
-        if (debounceTimeoutSucursal) {
-            clearTimeout(debounceTimeoutSucursal);
-        }
-    
-        debounceTimeoutSucursal = setTimeout(function() {
-            if (currentTermSucursal.length === 0) {
-                fetchSucursales('', 1);
-            } else {
-                fetchSucursales(currentTermSucursal, 1);
-            }
-        }, DEBOUNCE_TIME);
-    });
-    
-    /**
-     * Evento de enfoque para Sucursal Autocompletar
-     */
-    sucursalInput.addEventListener('focus', function() {
-        currentTermSucursal = sucursalInput.value.trim();
-        hasMoreSucursal = true;
-        currentPageSucursal = 1;
-        fetchSucursales(currentTermSucursal, currentPageSucursal);
-    });
-    
-    /**
-     * Evento de scroll para Sucursal Autocompletar (scroll infinito)
-     */
-    sucursalAutocompleteResults.addEventListener('scroll', function() {
-        if (sucursalAutocompleteResults.scrollTop + sucursalAutocompleteResults.clientHeight >= sucursalAutocompleteResults.scrollHeight - 5) {
-            if (hasMoreSucursal && !isLoadingSucursal) {
-                currentPageSucursal += 1;
-                fetchSucursales(currentTermSucursal, currentPageSucursal);
-            }
-        }
-    });
-    
-    /**
-     * Evento de clic en opciones de Sucursal Autocompletar
-     */
-    sucursalAutocompleteResults.addEventListener('click', function(e) {
-        if (e.target && e.target.classList.contains('autocomplete-option')) {
-            const selectedText = e.target.textContent;
-            const selectedId = e.target.dataset.id;
-            handleSelection(sucursalInput, sucursalIdInput, sucursalAutocompleteResults, selectedText, selectedId);
-        }
-    });
-    
-    /**
-     * Evento de clic fuera de los autocompletados para cerrarlos
-     */
-    document.addEventListener('click', function(e) {
-        if (!usuarioInput.contains(e.target) && !usuarioAutocompleteResults.contains(e.target)) {
-            usuarioAutocompleteResults.innerHTML = '';
-            usuarioAutocompleteResults.classList.remove('visible');
-            usuarioAutocompleteResults.style.display = 'none';
-            hasMoreUsuario = false;
-        }
-        if (!sucursalInput.contains(e.target) && !sucursalAutocompleteResults.contains(e.target)) {
-            sucursalAutocompleteResults.innerHTML = '';
-            sucursalAutocompleteResults.classList.remove('visible');
-            sucursalAutocompleteResults.style.display = 'none';
-            hasMoreSucursal = false;
-        }
-    });
-    
-    /* ======================
-       6. Evento de Envío del Formulario
-    ====================== */
-    
-    form.addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevenir el envío predeterminado
-        clearMessages();
-        
-        // Validaciones adicionales
-        const usuarioId = usuarioIdInput.value.trim();
-        const sucursalId = sucursalIdInput.value.trim();
-        
-        let hasLocalErrors = false;
-        
-        if (!usuarioId) {
-            showFieldError('usuarioid', 'Debe seleccionar un usuario.'); // Cambiado a 'usuarioid'
-            hasLocalErrors = true;
-        }
-        
-        if (!sucursalId) {
-            showFieldError('sucursalid', 'Debe seleccionar una sucursal.'); // Cambiado a 'sucursalid'
-            hasLocalErrors = true;
-        }
-        
-        if (hasLocalErrors) {
-            showGlobalError('Por favor, corrige los errores en el formulario.');
-            return;
-        }
-        
-        // Preparar los datos del formulario
-        const formData = new FormData(form);
-        
-        // Enviar el formulario vía AJAX
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Accept': 'application/json',
-            },
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Mostrar mensaje de éxito
-                showSuccess('Empleado agregado exitosamente.');
-                // Resetear el formulario
-                form.reset();
-                usuarioIdInput.value = '';
-                sucursalIdInput.value = '';
-                usuarioAutocompleteResults.innerHTML = '';
-                usuarioAutocompleteResults.classList.remove('visible');
-                sucursalAutocompleteResults.innerHTML = '';
-                sucursalAutocompleteResults.classList.remove('visible');
-                hasMoreUsuario = false;
-                hasMoreSucursal = false;
-            } else {
-                // Mostrar errores devueltos por el backend
-                const errors = data.errors; // Ya es un objeto JSON
-                for (let field in errors) {
-                    const fieldErrors = errors[field];
-                    fieldErrors.forEach(error => {
-                        showFieldError(field, error.message);
-                    });
-                }
-                // Mostrar mensaje de error general si existen errores
-                if (Object.keys(errors).length > 0) {
-                    showGlobalError('Por favor, corrige los errores en el formulario.');
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showGlobalError('Ocurrió un error inesperado al guardar.');
-        });
-    });
-});
+  });
+})();

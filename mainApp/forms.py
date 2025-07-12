@@ -349,160 +349,142 @@ class EditarClienteForm(forms.ModelForm):
             raise forms.ValidationError('El correo electrónico ya está registrado.')
         return email
     
-class EmpleadoForm(forms.ModelForm):
-    # Validadores para campos específicos
-    nombre_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El nombre solo debe contener letras y espacios.'
-    )
-    
-    apellido_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El apellido solo debe contener letras y espacios.'
-    )
-    
-    numerodocumento_validator = RegexValidator(
-        regex=r'^\d{6,10}$',
-        message='El número de documento debe contener entre 6 y 10 dígitos.'
-    )
-    
-    telefono_validator = RegexValidator(
-        regex=r'^\d{10}$',
-        message='El teléfono debe contener exactamente 10 dígitos.'
-    )
+class EmpleadoCreateForm(forms.ModelForm):
+    """
+    «Agregar Empleado»  (estilo ligero + autocompletado)
+    ─────────────────────────────────────────────────────
+    """
 
-    # Definición de los campos con widgets que incluyen placeholders
+    # ─── validadores simples ───
+    text_v  = RegexValidator(r"^[A-Za-z\s]+$", "Solo letras y espacios.")
+    doc_v   = RegexValidator(r"^\d{6,10}$",   "6-10 dígitos.")
+    tel_v   = RegexValidator(r"^\d{10}$",     "10 dígitos.")
+
+    # ─── campos visibles ───
     numerodocumento = forms.CharField(
-        label='Número de Documento',
-        validators=[numerodocumento_validator],
+        label="Número de Documento",
+        validators=[doc_v],
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el número de documento',
-            'required': 'required'
+            "class": "form-control",
+            "placeholder": "Número de documento",
+            "required": True,
         })
     )
     nombre = forms.CharField(
-        validators=[nombre_validator],
+        validators=[text_v],
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el nombre',
-            'required': 'required'
+            "class": "form-control",
+            "placeholder": "Nombre",
+            "required": True,
         })
     )
     apellido = forms.CharField(
-        validators=[apellido_validator],
+        validators=[text_v],
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el apellido',
-            'required': 'required'
+            "class": "form-control",
+            "placeholder": "Apellido",
+            "required": True,
         })
     )
     telefono = forms.CharField(
-        validators=[telefono_validator],
+        validators=[tel_v],
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el teléfono',
-            'required': 'required'
+            "class": "form-control",
+            "placeholder": "Teléfono (10 dígitos)",
+            "required": True,
         })
     )
     email = forms.EmailField(
-        required=True,
         widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el correo electrónico',
-            'required': 'required'
+            "class": "form-control",
+            "placeholder": "Correo electrónico",
+            "required": True,
         })
     )
     direccion = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa la dirección'
+            "class": "form-control",
+            "placeholder": "Dirección",
         })
     )
     puesto = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el puesto'
+            "class": "form-control",
+            "placeholder": "Puesto",
         })
     )
-    
-    # Cambiamos 'usuario' y 'sucursal' a 'usuarioid' y 'sucursalid'
-    usuarioid = forms.ModelChoiceField(
-        queryset=Usuario.objects.all(),
-        widget=forms.HiddenInput(),
-        required=True
+
+    # autocompletes visibles
+    usuario_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Escriba para buscar usuario…",
+            "autocomplete": "off",
+        })
+    )
+    sucursal_autocomplete = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Escriba para buscar sucursal…",
+            "autocomplete": "off",
+        })
+    )
+
+    # ─── ocultos ───
+    usuarioid  = forms.ModelChoiceField(
+        queryset=Usuario.objects.none(),
+        widget=forms.HiddenInput(), required=True
     )
     sucursalid = forms.ModelChoiceField(
-        queryset=Sucursal.objects.all(),
-        widget=forms.HiddenInput(),
-        required=True
+        queryset=Sucursal.objects.none(),
+        widget=forms.HiddenInput(), required=True
     )
 
     class Meta:
-        model = Empleado
-        fields = [
-            'numerodocumento', 
-            'nombre', 
-            'apellido', 
-            'telefono', 
-            'email', 
-            'direccion', 
-            'puesto', 
-            'usuarioid', 
-            'sucursalid'
-        ]
-        labels = {
-            'numerodocumento': 'Número de Documento',
-            'nombre': 'Nombre',
-            'apellido': 'Apellido',
-            'telefono': 'Teléfono',
-            'email': 'Correo Electrónico',
-            'direccion': 'Dirección',
-            'puesto': 'Puesto',
-            'usuarioid': 'Usuario',
-            'sucursalid': 'Sucursal',
-        }
+        model  = Empleado
+        fields = ("numerodocumento", "nombre", "apellido",
+                  "telefono", "email", "direccion", "puesto",
+                  "usuarioid", "sucursalid")
 
+    # ─── queryset dinámico ───
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+
+        # Sub-consulta para excluir usuarios ya vinculados
+        sub = Empleado.objects.filter(usuarioid=OuterRef("pk"))
+        libres = Usuario.objects.annotate(has_emp=Exists(sub)).filter(has_emp=False)
+
+        self.fields["usuarioid"].queryset  = libres
+        self.fields["sucursalid"].queryset = Sucursal.objects.all()
+
+    # ─── validaciones de unicidad ───
     def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if Empleado.objects.filter(email=email).exists():
-            raise forms.ValidationError('El correo ya está en uso.')
-        return email
-
-    def clean_usuarioid(self):
-        usuarioid = self.cleaned_data.get('usuarioid')
-        if not usuarioid:
-            raise forms.ValidationError('Este campo es obligatorio.')
-        if Empleado.objects.filter(usuarioid=usuarioid).exists():
-            raise forms.ValidationError('Este usuario ya está asignado a un empleado.')
-        return usuarioid
-
-    def clean_sucursalid(self):
-        sucursalid = self.cleaned_data.get('sucursalid')
-        if not sucursalid:
-            raise forms.ValidationError('Este campo es obligatorio.')
-        return sucursalid
+        e = self.cleaned_data["email"]
+        if Empleado.objects.filter(email=e).exists():
+            raise ValidationError("El correo ya está en uso.")
+        return e
 
     def clean_numerodocumento(self):
-        numerodocumento = self.cleaned_data.get('numerodocumento')
-        if Empleado.objects.filter(numerodocumento=numerodocumento).exists():
-            raise forms.ValidationError('El número de documento ya está en uso.')
-        return numerodocumento
+        d = self.cleaned_data["numerodocumento"]
+        if Empleado.objects.filter(numerodocumento=d).exists():
+            raise ValidationError("Número de documento duplicado.")
+        return d
 
     def clean_telefono(self):
-        telefono = self.cleaned_data.get('telefono')
-        if Empleado.objects.filter(telefono=telefono).exists():
-            raise forms.ValidationError('El teléfono ya está en uso.')
-        return telefono 
+        t = self.cleaned_data["telefono"]
+        if Empleado.objects.filter(telefono=t).exists():
+            raise ValidationError("Teléfono duplicado.")
+        return t
 
-    def save(self, commit=True):
-        empleado = super().save(commit=False)
-        # Los campos 'usuarioid' y 'sucursalid' ya están asignados automáticamente
-        if commit:
-            empleado.save()
-        return empleado
+    def clean_usuarioid(self):
+        u = self.cleaned_data["usuarioid"]
+        if Empleado.objects.filter(usuarioid=u).exists():
+            raise ValidationError("Este usuario ya tiene empleado.")
+        return u
 
 class EditarEmpleadoForm(forms.ModelForm):
     # Validadores similares a los de EmpleadoForm

@@ -42,7 +42,10 @@ from .views import (
                     UsuarioCreateAJAXView,
                     RolAutocompleteView,
                     UsuarioListView,
-                    UsuarioUpdateAJAXView)
+                    UsuarioUpdateAJAXView,
+                    EmpleadoCreateAJAXView,
+                    UsuarioDisponibleAutocomplete,
+                    SucursalAutocomplete,)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -110,10 +113,13 @@ urlpatterns = [
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
     path("usuarios/editar/<int:usuario_id>/", UsuarioUpdateAJAXView.as_view(), name="editar_usuario"),
 
-    path('agregar_empleado/', views.agregar_empleado_view, name='agregar_empleado'),
-    path('autocomplete/usuario/', views.usuario_autocomplete, name='usuario_autocomplete'),
-    # Se deja un solo path para sucursal_autocomplete
-    path('autocomplete/sucursal/', views.sucursal_autocomplete, name='sucursal_autocomplete'),
+    path("agregar_empleado/", EmpleadoCreateAJAXView.as_view(),
+         name="agregar_empleado"),
+
+    path("autocomplete/usuario/",   UsuarioDisponibleAutocomplete.as_view(),
+         name="usuario_autocomplete"),
+    path("autocomplete/sucursal/",  SucursalAutocomplete.as_view(),
+         name="sucursal_autocomplete"),
     path('visualizar_empleados/', views.visualizar_empleados_view, name='visualizar_empleados'),
     path('editar_empleado/<int:empleadoid>/', views.editar_empleado_view, name='editar_empleado'),
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
