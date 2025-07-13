@@ -1889,36 +1889,51 @@ class EmpleadoListView(LoginRequiredMixin, ListView):
         )
 
 
-@login_required
-def editar_empleado_view(request, empleadoid):
-    from django.urls import reverse
-    empleado = get_object_or_404(Empleado, pk=empleadoid)
+class EmpleadoUpdateAJAXView(LoginRequiredMixin, UpdateView):
+    """
+    • GET  → renderiza “editar_empleado.html”.
+    • POST →  
+        – Fetch/AJAX ⇒ JSON (success / errors)  
+        – Navegación  ⇒ redirect + messages
+    """
+    model         = Empleado
+    form_class    = EditarEmpleadoForm          # ⇠ ver punto 3
+    template_name = "editar_empleado.html"
+    pk_url_kwarg  = "empleado_id"               # /empleados/editar/<empleado_id>/
 
-    if request.method == 'POST':
-        form = EditarEmpleadoForm(request.POST, instance=empleado)
-        if form.is_valid():
-            form.save()
-            messages.success(
-                request,
-                f'Empleado "{form.instance.nombre} {form.instance.apellido}" editado exitosamente.'
+    # ---------- util ----------
+    @staticmethod
+    def _is_ajax(request) -> bool:
+        return request.headers.get("x-requested-with") == "XMLHttpRequest"
+
+    # ---------- POST ----------
+    def form_valid(self, form):
+        emp = form.save()
+
+        if self._is_ajax(self.request):
+            return JsonResponse({
+                "success"     : True,
+                "redirect_url": reverse("visualizar_empleados"),
+                "nombre"      : f"{emp.nombre} {emp.apellido}",
+            })
+
+        messages.success(
+            self.request,
+            f'Empleado «{emp.nombre} {emp.apellido}» actualizado correctamente.',
+        )
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        if self._is_ajax(self.request):
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400,
             )
-            # Responder en JSON (AJAX)
-            return JsonResponse({
-                'success': True,
-                'redirect_url': reverse('visualizar_empleados')
-            })
-        else:
-            # Retornar errores en JSON
-            errors = form.errors.as_json()
-            return JsonResponse({
-                'success': False,
-                'errors': errors
-            })
-    else:
-        # GET => mostrar formulario con datos
-        form = EditarEmpleadoForm(instance=empleado)
+        return super().form_invalid(form)
 
-    return render(request, 'editar_empleado.html', {'form': form})
+    # ---------- redirect ----------
+    def get_success_url(self):
+        return reverse_lazy("visualizar_empleados")
 
 
 @login_required

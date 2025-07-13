@@ -1,177 +1,69 @@
-{% extends 'base.html' %}
+{# templates/editar_empleado.html #}
+{% extends "base.html" %}
 {% load static %}
-{% block title %}Editar Empleado{% endblock %}
-{% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Editar Empleado</title>
-  <!-- Font Awesome para iconos -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
-  <!-- Usa el mismo CSS de “Agregar Empleado” para mantener coherencia -->
+
+{% block title %}Editar empleado{% endblock %}
+
+{% block extra_head %}
   <link rel="stylesheet" href="{% static 'css/agregar_empleado.css' %}">
-</head>
-<body>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+{% endblock %}
+
+{% block content %}
   <div class="container-empleado">
     <i class="fas fa-user-edit icon-empleado"></i>
-    <h2>Editar Empleado</h2>
+    <h2>Editar empleado</h2>
+
     <p class="obligatorio-texto">
-      Todos los campos con <span class="required">*</span> son obligatorios.
+      Los campos con <span class="required">*</span> son obligatorios.
     </p>
 
-    <!-- Mensajes de error y éxito en JS -->
-    <div id="error-message" class="alert alert-error" style="display: none;"></div>
-    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
+    <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
-    <!-- Form con POST a la vista 'editar_empleado' -->
-    <form id="form-editar-empleado" method="POST" action="{% url 'editar_empleado' form.instance.pk %}">
+    <form id="empleadoForm"
+          method="post"
+          action="{% url 'editar_empleado' form.instance.pk %}">
       {% csrf_token %}
-      
-      <!-- Número de Documento -->
-      <div class="form-group-empleado">
-        <label for="{{ form.numerodocumento.id_for_label }}">
-          Número de Documento
-        </label>
-        {{ form.numerodocumento }}
-        <div class="field-error" id="error-id_numerodocumento"></div>
-      </div>
 
-      <!-- Nombre -->
+      {# ---------- usuario (autocomplete) ---------- #}
       <div class="form-group-empleado">
-        <label for="{{ form.nombre.id_for_label }}">
-          {{ form.nombre.label }} <span class="required">*</span>
-        </label>
-        {{ form.nombre }}
-        <div class="field-error" id="error-id_nombre"></div>
-      </div>
-
-      <!-- Apellido -->
-      <div class="form-group-empleado">
-        <label for="{{ form.apellido.id_for_label }}">
-          {{ form.apellido.label }} <span class="required">*</span>
-        </label>
-        {{ form.apellido }}
-        <div class="field-error" id="error-id_apellido"></div>
-      </div>
-
-      <!-- Teléfono -->
-      <div class="form-group-empleado">
-        <label for="{{ form.telefono.id_for_label }}">
-          {{ form.telefono.label }} <span class="required">*</span>
-        </label>
-        {{ form.telefono }}
-        <div class="field-error" id="error-id_telefono"></div>
-      </div>
-
-      <!-- Email -->
-      <div class="form-group-empleado">
-        <label for="{{ form.email.id_for_label }}">
-          {{ form.email.label }} <span class="required">*</span>
-        </label>
-        {{ form.email }}
-        <div class="field-error" id="error-id_email"></div>
-      </div>
-
-      <!-- Dirección -->
-      <div class="form-group-empleado">
-        <label for="{{ form.direccion.id_for_label }}">
-          {{ form.direccion.label }}
-        </label>
-        {{ form.direccion }}
-        <div class="field-error" id="error-id_direccion"></div>
-      </div>
-
-      <!-- Puesto -->
-      <div class="form-group-empleado">
-        <label for="{{ form.puesto.id_for_label }}">
-          {{ form.puesto.label }}
-        </label>
-        {{ form.puesto }}
-        <div class="field-error" id="error-id_puesto"></div>
-      </div>
-
-      <!-- Autocomplete de Usuario -->
-      <div class="form-group-empleado">
-        <label for="id_usuario_autocomplete">
-          Usuario <span class="required">*</span>
-        </label>
-        <input
-          type="text"
-          id="id_usuario_autocomplete"
-          name="usuario_autocomplete"
-          class="form-control"
-          placeholder="Escriba para buscar usuario..."
-          autocomplete="off"
-          required
-        />
-        <input type="hidden" id="id_usuarioid" name="usuarioid" />
+        <label for="id_usuario_autocomplete">Usuario <span class="required">*</span></label>
+        {{ form.usuario_autocomplete }}
+        {{ form.usuarioid }}
         <div class="autocomplete-results" id="usuario-autocomplete-results"></div>
         <div class="field-error" id="error-id_usuarioid"></div>
       </div>
 
-      <!-- Autocomplete de Sucursal -->
+      {# ---------- sucursal (autocomplete) ---------- #}
       <div class="form-group-empleado">
-        <label for="id_sucursal_autocomplete">
-          Sucursal <span class="required">*</span>
-        </label>
-        <input
-          type="text"
-          id="id_sucursal_autocomplete"
-          name="sucursal_autocomplete"
-          class="form-control"
-          placeholder="Escriba para buscar sucursal..."
-          autocomplete="off"
-          required
-        />
-        <input type="hidden" id="id_sucursalid" name="sucursalid" />
+        <label for="id_sucursal_autocomplete">Sucursal <span class="required">*</span></label>
+        {{ form.sucursal_autocomplete }}
+        {{ form.sucursalid }}
         <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
         <div class="field-error" id="error-id_sucursalid"></div>
       </div>
 
-      <!-- Botón de Guardar Cambios -->
-      <div class="form-group-empleado">
-        <button type="submit" class="btn-agregar-empleado">
-          Guardar Cambios
-        </button>
-      </div>
+      {# ---------- resto de campos ---------- #}
+      {% for field in form.visible_fields %}
+        {% if field.name != 'usuario_autocomplete' and field.name != 'sucursal_autocomplete' and field.name != 'usuarioid' and field.name != 'sucursalid' %}
+          <div class="form-group-empleado">
+            <label for="{{ field.id_for_label }}">
+              {{ field.label }}{% if field.field.required %} <span class="required">*</span>{% endif %}
+            </label>
+            {{ field }}
+            <div class="field-error" id="error-id_{{ field.name }}"></div>
+          </div>
+        {% endif %}
+      {% endfor %}
+
+      <button type="submit" class="btn-agregar-empleado">Guardar cambios</button>
     </form>
   </div>
 
-  <!-- NOTA: agregamos `?empleadoid={{ form.instance.pk }}` al final, para que 
-       en el backend incluyamos el usuario actual. -->
-  <script type="text/javascript">
-    var usuarioAutocompleteUrl = "{% url 'usuario_autocomplete' %}?empleadoid={{ form.instance.pk }}";
-    var sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete' %}";
-  </script>
-
-  <!-- JS con lógica de autocompletado (similar a 'agregar_empleado.js') -->
-  <script src="{% static 'javascript/editar_empleado.js' %}"></script>
-
-  <!-- Script para “prellenar” con los valores existentes de usuario/sucursal -->
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Suponiendo que en la vista se haya inyectado:
-      // "empleado.usuarioid" y "empleado.sucursalid"
-      const usuarioInput = document.getElementById('id_usuario_autocomplete');
-      const usuarioIdInput = document.getElementById('id_usuarioid');
-      const sucursalInput = document.getElementById('id_sucursal_autocomplete');
-      const sucursalIdInput = document.getElementById('id_sucursalid');
-
-      // Rellenar los inputs con los valores que ya existen
-      // (esto se hace si y solo si hay un user/sucursal)
-      {% if form.instance.usuarioid %}
-        usuarioInput.value = "{{ form.instance.usuarioid.nombreusuario }}";
-        usuarioIdInput.value = "{{ form.instance.usuarioid.usuarioid }}";
-      {% endif %}
-      {% if form.instance.sucursalid %}
-        sucursalInput.value = "{{ form.instance.sucursalid.nombre }}";
-        sucursalIdInput.value = "{{ form.instance.sucursalid.sucursalid }}";
-      {% endif %}
-    });
+    const usuarioAutocompleteUrl  = "{% url 'usuario_autocomplete' %}?current={{ form.instance.usuarioid_id|default:'' }}";
+    const sucursalAutocompleteUrl = "{% url 'sucursal_autocomplete' %}";
   </script>
-
-</body>
-</html>
+  <script defer src="{% static 'javascript/editar_empleado.js' %}"></script>
 {% endblock %}

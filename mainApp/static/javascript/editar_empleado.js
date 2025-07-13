@@ -1,371 +1,159 @@
-// editar_empleado.js
+/*  static/javascript/editar_empleado.js
+    — mismo patrón que editar_usuario.js                              */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    /* ======================
-       1. Variables Generales
-    ====================== */
-    const form = document.getElementById('form-editar-empleado');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
+  /* ───────── helpers ───────── */
+  const $  = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
 
-    // Campos de Autocompletado
-    const usuarioInput = document.getElementById('id_usuario_autocomplete');
-    const usuarioIdInput = document.getElementById('id_usuarioid');
-    const usuarioAutocompleteResults = document.getElementById('usuario-autocomplete-results');
+  const csrftoken =
+    document.cookie.split(";").map(c => c.trim())
+      .find(c => c.startsWith("csrftoken="))?.split("=")[1] || "";
 
-    const sucursalInput = document.getElementById('id_sucursal_autocomplete');
-    const sucursalIdInput = document.getElementById('id_sucursalid');
-    const sucursalAutocompleteResults = document.getElementById('sucursal-autocomplete-results');
+  const iconErr = (txt) => `<i class="fas fa-exclamation-circle"></i> ${txt}`;
+  const iconOk  = (txt) => `<i class="fas fa-check-circle"></i> ${txt}`;
 
-    // Rutas definidas en el HTML
-    //   usuarioAutocompleteUrl ya tiene ?empleadoid=xx
-    //   sucursalAutocompleteUrl no lo necesita
-    // Ejemplo:
-    // let usuarioAutocompleteUrl = "/ruta/usuario_autocomplete?empleadoid=7";
-    // let sucursalAutocompleteUrl = "/ruta/sucursal_autocomplete";
+  const show = (el, html) => { el.innerHTML = html; el.style.display = "block"; };
+  const hide = (el) => { el.style.display = "none"; el.innerHTML = ""; };
 
-    /* ======================
-       2. Variables de Debounce y Caching
-    ====================== */
-    const DEBOUNCE_TIME = 300; 
-    let debounceTimeoutUsuario = null;
-    let debounceTimeoutSucursal = null;
+  /* ───────── refs ───────── */
+  const form   = $("#empleadoForm");
+  const okBox  = $("#success-message");
+  const errBox = $("#error-message");          // ⟵ se usará solo en catch()
 
-    // Caches
-    const cacheUsuario = {};
-    const cacheSucursal = {};
+  const usrInp = $("#id_usuario_autocomplete");
+  const usrHid = $("#id_usuarioid");
+  const usrBox = $("#usuario-autocomplete-results");
 
-    // Control de paginación
-    let currentPageUsuario = 1;
-    let isLoadingUsuario = false;
-    let hasMoreUsuario = true;
-    let currentTermUsuario = '';
+  const sucInp = $("#id_sucursal_autocomplete");
+  const sucHid = $("#id_sucursalid");
+  const sucBox = $("#sucursal-autocomplete-results");
 
-    let currentPageSucursal = 1;
-    let isLoadingSucursal = false;
-    let hasMoreSucursal = true;
-    let currentTermSucursal = '';
+  /* ───────── UI reset ───────── */
+  const resetUI = () => {
+    hide(errBox); hide(okBox);
+    $$(".field-error").forEach(d => { d.innerHTML=""; d.classList.remove("visible"); });
+    $$(".input-error").forEach(i => i.classList.remove("input-error"));
+  };
 
-    /* ======================
-       3. Funciones de Utilidad
-    ====================== */
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-          cookie = cookie.trim();
-          if (cookie.startsWith(name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
-    }
+  const fieldErr = (name, msg) => {
+    const div = $(`#error-id_${name}`);
+    const inp = name === "usuarioid" ? usrInp
+              : name === "sucursalid" ? sucInp
+              : $(`#id_${name}`);
+    if (div){ div.innerHTML = iconErr(msg); div.classList.add("visible"); }
+    if (inp){ inp.classList.add("input-error"); }
+  };
 
-    function clearMessages() {
-      errorMessageDiv.style.display = 'none';
-      errorMessageDiv.innerHTML = '';
-      successMessageDiv.style.display = 'none';
-      successMessageDiv.innerHTML = '';
+  /* ───────── autocomplete factory ───────── */
+  function makeAuto({inp,hid,box,url,joinWith}){
+    const state = {page:1, term:"", more:true, busy:false, timer:null, cache:Object.create(null)};
 
-      const errorFields = document.querySelectorAll('.field-error');
-      errorFields.forEach(errField => {
-        errField.innerHTML = '';
-        errField.classList.remove('visible');
-        errField.style.display = 'none';
-      });
-    }
+    const fetchData = (q,p=1) => {
+      if (state.busy || !state.more) return;
+      state.busy = true;
+      const key  = `${q}_${p}`;
+      const fetcher = state.cache[key]
+        ? Promise.resolve(state.cache[key])
+        : fetch(`${url}${joinWith}${encodeURIComponent(q)}&page=${p}`)
+            .then(r=>r.json()).then(j=>(state.cache[key]=j,j));
 
-    function showFieldError(field, message) {
-      const errorDiv = document.getElementById(`error-id_${field}`);
-      if (errorDiv) {
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        errorDiv.classList.add('visible');
-        errorDiv.style.display = 'block';
-      }
-    }
-
-    function showGlobalError(message) {
-      errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-      errorMessageDiv.style.display = 'block';
-    }
-
-    function showSuccess(message) {
-      successMessageDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-      successMessageDiv.style.display = 'block';
-    }
-
-    // Genérica para fetch con cache
-    function fetchWithCache(url, cache, term, page, callback) {
-      const cacheKey = `${term}_${page}`;
-      if (cache[cacheKey]) {
-        callback(cache[cacheKey]);
-        return;
-      }
-      fetch(url)
-        .then(resp => {
-          if (!resp.ok) {
-            throw new Error(`HTTP Error: ${resp.status}`);
-          }
-          return resp.json();
-        })
-        .then(data => {
-          cache[cacheKey] = data;
-          callback(data);
-        })
-        .catch(error => {
-          console.error('fetchWithCache error:', error);
-        });
-    }
-
-    // Manejar la selección de una opción
-    function handleSelection(inputElem, hiddenInput, resultsContainer, text, id) {
-      inputElem.value = text;
-      hiddenInput.value = id;
-      resultsContainer.innerHTML = '';
-      resultsContainer.classList.remove('visible');
-      resultsContainer.style.display = 'none';
-    }
-
-    /* ======================
-       4. Autocomplete de Usuario
-    ====================== */
-    function fetchUsuarios(term, page=1) {
-      if (isLoadingUsuario || !hasMoreUsuario) return;
-      isLoadingUsuario = true;
-
-      // Importante: Como usuarioAutocompleteUrl ya TIENE "?" (para empleadoid=XX),
-      // al concatenar 'term' y 'page' debemos usar "&"
-      const url = `${usuarioAutocompleteUrl}&term=${encodeURIComponent(term)}&page=${page}`;
-
-      fetchWithCache(url, cacheUsuario, term, page, function(data) {
-        if (page === 1) {
-          usuarioAutocompleteResults.innerHTML = '';
-        }
-        if (data.results.length > 0) {
-          data.results.forEach(item => {
-            const div = document.createElement('div');
-            div.classList.add('autocomplete-option');
-            div.textContent = item.text;
-            div.dataset.id = item.id;
-            usuarioAutocompleteResults.appendChild(div);
+      fetcher.then(data=>{
+        if (p===1) box.innerHTML="";
+        if (data.results.length){
+          data.results.forEach(r=>{
+            const d=document.createElement("div");
+            d.className="autocomplete-option";
+            d.dataset.id=r.id; d.textContent=r.text;
+            box.appendChild(d);
           });
-          hasMoreUsuario = data.has_more;
-        } else if (page === 1) {
-          const noRes = document.createElement('div');
-          noRes.classList.add('autocomplete-no-result');
-          noRes.textContent = 'No se encontraron resultados';
-          usuarioAutocompleteResults.appendChild(noRes);
-          hasMoreUsuario = false;
+          state.more = data.has_more;
+        }else if (p===1){
+          box.innerHTML='<div class="autocomplete-no-result">Sin resultados</div>';
+          state.more=false;
         }
-        usuarioAutocompleteResults.style.display = 'block';
-        usuarioAutocompleteResults.classList.add('visible');
-        isLoadingUsuario = false;
-      });
-    }
+        box.classList.add("visible");
+      }).catch(console.error)
+        .finally(()=>state.busy=false);
+    };
 
-    usuarioInput.addEventListener('input', function() {
-      usuarioIdInput.value = '';
-      hasMoreUsuario = true;
-      currentPageUsuario = 1;
-      currentTermUsuario = usuarioInput.value.trim();
+    const debounced = () => {
+      clearTimeout(state.timer);
+      state.timer = setTimeout(()=>{ state.page=1; state.more=true; fetchData(state.term,1); },300);
+    };
 
-      if (debounceTimeoutUsuario) clearTimeout(debounceTimeoutUsuario);
-      debounceTimeoutUsuario = setTimeout(function() {
-        if (!currentTermUsuario) {
-          fetchUsuarios('', 1);
-        } else {
-          fetchUsuarios(currentTermUsuario, 1);
-        }
-      }, DEBOUNCE_TIME);
-    });
-
-    usuarioInput.addEventListener('focus', function() {
-      hasMoreUsuario = true;
-      currentPageUsuario = 1;
-      currentTermUsuario = usuarioInput.value.trim();
-      if (!currentTermUsuario) {
-        fetchUsuarios('', 1);
-      } else {
-        fetchUsuarios(currentTermUsuario, 1);
+    inp.addEventListener("input", ()=>{ hid.value=""; state.term=inp.value.trim(); debounced(); });
+    inp.addEventListener("focus", ()=>{ state.term=inp.value.trim(); state.page=1; state.more=true; fetchData(state.term,1); });
+    box.addEventListener("scroll", ()=>{
+      if (box.scrollTop+box.clientHeight>=box.scrollHeight-4 && state.more && !state.busy){
+        state.page++; fetchData(state.term,state.page);
       }
     });
-
-    usuarioAutocompleteResults.addEventListener('scroll', function() {
-      if (usuarioAutocompleteResults.scrollTop + usuarioAutocompleteResults.clientHeight >= usuarioAutocompleteResults.scrollHeight - 5) {
-        if (hasMoreUsuario && !isLoadingUsuario) {
-          currentPageUsuario += 1;
-          fetchUsuarios(currentTermUsuario, currentPageUsuario);
-        }
-      }
+    box.addEventListener("click", e=>{
+      const opt=e.target.closest(".autocomplete-option"); if(!opt) return;
+      inp.value = opt.textContent; hid.value = opt.dataset.id;
+      box.classList.remove("visible"); box.innerHTML=""; state.more=false;
     });
-
-    usuarioAutocompleteResults.addEventListener('click', function(e) {
-      if (e.target && e.target.classList.contains('autocomplete-option')) {
-        const selText = e.target.textContent;
-        const selId = e.target.dataset.id;
-        handleSelection(usuarioInput, usuarioIdInput, usuarioAutocompleteResults, selText, selId);
-      }
+    document.addEventListener("click", e=>{
+      if(!inp.contains(e.target) && !box.contains(e.target)){ box.classList.remove("visible"); box.innerHTML=""; }
     });
+  }
 
-    document.addEventListener('click', function(e) {
-      if (!usuarioInput.contains(e.target) && !usuarioAutocompleteResults.contains(e.target)) {
-        usuarioAutocompleteResults.innerHTML = '';
-        usuarioAutocompleteResults.classList.remove('visible');
-        usuarioAutocompleteResults.style.display = 'none';
-        hasMoreUsuario = false;
-      }
-    });
+  makeAuto({
+    inp:usrInp, hid:usrHid, box:usrBox,
+    url:usuarioAutocompleteUrl,
+    joinWith: usuarioAutocompleteUrl.includes("?") ? "&term=" : "?term="
+  });
+  makeAuto({
+    inp:sucInp, hid:sucHid, box:sucBox,
+    url:sucursalAutocompleteUrl,
+    joinWith:"?term="
+  });
 
-    /* ======================
-       5. Autocomplete de Sucursal
-    ====================== */
-    function fetchSucursales(term, page=1) {
-      if (isLoadingSucursal || !hasMoreSucursal) return;
-      isLoadingSucursal = true;
+  /* ───────── submit ───────── */
+  form.addEventListener("submit", async ev=>{
+    ev.preventDefault();
+    resetUI();
 
-      // Aquí sí, sucursalAutocompleteUrl NO tiene '?', así que agregamos '?term='
-      // O podrías hacerlo al revés, pero es esencial que la query final quede bien.
-      const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
+    /* validación rápida front-end */
+    let bad=false;
+    if(!usrHid.value){ fieldErr("usuarioid","Debe seleccionar un usuario.");  bad=true; }
+    if(!sucHid.value){ fieldErr("sucursalid","Debe seleccionar una sucursal.");bad=true; }
+    if(bad) return;                        // ⟵ NO se muestra errBox global
 
-      fetchWithCache(url, cacheSucursal, term, page, function(data) {
-        if (page === 1) {
-          sucursalAutocompleteResults.innerHTML = '';
-        }
-        if (data.results.length > 0) {
-          data.results.forEach(item => {
-            const div = document.createElement('div');
-            div.classList.add('autocomplete-option');
-            div.textContent = item.text;
-            div.dataset.id = item.id;
-            sucursalAutocompleteResults.appendChild(div);
-          });
-          hasMoreSucursal = data.has_more;
-        } else if (page === 1) {
-          const noRes = document.createElement('div');
-          noRes.classList.add('autocomplete-no-result');
-          noRes.textContent = 'No se encontraron resultados';
-          sucursalAutocompleteResults.appendChild(noRes);
-          hasMoreSucursal = false;
-        }
-        sucursalAutocompleteResults.style.display = 'block';
-        sucursalAutocompleteResults.classList.add('visible');
-        isLoadingSucursal = false;
-      });
-    }
-
-    sucursalInput.addEventListener('input', function() {
-      sucursalIdInput.value = '';
-      hasMoreSucursal = true;
-      currentPageSucursal = 1;
-      currentTermSucursal = sucursalInput.value.trim();
-
-      if (debounceTimeoutSucursal) clearTimeout(debounceTimeoutSucursal);
-      debounceTimeoutSucursal = setTimeout(function() {
-        if (!currentTermSucursal) {
-          fetchSucursales('', 1);
-        } else {
-          fetchSucursales(currentTermSucursal, 1);
-        }
-      }, DEBOUNCE_TIME);
-    });
-
-    sucursalInput.addEventListener('focus', function() {
-      hasMoreSucursal = true;
-      currentPageSucursal = 1;
-      currentTermSucursal = sucursalInput.value.trim();
-      if (!currentTermSucursal) {
-        fetchSucursales('', 1);
-      } else {
-        fetchSucursales(currentTermSucursal, 1);
-      }
-    });
-
-    sucursalAutocompleteResults.addEventListener('scroll', function() {
-      if (sucursalAutocompleteResults.scrollTop + sucursalAutocompleteResults.clientHeight >= sucursalAutocompleteResults.scrollHeight - 5) {
-        if (hasMoreSucursal && !isLoadingSucursal) {
-          currentPageSucursal += 1;
-          fetchSucursales(currentTermSucursal, currentPageSucursal);
-        }
-      }
-    });
-
-    sucursalAutocompleteResults.addEventListener('click', function(e) {
-      if (e.target && e.target.classList.contains('autocomplete-option')) {
-        const selText = e.target.textContent;
-        const selId = e.target.dataset.id;
-        handleSelection(sucursalInput, sucursalIdInput, sucursalAutocompleteResults, selText, selId);
-      }
-    });
-
-    document.addEventListener('click', function(e) {
-      if (!sucursalInput.contains(e.target) && !sucursalAutocompleteResults.contains(e.target)) {
-        sucursalAutocompleteResults.innerHTML = '';
-        sucursalAutocompleteResults.classList.remove('visible');
-        sucursalAutocompleteResults.style.display = 'none';
-        hasMoreSucursal = false;
-      }
-    });
-
-    /* ======================
-       6. Submit del Form
-    ====================== */
-    form.addEventListener('submit', function(e) {
-      e.preventDefault();
-      clearMessages();
-
-      let hasLocalErrors = false;
-      // Validar que haya usuario y sucursal
-      if (!usuarioIdInput.value.trim()) {
-        showFieldError('usuarioid', 'Debe seleccionar un usuario.');
-        hasLocalErrors = true;
-      }
-      if (!sucursalIdInput.value.trim()) {
-        showFieldError('sucursalid', 'Debe seleccionar una sucursal.');
-        hasLocalErrors = true;
-      }
-
-      if (hasLocalErrors) {
-        showGlobalError('Por favor, corrige los errores en el formulario.');
-        return;
-      }
-
-      // Enviar con AJAX
-      const formData = new FormData(form);
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCookie('csrftoken'),
-          'Accept': 'application/json'
+    try{
+      const r = await fetch(form.action,{
+        method:"POST",
+        headers:{
+          "X-CSRFToken":csrftoken,
+          "X-Requested-With":"XMLHttpRequest",
+          "Accept":"application/json"
         },
-        body: formData
-      })
-      .then(resp => {
-        if (!resp.ok) throw new Error(`HTTP Error: ${resp.status}`);
-        return resp.json();
-      })
-      .then(data => {
-        if (data.success) {
-          // Redireccionar a la lista o mostrar éxito
-          window.location.href = data.redirect_url;
-        } else {
-          const errs = JSON.parse(data.errors);
-          for (let f in errs) {
-            const fieldErrors = errs[f];
-            fieldErrors.forEach(err => {
-              showFieldError(f, err.message);
-            });
-          }
-          if (Object.keys(errs).length > 0) {
-            showGlobalError('Por favor, corrige los errores en el formulario.');
-          }
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        showGlobalError('Ocurrió un error inesperado al guardar.');
+        body:new FormData(form)
       });
-    });
-});
+      const data = await r.json();
+
+      if(data.success){
+        sessionStorage.setItem(
+          "flash-empleado",
+          iconOk(`Empleado «${data.nombre}» actualizado correctamente.`)
+        );
+        location.href = data.redirect_url;
+        return;
+      }
+
+      /* errores de validación Django */
+      const errs = typeof data.errors === "string"
+                   ? JSON.parse(data.errors)
+                   : data.errors;
+      for(const [f,arr] of Object.entries(errs))
+        arr.forEach(e => fieldErr(f,e.message));
+      /* SIN banner global */
+
+    }catch(err){
+      console.error(err);
+      show(errBox, iconErr("Ocurrió un error inesperado."));   // sólo casos imprevistos
+    }
+  });
+})();

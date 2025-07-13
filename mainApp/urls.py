@@ -121,7 +121,11 @@ urlpatterns = [
     path("autocomplete/usuario/",   UsuarioDisponibleAutocomplete.as_view(), name="usuario_autocomplete"),
     path("autocomplete/sucursal/",  SucursalAutocomplete.as_view(), name="sucursal_autocomplete"),
     path("visualizar_empleados/",EmpleadoListView.as_view(), name="visualizar_empleados"),
-    path('editar_empleado/<int:empleadoid>/', views.editar_empleado_view, name='editar_empleado'),
+    path(
+    "empleados/editar/<int:empleado_id>/",
+    views.EmpleadoUpdateAJAXView.as_view(),
+    name="editar_empleado",
+    ),
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
 
     path('agregar_horario/', views.agregar_horario_view, name='agregar_horario'),

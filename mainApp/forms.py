@@ -487,146 +487,111 @@ class EmpleadoCreateForm(forms.ModelForm):
         return u
 
 class EditarEmpleadoForm(forms.ModelForm):
-    # Validadores similares a los de EmpleadoForm
-    nombre_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El nombre solo debe contener letras y espacios.'
-    )
+    """
+    Formulario de edición con la misma UX que «Editar Usuario».
 
-    apellido_validator = RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='El apellido solo debe contener letras y espacios.'
-    )
+    • usuario_autocomplete & sucursal_autocomplete son visibles,
+      sus FK reales (usuarioid / sucursalid) van ocultas.
+    """
 
-    numerodocumento_validator = RegexValidator(
-        regex=r'^\d{6,10}$',
-        message='El número de documento debe contener entre 6 y 10 dígitos.'
-    )
-
-    telefono_validator = RegexValidator(
-        regex=r'^\d{10}$',
-        message='El teléfono debe contener exactamente 10 dígitos.'
-    )
-
-    numerodocumento = forms.CharField(
-        label='Número de Documento',
-        required=False,  # Si permites "dejar en blanco para mantener la actual"
-        validators=[numerodocumento_validator],
+    # ─── visibilidad extra (autocompletes) ───
+    usuario_autocomplete  = forms.CharField(
+        label="Usuario",
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Dejar en blanco para mantener la actual'
+            "class": "form-control",
+            "placeholder": "Escribe para buscar usuario…",
+            "autocomplete": "off",
+            "required": True,
         })
     )
-    nombre = forms.CharField(
-        validators=[nombre_validator],
+    sucursal_autocomplete = forms.CharField(
+        label="Sucursal",
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el nombre'
-        })
-    )
-    apellido = forms.CharField(
-        validators=[apellido_validator],
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el apellido'
-        })
-    )
-    telefono = forms.CharField(
-        validators=[telefono_validator],
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el teléfono'
-        })
-    )
-    email = forms.EmailField(
-        widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el correo electrónico'
-        })
-    )
-    direccion = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa la dirección'
-        })
-    )
-    puesto = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Ingresa el puesto'
-        })
-    )
-    # usuarioid y sucursalid podrían manejarse con inputs/hidden o selects
-    # depende de tu lógica de autocompletado o select normal
-    usuarioid = forms.ModelChoiceField(
-        queryset=Usuario.objects.all(),
-        required=False,  # O True si es obligatorio
-        widget=forms.Select(attrs={
-            'class': 'form-control'
-        })
-    )
-    sucursalid = forms.ModelChoiceField(
-        queryset=Sucursal.objects.all(),
-        required=False,
-        widget=forms.Select(attrs={
-            'class': 'form-control'
+            "class": "form-control",
+            "placeholder": "Escribe para buscar sucursal…",
+            "autocomplete": "off",
+            "required": True,
         })
     )
 
+    # ─── meta ───
     class Meta:
-        model = Empleado
-        fields = [
-            'numerodocumento',
-            'nombre',
-            'apellido',
-            'telefono',
-            'email',
-            'direccion',
-            'puesto',
-            'usuarioid',
-            'sucursalid'
-        ]
+        model  = Empleado
+        fields = (
+            "numerodocumento", "nombre", "apellido",
+            "telefono", "email", "direccion", "puesto",
+            "usuarioid", "sucursalid",
+        )
+        widgets = {
+            "usuarioid":  forms.HiddenInput(),
+            "sucursalid": forms.HiddenInput(),
 
+            "numerodocumento": forms.TextInput(attrs={
+                "class": "form-control", "placeholder": "Número de documento",
+            }),
+            "nombre": forms.TextInput(attrs={
+                "class": "form-control", "placeholder": "Nombre",
+                "required": True,
+            }),
+            "apellido": forms.TextInput(attrs={
+                "class": "form-control", "placeholder": "Apellido",
+                "required": True,
+            }),
+            "telefono": forms.TextInput(attrs={
+                "class": "form-control", "placeholder": "Teléfono (10 dígitos)",
+                "required": True,
+            }),
+            "email": forms.EmailInput(attrs={
+                "class": "form-control", "placeholder": "Correo electrónico",
+                "required": True,
+            }),
+            "direccion": forms.TextInput(attrs={
+                "class": "form-control", "placeholder": "Dirección",
+            }),
+            "puesto": forms.TextInput(attrs={
+                "class": "form-control", "placeholder": "Puesto",
+            }),
+        }
+
+    # ─── init ───
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+
+        # FK querysets
+        self.fields["usuarioid"].queryset  = Usuario.objects.filter(
+            Q(empleado__isnull=True) | Q(pk=self.instance.usuarioid_id)
+        )
+        self.fields["sucursalid"].queryset = Sucursal.objects.all()
+
+        # precargar autocompletes
+        if self.instance.pk:
+            u = self.instance.usuarioid
+            s = self.instance.sucursalid
+            if u:
+                self.fields["usuario_autocomplete"].initial = u.nombreusuario
+                self.fields["usuarioid"].initial            = u.pk
+            if s:
+                self.fields["sucursal_autocomplete"].initial = s.nombre
+                self.fields["sucursalid"].initial            = s.pk
+
+    # ─── validaciones de unicidad ───
     def clean_numerodocumento(self):
-        numero = self.cleaned_data.get('numerodocumento')
-        # Si se deja en blanco => no se cambia
-        # Si no está en blanco => validamos
-        if numero:
-            if Empleado.objects.filter(numerodocumento=numero).exclude(pk=self.instance.pk).exists():
-                raise forms.ValidationError('El número de documento ya está en uso.')
-        return numero
+        v = self.cleaned_data["numerodocumento"]
+        if Empleado.objects.filter(numerodocumento=v).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("Número de documento duplicado.")
+        return v
 
     def clean_telefono(self):
-        tel = self.cleaned_data.get('telefono')
-        # Validar si ya existe en otro Empleado, excluyendo el actual
-        if Empleado.objects.filter(telefono=tel).exclude(pk=self.instance.pk).exists():
-            raise forms.ValidationError('El teléfono ya está en uso.')
-        return tel
+        v = self.cleaned_data["telefono"]
+        if Empleado.objects.filter(telefono=v).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("Teléfono duplicado.")
+        return v
 
     def clean_email(self):
-        mail = self.cleaned_data.get('email')
-        if Empleado.objects.filter(email=mail).exclude(pk=self.instance.pk).exists():
-            raise forms.ValidationError('El correo ya está en uso.')
-        return mail
-
-    # Podrías agregar más clean_... si gustas replicar la lógica de:
-    # clean_nombre, clean_apellido => Revisar solo letras, etc.
-
-    def save(self, commit=True):
-        """
-        Si 'numerodocumento' vino en blanco => se mantiene la actual
-        """
-        instance = super().save(commit=False)
-        # Lógica: si numerodocumento == '', no sobrescribir
-        if not self.cleaned_data.get('numerodocumento'):
-            # Dejamos la anterior
-            pass  # El instance ya tiene su numerodocumento previo
-        # De lo contrario, la forma ya se aplicó
-        if commit:
-            instance.save()
-        return instance
+        v = self.cleaned_data["email"]
+        if Empleado.objects.filter(email=v).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("El correo ya está en uso.")
+        return v
 
 class HorariosNegocioForm(forms.ModelForm):
     """
