@@ -1870,10 +1870,23 @@ class SucursalAutocomplete(PaginatedAutocompleteMixin):
 
 
 
-@login_required
-def visualizar_empleados_view(request):
-    empleados = Empleado.objects.all().order_by('nombre')
-    return render(request, 'visualizar_empleados.html', {'empleados': empleados})
+class EmpleadoListView(LoginRequiredMixin, ListView):
+    """
+    Tabla paginada de empleados con DataTables (idéntico estilo a usuarios).
+
+    • `order_by("nombre", "apellido")` para orden alfabético.
+    • `context_object_name = "empleados"` → variable usada en la plantilla.
+    """
+    model               = Empleado
+    template_name       = "visualizar_empleados.html"
+    context_object_name = "empleados"
+    paginate_by         = 50          # DataTables usa toda la page; igualmente paginamos.
+
+    def get_queryset(self):
+        return (
+            Empleado.objects
+            .order_by("nombre", "apellido")   # puedes añadir select_related() si lo necesitas
+        )
 
 
 @login_required

@@ -45,7 +45,8 @@ from .views import (
                     UsuarioUpdateAJAXView,
                     EmpleadoCreateAJAXView,
                     UsuarioDisponibleAutocomplete,
-                    SucursalAutocomplete,)
+                    SucursalAutocomplete,
+                    EmpleadoListView,)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -108,19 +109,18 @@ urlpatterns = [
     path("roles/editar/<int:rol_id>/", RolUpdateAJAXView.as_view(), name="editar_rol"),
     path('eliminar_rol/<int:rol_id>/', views.eliminar_rol_view, name='eliminar_rol'),
 
+
     path("agregar_usuario/",      UsuarioCreateAJAXView.as_view(), name="agregar_usuario"),
     path("rol_autocomplete/",     RolAutocompleteView.as_view(),   name="rol_autocomplete"),
+    path("visualizar_usuarios/", UsuarioListView.as_view(), name="visualizar_usuarios"),
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
     path("usuarios/editar/<int:usuario_id>/", UsuarioUpdateAJAXView.as_view(), name="editar_usuario"),
 
-    path("agregar_empleado/", EmpleadoCreateAJAXView.as_view(),
-         name="agregar_empleado"),
 
-    path("autocomplete/usuario/",   UsuarioDisponibleAutocomplete.as_view(),
-         name="usuario_autocomplete"),
-    path("autocomplete/sucursal/",  SucursalAutocomplete.as_view(),
-         name="sucursal_autocomplete"),
-    path('visualizar_empleados/', views.visualizar_empleados_view, name='visualizar_empleados'),
+    path("agregar_empleado/", EmpleadoCreateAJAXView.as_view(), name="agregar_empleado"),
+    path("autocomplete/usuario/",   UsuarioDisponibleAutocomplete.as_view(), name="usuario_autocomplete"),
+    path("autocomplete/sucursal/",  SucursalAutocomplete.as_view(), name="sucursal_autocomplete"),
+    path("visualizar_empleados/",EmpleadoListView.as_view(), name="visualizar_empleados"),
     path('editar_empleado/<int:empleadoid>/', views.editar_empleado_view, name='editar_empleado'),
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
 

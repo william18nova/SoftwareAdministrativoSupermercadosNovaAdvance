@@ -1,26 +1,25 @@
-{% extends 'base.html' %}
+{#  templates/visualizar_empleados.html  #}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Visualizar Empleados{% endblock %}
-{% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lista de Empleados</title>
-  
-  <!-- Font Awesome para íconos -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <!-- Archivo CSS propio para visualizar empleados -->
+
+{% block extra_head %}
+  <!-- Estilos de la página -->
   <link rel="stylesheet" href="{% static 'css/visualizar_empleados.css' %}">
-  <!-- DataTables CSS -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-</head>
-<body>
+  <!-- DataTables + FA -->
+  <link rel="stylesheet"
+        href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+  <script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script defer src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+{% endblock %}
+
+{% block content %}
   <div class="container">
-    <h2>Lista de Empleados</h2>
-    
-    <!-- Mensajes globales (Django messages) -->
+    <h2><i class="fas fa-user-tie"></i> Lista de Empleados</h2>
+
+    {# ---- mensajes Django ---- #}
     {% if messages %}
       <div class="messages">
         {% for message in messages %}
@@ -30,7 +29,17 @@
         {% endfor %}
       </div>
     {% endif %}
-    
+
+    {# ---- buscador externo ---- #}
+    <div class="search-wrapper">
+      <span class="search-icon"><i class="fas fa-search"></i></span>
+      <input id="buscador-empleados"
+             class="search-input"
+             type="text"
+             placeholder="Buscar…">
+    </div>
+
+    {# ---- tabla ---- #}
     <table id="empleadosTable" class="display">
       <thead>
         <tr>
@@ -40,44 +49,42 @@
           <th>Email</th>
           <th>Dirección</th>
           <th>Puesto</th>
-          <th>Número de Documento</th>
-          <th>Acciones</th>
+          <th>N.º Documento</th>
+          <th class="no-sort">Acciones</th>
         </tr>
       </thead>
       <tbody>
-        {% for empleado in empleados %}
+        {% for e in empleados %}
         <tr>
-          <td data-label="Nombre">{{ empleado.nombre }}</td>
-          <td data-label="Apellido">{{ empleado.apellido }}</td>
-          <td data-label="Teléfono">{{ empleado.telefono }}</td>
-          <td data-label="Email">{{ empleado.email }}</td>
-          <td data-label="Dirección">{{ empleado.direccion }}</td>
-          <td data-label="Puesto">{{ empleado.puesto }}</td>
-          <td data-label="Número de Documento">{{ empleado.numerodocumento }}</td>
+          <td data-label="Nombre">{{ e.nombre }}</td>
+          <td data-label="Apellido">{{ e.apellido }}</td>
+          <td data-label="Teléfono">{{ e.telefono }}</td>
+          <td data-label="Email">{{ e.email }}</td>
+          <td data-label="Dirección">{{ e.direccion|default:"—" }}</td>
+          <td data-label="Puesto">{{ e.puesto|default:"—" }}</td>
+          <td data-label="N.º Documento">{{ e.numerodocumento }}</td>
+
           <td data-label="Acciones" class="actions-cell">
             <div class="btn-container">
-              <a href="{% url 'editar_empleado' empleado.empleadoid %}" class="btn editar">
-                <i class="fas fa-edit"></i>
-              </a>
-              <button type="button" class="btn borrar" onclick="confirmDelete(this)">
-                <i class="fas fa-trash-alt"></i>
-              </button>
+              <a href="{% url 'editar_empleado' e.empleadoid %}"
+                 class="btn editar"
+                 title="Editar {{ e.nombre }}"><i class="fas fa-edit"></i></a>
+
+              <button type="button"
+                      class="btn borrar"
+                      data-nombre="{{ e.nombre }} {{ e.apellido }}"><i class="fas fa-trash-alt"></i></button>
             </div>
-            <form id="delete-form-{{ empleado.empleadoid }}" action="{% url 'eliminar_empleado' empleado.empleadoid %}" method="post" style="display: none;">
-              {% csrf_token %}
-            </form>
+
+            <!-- Formulario oculto DELETE -->
+            <form class="delete-form"
+                  action="{% url 'eliminar_empleado' e.empleadoid %}"
+                  method="post" style="display:none;">{% csrf_token %}</form>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  
-  <!-- jQuery y DataTables JS -->
-  <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-  <!-- Archivo JS propio para visualizar empleados -->
-  <script src="{% static 'javascript/visualizar_empleados.js' %}"></script>
-</body>
-</html>
+
+  <script defer src="{% static 'javascript/visualizar_empleados.js' %}"></script>
 {% endblock %}
