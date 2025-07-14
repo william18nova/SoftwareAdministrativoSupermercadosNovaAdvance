@@ -2027,65 +2027,52 @@ class SucursalSinHorarioAutocomplete(PaginatedAutocompleteMixin):
     def extra_filter(self, qs, request):
         return qs.filter(horariosnegocio__isnull=True).order_by("nombre")
 
-@login_required
-def visualizar_horarios_view(request):
-    sucursales = Sucursal.objects.filter(horariosnegocio__isnull=False).distinct()
-    sucursal_seleccionada = None
-    horarios = []
+class HorariosListView(LoginRequiredMixin, View):
+    template_name = "visualizar_horarios.html"
 
-    if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal')
-        if sucursal_id:
-            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
-            horarios = HorariosNegocio.objects.filter(sucursalid=sucursal_seleccionada)
+    # GET
+    def get(self, request):
+        ctx = self._base_context()
+        return render(request, self.template_name, ctx)
 
-    return render(request, 'visualizar_horarios.html', {
-        'sucursales': sucursales,
-        'sucursal_seleccionada': sucursal_seleccionada,
-        'horarios': horarios,
-    })
-    
-@login_required
-def visualizar_horarios_sucursal_autocomplete(request):
+    # POST (filtro)
+    def post(self, request):
+        ctx = self._base_context()
+        sid = request.POST.get("sucursal")
+        if sid:
+            ctx["sucursal_seleccionada"] = suc = get_object_or_404(Sucursal, pk=sid)
+            ctx["horarios"] = HorariosNegocio.objects.filter(sucursalid=suc)
+        return render(request, self.template_name, ctx)
+
+    # contexto común
+    def _base_context(self):
+        sucursales = (
+            Sucursal.objects.annotate(num=Count("horariosnegocio"))
+                            .filter(num__gt=0)               # sólo sucursales con horarios
+        )
+        return {
+            "sucursales"          : sucursales,
+            "horarios"            : None,
+            "sucursal_seleccionada": None,
+        }
+
+# ---------- autocomplete ----------
+class SucursalConHorariosAutocomplete(PaginatedAutocompleteMixin):
     """
-    Autocomplete para filtrar sucursales que tienen horarios (es decir, que tienen al menos un HorariosNegocio).
-    Permite buscar por 'term' y usa paginación con 'page' y 'per_page'.
+    Autocomplete ▸ sólo sucursales que YA tienen al menos un horario.
+    term, page, per_page & JSON estándar.
     """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '50').strip()
+    model        = Sucursal
+    label_field  = "nombre"
+    per_page     = 10
 
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 50
-    if per_page < 1:
-        per_page = 50
-
-    qs = Sucursal.objects.filter(horariosnegocio__isnull=False).distinct()
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-    qs = qs.order_by('nombre')
-
-    total_results = qs.count()
-    start = (page - 1) * per_page
-    end = start + per_page
-    qs = qs[start:end]
-
-    results = [{'id': suc.sucursalid, 'text': suc.nombre} for suc in qs]
-    has_more = end < total_results
-
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
+    def extra_filter(self, qs, request):
+        sub = HorariosNegocio.objects.filter(sucursalid=OuterRef("pk"))
+        return (
+            qs.annotate(has_h=Exists(sub))
+              .filter(has_h=True)
+              .order_by("nombre")
+        )
 
 
 @login_required
