@@ -46,7 +46,9 @@ from .views import (
                     EmpleadoCreateAJAXView,
                     UsuarioDisponibleAutocomplete,
                     SucursalAutocomplete,
-                    EmpleadoListView,)
+                    EmpleadoListView,
+                    HorarioCreateAJAXView,
+                    SucursalSinHorarioAutocomplete)
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -121,15 +123,19 @@ urlpatterns = [
     path("autocomplete/usuario/",   UsuarioDisponibleAutocomplete.as_view(), name="usuario_autocomplete"),
     path("autocomplete/sucursal/",  SucursalAutocomplete.as_view(), name="sucursal_autocomplete"),
     path("visualizar_empleados/",EmpleadoListView.as_view(), name="visualizar_empleados"),
-    path(
-    "empleados/editar/<int:empleado_id>/",
-    views.EmpleadoUpdateAJAXView.as_view(),
-    name="editar_empleado",
-    ),
+    path("empleados/editar/<int:empleado_id>/", views.EmpleadoUpdateAJAXView.as_view(), name="editar_empleado"),
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
 
-    path('agregar_horario/', views.agregar_horario_view, name='agregar_horario'),
-    path('horarios_sucursal_autocomplete/', views.horarios_sucursal_autocomplete, name='horarios_sucursal_autocomplete'),
+    path(
+        "agregar_horario/",
+        HorarioCreateAJAXView.as_view(),
+        name="agregar_horario"
+    ),
+    path(
+        "autocomplete/sucursal_horario/",
+        SucursalSinHorarioAutocomplete.as_view(),
+        name="horarios_sucursal_autocomplete"
+    ),
     path('visualizar_horarios/', views.visualizar_horarios_view, name='visualizar_horarios'),
     path('visualizar_horarios_sucursal_autocomplete/', views.visualizar_horarios_sucursal_autocomplete, name='visualizar_horarios_sucursal_autocomplete'),
     path('editar_horarios/<int:sucursal_id>/', views.editar_horarios_view, name='editar_horarios'),

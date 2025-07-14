@@ -1,385 +1,240 @@
-// agregar_horario.js
+/* static/javascript/agregar_horario.js */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    // =====================
-    // 1. Variables Generales
-    // =====================
-    const sucursalInput = document.getElementById('id_sucursal_autocomplete');
-    const sucursalIdInput = document.getElementById('id_sucursalid');
-    const autocompleteResults = document.getElementById('sucursal-autocomplete-results');
+  /* ────── Helpers y refs ────── */
+  const $   = s => document.querySelector(s);
+  const $$  = s => document.querySelectorAll(s);
+  const form= $("#horarioForm");
+  const err = $("#error-message");
+  const ok  = $("#success-message");
 
-    const diaSemanaInput = document.getElementById('id_dia_semana');
-    const horaAperturaInput = document.getElementById('id_horaapertura');
-    const horaCierreInput = document.getElementById('id_horacierre');
-    const horariosTempBody = document.getElementById('horarios-temp-body');
+  const sucInp = $("#id_sucursal_autocomplete");
+  const sucHid = $("#id_sucursalid");
+  const sucBox = $("#sucursal-autocomplete-results");
 
-    const successBox = document.getElementById('success-message');
-    const form = document.getElementById('horario-form');
-    const buttons = document.querySelectorAll('.day-button');
+  const dayBtns  = $$(".day-button");
+  const diaInput = $("#id_dia_semana");         // hidden
+  const apInput  = $("#id_horaapertura");
+  const ciInput  = $("#id_horacierre");
 
-    let horariosTemp = [];
-    let debounceTimeout = null;
+  const tabla    = $("#horariosTabla");
+  const hidJson  = $("#id_horarios");
 
-    // Variables para la paginación del autocompletado
-    let currentPage = 1;
-    let isLoading = false;
-    let hasMore = true;
-    let currentTerm = '';
+  let cache     = Object.create(null);
+  let state     = { term:"", page:1, more:true, loading:false };
+  let tempItems = [];  // [{ dia, horaapertura, horacierre }]
 
-    // =============================
-    // 2. Funciones de Autocompletado
-    // =============================
-    function fetchSucursales(term, page = 1) {
-        if (isLoading || !hasMore) return;
-        isLoading = true;
-      
-        // Enviar `term` y `page` como parámetros GET.
-        const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-        fetch(url)
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-          })
-          .then(data => {
-            if (page === 1) {
-              // Limpiar resultados anteriores
-              autocompleteResults.innerHTML = '';
-            }
-            if (data.results.length > 0) {
-              data.results.forEach(item => {
-                const option = document.createElement('div');
-                option.classList.add('autocomplete-option');
-                option.textContent = item.text;
-                option.dataset.id = item.id;
-                autocompleteResults.appendChild(option);
-              });
-              hasMore = data.has_more;
-            } else if (page === 1) {
-              // No hay resultados
-              const noResult = document.createElement('div');
-              noResult.classList.add('autocomplete-no-result');
-              noResult.textContent = 'No se encontraron resultados';
-              autocompleteResults.appendChild(noResult);
-              hasMore = false;
-            }
-            autocompleteResults.style.display = 'block';
-            isLoading = false;
-          })
-          .catch(error => {
-            console.error('Error en la solicitud de autocompletar:', error);
-            isLoading = false;
+  const iconErr = txt => `<i class="fas fa-exclamation-circle"></i> ${txt}`;
+  const iconOk  = txt => `<i class="fas fa-check-circle"></i> ${txt}`;
+  const csrftoken = document.cookie.split(";")
+                          .find(c=>c.trim().startsWith("csrftoken="))
+                          ?.split("=")[1] || "";
+
+  const show = (el, html) => { el.innerHTML=html; el.style.display="block"; };
+  const hide = el => { el.style.display="none"; el.innerHTML=""; };
+
+  function resetUI(){
+    [err,ok].forEach(hide);
+    $$(".field-error").forEach(d=>{ d.innerHTML=""; d.style.display="none"; });
+    $$(".input-error").forEach(i=>i.classList.remove("input-error"));
+  }
+  function fieldErr(f,msg){
+    const d = $(`#error-id_${f}`);
+    if(d){ d.innerHTML=iconErr(msg); d.style.display="block"; }
+    const inp = {
+      sucursalid: sucInp,
+      dia_semana: diaInput,
+      horaapertura: apInput,
+      horacierre: ciInput
+    }[f] || $(`#id_${f}`);
+    inp?.classList.add("input-error");
+  }
+
+  /* ────── Autocomplete Sucursal ────── */
+  async function fetchSuc(term,pg=1){
+    if(state.loading||!state.more) return;
+    state.loading=true;
+    const key=`${term}_${pg}`;
+    let data=cache[key];
+    if(!data){
+      const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${pg}`;
+      const res = await fetch(url);
+      data = await res.json();
+      cache[key]=data;
+    }
+    if(pg===1) sucBox.innerHTML="";
+    if(data.results.length){
+      data.results.forEach(r=>{
+        const div=document.createElement("div");
+        div.className="autocomplete-option";
+        div.dataset.id=r.id;
+        div.textContent=r.text;
+        sucBox.append(div);
+      });
+      state.more=data.has_more;
+    } else if(pg===1){
+      sucBox.innerHTML=`<div class="autocomplete-no-result">Sin resultados</div>`;
+      state.more=false;
+    }
+    sucBox.style.display="block";
+    state.loading=false;
+  }
+
+  let timer;
+  function debounce(fn,ms=300){
+    clearTimeout(timer);
+    timer=setTimeout(fn,ms);
+  }
+
+  sucInp.addEventListener("input", () => {
+    sucHid.value=""; state.term=sucInp.value.trim(); state.page=1; state.more=true;
+    debounce(()=>fetchSuc(state.term,1));
+  });
+  sucInp.addEventListener("focus", () => {
+    state.term=sucInp.value.trim(); state.page=1; state.more=true;
+    fetchSuc(state.term,1);
+  });
+  sucBox.addEventListener("scroll",()=>{
+    if(sucBox.scrollTop+sucBox.clientHeight>=sucBox.scrollHeight-5
+       && state.more && !state.loading){
+      state.page++; fetchSuc(state.term,state.page);
+    }
+  });
+  sucBox.addEventListener("click", e=>{
+    const opt=e.target.closest(".autocomplete-option");
+    if(!opt) return;
+    sucInp.value=opt.textContent;
+    sucHid.value=opt.dataset.id;
+    sucBox.innerHTML="";
+    sucBox.style.display="none";
+    state.more=false;
+  });
+  document.addEventListener("click", e=>{
+    if(!sucInp.contains(e.target)&&!sucBox.contains(e.target)){
+      sucBox.style.display="none"; sucBox.innerHTML="";
+    }
+  });
+
+  /* ────── Días de la semana ────── */
+  dayBtns.forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      let dias = diaInput.value.split(",").filter(d=>d);
+      const d = btn.dataset.day;
+      if(dias.includes(d)){
+        dias = dias.filter(x=>x!==d);
+        btn.classList.remove("active");
+      } else {
+        dias.push(d);
+        btn.classList.add("active");
+      }
+      diaInput.value = dias.join(",");
+    });
+  });
+
+  /* ────── Agregar horario temporal ────── */
+  $("#btn-add-horario").addEventListener("click", ()=>{
+    resetUI();
+    const d = diaInput.value, ap=apInput.value, ci=ciInput.value;
+    let bad=false;
+    if(!sucHid.value){ fieldErr("sucursalid","Seleccione sucursal."); bad=true; }
+    if(!d){ fieldErr("dia_semana","Seleccione al menos un día."); bad=true; }
+    if(!ap){ fieldErr("horaapertura","Indique apertura."); bad=true; }
+    if(!ci){ fieldErr("horacierre","Indique cierre."); bad=true; }
+    if(ap && ci && ap>=ci){ fieldErr("horacierre","Cierre > apertura."); bad=true; }
+    if(bad) return;
+
+    d.split(",").forEach(day=>{
+      const exists = tempItems.some(x=>
+        x.dia===day && x.horaapertura===ap && x.horacierre===ci
+      );
+      if(!exists){
+        tempItems.push({ dia:day, horaapertura:ap, horacierre:ci });
+        const row = document.createElement("tr");
+        row.innerHTML=`
+          <td data-label="Día">${day}</td>
+          <td data-label="Apertura">
+            <input type="time" value="${ap}" readonly>
+          </td>
+          <td data-label="Cierre">
+            <input type="time" value="${ci}" readonly>
+          </td>
+          <td data-label="Acciones">
+            <button type="button" class="btn-eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tabla.append(row);
+        // desactivar botón de ese día
+        dayBtns.forEach(b=>{
+          if(b.dataset.day===day){ b.disabled=true; b.classList.remove("active"); }
         });
+      }
+    });
+
+    diaInput.value=""; apInput.value=""; ciInput.value="";
+  });
+
+  /* ────── Eliminar horario temporal ────── */
+  tabla.addEventListener("click", e=>{
+    if(!e.target.closest(".btn-eliminar")) return;
+    const tr  = e.target.closest("tr");
+    const [day,inpA,inpC] = tr.querySelectorAll("td");
+    const ap = inpA.querySelector("input").value;
+    const ci = inpC.querySelector("input").value;
+    tempItems = tempItems.filter(x=>
+      !(x.dia===day.textContent && x.horaapertura===ap && x.horacierre===ci)
+    );
+    tr.remove();
+    dayBtns.forEach(b=>{
+      if(b.dataset.day===day.textContent) b.disabled=false;
+    });
+  });
+
+  /* ────── Submit final ────── */
+  form.addEventListener("submit", async ev=>{
+    ev.preventDefault();
+    resetUI();
+    if(!sucHid.value){
+      fieldErr("sucursalid","Seleccione sucursal."); return;
     }
-
-    // =========================
-    // 3. Manejo de Errores en JS
-    // =========================
-    function clearErrors() {
-        // Limpia todos los errores mostrados debajo de cada campo
-        const errorFields = document.querySelectorAll('.field-error');
-        errorFields.forEach(function(errorField) {
-            errorField.innerHTML = '';
-            errorField.style.display = 'none';
-        });
+    if(!tempItems.length){
+      fieldErr("dia_semana","Agregue al menos un horario."); return;
     }
+    hidJson.value = JSON.stringify(tempItems);
+    const resp = await fetch(form.action, {
+      method:"POST",
+      headers: {
+        "X-CSRFToken": csrftoken,
+        "Accept": "application/json"
+      },
+      body: new FormData(form)
+    });
+    const data = await resp.json();
 
-    function showFieldError(field, message) {
-        // Muestra el error debajo del campo con ID: "error-id_<field>"
-        const errorDiv = document.getElementById(`error-id_${field}`);
-        if (errorDiv) {
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-            errorDiv.style.display = 'block';
-        }
+    if(data.success){
+      show(ok, iconOk("Horarios guardados."));
+      form.reset();
+      tempItems = [];
+      tabla.innerHTML="";
+      dayBtns.forEach(b=>{ b.disabled=false; b.classList.remove("active"); });
+      sucHid.value="";
+      sucInp.value="";
+
+      // — Limpiamos caché y estado —
+      cache = Object.create(null);
+      state = { term:"", page:1, more:true, loading:false };
+
+      // — Ocultamos y vaciamos cualquier dropdown previo —
+      sucBox.innerHTML = "";
+      sucBox.style.display = "none";
+
+    } else {
+      const errs = JSON.parse(data.errors||"{}");
+      Object.entries(errs).forEach(([f,arr])=>{
+        arr.forEach(e=> fieldErr(f,e.message));
+      });
     }
-
-    function showErrors(errors) {
-        // Limpia primero los errores anteriores
-        clearErrors();
-
-        // 'errors' es un objeto con claves = nombre_del_campo
-        // y valores = array de mensajes [{"message":"..."}]
-        for (let field in errors) {
-            const fieldErrors = errors[field];
-            const errorDiv = document.getElementById(`error-id_${field}`);
-            if (errorDiv) {
-                errorDiv.innerHTML = fieldErrors
-                    .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
-                    .join('<br>');
-                errorDiv.style.display = 'block';
-            }
-        }
-    }
-
-    // ===============================
-    // 4. Eventos de Autocompletado
-    // ===============================
-    sucursalInput.addEventListener('input', function() {
-        currentTerm = sucursalInput.value.trim();
-        sucursalIdInput.value = ''; // Limpiar el campo oculto
-        hasMore = true;
-        currentPage = 1;
-
-        if (debounceTimeout) {
-            clearTimeout(debounceTimeout);
-        }
-        debounceTimeout = setTimeout(function() {
-            fetchSucursales(currentTerm, currentPage);
-        }, 300);
-    });
-
-    sucursalInput.addEventListener('focus', function() {
-        currentTerm = sucursalInput.value.trim();
-        hasMore = true;
-        currentPage = 1;
-        fetchSucursales(currentTerm, currentPage);
-    });
-
-    autocompleteResults.addEventListener('scroll', function() {
-        if (autocompleteResults.scrollTop + autocompleteResults.clientHeight >= autocompleteResults.scrollHeight - 5) {
-            if (hasMore && !isLoading) {
-                currentPage += 1;
-                fetchSucursales(currentTerm, currentPage);
-            }
-        }
-    });
-
-    autocompleteResults.addEventListener('click', function(event) {
-        if (event.target && event.target.classList.contains('autocomplete-option')) {
-            const selectedText = event.target.textContent;
-            const selectedId = event.target.dataset.id;
-            sucursalInput.value = selectedText;
-            sucursalIdInput.value = selectedId;
-            autocompleteResults.innerHTML = '';
-            autocompleteResults.style.display = 'none';
-            hasMore = false;
-        }
-    });
-
-    document.addEventListener('click', function(event) {
-        if (!sucursalInput.contains(event.target) && !autocompleteResults.contains(event.target)) {
-            autocompleteResults.innerHTML = '';
-            autocompleteResults.style.display = 'none';
-            hasMore = false;
-        }
-    });
-
-    // ==========================
-    // 5. Manejo de Días (Botones)
-    // ==========================
-    buttons.forEach(button => {
-        button.addEventListener('click', function() {
-            const day = this.getAttribute('data-day');
-            let diasSeleccionados = diaSemanaInput.value.split(',').filter(d => d);
-
-            if (diasSeleccionados.includes(day)) {
-                diasSeleccionados = diasSeleccionados.filter(d => d !== day);
-                this.classList.remove('active');
-            } else {
-                diasSeleccionados.push(day);
-                this.classList.add('active');
-            }
-            diaSemanaInput.value = diasSeleccionados.join(',');
-        });
-    });
-
-    // ========================================
-    // 6. Agregar Horarios a la Tabla Temporal
-    // ========================================
-    const btnAgregarTemporal = document.querySelector('.btn-agregar-temporal');
-    btnAgregarTemporal.addEventListener('click', function() {
-        // Limpia cualquier error previo
-        clearErrors();
-
-        // Tomar los valores
-        const diaSemana = diaSemanaInput.value;
-        const horaApertura = horaAperturaInput.value;
-        const horaCierre = horaCierreInput.value;
-
-        // Validaciones individualizadas
-        let hasLocalErrors = false;
-
-        if (!sucursalIdInput.value) {
-            showFieldError('sucursalid', 'Por favor, seleccione una sucursal.');
-            hasLocalErrors = true;
-        }
-        if (!diaSemana) {
-            showFieldError('dia_semana', 'Debe seleccionar al menos un día de la semana.');
-            hasLocalErrors = true;
-        }
-        if (!horaApertura) {
-            showFieldError('horaapertura', 'Debe seleccionar la hora de apertura.');
-            hasLocalErrors = true;
-        }
-        if (!horaCierre) {
-            showFieldError('horacierre', 'Debe seleccionar la hora de cierre.');
-            hasLocalErrors = true;
-        }
-
-        if (horaApertura && horaCierre && horaApertura >= horaCierre) {
-            showFieldError('horacierre', 'La hora de cierre debe ser mayor que la hora de apertura.');
-            hasLocalErrors = true;
-        }
-
-        // Si hay errores, no agregamos horario
-        if (hasLocalErrors) {
-            return;
-        }
-
-        // Agregar el/los días seleccionados a la tabla
-        diaSemana.split(',').forEach(day => {
-            // Verificar si el día y la combinación de horas ya existe
-            const existe = horariosTemp.some(
-                horario =>
-                    horario.dia === day &&
-                    horario.horaapertura === horaApertura &&
-                    horario.horacierre === horaCierre
-            );
-
-            if (!existe) {
-                horariosTemp.push({
-                    dia: day,
-                    horaapertura: horaApertura,
-                    horacierre: horaCierre
-                });
-
-                // Crear la fila en la tabla
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${day}</td>
-                    <td><input type="time" name="horaapertura" value="${horaApertura}" readonly></td>
-                    <td><input type="time" name="horacierre" value="${horaCierre}" readonly></td>
-                    <td><button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button></td>
-                `;
-                horariosTempBody.appendChild(row);
-
-                // Deshabilitar el botón del día para no agregarlo dos veces
-                buttons.forEach(button => {
-                    if (button.getAttribute('data-day') === day) {
-                        button.disabled = true;
-                        button.classList.remove('active');
-                    }
-                });
-            }
-        });
-
-        // Limpiar los campos de entrada
-        diaSemanaInput.value = '';
-        horaAperturaInput.value = '';
-        horaCierreInput.value = '';
-    });
-
-    // ===============================
-    // 7. Eliminar Horarios de la Tabla
-    // ===============================
-    horariosTempBody.addEventListener('click', function(event) {
-        if (event.target.closest('.btn-eliminar')) {
-            const row = event.target.closest('tr');
-            const day = row.cells[0].textContent;
-            const horaApertura = row.cells[1].querySelector('input').value;
-            const horaCierre = row.cells[2].querySelector('input').value;
-
-            // Eliminarlo del array temporal
-            horariosTemp = horariosTemp.filter(
-                horario =>
-                    !(horario.dia === day &&
-                      horario.horaapertura === horaApertura &&
-                      horario.horacierre === horaCierre)
-            );
-            row.remove();
-
-            // Habilitar nuevamente el botón del día
-            buttons.forEach(button => {
-                if (button.getAttribute('data-day') === day) {
-                    button.disabled = false;
-                }
-            });
-        }
-    });
-
-    // ===============================
-    // 8. Evento de Envío del Formulario
-    // ===============================
-    form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        clearErrors();
-
-        // Envio final: si no hay horarios listados, o no hay sucursal, mostramos errores
-        let hasLocalErrors = false;
-
-        if (!sucursalIdInput.value) {
-            showFieldError('sucursalid', 'Por favor, seleccione una sucursal.');
-            hasLocalErrors = true;
-        }
-
-        if (horariosTemp.length === 0) {
-            // Forzamos al usuario a usar "Listar Horario" si no hay nada en la tabla
-            showFieldError('dia_semana', 'Debe agregar al menos un horario antes de guardar.');
-            hasLocalErrors = true;
-        }
-
-        if (hasLocalErrors) {
-            return;
-        }
-
-        // Convertir horariosTemp a JSON y ponerlo en el campo oculto
-        const horariosInput = document.getElementById('id_horarios');
-        horariosInput.value = JSON.stringify(horariosTemp);
-
-        // Enviar al servidor
-        const formData = new FormData(form);
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Accept': 'application/json',
-            },
-            body: formData
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Éxito: mostrar mensaje, resetear formulario y tabla
-                    successBox.style.display = 'block';
-                    form.reset();
-                    horariosTemp = [];
-                    horariosTempBody.innerHTML = '';
-                    buttons.forEach(button => {
-                        button.disabled = false;
-                        button.classList.remove('active');
-                    });
-                    sucursalIdInput.value = '';
-                    autocompleteResults.innerHTML = '';
-                    autocompleteResults.style.display = 'none';
-                    hasMore = false;
-                } else {
-                    // Mostrar errores devueltos por el backend
-                    const errors = JSON.parse(data.errors);
-                    showErrors(errors);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showFieldError('dia_semana', 'Ocurrió un error inesperado al guardar.');
-            });
-    });
-
-    // ================================
-    // 9. Función para Obtener la Cookie
-    // ================================
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                cookie = cookie.trim();
-                if (cookie.startsWith(name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-});
+  });
+})();

@@ -1,418 +1,330 @@
-/* agregar_horarios.css */
+/* static/css/agregar_horario.css */
 
-/* Importación de fuente */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* Variables CSS para facilitar cambios de color y mantenimiento */
 :root {
-    --color-principal: #005091;
-    --color-secundario: #ADD8E6;
-    --color-blanco: #ffffff;
-    --color-negro: #000000;
-    --color-rojo: #ff0000;
-    --color-gris-claro: #f0f8ff;
-    --color-gris: #ccc;
-    --color-gris-hover: #aaa;
-    --color-boton: #3b5998;
-    --color-boton-hover: #2b467d;
-    --color-boton-activo: #73a0fa;
-    --color-boton-deshabilitado: #555;
-    --color-alerta-exito: #dff0d8;
-    --color-alerta-exito-borde: #d6e9c6;
-    --color-alerta-error: #f2dede;
-    --color-alerta-error-borde: #ebccd1;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
-    --tamanio-icono: 90px;
+  --azul: #005091;
+  --azul-claro: #ADD8E6;
+  --blanco: #fff;
+  --rojo: #ff0004;
+  --gris: #ccc;
+  --gris-claro: #f0f8ff;
+  --btn: #3b5998;
+  --btn-hover: #2b467d;
+  --radius: 8px;
+  --shadow: 0 4px 12px rgba(0,0,0,.25);
+  --font: 'Roboto', Arial, sans-serif;
+  --icon-size: 90px;
 }
 
-/* Reset básico */
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-/* Estilos del cuerpo */
 body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-    font-family: var(--fuente-principal);
-    text-align: center;
-    color: var(--color-blanco);
-    overflow: auto; /* Permitir scroll en todo el body */
-    position: relative; /* Para posicionar elementos absolutos dentro del body */
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, var(--azul-claro), var(--azul));
+  font-family: var(--font);
+  color: var(--blanco);
+  overflow: auto;
+  text-align: center;
+  padding: 20px;
 }
-
-/* Pseudo-elemento para el fondo difuminado */
 body::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    filter: blur(20px);
-    z-index: -1;
-    pointer-events: none;
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: inherit;
+  filter: blur(20px);
+  z-index: -1;
 }
 
-/* Contenedor principal */
-.container-usuario {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 100%;
-    max-width: 500px;
-    text-align: center;
-    position: relative;
-    overflow: hidden; /* Evitar el desbordamiento horizontal */
+.container-horario {
+  width: 95%;
+  max-width: 500px;
+  background: rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  padding: 40px;
+  box-shadow: var(--shadow);
+  text-align: center;
 }
 
-/* Título del contenedor */
-.container-usuario h2 {
-    color: var(--color-blanco);
-    margin-bottom: 20px;
-    font-size: 24px;
+.icon-horario {
+  font-size: var(--icon-size);
+  margin-bottom: 12px;
 }
 
-/* Icono */
-.icono-reloj {
-    font-size: var(--tamanio-icono);
-    color: var(--color-blanco);
-    margin-bottom: 10px;
+h2 {
+  font-size: 24px;
+  margin-bottom: 8px;
+  font-weight: 700;
 }
 
-/* Estilos de alertas */
-.alert {
-    padding: 15px;
-    margin-bottom: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-}
-
-.alert-success {
-    color: #3c763d;
-    background-color: var(--color-alerta-exito);
-    border-color: var(--color-alerta-exito-borde);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px; /* Espacio entre el ícono y el texto */
-}
-
-/* Estilos para los errores de campo */
-.field-error {
-    color: var(--color-rojo);
-    font-size: 14px;
-    margin-top: 5px;
-    display: none;
-    text-align: left;
-}
-
-.field-error i {
-    margin-right: 5px;
-}
-
-/* Grupo de formulario */
-.form-group {
-    margin-bottom: 20px;
-    text-align: left;
-    position: relative; /* Para posicionar el autocompletar */
-}
-
-/* Etiquetas de los campos */
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--color-blanco);
-    font-weight: bold;
-    font-size: 16px;
-}
-
-/* Asterisco para campos obligatorios */
-.form-group-empleado .required {
-    color: var(--color-blanco); /* Cambiar a rojo para mayor visibilidad */
-    margin-left: 5px;
-    font-size: 18px;
-}
-
-/* Texto informativo sobre campos obligatorios */
 .obligatorio-texto {
-    font-style: italic;
-    color: var(--color-blanco);
-    margin-bottom: 20px;
-    font-size: 14px;
+  font-size: 14px;
+  font-style: italic;
+  margin-bottom: 20px;
 }
 
-/* Estilo para el asterisco de campo obligatorio */
-.campo-obligatorio {
-    color: var(--color-blanco);
-    margin-left: 2px;
+/* Alertas */
+.alert {
+  display: none;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  margin-bottom: 18px;
+  text-align: center;
+}
+.alert-error { background: #f2dede; color: var(--rojo); }
+.alert-success { background: #dff0d8; color: #3c763d; }
+
+/* Form groups */
+.form-group-horario {
+  margin-bottom: 18px;
+  text-align: left;
+  position: relative;
+}
+.form-group-horario label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 700;
 }
 
-/* Campos de entrada y select */
-.form-group select,
-.form-group input[type="time"],
-.form-group input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--color-gris);
-    border-radius: 5px;
-    background-color: var(--color-gris-claro);
-    font-size: 16px;
-    transition: background-color 0.3s, border-color 0.3s;
-    color: #333;
-    box-sizing: border-box;
+/* Inputs */
+input[type="text"],
+input[type="time"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--gris);
+  border-radius: var(--radius);
+  background: var(--gris-claro);
+  font-size: 15px;
+  transition: .25s;
+}
+input[type="text"]:hover,
+input[type="time"]:hover {
+  background: #e2ebff;
+  border-color: #a7a7a7;
+}
+input[type="text"]:focus,
+input[type="time"]:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 5px rgba(0,80,145,.5);
+}
+.input-error { border-color: var(--rojo) !important; }
+
+/* Asterisco */
+.required {
+  color: var(--blanco);
+  margin-left: 4px;
 }
 
-/* Hover sobre campos de entrada y select */
-.form-group select:hover,
-.form-group input[type="time"]:hover,
-.form-group input[type="text"]:hover {
-    background-color: #e0e8ff;
-    border-color: var(--color-gris-hover);
+/* Errores de campo */
+.field-error {
+  display: none;
+  color: var(--rojo);
+  font-size: 14px;
+  margin-top: 5px;
+  text-align: left;
+}
+.field-error i { margin-right: 4px; }
+
+/* Botones principales */
+.btn-agregar-horario,
+.btn-guardar-horario {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--btn);
+  color: var(--blanco);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .25s, transform .2s, box-shadow .25s;
+  margin-top: 12px;
+}
+.btn-agregar-horario:hover,
+.btn-guardar-horario:hover {
+  background: var(--btn-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
 }
 
-/* Enfoque sobre campos de entrada y select */
-.form-group select:focus,
-.form-group input[type="time"]:focus,
-.form-group input[type="text"]:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
-}
-
-/* Estilos para los placeholders */
-.form-group input::placeholder,
-.form-group select::placeholder {
-    color: #999; /* Color gris para placeholders */
-    opacity: 1; /* Asegurar que el color no sea transparente */
-    font-style: italic; /* Opcional: estilo de fuente en cursiva */
-}
-
-.form-group input:-ms-input-placeholder,
-.form-group select:-ms-input-placeholder {
-    color: #999;
-    font-style: italic;
-}
-
-.form-group input::-ms-input-placeholder,
-.form-group select::-ms-input-placeholder {
-    color: #999;
-    font-style: italic;
-}
-
-/* Botones */
-.btn-agregar-temporal,
-.btn-guardar {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    cursor: pointer;
-    padding: 12px;
-    text-align: center;
-    width: 100%;
-    font-size: 18px;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-    margin-top: 20px;
-    display: block;
-}
-
-.btn-agregar-temporal:hover,
-.btn-guardar:hover {
-    background-color: var(--color-boton-hover);
-}
-
-/* Estilos para el autocompletar */
-.autocomplete-results {
-    position: absolute;
-    top: calc(100% + 5px); /* Añadimos un margen superior */
-    left: 0;
-    right: 0;
-    background-color: var(--color-gris-claro);
-    border: 1px solid var(--color-gris);
-    z-index: 1000;
-    max-height: 200px; /* Altura máxima */
-    overflow-y: auto; /* Permitir scroll vertical */
-    display: none;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-.autocomplete-option {
-    padding: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    color: #333;
-}
-
-.autocomplete-option:hover {
-    background-color: var(--color-boton-hover);
-    color: var(--color-blanco);
-}
-
-.autocomplete-no-result {
-    padding: 10px;
-    color: #999;
-    font-size: 16px;
-}
-
-/* Contenedor de días */
+/* Selector de días */
 .days-container {
-    display: flex;
-    justify-content: space-around;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
-
 .day-button {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 5px;
+  background: var(--btn);
+  color: var(--blanco);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: .25s;
+  margin: 4px;
 }
-
-.day-button:hover {
-    background-color: var(--color-boton-hover);
-}
-
+.day-button:hover { background: var(--btn-hover); }
 .day-button.active {
-    background-color: var(--color-boton-activo);
-    transform: scale(1.1);
+  background: #73a0fa;
+  transform: scale(1.1);
 }
-
 .day-button:disabled {
-    background-color: var(--color-boton-deshabilitado);
-    cursor: not-allowed;
+  background: #555;
+  cursor: not-allowed;
 }
 
-/* Tabla de horarios temporales */
+/* Contenedor de tabla */
 .horarios-temp-container {
-    margin-top: 20px;
-    margin-bottom: 20px;
+  margin: 20px 0;
 }
 
+/* Tabla estándar */
 .horarios-temp {
-    width: 100%;
-    border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: rgba(255,255,255,0.1);
 }
-
-.horarios-temp th,
-.horarios-temp td {
-    border: 1px solid var(--color-gris);
-    padding: 8px;
-    text-align: center;
-    color: var(--color-blanco);
-    word-wrap: break-word;
-    white-space: normal;
+/* EN ESCRITORIO: el header SI se ve */
+.horarios-temp thead {
+  display: table-header-group;
+  background-color: var(--btn);
 }
-
-.horarios-temp th {
-    background-color: var(--color-boton);
+.horarios-temp thead th {
+  padding: 10px 8px;
+  color: var(--blanco);
+  font-weight: 600;
+  text-transform: uppercase;
+  border: none;
 }
-
-.horarios-temp td {
-    background-color: rgba(255, 255, 255, 0.1);
+.horarios-temp tbody tr {
+  border-top: 1px solid rgba(255,255,255,0.2);
+}
+.horarios-temp tbody td {
+  padding: 12px 8px;
+  color: var(--blanco);
+  background: rgba(255,255,255,0.15);
+  text-align: center;
+}
+.horarios-temp td input {
+  width: 100%;
+  background: rgba(255,255,255,0.25);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 8px;
+  text-align: center;
+  color: #000;
+  font-weight: 500;
 }
 
 /* Botón eliminar */
 .btn-eliminar {
-    background-color: #ff4c4c;
-    border: none;
-    color: var(--color-blanco);
-    padding: 8px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s;
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.btn-eliminar:hover { background: #c0392b; }
+
+/* Autocomplete */
+.autocomplete-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--gris-claro);
+  border: 1px solid #a7a7a7;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  padding: 4px 0;
+}
+.autocomplete-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background .2s, color .2s;
+  color: #333;
+}
+.autocomplete-option:hover {
+  background: var(--btn);
+  color: #fff;
 }
 
-.btn-eliminar:hover {
-    background-color: #e60000;
-}
-
-.btn-eliminar i {
-    margin-right: 0;
-}
-
-/* Responsividad */
+/* == Responsive (≤768px) == */
 @media (max-width: 768px) {
-    .container-usuario {
-        padding: 20px;
-    }
+  .container-horario {
+    padding: 25px;
+  }
+  .day-button {
+    width: 30px;
+    height: 30px;
+  }
+  input[type="text"],
+  input[type="time"] {
+    font-size: 14px;
+  }
 
-    .form-group select,
-    .form-group input[type="time"],
-    .form-group input[type="text"],
-    .btn-agregar-temporal,
-    .btn-guardar {
-        width: 100%;
-    }
-
-    .days-container {
-        flex-direction: row;
-        flex-wrap: wrap;
-    }
-
-    .day-button {
-        margin: 5px;
-        width: 30px;
-        height: 30px;
-    }
-
-    .day-button.active {
-        transform: scale(1.1);
-    }
-
-    .horarios-temp th,
-    .horarios-temp td {
-        font-size: 14px;
-    }
-
-    .horarios-temp input[type="time"] {
-        width: 90px;
-    }
-}
-
-@media (min-width: 769px) {
-    .horarios-temp input[type="time"] {
-        width: 90px; /* Ajustar ancho para pantallas grandes */
-        box-sizing: border-box;
-    }
-
-    .horarios-temp {
-        table-layout: fixed;
-    }
-
-    .horarios-temp th:nth-child(1),
-    .horarios-temp td:nth-child(1) {
-        width: 14%;
-    }
-
-    .horarios-temp th:nth-child(2),
-    .horarios-temp td:nth-child(2),
-    .horarios-temp th:nth-child(3),
-    .horarios-temp td:nth-child(3) {
-        width: 30%;
-    }
-
-    .horarios-temp th:nth-child(4),
-    .horarios-temp td:nth-child(4) {
-        width: 26.8%;
-    }
+  /* filas estilo “lista” */
+  .horarios-temp {
+    display: block;
+  }
+  .horarios-temp thead {
+    /* EN MÓVIL: ocultamos el header */
+    display: none !important;
+  }
+  .horarios-temp tbody {
+    display: block;
+  }
+  .horarios-temp tbody tr {
+    display: block;
+    margin-bottom: 12px;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    background: rgba(255,255,255,0.15);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .horarios-temp tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    text-align: left;
+    position: relative;
+    background-color: transparent;
+  }
+  .horarios-temp tbody td::before {
+    content: attr(data-label) ":";
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--blanco);
+    margin-right: 8px;
+  }
+  .horarios-temp tbody td input {
+    flex: 0 0 140px;
+    width: 140px;
+    font-size: 16px;
+    padding: 8px 10px;
+  }
+  .horarios-temp tbody td:last-child {
+    /* Título a la izquierda, botón a la derecha */
+    justify-content: space-between;
+    padding-right: 0;
+  }
 }

@@ -1945,109 +1945,87 @@ def eliminar_empleado_view(request, empleado_id):
     return redirect('visualizar_empleados')
 
 
-@login_required
-def agregar_horario_view(request):
+@method_decorator(transaction.atomic, name="dispatch")
+class HorarioCreateAJAXView(LoginRequiredMixin, View):
     """
-    Vista para agregar horarios a una sucursal.
-    Maneja tanto GET como POST requests.
-    En POST, valida el formulario y procesa los horarios temporales.
-    Responde con JSON para manejar las respuestas en el frontend.
+    • GET  → renderiza formulario “agregar_horario.html”
+    • POST → guarda horarios a partir de 'horarios' (JSON)
+               y responde JSON {success, errors}
     """
-    if request.method == 'POST':
-        form = HorariosNegocioForm(request.POST)
-        if form.is_valid():
-            horarios_temp = request.POST.get('horarios')
-            if horarios_temp:
-                horarios = json.loads(horarios_temp)
-                sucursal = form.cleaned_data['sucursalid']
-                for horario in horarios:
-                    HorariosNegocio.objects.create(
-                        sucursalid=sucursal,
-                        dia_semana=horario['dia'],
-                        horaapertura=horario['horaapertura'],
-                        horacierre=horario['horacierre']
-                    )
-                return JsonResponse({'success': True})
-            else:
-                errors = {
-                    'horarios': [{'message': 'Debe agregar al menos un horario antes de guardar.'}]
-                }
-                return JsonResponse({'success': False, 'errors': json.dumps(errors)})
-        else:
-            # Convertir errores del formulario a JSON
-            errors = form.errors.get_json_data()
-            # Procesar errores para el formato esperado por el frontend
-            processed_errors = {}
-            for field, field_errors in errors.items():
-                processed_errors[field] = [{'message': error['message']} for error in field_errors]
-            return JsonResponse({'success': False, 'errors': json.dumps(processed_errors)})
-    else:
-        form = HorariosNegocioForm()
+    template_name = "agregar_horario.html"
+    form_class    = HorariosNegocioForm
+    success_msg   = "Horario(s) agregado(s) exitosamente."
 
-    return render(request, 'agregar_horario.html', {'form': form})
-
-@login_required
-def horario_sucursal_autocomplete(request):
-    """
-    Autocomplete para Sucursal: muestra solo aquellas sucursales que NO 
-    tienen horarios establecidos (en el modelo HorariosNegocio), 
-    con paginación y soporte para 'term'.
-    
-    Se asume que en el modelo Sucursal la relación con HorariosNegocio 
-    tiene el related name "horariosnegocio". Ajusta este valor en caso de ser diferente.
-    """
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '50').strip()
-
-    # Convertir 'page'
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    # Convertir 'per_page'
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 50
-    if per_page < 1:
-        per_page = 50
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    # Filtrar sucursales que NO tengan ningún horario asignado
-    qs = Sucursal.objects.filter(horariosnegocio__isnull=True)
-
-    # Filtro por 'term'
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    # Ordenar por nombre
-    qs = qs.order_by('nombre')
-
-    # Paginación
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    # Construir results para el autocomplete
-    results = []
-    for sucursal in qs:
-        results.append({
-            'id': sucursal.pk,
-            'text': sucursal.nombre,
+    def get(self, request):
+        form = self.form_class()
+        # Lista de días para el template
+        days = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+        return render(request, self.template_name, {
+            "form":  form,
+            "days":  days,
         })
 
-    has_more = end < total_results
+    def post(self, request):
+        form = self.form_class(request.POST)
+        # 1) validación del formulario base
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps(
+                    form.errors.get_json_data(escape_html=True)
+                )
+            }, status=400)
 
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
+        # 2) cargar array de horarios (JSON)
+        raw = request.POST.get("horarios", "[]")
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            data = []
+        if not data:
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps({
+                    "horarios": [{"message": "Debe agregar al menos un horario."}]
+                })
+            }, status=400)
 
+        # 3) construir batch de HorariosNegocio
+        suc = form.cleaned_data["sucursalid"]
+        batch = []
+        for h in data:
+            dia = h.get("dia")
+            ap  = h.get("horaapertura")
+            ci  = h.get("horacierre")
+            if dia and ap and ci:
+                batch.append(HorariosNegocio(
+                    sucursalid   = suc,
+                    dia_semana   = dia,
+                    horaapertura = ap,
+                    horacierre   = ci
+                ))
+        if not batch:
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps({
+                    "__all__": [{"message": "No hay horarios válidos para guardar."}]
+                })
+            }, status=400)
+
+        # 4) bulk create y responder éxito
+        HorariosNegocio.objects.bulk_create(batch)
+        return JsonResponse({"success": True})
+
+class SucursalSinHorarioAutocomplete(PaginatedAutocompleteMixin):
+    """
+    Autocomplete de sucursales sin horarios (paginado).
+    """
+    model      = Sucursal
+    id_field   = "pk"
+    text_field = "nombre"
+
+    def extra_filter(self, qs, request):
+        return qs.filter(horariosnegocio__isnull=True).order_by("nombre")
 
 @login_required
 def visualizar_horarios_view(request):
