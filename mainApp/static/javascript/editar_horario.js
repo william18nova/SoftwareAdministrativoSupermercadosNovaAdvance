@@ -1,346 +1,268 @@
-// static/javascript/editar_horario.js
+/* static/javascript/editar_horario.js
+   ─────────────────────────────────────────
+   · Autocomplete sucursal
+   · Selector de días
+   · Tabla editable
+   · Envío AJAX (JSON) y flashes
+*/
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', () => {
-    // ============================
-    // 1. Referencias al DOM
-    // ============================
-    const form = document.getElementById('form-editar-horarios');
-    const tablaHorarios = document.getElementById('tabla-horarios');
-    const successMessageDiv = document.getElementById('success-message');
-    const errorMessageDiv = document.getElementById('error-message');
+  /* ══════════════ refs ══════════════ */
+  const $  = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
 
-    // Campos de sucursal (autocomplete)
-    const sucursalInput = document.getElementById('id_sucursal_autocomplete');
-    const sucursalIdInput = document.getElementById('id_sucursalid');
-    const sucursalResults = document.getElementById('sucursal-autocomplete-results');
+  const form  = $("#form-editar-horarios");
+  const tabla = $("#tabla-horarios");
 
-    // Botones de días y campos de hora
-    const dayButtons = document.querySelectorAll('.day-button');
-    const horaAperturaInput = document.getElementById('horaapertura');
-    const horaCierreInput = document.getElementById('horacierre');
+  const sucInp = $("#id_sucursal_autocomplete");
+  const sucHid = $("#id_sucursalid");
+  const box    = $("#sucursal-autocomplete-results");
 
-    // Botón para agregar horario a la tabla
-    const btnAgregarHorario = document.getElementById('btn-agregar-horario');
+  const dayBtns = $$(".day-button");
+  const apInp   = $("#horaapertura");
+  const ciInp   = $("#horacierre");
 
-    // Token CSRF (solo si tu vista lo requiere)
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') 
-                    ? document.querySelector('[name=csrfmiddlewaretoken]').value 
-                    : '';
+  const err = $("#error-message");
+  const ok  = $("#success-message");
+  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
 
+  /* ══════════════ helpers ══════════════ */
+  const iconErr = t => `<i class="fas fa-exclamation-circle"></i> ${t}`;
+  const iconOk  = t => `<i class="fas fa-check-circle"></i> ${t}`;
+  const show    = (el, html) => { el.innerHTML = html; el.style.display = "block"; };
+  const hide    = el            => { el.style.display = "none"; el.innerHTML = ""; };
 
-    // ============================
-    // 2. Manejo de Errores
-    // ============================
-    function clearErrors() {
-      const errorFields = document.querySelectorAll('.field-error');
-      errorFields.forEach(field => {
-        field.innerHTML = '';
-        field.style.display = 'none';
-      });
-      errorMessageDiv.style.display = 'none';
+  function resetUI () {
+    [err, ok].forEach(hide);
+    $$(".field-error").forEach(hide);
+  }
+  function fieldErr (field, msg) {
+    const div = $(`#error-id_${field}`);
+    div ? show(div, iconErr(msg)) : show(err, iconErr(msg));
+  }
+
+  /* ══════════════ ordenar filas existentes (Lun → Dom) ══════════════ */
+  const order = ["Lun","Mar","Mie","Jue","Vie","Sab","Dom"];
+  [...tabla.querySelectorAll("tr[data-dia]")]
+    .sort((a, b) => order.indexOf(a.dataset.dia) - order.indexOf(b.dataset.dia))
+    .forEach(tr => tabla.appendChild(tr));
+
+  /* ══════════════ AUTOCOMPLETE ══════════════ */
+  let cache = Object.create(null);
+  let state = { term:"", pg:1, more:true, loading:false };
+
+  /* última selección confirmada (texto + id) */
+  let currentSelection = {
+    text : sucInp.value.trim(),
+    id   : sucHid.value.trim()
+  };
+
+  async function fetchSuc (term, pg = 1) {
+    if (state.loading || !state.more) return;
+    state.loading = true;
+
+    const key = `${term}_${pg}`;
+    let data  = cache[key];
+
+    if (!data) {
+      const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${pg}`;
+      const res = await fetch(url);
+      data      = await res.json();
+      cache[key]= data;
     }
 
-    function showFieldError(field, message) {
-      const errorDiv = document.getElementById(`error-id_${field}`);
-      if (errorDiv) {
-        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-        errorDiv.style.display = 'block';
-      }
+    if (pg === 1) box.innerHTML = "";
+    if (data.results.length) {
+      data.results.forEach(r => {
+        box.insertAdjacentHTML(
+          "beforeend",
+          `<div class="autocomplete-option" data-id="${r.id}">${r.text}</div>`
+        );
+      });
+      state.more = data.has_more;
+    } else if (pg === 1) {
+      box.innerHTML = `<div class="autocomplete-no-result">Sin resultados</div>`;
+      state.more = false;
+    }
+    box.style.display = "block";
+    state.loading = false;
+  }
+
+  const debounce = (fn, ms = 300) => {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+  };
+  const debFetchSuc = debounce(fetchSuc, 300);
+
+  sucInp.addEventListener("input", () => {
+    /* Vacía hidden sólo si el texto ya no coincide con la última selección */
+    if (sucInp.value.trim() !== currentSelection.text) {
+      sucHid.value = "";
+    }
+    state = { term:sucInp.value.trim(), pg:1, more:true, loading:false };
+    debFetchSuc(state.term, 1);
+  });
+
+  sucInp.addEventListener("focus", () => {
+    state = { term:sucInp.value.trim(), pg:1, more:true, loading:false };
+    fetchSuc(state.term, 1);
+  });
+
+  box.addEventListener("scroll", () => {
+    if (
+      box.scrollTop + box.clientHeight >= box.scrollHeight - 5 &&
+      state.more && !state.loading
+    ) {
+      state.pg++;
+      fetchSuc(state.term, state.pg);
+    }
+  });
+
+  box.addEventListener("click", e => {
+    const opt = e.target.closest(".autocomplete-option");
+    if (!opt) return;
+    sucInp.value      = opt.textContent;
+    sucHid.value      = opt.dataset.id;
+    currentSelection  = { text: sucInp.value.trim(), id: sucHid.value.trim() };
+    box.innerHTML     = "";
+    box.style.display = "none";
+    state.more        = false;
+  });
+
+  document.addEventListener("click", e => {
+    if (!sucInp.contains(e.target) && !box.contains(e.target)) {
+      box.style.display = "none";
+    }
+  });
+
+  /* ══════════════ selector de días ══════════════ */
+  dayBtns.forEach(btn => {
+    if (tabla.querySelector(`tr[data-dia="${btn.dataset.day}"]`)) {
+      btn.disabled = true;
+    }
+    btn.addEventListener("click", () => btn.classList.toggle("active"));
+  });
+
+  /* ══════════════ agregar fila ══════════════ */
+  $("#btn-agregar-horario").addEventListener("click", () => {
+    resetUI();
+
+    if (!sucHid.value.trim()) fieldErr("sucursalid", "Seleccione sucursal.");
+    const dias = [...dayBtns]
+      .filter(b => b.classList.contains("active"))
+      .map(b => b.dataset.day);
+    if (!dias.length)      fieldErr("dia_semana", "Seleccione al menos un día.");
+    if (!apInp.value)      fieldErr("horaapertura", "Indique apertura.");
+    if (!ciInp.value)      fieldErr("horacierre", "Indique cierre.");
+    if (apInp.value && ciInp.value && apInp.value >= ciInp.value) {
+      fieldErr("horacierre", "Cierre > apertura.");
+      return;
+    }
+    if (!sucHid.value.trim() || !dias.length || !apInp.value || !ciInp.value) {
+      return;
     }
 
-    function showGlobalError(message) {
-      errorMessageDiv.textContent = message;
-      errorMessageDiv.style.display = 'block';
-    }
-
-    function showSuccess(message) {
-      successMessageDiv.textContent = message;
-      successMessageDiv.style.display = 'block';
-    }
-
-
-    // ============================
-    // 3. Autocomplete Sucursal (Opcional)
-    // ============================
-    let currentPageSucursal = 1, currentTermSucursal = '';
-    let isLoadingSucursal = false, hasMoreSucursal = true;
-    let debounceTimeoutSucursal = null;
-    const DEBOUNCE_TIME = 300;
-
-    function fetchSucursales(term, page = 1) {
-      if (isLoadingSucursal || !hasMoreSucursal) return;
-      isLoadingSucursal = true;
-      const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-      fetch(url)
-        .then(response => {
-          if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-          return response.json();
-        })
-        .then(data => {
-          if (page === 1) {
-            sucursalResults.innerHTML = '';
-          }
-          if (data.results.length > 0) {
-            data.results.forEach(item => {
-              const opt = document.createElement('div');
-              opt.classList.add('autocomplete-option');
-              opt.textContent = item.text;
-              opt.dataset.id = item.id;
-              sucursalResults.appendChild(opt);
-            });
-            hasMoreSucursal = data.has_more;
-          } else if (page === 1) {
-            const noRes = document.createElement('div');
-            noRes.classList.add('autocomplete-no-result');
-            noRes.textContent = 'No se encontraron resultados';
-            sucursalResults.appendChild(noRes);
-            hasMoreSucursal = false;
-          }
-          sucursalResults.style.display = 'block';
-        })
-        .catch(err => console.error('Error fetchSucursales:', err))
-        .finally(() => { 
-          isLoadingSucursal = false; 
-        });
-    }
-
-    function debounceFetchSucursales() {
-      if (debounceTimeoutSucursal) clearTimeout(debounceTimeoutSucursal);
-      debounceTimeoutSucursal = setTimeout(() => {
-        fetchSucursales(currentTermSucursal, currentPageSucursal);
-      }, DEBOUNCE_TIME);
-    }
-
-    // Eventos de Autocomplete
-    if (sucursalInput) {
-      sucursalInput.addEventListener('input', () => {
-        currentTermSucursal = sucursalInput.value.trim();
-        sucursalIdInput.value = '';
-        hasMoreSucursal = true;
-        currentPageSucursal = 1;
-        debounceFetchSucursales();
-      });
-
-      sucursalInput.addEventListener('focus', () => {
-        currentTermSucursal = sucursalInput.value.trim();
-        hasMoreSucursal = true;
-        currentPageSucursal = 1;
-        fetchSucursales(currentTermSucursal, currentPageSucursal);
-      });
-
-      sucursalResults.addEventListener('scroll', () => {
-        if (sucursalResults.scrollTop + sucursalResults.clientHeight >= 
-            sucursalResults.scrollHeight - 5) {
-          if (!isLoadingSucursal && hasMoreSucursal) {
-            currentPageSucursal++;
-            fetchSucursales(currentTermSucursal, currentPageSucursal);
-          }
-        }
-      });
-
-      sucursalResults.addEventListener('click', e => {
-        if (e.target.classList.contains('autocomplete-option')) {
-          const text = e.target.textContent;
-          const id = e.target.dataset.id;
-          sucursalInput.value = text;
-          sucursalIdInput.value = id;
-          sucursalResults.innerHTML = '';
-          sucursalResults.style.display = 'none';
-          hasMoreSucursal = false;
-        }
-      });
-
-      document.addEventListener('click', e => {
-        if (!sucursalInput.contains(e.target) && !sucursalResults.contains(e.target)) {
-          sucursalResults.innerHTML = '';
-          sucursalResults.style.display = 'none';
-          hasMoreSucursal = false;
-        }
-      });
-    }
-
-    // ==============================
-    // 4. Manejo de Días (botones)
-    // ==============================
-    dayButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Toggle visual
-        btn.classList.toggle('active');
-      });
-    });
-
-    // Al cargar la página, deshabilitamos botones para días ya en la tabla
-    const existingRows = tablaHorarios.querySelectorAll('tr[data-dia]');
-    existingRows.forEach(row => {
-      const day = row.getAttribute('data-dia');
-      const dayBtn = document.querySelector(`.day-button[data-day="${day}"]`);
-      if (dayBtn) {
-        dayBtn.disabled = true;
-        dayBtn.classList.remove('active');
-      }
-    });
-
-
-    // ==============================
-    // 5. Agregar Horario a la Tabla
-    // ==============================
-    btnAgregarHorario.addEventListener('click', () => {
-      clearErrors();
-
-      // 1) Verificar si la sucursal está vacía
-      if (!sucursalIdInput.value.trim()) {
-        showFieldError('sucursalid', 'Debe seleccionar una sucursal.');
-      }
-
-      // 2) Recolectar días activos
-      const selectedDays = [...document.querySelectorAll('.day-button.active')]
-        .map(b => b.dataset.day);
-
-      const horaApertura = horaAperturaInput.value;
-      const horaCierre = horaCierreInput.value;
-
-      // Validaciones mínimas
-      if (!selectedDays.length) {
-        showFieldError('dia_semana', 'Debe seleccionar al menos un día.');
-      }
-      if (!horaApertura) {
-        showFieldError('horaapertura', 'Debe ingresar una hora de apertura.');
-      }
-      if (!horaCierre) {
-        showFieldError('horacierre', 'Debe ingresar una hora de cierre.');
-      }
-      if (!selectedDays.length || !horaApertura || !horaCierre) {
-        return;
-      }
-      if (horaApertura >= horaCierre) {
-        showFieldError('horacierre', 'La hora de cierre debe ser mayor que la de apertura.');
-        return;
-      }
-
-      // Agregar fila por cada día seleccionado
-      selectedDays.forEach(dia => {
-        // Desactiva botón para que no se repita el mismo día
-        const btn = document.querySelector(`.day-button[data-day="${dia}"]`);
-        btn.disabled = true;
-        btn.classList.remove('active');
-
-        // Crea la fila
-        const row = document.createElement('tr');
-        row.dataset.dia = dia;
-        row.innerHTML = `
-          <td>${dia}</td>
-          <td><input type="time" value="${horaApertura}"></td>
-          <td><input type="time" value="${horaCierre}"></td>
-          <td>
-            <!-- Ajusta la clase si tu CSS usa .btn-eliminar o .btn-eliminar-horario -->
+    dias.forEach(d => {
+      tabla.insertAdjacentHTML("beforeend", `
+        <tr data-dia="${d}">
+          <td data-label="Día">${d}</td>
+          <td data-label="Apertura">
+            <input type="time" value="${apInp.value}" readonly>
+          </td>
+          <td data-label="Cierre">
+            <input type="time" value="${ciInp.value}" readonly>
+          </td>
+          <td data-label="Acciones">
             <button type="button" class="btn-eliminar">
               <i class="fas fa-trash"></i>
             </button>
           </td>
-        `;
-        tablaHorarios.appendChild(row);
-      });
-
-      // Limpia campos
-      horaAperturaInput.value = '';
-      horaCierreInput.value = '';
-    });
-
-
-    // ==============================
-    // 6. Eliminar fila de la tabla
-    // ==============================
-    tablaHorarios.addEventListener('click', e => {
-      if (e.target.closest('.btn-eliminar')) {
-        const row = e.target.closest('tr');
-        const dia = row.dataset.dia;
-
-        // Eliminar visualmente
-        row.remove();
-
-        // Reactivar el botón de ese día
-        const dayBtn = document.querySelector(`.day-button[data-day="${dia}"]`);
-        if (dayBtn) {
-          dayBtn.disabled = false;
-        }
+        </tr>`);
+      const b = dayBtns.find(x => x.dataset.day === d);
+      if (b) {
+        b.disabled = true;
+        b.classList.remove("active");
       }
     });
 
+    apInp.value = "";
+    ciInp.value = "";
+  });
 
-    // ===============================
-    // 7. Enviar el formulario (Submit)
-    // ===============================
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      clearErrors();
+  /* ══════════════ eliminar fila ══════════════ */
+  tabla.addEventListener("click", e => {
+    const btn = e.target.closest(".btn-eliminar");
+    if (!btn) return;
 
-      // Validar si hay sucursal (si la permites cambiar)
-      const sucursalId = sucursalIdInput ? sucursalIdInput.value.trim() : '';
-      if (!sucursalId) {
-        showFieldError('sucursalid', 'Debe seleccionar una sucursal.');
-        return;
+    const tr  = btn.closest("tr");
+    const dia = tr.dataset.dia;
+    tr.remove();  // quitamos la fila
+
+    // reactivar el botón solamente si ya no queda ninguna fila con ese día
+    if (!tabla.querySelector(`tr[data-dia="${dia}"]`)) {
+      const b = [...dayBtns].find(x => x.dataset.day === dia);
+      if (b) {
+        b.disabled = false;
+        b.classList.remove("active");
       }
+    }
+  });
 
-      // Recolectar horarios de la tabla
-      const rows = tablaHorarios.querySelectorAll('tr[data-dia]');
-      if (!rows.length) {
-        showFieldError('dia_semana', 'No hay horarios en la tabla.');
-        return;
-      }
+  /* ══════════════ submit ══════════════ */
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    resetUI();
 
-      const horarios = [...rows].map(row => {
-        const dia = row.dataset.dia;
-        const horaApertura = row.cells[1].querySelector('input').value;
-        const horaCierre = row.cells[2].querySelector('input').value;
-        return {
-          dia: dia,
-          horaapertura: horaApertura,
-          horacierre: horaCierre
-        };
-      });
+    if (!sucHid.value.trim()) {
+      fieldErr("sucursalid", "Seleccione una sucursal de la lista.");
+      return;
+    }
+    const rows = [...tabla.querySelectorAll("tr[data-dia]")];
+    if (!rows.length) {
+      fieldErr("dia_semana", "No hay horarios en la tabla.");
+      return;
+    }
 
-      // Enviar al servidor via fetch (AJAX)
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken,  // solo si tu vista lo requiere
+    const horarios = rows.map(r => ({
+      dia         : r.dataset.dia,
+      horaapertura: r.querySelectorAll("input")[0].value,
+      horacierre  : r.querySelectorAll("input")[1].value
+    }));
+
+    try {
+      const res = await fetch(form.action, {
+        method     : "POST",
+        credentials: "same-origin",
+        headers    : {
+          "Content-Type": "application/json",
+          "X-CSRFToken" : csrftoken,
+          "Accept"      : "application/json"
         },
-        body: JSON.stringify({
-          sucursalid: sucursalId,
-          horarios: horarios
-        })
-      })
-      .then(resp => resp.json())
-      .then(data => {
-        if (data.success) {
-          showSuccess('Horarios actualizados con éxito.');
-          // Redirigir o recargar según tu preferencia
-          setTimeout(() => {
-            window.location.href = "/visualizar_horarios/";
-          }, 800);
-        } else {
-          // Manejo de errores
-          if (data.errors) {
-            // Errores de form
-            const errs = JSON.parse(data.errors);
-            for (let field in errs) {
-              const fieldErrors = errs[field];
-              fieldErrors.forEach(e => {
-                showFieldError(field, e.message);
-              });
-            }
-          } else if (data.error) {
-            // Error general
-            showGlobalError(data.error);
-          } else {
-            showGlobalError('Error desconocido al actualizar.');
-          }
-        }
-      })
-      .catch(err => {
-        console.error('Error al enviar:', err);
-        showGlobalError('Ocurrió un error inesperado al guardar.');
+        body: JSON.stringify({ sucursalid: sucHid.value, horarios })
       });
-    });
-});
+
+      if (!res.ok) {
+        show(err, iconErr(`Error al guardar (HTTP ${res.status}).`));
+        return;
+      }
+
+      const data = await res.json();
+      if (data.success) {
+        show(ok, iconOk("Horarios guardados."));
+        setTimeout(() => location.href = "/visualizar_horarios/", 800);
+      } else if (data.errors) {
+        const errs = JSON.parse(data.errors);
+        Object.entries(errs).forEach(([f, arr]) =>
+          arr.forEach(e => fieldErr(f, e.message))
+        );
+      } else {
+        show(err, iconErr(data.error || "Error desconocido."));
+      }
+
+    } catch (e) {
+      console.error("fetch fail:", e);
+      show(err, iconErr("Error de red o de parseo."));
+    }
+  });
+})();

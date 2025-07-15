@@ -2075,147 +2075,75 @@ class SucursalConHorariosAutocomplete(PaginatedAutocompleteMixin):
         )
 
 
-@login_required
-def editar_horarios_view(request, sucursal_id):
+@method_decorator(transaction.atomic, name="dispatch")
+class HorarioUpdateAJAXView(LoginRequiredMixin, View):
     """
-    Vista para editar los horarios de una sucursal en particular.
-    - GET: retorna la plantilla con la sucursal y sus horarios actuales.
-    - POST (AJAX/JSON): recibe los datos con la lista de horarios nuevos,
-      elimina los existentes y crea (o actualiza) los nuevos.
+    • GET  → muestra la plantilla con horarios actuales.
+    • POST → recibe JSON con lista de horarios, los reemplaza y responde JSON.
     """
-    sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
-    horarios_existentes = HorariosNegocio.objects.filter(sucursalid=sucursal).order_by('dia_semana')
+    template_name = "editar_horario.html"
+    form_class    = EditarHorariosSucursalForm
+    success_msg   = "Horarios actualizados correctamente."
 
-    if request.method == 'POST':
-        # Se espera que vengan datos en formato JSON via fetch (AJAX)
-        try:
-            data = json.loads(request.body)
-        except ValueError:
-            return JsonResponse({'success': False, 'error': 'JSON inválido.'}, status=400)
-
-        sucursal_id_post = data.get('sucursalid')
-        horarios_list = data.get('horarios', [])
-
-        # Instanciamos el formulario para validaciones básicas
-        form_data = {
-            'sucursalid': sucursal_id_post,
-            'dia_semana': '',
-            'horaapertura': '',
-            'horacierre': '',
-        }
-        form = EditarHorariosSucursalForm(data=form_data, horarios_present=bool(horarios_list))
-        if form.is_valid():
-            try:
-                # 1) Borrar los horarios antiguos de esta sucursal
-                HorariosNegocio.objects.filter(sucursalid=sucursal).delete()
-
-                # 2) (Opcional) Si quisieras cambiar la sucursal "asociada" a la URL,
-                #    podrías hacerlo (dependerá de tu lógica), por ejemplo:
-                #    sucursal.sucursalid = sucursal_id_post
-                #    sucursal.save()
-
-                # 3) Crear/Insertar los nuevos horarios
-                for item in horarios_list:
-                    dia = item['dia']
-                    hora_apertura = item['horaapertura']
-                    hora_cierre = item['horacierre']
-                    HorariosNegocio.objects.create(
-                        sucursalid_id=sucursal_id_post,
-                        dia_semana=dia,
-                        horaapertura=hora_apertura,
-                        horacierre=hora_cierre
-                    )
-
-                # Mensaje de éxito en caso de que quieras usarlo con Django messages
-                messages.success(request, f'Horarios de la sucursal {sucursal.nombre} actualizados correctamente.')
-                return JsonResponse({'success': True})
-            except Exception as e:
-                return JsonResponse({'success': False, 'error': str(e)})
-        else:
-            # Errores de validación del formulario
-            errors_json = form.errors.get_json_data()
-            return JsonResponse({'success': False, 'errors': json.dumps(errors_json)})
-    
-    # GET => Renderizar la plantilla
-    return render(request, 'editar_horario.html', {
-        'sucursal': sucursal,
-        'horarios': horarios_existentes,
-    })
-
-@login_required
-def horarios_sucursal_autocomplete(request):
-    """
-    Autocomplete que:
-      - Incluye SIEMPRE la sucursal actual (enviada como 'current_sucursal_id'),
-        incluso si ya tiene horarios.
-      - Incluye TODAS las sucursales que NO tengan ningún horario (horariosnegocio__isnull=True).
-      - Aplica filtro por 'term' (nombre) únicamente si se proporciona.
-      - Maneja paginación con 'page' y 'per_page'.
-    """
-    # Parámetros GET
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '50').strip()
-    current_sucursal_str = request.GET.get('current_sucursal_id', '').strip()
-
-    # Paginación: page
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    # Paginación: per_page
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 50
-    if per_page < 1:
-        per_page = 50
-
-    # Convertir el ID de sucursal actual
-    try:
-        current_sucursal_id = int(current_sucursal_str)
-    except ValueError:
-        current_sucursal_id = None
-
-    # QuerySet base:
-    # Si tenemos un current_sucursal_id => mostrar esa sucursal y las que no tienen horarios
-    # De lo contrario, solo mostramos las sin horarios.
-    if current_sucursal_id:
-        qs = Sucursal.objects.filter(
-            Q(pk=current_sucursal_id) | Q(horariosnegocio__isnull=True)
+    def get(self, request, sucursal_id):
+        suc = get_object_or_404(Sucursal, pk=sucursal_id)
+        hrs = (
+            HorariosNegocio.objects
+            .filter(sucursalid=suc)
+            .order_by("dia_semana")
         )
-    else:
-        qs = Sucursal.objects.filter(horariosnegocio__isnull=True)
-
-    # Si hay un 'term', filtramos adicionalmente por nombre
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    # Ordenar por nombre
-    qs = qs.order_by('nombre')
-
-    # Paginación
-    start = (page - 1) * per_page
-    end = start + per_page
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    # Construir la respuesta JSON
-    results = []
-    for suc in qs:
-        results.append({
-            'id': suc.pk,
-            'text': suc.nombre
+        days = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+        return render(request, self.template_name, {
+            "sucursal": suc,
+            "horarios": hrs,
+            "days":     days,
         })
 
-    has_more = end < total_results
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
+    def post(self, request, sucursal_id):
+        # 1) Cargo la payload JSON
+        try:
+            payload = json.loads(request.body)
+        except (ValueError, TypeError):
+            return JsonResponse(
+                {"success": False, "error": "JSON inválido."},
+                status=400
+            )
+
+        horarios = payload.get("horarios", [])
+        form = self.form_class(payload, horarios_present=bool(horarios))
+
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps(
+                    form.errors.get_json_data(escape_html=True)
+                ),
+            }, status=400)
+
+        # 2) Borro los horarios de la sucursal original (de la URL)
+        original_suc = get_object_or_404(Sucursal, pk=sucursal_id)
+        HorariosNegocio.objects.filter(sucursalid=original_suc).delete()
+
+        # 3) Creo los nuevos horarios en la sucursal seleccionada
+        new_suc = get_object_or_404(
+            Sucursal, pk=form.cleaned_data["sucursalid"]
+        )
+        nuevos = [
+            HorariosNegocio(
+                sucursalid=new_suc,
+                dia_semana=h["dia"],
+                horaapertura=h["horaapertura"],
+                horacierre=h["horacierre"],
+            )
+            for h in horarios
+        ]
+        HorariosNegocio.objects.bulk_create(nuevos)
+
+        # 4) Mensaje de éxito
+        messages.success(request, self.success_msg)
+        return JsonResponse({"success": True})
+    
+
 
 @login_required
 def eliminar_horario_view(request, horario_id):

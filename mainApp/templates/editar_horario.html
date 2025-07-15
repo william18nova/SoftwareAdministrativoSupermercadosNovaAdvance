@@ -1,144 +1,109 @@
-{% extends 'base.html' %}
+{# templates/editar_horario.html #}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Editar Horarios{% endblock %}
+
+{% block extra_head %}
+  <!-- Font-Awesome + hoja de estilos compartida -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet"
+        href="{% static 'css/agregar_horario.css' %}">
+{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Editar Horarios</title>
+<div class="container-horario">
+  <i class="fas fa-clock icon-horario"></i>
+  <h2>Editar Horarios</h2>
+  <p class="obligatorio-texto">
+    Todos los campos con <span class="required">*</span> son obligatorios.
+  </p>
 
-  <!-- Se usa "agregar_horario.css" en lugar de "editar_horario.css" -->
-  <link rel="stylesheet" href="{% static 'css/agregar_horario.css' %}">
-  <!-- Font Awesome (iconos) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-</head>
-<body>
-  <div class="container-usuario">
-    <i class="fas fa-clock icono-reloj"></i>
-    <h2>Editar Horarios</h2>
-    <p class="obligatorio-texto">
-      Todos los campos con <span class="required">*</span> son obligatorios.
-    </p>
+  {% if messages %}
+    <div class="messages">
+      {% for m in messages %}
+        <div class="alert {% if m.tags %}alert-{{ m.tags }}{% endif %}">{{ m }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
-    <!-- Mensajes tipo Django messages -->
-    {% if messages %}
-      <div class="messages">
-        {% for message in messages %}
-          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-            {{ message }}
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
+  <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
+  <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
-    <!-- Alertas globales para mensajes de error y éxito (vía AJAX) -->
-    <div id="error-message" class="alert alert-error" style="display: none;"></div>
-    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+  <form id="form-editar-horarios"
+        method="post"
+        action="{% url 'editar_horarios' sucursal.sucursalid %}">
+    {% csrf_token %}
 
-    <!-- Formulario principal (aunque lo manejamos por JS) -->
-    <form id="form-editar-horarios" method="POST" action="{% url 'editar_horarios' sucursal.sucursalid %}">
-      {% csrf_token %}
+    {# ── Autocomplete sucursal ── #}
+    <div class="form-group-horario">
+      <label>Sucursal <span class="required">*</span></label>
+      <!-- type="text" ESPECIALMENTE IMPORTANTE -->
+      <input  type="text"
+              id="id_sucursal_autocomplete"
+              class="form-control"
+              placeholder="Buscar sucursal…"
+              autocomplete="off"
+              value="{{ sucursal.nombre }}">
+      <input  type="hidden" id="id_sucursalid" name="sucursalid"
+              value="{{ sucursal.sucursalid }}">
+      <div   id="sucursal-autocomplete-results" class="autocomplete-results"></div>
+      <div   id="error-id_sucursalid" class="field-error"></div>
+    </div>
 
-      <!-- (OPCIONAL) Autocomplete de Sucursal: si deseas permitir cambiar la sucursal -->
-      <div class="form-group">
-        <label for="id_sucursal_autocomplete">
-          Sucursal <span class="required">*</span>
-        </label>
-        <input type="text"
-               id="id_sucursal_autocomplete"
-               name="sucursal_autocomplete"
-               class="form-control"
-               placeholder="Escriba para buscar sucursal..."
-               autocomplete="off"
-               value="{{ sucursal.nombre }}">
-        <!-- Campo hidden para guardar el ID de la sucursal -->
-        <input type="hidden" id="id_sucursalid" name="sucursalid" value="{{ sucursal.sucursalid }}">
-        <div class="autocomplete-results" id="sucursal-autocomplete-results"></div>
-        <div class="field-error" id="error-id_sucursalid"></div>
-      </div>
+    {# ── Selector de días ── #}
+    <div class="days-container">
+      {% for d in days %}
+        <button type="button" class="day-button" data-day="{{ d }}">{{ d }}</button>
+      {% endfor %}
+    </div>
+    <div id="error-id_dia_semana" class="field-error"></div>
 
-      <!-- Días de la semana -->
-      <div class="form-group">
-        <label>Días <span class="required">*</span></label>
-        <div class="days-container">
-          <button type="button" class="day-button" data-day="Lun">Lun</button>
-          <button type="button" class="day-button" data-day="Mar">Mar</button>
-          <button type="button" class="day-button" data-day="Mie">Mie</button>
-          <button type="button" class="day-button" data-day="Jue">Jue</button>
-          <button type="button" class="day-button" data-day="Vie">Vie</button>
-          <button type="button" class="day-button" data-day="Sab">Sab</button>
-          <button type="button" class="day-button" data-day="Dom">Dom</button>
-        </div>
-        <div class="field-error" id="error-id_dia_semana"></div>
-      </div>
+    {# ── Horas ── #}
+    <div class="form-group-horario">
+      <label>Hora de Apertura <span class="required">*</span></label>
+      <input type="time" id="horaapertura" class="form-control">
+      <div id="error-id_horaapertura" class="field-error"></div>
+    </div>
+    <div class="form-group-horario">
+      <label>Hora de Cierre <span class="required">*</span></label>
+      <input type="time" id="horacierre" class="form-control">
+      <div id="error-id_horacierre" class="field-error"></div>
+    </div>
 
-      <!-- Hora de Apertura -->
-      <div class="form-group">
-        <label for="horaapertura">
-          Hora de Apertura <span class="required">*</span>
-        </label>
-        <input type="time" id="horaapertura" name="horaapertura" class="form-control">
-        <div class="field-error" id="error-id_horaapertura"></div>
-      </div>
+    <button type="button" id="btn-agregar-horario" class="btn-agregar-horario">
+      Agregar Horario
+    </button>
 
-      <!-- Hora de Cierre -->
-      <div class="form-group">
-        <label for="horacierre">
-          Hora de Cierre <span class="required">*</span>
-        </label>
-        <input type="time" id="horacierre" name="horacierre" class="form-control">
-        <div class="field-error" id="error-id_horacierre"></div>
-      </div>
-
-      <!-- Botón para agregar al listado temporal -->
-      <button type="button" class="btn-agregar-temporal" id="btn-agregar-horario">
-        Agregar Horario
-      </button>
-
-      <!-- Tabla de horarios existentes / nuevos -->
-      <div class="horarios-temp-container">
-        <table class="horarios-temp">
-          <thead>
-            <tr>
-              <th>Día</th>
-              <th>Hora de Apertura</th>
-              <th>Hora de Cierre</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-horarios">
-            <!-- Renderizamos los horarios existentes -->
-            {% for horario in horarios %}
-            <tr data-dia="{{ horario.dia_semana }}">
-              <td>{{ horario.dia_semana }}</td>
-              <td><input type="time" value="{{ horario.horaapertura|time:'H:i' }}"></td>
-              <td><input type="time" value="{{ horario.horacierre|time:'H:i' }}"></td>
-              <td>
-                <!-- Se cambia 'btn-eliminar-horario' por 'btn-eliminar' para coincidir con el CSS -->
-                <button type="button" class="btn-eliminar">
-                  <i class="fas fa-trash"></i>
-                </button>
+    {# ── Tabla ── #}
+    <div class="horarios-temp-container">
+      <table class="horarios-temp">
+        <thead>
+          <tr><th>Día</th><th>Apertura</th><th>Cierre</th><th>Acciones</th></tr>
+        </thead>
+        <tbody id="tabla-horarios">
+          {% for h in horarios %}
+            <tr data-dia="{{ h.dia_semana }}">
+              <td data-label="Día">{{ h.dia_semana }}</td>
+              <td data-label="Apertura"><input type="time" value="{{ h.horaapertura|time:'H:i' }}" readonly></td>
+              <td data-label="Cierre"><input type="time" value="{{ h.horacierre|time:'H:i' }}" readonly></td>
+              <td data-label="Acciones">
+                <button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button>
               </td>
             </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-      <!-- Botón final para enviar (lo maneja JS con fetch) -->
-      <button type="submit" class="btn-guardar">Guardar Cambios</button>
-    </form>
-  </div>
+    <button type="submit" class="btn-guardar-horario">Guardar Cambios</button>
+  </form>
+</div>
 
-  <!-- Rutas de autocomplete (opcional) -->
-  <script>
-    var sucursalAutocompleteUrl = "{% url 'horarios_sucursal_autocomplete' %}";
-  </script>
-
-  <!-- JavaScript separado -->
-  <script src="{% static 'javascript/editar_horario.js' %}"></script>
-</body>
-</html>
+<script>
+  /* Ruta usada en editar_horario.js */
+  const sucursalAutocompleteUrl = "{% url 'horarios_sucursal_autocomplete' %}";
+</script>
+<script defer src="{% static 'javascript/editar_horario.js' %}"></script>
 {% endblock %}

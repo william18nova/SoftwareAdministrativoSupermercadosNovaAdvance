@@ -663,46 +663,57 @@ class HorariosNegocioForm(forms.ModelForm):
 
 class EditarHorariosSucursalForm(forms.Form):
     """
-    Formulario para editar horarios de una sucursal.
-    Usado principalmente para validar la información básica
-    que llega vía AJAX (JSON).
-    """
-    # Campo autocompletado: si deseas permitir cambiar de sucursal
-    sucursalid = forms.CharField(required=True)
-    
-    # Campos "dummy" para evitar errores si tu plantilla envía algo extra.
-    dia_semana = forms.CharField(required=False)
-    horaapertura = forms.TimeField(required=False)
-    horacierre = forms.TimeField(required=False)
+    Formulario **sólo** para validar la PK de la sucursal y
+    comprobar que el payload trae la lista de horarios.
 
+    – El frontend envía:
+        {
+          "sucursalid": "12",
+          "horarios": [
+              {"dia": "Lun", "horaapertura": "08:00", "horacierre": "17:00"},
+              ...
+          ]
+        }
+
+    – Los campos de día/hora NO se validan aquí porque llegan
+      dentro del array `horarios`; se validan en la vista
+      (o al momento de crear los objetos `HorariosNegocio`).
+    """
+
+    # ── único campo real ────────────────────────────────────────────
+    sucursalid = forms.CharField(required=True)
+
+    # ----------------------------------------------------------------
+    # El flag «horarios_present» llega desde la vista para saber
+    # si el JSON tenía o no la lista de horarios.
+    # ----------------------------------------------------------------
     def __init__(self, *args, horarios_present=False, **kwargs):
-        """
-        'horarios_present' indica si en el POST (JSON) venía la lista de horarios.
-        Podrías usarlo para validaciones personalizadas.
-        """
         super().__init__(*args, **kwargs)
         self.horarios_present = horarios_present
 
+    # ── validación de sucursal ──────────────────────────────────────
     def clean_sucursalid(self):
-        s_id = self.cleaned_data.get('sucursalid')
-        # Valida que sea dígito (opcional, si tus PK son numéricos)
-        if not s_id.isdigit():
-            raise forms.ValidationError('ID de sucursal inválido.')
-        # Valida que la sucursal exista
-        try:
-            Sucursal.objects.get(pk=s_id)
-        except Sucursal.DoesNotExist:
-            raise forms.ValidationError('La sucursal no existe.')
-        return s_id
+        sid = self.cleaned_data["sucursalid"]
 
+        # 1) numérica (si tus PK son int)
+        if not sid.isdigit():
+            raise forms.ValidationError("ID de sucursal inválido.")
+
+        # 2) existe en BD
+        if not Sucursal.objects.filter(pk=sid).exists():
+            raise forms.ValidationError("La sucursal no existe.")
+
+        return sid
+
+    # ── validación global ───────────────────────────────────────────
     def clean(self):
-        """
-        Aquí podrías agregar validaciones adicionales:
-         - Que existan horarios
-         - Que las horas sean correctas, etc.
-        """
-        cleaned_data = super().clean()
-        return cleaned_data
+        cleaned = super().clean()
+
+        # la vista pasa «horarios_present» en función del JSON
+        if not self.horarios_present:
+            raise forms.ValidationError("Debe enviar al menos un horario.")
+
+        return cleaned
 
 class HorarioCajaForm(forms.ModelForm):
     puntopago_autocomplete = forms.CharField(
