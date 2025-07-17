@@ -719,92 +719,61 @@ class HorarioCajaForm(forms.ModelForm):
     puntopago_autocomplete = forms.CharField(
         required=True,
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Escriba para buscar punto de pago...',
-            'autocomplete': 'off',
+            "class": "form-control",
+            "placeholder": "Escriba para buscar punto de pago…",
+            "autocomplete": "off",
         })
     )
     puntopagoid = forms.ModelChoiceField(
-        queryset=PuntosPago.objects.none(),
+        queryset=PuntosPago.objects.filter(horarios_caja__isnull=True).order_by("nombre"),
         widget=forms.HiddenInput(),
         required=True,
     )
-    dia_semana = forms.CharField(
-        required=False,
-        widget=forms.HiddenInput()
-    )
-    horaapertura = forms.TimeField(
-        required=False,
-        widget=forms.TimeInput(attrs={
-            'class': 'form-control',
-            'type': 'time'
-        })
-    )
-    horacierre = forms.TimeField(
-        required=False,
-        widget=forms.TimeInput(attrs={
-            'class': 'form-control',
-            'type': 'time'
-        })
-    )
+    dia_semana   = forms.CharField(required=False, widget=forms.HiddenInput())
+    horaapertura = forms.TimeField(required=False, widget=forms.TimeInput(attrs={
+        "class": "form-control", "type": "time"
+    }))
+    horacierre   = forms.TimeField(required=False, widget=forms.TimeInput(attrs={
+        "class": "form-control", "type": "time"
+    }))
 
     class Meta:
-        model = HorarioCaja
-        fields = ['puntopagoid', 'dia_semana', 'horaapertura', 'horacierre']
-        labels = {
-            'puntopagoid': 'Punto de Pago',
-            'dia_semana': 'Día de la Semana',
-            'horaapertura': 'Hora de Apertura',
-            'horacierre': 'Hora de Cierre',
-        }
-        widgets = {
-            'puntopagoid': forms.HiddenInput(),
-            'dia_semana': forms.HiddenInput(),
-            'horaapertura': forms.TimeInput(attrs={
-                'class': 'form-control',
-                'type': 'time'
-            }),
-            'horacierre': forms.TimeInput(attrs={
-                'class': 'form-control',
-                'type': 'time'
-            }),
-        }
+        model  = HorarioCaja
+        fields = ["puntopagoid","dia_semana","horaapertura","horacierre"]
 
     def __init__(self, *args, horarios_present=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.horarios_present = horarios_present
 
-        # Filtrar los Puntos de Pago que no tienen horario asignado
-        self.fields['puntopagoid'].queryset = PuntosPago.objects.filter(
-            sucursalid__isnull=False
-        ).exclude(
-            horarios_caja__isnull=False
-        )
-
     def clean(self):
-        cleaned_data = super().clean()
-        horaapertura = cleaned_data.get('horaapertura')
-        horacierre = cleaned_data.get('horacierre')
-        dia_semana = cleaned_data.get('dia_semana')
-        puntopagoid = cleaned_data.get('puntopagoid')
+        cleaned = super().clean()
+        raw     = self.data.get("horarios", "")
+        ap      = cleaned.get("horaapertura")
+        ci      = cleaned.get("horacierre")
+        dias    = cleaned.get("dia_semana")
+        pp      = cleaned.get("puntopagoid")
 
-        # Si no hay horarios listados, validar los campos
-        if not self.horarios_present:
-            if horaapertura and horacierre:
-                if horaapertura >= horacierre:
-                    raise forms.ValidationError('La hora de apertura debe ser menor que la hora de cierre.')
+        if not raw:
+            # Validación por campos individuales
+            if not dias:
+                self.add_error("dia_semana", "Debe seleccionar al menos un día.")
+            if not ap:
+                self.add_error("horaapertura", "Debe indicar hora de apertura.")
+            if not ci:
+                self.add_error("horacierre", "Debe indicar hora de cierre.")
+            if ap and ci and ap >= ci:
+                self.add_error("horacierre", "La hora de cierre debe ser mayor.")
+            # Evitar duplicados ya guardados
+            if dias and pp:
+                for d in dias.split(","):
+                    if HorarioCaja.objects.filter(puntopagoid=pp, dia_semana=d).exists():
+                        self.add_error("dia_semana", f"Ya existe horario para {d}.")
+        else:
+            # Si viene JSON, sólo check de orden de horas
+            if ap and ci and ap >= ci:
+                self.add_error("horacierre", "La hora de cierre debe ser mayor.")
 
-            if not dia_semana:
-                raise forms.ValidationError('Debe seleccionar al menos un día de la semana.')
-
-            # Validar que no exista ya un horario para el mismo día y punto de pago
-            if dia_semana and puntopagoid:
-                dias = dia_semana.split(',')
-                for dia in dias:
-                    if HorarioCaja.objects.filter(puntopagoid=puntopagoid, dia_semana=dia).exists():
-                        raise forms.ValidationError(f'Ya existe un horario para el día {dia} en este punto de pago.')
-
-        return cleaned_data
+        return cleaned
     
 class EditarHorarioCajaForm(forms.Form):
     """

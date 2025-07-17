@@ -2154,206 +2154,123 @@ def eliminar_horario_view(request, horario_id):
     return JsonResponse({'success': False, 'message': 'Método no permitido.'})
 
 
-@login_required
-def agregar_horario_caja_view(request):
-    puntos_con_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
+# ────────────────────────────────────────────────────────────────
+#  AJAX Create — Horario de Caja
+# ────────────────────────────────────────────────────────────────
+@method_decorator(transaction.atomic, name="dispatch")
+class HorarioCajaCreateAJAXView(LoginRequiredMixin, View):
+    """
+    • GET  → muestra el form y lista vacía.
+    • POST → recibe JSON con lista de horarios, los guarda y responde JSON.
+    """
+    template_name = "agregar_horario_caja.html"
+    form_class    = HorarioCajaForm
+    success_msg   = "Horario(s) de caja agregado(s) exitosamente."
 
-    sucursales = Sucursal.objects.annotate(
-        tiene_puntos_sin_horario=Exists(
-            PuntosPago.objects.filter(
-                sucursalid=OuterRef('pk')
-            ).exclude(
-                Exists(puntos_con_horario)
-            )
-        )
-    ).filter(tiene_puntos_sin_horario=True).distinct()
+    def get(self, request):
+        form = self.form_class()
+        days = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+        return render(request, self.template_name, {
+            "form": form,
+            "days": days,
+        })
 
-    if request.method == 'POST':
-        horarios_temp = request.POST.get('horarios')
-        horarios_present = bool(horarios_temp and json.loads(horarios_temp))
-        form = HorarioCajaForm(request.POST, horarios_present=horarios_present)
-        if form.is_valid():
-            if horarios_present:
-                horarios = json.loads(horarios_temp)
-                puntopago = form.cleaned_data['puntopagoid']
-                for horario in horarios:
-                    HorarioCaja.objects.create(
-                        puntopagoid=puntopago,
-                        dia_semana=horario['dia'],
-                        horaapertura=horario['horaapertura'],
-                        horacierre=horario['horacierre']
-                    )
-                return JsonResponse({'success': True})
-            else:
-                dia_semana = form.cleaned_data['dia_semana']
-                horaapertura = form.cleaned_data['horaapertura']
-                horacierre = form.cleaned_data['horacierre']
-                puntopago = form.cleaned_data['puntopagoid']
+    def post(self, request):
+        raw = request.POST.get("horarios", "[]")
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            data = []
+        horarios_present = bool(data)
 
-                dias = dia_semana.split(',')
-                for dia in dias:
-                    HorarioCaja.objects.create(
-                        puntopagoid=puntopago,
-                        dia_semana=dia,
-                        horaapertura=horaapertura,
-                        horacierre=horacierre
-                    )
-                return JsonResponse({'success': True})
+        form = self.form_class(request.POST, horarios_present=horarios_present)
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps(form.errors.get_json_data(escape_html=True))
+            }, status=400)
+
+        puntopago = form.cleaned_data["puntopagoid"]
+        batch = []
+        # Si viene lista JSON, la usamos directamente
+        if horarios_present:
+            for h in data:
+                batch.append(HorarioCaja(
+                    puntopagoid=puntopago,
+                    dia_semana=h["dia"],
+                    horaapertura=h["horaapertura"],
+                    horacierre=h["horacierre"],
+                ))
         else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = HorarioCajaForm()
+            # Fallback a campos individuales
+            dias = form.cleaned_data["dia_semana"].split(",")
+            ap   = form.cleaned_data["horaapertura"]
+            ci   = form.cleaned_data["horacierre"]
+            for d in dias:
+                batch.append(HorarioCaja(
+                    puntopagoid=puntopago,
+                    dia_semana=d,
+                    horaapertura=ap,
+                    horacierre=ci,
+                ))
 
-    return render(request, 'agregar_horario_caja.html', {
-        'form': form,
-        'sucursales': sucursales,
-    })
+        HorarioCaja.objects.bulk_create(batch)
+        return JsonResponse({"success": True})
 
 
-@login_required
-def sucursal_autocomplete_horariocaja(request):
+class SucursalHorarioCajaAutocomplete(PaginatedAutocompleteMixin):
     """
-    Autocomplete para Sucursal que tengan al menos un Punto de Pago
-    que aún NO tenga un horario asignado (HorarioCaja).
-    Incluye paginación y filtro por 'term' (búsqueda).
+    Autocomplete de Sucursales que tienen al menos un PuntoPago
+    sin ningún HorarioCaja asignado.
     """
-    # 1. Obtener parámetros de búsqueda y paginación
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '50').strip()
+    model      = Sucursal
+    id_field   = "pk"
+    text_field = "nombre"
+    per_page   = 10
 
-    # 2. Convertir 'page' a entero seguro
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    # 3. Convertir 'per_page' a entero seguro
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 50
-    if per_page < 1:
-        per_page = 50
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    # 4. QuerySet base:
-    #    Filtramos Sucursales que tengan AL MENOS 1 punto de pago SIN horario.
-    #    - Para ello, usamos un Count en PuntosPago (con horarios_caja__isnull=True)
-    #      y filtramos las sucursales que tienen count_pp_sin_horario > 0
-    qs = (
-        Sucursal.objects
-        .annotate(
-            # Contar los PuntosPago que no tengan horarios
-            count_pp_sin_horario=Count(
-                'puntospago',
-                filter=Q(puntospago__horarios_caja__isnull=True),
-                distinct=True
-            )
-        )
-        .filter(count_pp_sin_horario__gt=0)
-    )
-
-    # 5. Filtro por 'term' si viene
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-
-    # 6. Ordenar por nombre
-    qs = qs.order_by('nombre')
-
-    # 7. Paginación
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    # 8. Construir results para el autocomplete
-    results = []
-    for sucursal in qs:
-        results.append({
-            'id': sucursal.pk,
-            'text': sucursal.nombre,
-        })
-
-    # 9. Saber si hay más
-    has_more = end < total_results
-
-    # 10. Respuesta JSON
-    return JsonResponse({
-        'results': results,
-        'has_more': has_more,
-    })
-
-@login_required
-def puntopago_autocomplete(request):
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page = 50
-
-    # Validar y convertir página a entero
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    # Tomar la sucursal
-    sucursal_id_str = request.GET.get('sucursal_id', '')
-    if not sucursal_id_str:
-        return JsonResponse({
-            'results': [],
-            'has_more': False,
-            'error': 'No se proporcionó un ID de sucursal.'
-        })
-
-    try:
-        sucursal_id = int(sucursal_id_str)
-        sucursal = Sucursal.objects.get(pk=sucursal_id)
-    except (ValueError, Sucursal.DoesNotExist):
-        return JsonResponse({
-            'results': [],
-            'has_more': False,
-            'error': 'Sucursal no válida o no encontrada.'
-        })
-
-    # Filtrar PuntosPago sin horario
-    puntos_pago = (
-        PuntosPago.objects
-        .filter(sucursalid=sucursal)
-        .annotate(
+    def extra_filter(self, qs, request):
+        # Subconsulta: ¿existe algún PuntoPago de esta sucursal
+        #   para el que NO exista HorarioCaja?
+        puntos_sin_horario = PuntosPago.objects.filter(
+            sucursalid=OuterRef('pk')
+        ).annotate(
             tiene_horario=Exists(
                 HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
             )
+        ).filter(tiene_horario=False)
+
+        return qs.annotate(
+            tiene_pp_sin=Exists(puntos_sin_horario)
+        ).filter(tiene_pp_sin=True)
+
+
+class PuntosPagoHorarioCajaAutocomplete(PaginatedAutocompleteMixin):
+    """
+    Autocomplete de PuntosPago de la sucursal seleccionada
+    que aún no tengan HorarioCaja.
+    """
+    model      = PuntosPago
+    id_field   = "pk"
+    text_field = "nombre"
+    per_page   = 10
+
+    def extra_filter(self, qs, request):
+        suc_id = request.GET.get("sucursal_id")
+        if not suc_id:
+            # Sin sucursal, no devolvemos nada
+            return qs.none()
+
+        # Subconsulta: ¿existe HorarioCaja para este PuntoPago?
+        tiene_horario = Exists(
+            HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
         )
-        .exclude(tiene_horario=True)
-    )
 
-    # Filtro por término
-    if term:
-        puntos_pago = puntos_pago.filter(nombre__icontains=term)
-
-    total_results = puntos_pago.count()
-    puntos_pago = puntos_pago[start:end]
-
-    results = []
-    for pp in puntos_pago:
-        results.append({
-            'id': pp.pk,      # o pp.puntopagoid
-            'text': pp.nombre
-        })
-
-    return JsonResponse({
-        'results': results,
-        'has_more': end < total_results,
-    })
-
+        return (
+            qs
+            .filter(sucursalid_id=suc_id)
+            .annotate(tiene_hor= tiene_horario)
+            .filter(tiene_hor=False)
+        )
 
 @login_required
 def visualizar_horarios_cajas_view(request):
