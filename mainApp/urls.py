@@ -155,7 +155,21 @@ urlpatterns = [
         name="puntopago_horario_caja_autocomplete"
     ),
     
-    path('visualizar_horarios_cajas/', views.visualizar_horarios_cajas_view, name='visualizar_horarios_cajas'),
+    path(
+        "visualizar_horarios_cajas/",
+        views.VisualizarHorariosCajasView.as_view(),
+        name="visualizar_horarios_cajas"
+    ),
+    path(
+        "autocomplete/sucursal_horarios_cajas/",
+        views.SucursalHorarioCajaAutocomplete.as_view(),
+        name="visualizar_horarios_cajas_sucursal_autocomplete"
+    ),
+    path(
+        "autocomplete/puntopago_horarios_cajas/",
+        views.PuntoPagoHorarioCajaAutocomplete.as_view(),
+        name="visualizar_horarios_cajas_puntopago_autocomplete"
+    ),
     path('eliminar_horario_caja/<int:horario_id>/', views.eliminar_horario_caja_view, name='eliminar_horario_caja'),
     path('obtener_puntos_pago_con_horarios/', views.obtener_puntos_pago_con_horarios, name='obtener_puntos_pago_con_horarios'),
     path('editar_horarios_cajas/<int:puntopagoid>/', views.editar_horarios_cajas_view, name='editar_horarios_cajas'),

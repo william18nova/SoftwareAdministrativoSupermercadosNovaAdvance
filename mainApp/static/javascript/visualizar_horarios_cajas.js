@@ -1,289 +1,151 @@
-jQuery(document).ready(function($) {
-  console.log("jQuery version:", $.fn.jquery);
-  console.log("DataTable type:", typeof $.fn.DataTable); // Debe ser "function"
+/* visualizar_horarios_cajas.js
+   ──────────────────────────────────
+   · DataTable
+   · Autocomplete sucursal + punto de pago
+   · Eliminación AJAX
+*/
+$(function(){
+  "use strict";
 
-  // Inicializar DataTable para la tabla de horarios (si existe)
-  if ($('#horarios-list').length) {
-    if (typeof $.fn.DataTable === "function") {
-      $('#horarios-list').DataTable({
-        paging: false,
-        searching: true,
-        info: false,
-        ordering: false,  // Deshabilita el ordenamiento (y sus flechitas)
-        language: {
-          search: "Buscar:",
-          zeroRecords: "No se encontraron resultados",
-          emptyTable: "No hay horarios para mostrar"
-        }
-      });
-    } else {
-      console.error("La función DataTable no está definida.");
-    }
-  } else {
-    console.warn("El elemento #horarios-list no se encontró en el DOM.");
+  // ── 1) DataTable ──
+  const $tbl = $("#horariosTable");
+  let dt = null;
+  if($tbl.length){
+    dt = $tbl.DataTable({
+      paging:true, searching:true, info:true, responsive:true,
+      language:{
+        search:"", zeroRecords:"Sin registros",
+        info:"Mostrando _START_ a _END_ de _TOTAL_",
+        paginate:{ first:"Prim.", last:"Últ.", next:"Sig.", previous:"Ant." }
+      },
+      columnDefs:[{ targets:"no-sort", orderable:false }]
+    });
   }
 
-  // Obtener el formulario
-  const form = document.getElementById('sucursalForm');
+  // ── 2) Flash helper ──
+  const $flash = $("<div class='alert' style='display:none'></div>")
+                 .insertAfter("h2");
+  const flash  = (ok,msg)=> $flash
+    .removeClass("alert-success alert-error")
+    .addClass(ok?"alert-success":"alert-error")
+    .text(msg).show();
 
-  /* =========================
-     Autocomplete de Sucursal
-  ========================= */
-  const sucursalInput = document.getElementById('id_sucursal_autocomplete');
-  const sucursalIdInput = document.getElementById('id_sucursal');
-  const sucursalResults = document.getElementById('sucursal-autocomplete-results');
+  // ── 3) Eliminar horario ──
+  $tbl.on("click",".btn-eliminar",function(){
+    const $btn = $(this), id = $btn.data("id");
+    if(!id||!confirm("¿Eliminar este horario?")) return;
+    const url = eliminarHorarioUrlPattern.replace("0",id);
+    $.post(url,{
+      csrfmiddlewaretoken:$("input[name=csrfmiddlewaretoken]").val()
+    }).done(res=>{
+      if(res.success && dt){
+        dt.row($btn.closest("tr")).remove().draw(false);
+      }
+      flash(res.success, res.message);
+    }).fail(()=> flash(false,"Error al eliminar."));
+  });
 
-  let isLoadingSucursal = false;
-  let hasMoreSucursal = true;
-  let currentPageSucursal = 1;
-  let currentTermSucursal = '';
+  // ── 4) Autocomplete genérico ──
+  function setupAutocomplete($inp, $hid, $box, url, onSelect, filterParams){
+    let page=1, term="", loading=false, more=true;
+    const cache = {};
 
-  function fetchSucursales(term, page = 1) {
-    if (isLoadingSucursal || !hasMoreSucursal) return;
-    isLoadingSucursal = true;
-    const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-    fetch(url)
-      .then(response => {
-        if (!response.ok) { throw new Error(`HTTP Error: ${response.status}`); }
-        return response.json();
-      })
-      .then(data => {
-        if (page === 1) { sucursalResults.innerHTML = ""; }
-        if (data.results && data.results.length > 0) {
-          data.results.forEach(item => {
-            const opt = document.createElement("div");
-            opt.classList.add("autocomplete-option");
-            opt.textContent = item.text;
-            opt.dataset.id = item.id;
-            sucursalResults.appendChild(opt);
-          });
-          hasMoreSucursal = data.has_more;
-        } else if (page === 1) {
-          const noResult = document.createElement("div");
-          noResult.classList.add("autocomplete-no-result");
-          noResult.textContent = "No se encontraron resultados";
-          sucursalResults.appendChild(noResult);
-          hasMoreSucursal = false;
-        }
-        sucursalResults.style.display = "block";
-        isLoadingSucursal = false;
-      })
-      .catch(error => {
-        console.error("Error en fetchSucursales:", error);
-        isLoadingSucursal = false;
-      });
-  }
-
-  function debounce(fn, delay) {
-    let timeout;
-    return function(...args) {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => fn.apply(this, args), delay);
+    const fetchPage = ()=>{
+      if(loading||!more) return;
+      loading=true;
+      const params = { term, page };
+      if(filterParams) Object.assign(params, filterParams());
+      const key = `${url}?${$.param(params)}`;
+      if(cache[key]) return render(cache[key]);
+      $.getJSON(url,params)
+        .done(data=>{
+          cache[key]=data;
+          render(data);
+        })
+        .always(()=> loading=false);
     };
-  }
-  const debouncedFetchSucursales = debounce(() => {
-    fetchSucursales(currentTermSucursal, currentPageSucursal);
-  }, 300);
 
-  if (sucursalInput) {
-    sucursalInput.addEventListener("input", function() {
-      sucursalIdInput.value = "";
-      hasMoreSucursal = true;
-      currentPageSucursal = 1;
-      currentTermSucursal = sucursalInput.value.trim();
-      debouncedFetchSucursales();
-    });
-    sucursalInput.addEventListener("focus", function() {
-      hasMoreSucursal = true;
-      currentPageSucursal = 1;
-      currentTermSucursal = sucursalInput.value.trim();
-      debouncedFetchSucursales();
-    });
-  }
-
-  if (sucursalResults) {
-    sucursalResults.addEventListener("scroll", function() {
-      if (sucursalResults.scrollTop + sucursalResults.clientHeight >= sucursalResults.scrollHeight - 5) {
-        if (hasMoreSucursal && !isLoadingSucursal) {
-          currentPageSucursal += 1;
-          fetchSucursales(currentTermSucursal, currentPageSucursal);
-        }
+    const render = data=>{
+      if(page===1) $box.empty();
+      if(data.results.length){
+        data.results.forEach(r=>{
+          $("<div>",{
+            "class":"autocomplete-option",
+            "data-id":r.id,
+            text:r.text
+          }).appendTo($box);
+        });
+        more = data.has_more;
+      } else if(page===1){
+        $box.html('<div class="autocomplete-no-result">Sin resultados</div>');
+        more=false;
       }
-    });
+      $box.show();
+    };
 
-    sucursalResults.addEventListener("click", function(e) {
-      if (e.target && e.target.classList.contains("autocomplete-option")) {
-        sucursalInput.value = e.target.textContent;
-        sucursalIdInput.value = e.target.dataset.id;
-        sucursalResults.innerHTML = "";
-        sucursalResults.style.display = "none";
-        hasMoreSucursal = false;
-        // Habilitar el autocomplete del punto de pago
-        const puntoInput = document.getElementById("id_punto_pago_autocomplete");
-        if (puntoInput) {
-          puntoInput.disabled = false;
-          puntoInput.value = "";
-          document.getElementById("id_punto_pago").value = "";
-        }
-      }
-    });
-  }
+    const deb = debounce(()=>{
+      page=1; more=true; fetchPage();
+    },300);
 
-  document.addEventListener("click", function(e) {
-    if (sucursalInput && !sucursalInput.contains(e.target) && !sucursalResults.contains(e.target)) {
-      sucursalResults.innerHTML = "";
-      sucursalResults.style.display = "none";
-      hasMoreSucursal = false;
-    }
-  });
-
-  /* ===============================
-     Autocomplete de Punto de Pago
-  =============================== */
-  const puntoInput = document.getElementById("id_punto_pago_autocomplete");
-  const puntoIdInput = document.getElementById("id_punto_pago");
-  const puntoResults = document.getElementById("punto-pago-autocomplete-results");
-
-  let isLoadingPunto = false;
-  let hasMorePunto = true;
-  let currentPagePunto = 1;
-  let currentTermPunto = "";
-
-  function fetchPuntos(term, page = 1) {
-    if (isLoadingPunto || !hasMorePunto) return;
-    isLoadingPunto = true;
-    const url = `${puntoPagoAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`;
-    fetch(url)
-      .then(response => {
-        if (!response.ok) { throw new Error(`HTTP Error: ${response.status}`); }
-        return response.json();
+    $inp
+      .on("input",()=>{
+        $hid.val(""); term=$.trim($inp.val()); deb();
       })
-      .then(data => {
-        if (page === 1) { puntoResults.innerHTML = ""; }
-        if (data.results && data.results.length > 0) {
-          data.results.forEach(item => {
-            const opt = document.createElement("div");
-            opt.classList.add("autocomplete-option");
-            opt.textContent = item.text;
-            opt.dataset.id = item.id;
-            puntoResults.appendChild(opt);
-          });
-          hasMorePunto = data.has_more;
-        } else if (page === 1) {
-          const noResult = document.createElement("div");
-          noResult.classList.add("autocomplete-no-result");
-          noResult.textContent = "No se encontraron resultados";
-          puntoResults.appendChild(noResult);
-          hasMorePunto = false;
-        }
-        puntoResults.style.display = "block";
-        isLoadingPunto = false;
-      })
-      .catch(error => {
-        console.error("Error en fetchPuntos:", error);
-        isLoadingPunto = false;
+      .on("focus",()=>{
+        term=$.trim($inp.val()); page=1; more=true; fetchPage();
       });
-  }
 
-  const debouncedFetchPuntos = debounce(() => {
-    fetchPuntos(currentTermPunto, currentPagePunto);
-  }, 300);
-
-  if (puntoInput) {
-    puntoInput.addEventListener("input", function() {
-      puntoIdInput.value = "";
-      hasMorePunto = true;
-      currentPagePunto = 1;
-      currentTermPunto = puntoInput.value.trim();
-      debouncedFetchPuntos();
-    });
-    puntoInput.addEventListener("focus", function() {
-      hasMorePunto = true;
-      currentPagePunto = 1;
-      currentTermPunto = puntoInput.value.trim();
-      debouncedFetchPuntos();
-    });
-  }
-
-  if (puntoResults) {
-    puntoResults.addEventListener("scroll", function() {
-      if (puntoResults.scrollTop + puntoResults.clientHeight >= puntoResults.scrollHeight - 5) {
-        if (hasMorePunto && !isLoadingPunto) {
-          currentPagePunto += 1;
-          fetchPuntos(currentTermPunto, currentPagePunto);
-        }
+    $box.on("scroll",function(){
+      if(this.scrollTop+this.clientHeight>=this.scrollHeight-5 && more&&!loading){
+        page++; fetchPage();
       }
+    }).on("click",".autocomplete-option",function(){
+      const $opt = $(this);
+      $inp.val($opt.text());
+      $hid.val($opt.data("id"));
+      $box.hide().empty();
+      onSelect && onSelect($opt.data("id"));
     });
 
-    puntoResults.addEventListener("click", function(e) {
-      if (e.target && e.target.classList.contains("autocomplete-option")) {
-        puntoInput.value = e.target.textContent;
-        puntoIdInput.value = e.target.dataset.id;
-        puntoResults.innerHTML = "";
-        puntoResults.style.display = "none";
-        hasMorePunto = false;
-        // Enviar el formulario para cargar horarios
-        form.submit();
+    $(document).on("click",e=>{
+      if(!$(e.target).closest($inp).length
+         && !$(e.target).closest($box).length){
+        $box.hide();
       }
     });
   }
 
-  document.addEventListener("click", function(e) {
-    if (puntoInput && !puntoInput.contains(e.target) && !puntoResults.contains(e.target)) {
-      puntoResults.innerHTML = "";
-      puntoResults.style.display = "none";
-      hasMorePunto = false;
+  // ── 4.1) Sucursal ──
+  setupAutocomplete(
+    $("#id_sucursal_autocomplete"),
+    $("#id_sucursal"),
+    $("#sucursal-autocomplete-results"),
+    sucursalAutocompleteUrl,
+    id=>{
+      // habilita punto de pago y limpia
+      const $pp = $("#id_puntopago_autocomplete");
+      $("#id_puntopago").val("");
+      $pp.val("").prop("disabled",false);
+      $("#puntopago-autocomplete-results").hide().empty();
     }
-  });
+  );
 
-  /* ---------------------------
-     Binding para el Botón de Eliminar Horario
-     (Delegación de eventos con jQuery)
-  --------------------------- */
-  $(document).on('click', '.btn-eliminar', function(e) {
-    e.preventDefault();
-    const btn = $(this);
-    const horarioId = btn.data('id');
-    const row = btn.closest('tr');
-    if (confirm('¿Estás seguro de que deseas eliminar este horario?')) {
-      const csrfToken = getCookie('csrftoken');
-      // Reemplazar "999999" en la URL patrón por el id real
-      const deleteUrl = eliminarHorarioUrlPattern.replace('999999', horarioId);
-      $.ajax({
-        url: deleteUrl,
-        type: 'POST',
-        headers: { 'X-CSRFToken': csrfToken },
-        success: function(response) {
-          if (response.success) {
-            if ($.fn.DataTable) {
-              $('#horarios-list').DataTable().row(row).remove().draw(false);
-            }
-          } else {
-            alert('Error: ' + response.message);
-          }
-        },
-        error: function(xhr, status, error) {
-          alert('Ocurrió un error al eliminar el horario.');
-        }
-      });
-    }
-  });
+  // ── 4.2) PuntoPago ──
+  setupAutocomplete(
+    $("#id_puntopago_autocomplete"),
+    $("#id_punto_pago"),
+    $("#puntopago-autocomplete-results"),
+    puntopagoAutocompleteUrl,
+    () => { /* al elegir, enviamos filtro */ $("#filtrosForm").submit(); },
+    ()=>({ sucursal_id: $("#id_sucursal").val() })
+  );
 
-  /* ---------------------------
-     Función para Obtener la Cookie CSRF
-  --------------------------- */
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== "") {
-      const cookies = document.cookie.split(";");
-      for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(name + "=")) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
+  // ── 5) debounce ──
+  function debounce(fn,ms){
+    let t;
+    return function(...a){
+      clearTimeout(t);
+      t = setTimeout(()=>fn.apply(this,a), ms);
+    };
   }
 });

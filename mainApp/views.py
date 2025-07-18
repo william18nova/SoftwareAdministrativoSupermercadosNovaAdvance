@@ -2272,125 +2272,93 @@ class PuntosPagoHorarioCajaAutocomplete(PaginatedAutocompleteMixin):
             .filter(tiene_hor=False)
         )
 
-@login_required
-def visualizar_horarios_cajas_view(request):
-    # Subquery para identificar puntos de pago que tengan horarios
-    puntos_con_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
-    
-    # Sucursales que tienen al menos un punto de pago con horarios
-    sucursales = Sucursal.objects.filter(
-        Exists(
-            PuntosPago.objects.filter(sucursalid=OuterRef('pk')).filter(Exists(puntos_con_horario))
-        )
-    ).distinct().order_by('nombre')
+# ─────────── Vista principal ───────────
+@method_decorator(login_required, name="dispatch")
+class VisualizarHorariosCajasView(View):
+    template_name = "visualizar_horarios_cajas.html"
 
-    sucursal_seleccionada = None
-    punto_pago_seleccionado = None
-    puntos_pago = []
-    horarios = []
+    def get(self, request):
+        return render(request, self.template_name, self._base_context())
 
-    if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal')
-        punto_pago_id = request.POST.get('punto_pago')
-        if sucursal_id:
-            sucursal_seleccionada = get_object_or_404(Sucursal, pk=sucursal_id)
-            puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_seleccionada).filter(Exists(puntos_con_horario))
-        if punto_pago_id:
-            punto_pago_seleccionado = get_object_or_404(PuntosPago, pk=punto_pago_id)
-            horarios = HorarioCaja.objects.filter(puntopagoid=punto_pago_seleccionado.puntopagoid)
+    def post(self, request):
+        ctx = self._base_context()
+        sid = request.POST.get("sucursal")
+        if sid:
+            suc = get_object_or_404(Sucursal, pk=sid)
+            ctx["sucursal_seleccionada"] = suc
 
-    return render(request, 'visualizar_horarios_cajas.html', {
-        'sucursales': sucursales,
-        'sucursal_seleccionada': sucursal_seleccionada,
-        'puntos_pago': puntos_pago,
-        'punto_pago_seleccionado': punto_pago_seleccionado,
-        'horarios': horarios,
-    })
-
-@login_required
-def sucursal_horarios_autocomplete(request):
-    term = request.GET.get('term', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '10').strip()
-
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
-
-    try:
-        per_page = int(per_page_str)
-        if per_page < 1:
-            per_page = 10
-    except ValueError:
-        per_page = 10
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    # Subquery para identificar puntos de pago que tienen horarios
-    puntos_con_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef('pk')).values('puntopagoid')
-    
-    # Filtrar sucursales que tienen al menos un punto de pago que tenga horarios
-    qs = Sucursal.objects.filter(
-            Exists(
-                PuntosPago.objects.filter(sucursalid=OuterRef('pk')).filter(Exists(puntos_con_horario))
+            # sólo puntos de esa sucursal que ya tienen al menos 1 horario
+            sub = HorarioCaja.objects.filter(puntopagoid=OuterRef("pk"))
+            ctx["puntos_pago"] = (
+                PuntosPago.objects
+                .filter(sucursalid=suc)
+                .annotate(has_h=Exists(sub))
+                .filter(has_h=True)
+                .order_by("nombre")
             )
-         ).order_by('nombre')
 
-    if term:
-        qs = qs.filter(nombre__icontains=term)
+            pid = request.POST.get("punto_pago")
+            if pid:
+                pp = get_object_or_404(PuntosPago, pk=pid)
+                ctx["punto_pago_seleccionado"] = pp
+                ctx["horarios"] = HorarioCaja.objects.filter(puntopagoid=pp)
 
-    total_results = qs.count()
-    qs = qs[start:end]
+        return render(request, self.template_name, ctx)
 
-    results = [{'id': sucursal.sucursalid, 'text': sucursal.nombre} for sucursal in qs]
-    has_more = end < total_results
+    def _base_context(self):
+        # sucursales que tienen al menos un punto de pago con horarios
+        sub_pp = PuntosPago.objects.filter(sucursalid=OuterRef("pk"))
+        sub_h  = HorarioCaja.objects.filter(puntopagoid=OuterRef("pk"))
+        qs = (
+            Sucursal.objects
+            .annotate(has_pp=Exists(sub_pp.filter(Exists(sub_h))))
+            .filter(has_pp=True)
+            .order_by("nombre")
+        )
+        return {
+            "sucursales": qs,
+            "sucursal_seleccionada": None,
+            "puntos_pago": [],
+            "punto_pago_seleccionado": None,
+            "horarios": [],
+        }
 
-    return JsonResponse({'results': results, 'has_more': has_more})
 
-@login_required
-def puntopago_horarios_autocomplete(request):
-    term = request.GET.get('term', '').strip()
-    sucursal_id = request.GET.get('sucursal_id', None)
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '10').strip()
+# ─────────── Autocomplete Sucursal ───────────
+class SucursalHorarioCajaAutocomplete(PaginatedAutocompleteMixin):
+    model        = Sucursal
+    id_field     = "pk"
+    text_field   = "nombre"
+    per_page     = 10
 
-    try:
-        page = int(page_str)
-        if page < 1:
-            page = 1
-    except ValueError:
-        page = 1
+    def extra_filter(self, qs, request):
+        # sólo sucursales con al menos un PuntoPago que tenga horarios
+        sub_pp = PuntosPago.objects.filter(sucursalid=OuterRef("pk"))
+        sub_h  = HorarioCaja.objects.filter(puntopagoid=OuterRef("pk"))
+        return (
+            qs.annotate(has=Exists(sub_pp.filter(Exists(sub_h))))
+              .filter(has=True)
+              .order_by("nombre")
+        )
 
-    try:
-        per_page = int(per_page_str)
-        if per_page < 1:
-            per_page = 10
-    except ValueError:
-        per_page = 10
 
-    start = (page - 1) * per_page
-    end = start + per_page
+# ─────────── Autocomplete PuntoPago ───────────
+class PuntoPagoHorarioCajaAutocomplete(PaginatedAutocompleteMixin):
+    model        = PuntosPago
+    id_field     = "pk"
+    text_field   = "nombre"
+    per_page     = 10
 
-    # Subquery para saber si el punto de pago tiene horarios
-    qs = PuntosPago.objects.filter(Exists(HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))))
-    
-    if sucursal_id:
-        qs = qs.filter(sucursalid__sucursalid=sucursal_id)
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-    
-    qs = qs.order_by('nombre')
-    total_results = qs.count()
-    qs = qs[start:end]
+    def extra_filter(self, qs, request):
+        # filtramos por sucursal_id y sólo puntos de pago con al menos un horario
+        sid = request.GET.get("sucursal_id")
+        sub_h = HorarioCaja.objects.filter(puntopagoid=OuterRef("pk"))
+        qs = qs.annotate(has=Exists(sub_h)).filter(has=True)
+        if sid:
+            qs = qs.filter(sucursalid_id=sid)
+        return qs.order_by("nombre")
 
-    results = [{'id': punto.puntopagoid, 'text': punto.nombre} for punto in qs]
-    has_more = end < total_results
 
-    return JsonResponse({'results': results, 'has_more': has_more})
 
 @login_required
 def eliminar_horario_caja_view(request, horario_id):
