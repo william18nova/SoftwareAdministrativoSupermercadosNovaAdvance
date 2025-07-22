@@ -139,41 +139,32 @@ urlpatterns = [
     path("editar_horarios/<int:sucursal_id>/", HorarioUpdateAJAXView.as_view(), name="editar_horarios"),
     path('eliminar_horario/<int:horario_id>/', views.eliminar_horario_view, name='eliminar_horario'),
 
+    path("agregar_horario_caja/",HorarioCajaCreateAJAXView.as_view(),name="agregar_horario_caja"),
+    path("autocomplete/caja/sucursal/", SucursalHorarioCajaAutocomplete.as_view(), name="sucursal_horario_caja_autocomplete"),
+    path("autocomplete/caja/puntopago/", PuntosPagoHorarioCajaAutocomplete.as_view(), name="puntopago_horario_caja_autocomplete"),
+    path("visualizar_horarios_cajas/", views.VisualizarHorariosCajasView.as_view(), name="visualizar_horarios_cajas"),
+    path("autocomplete/sucursal_horarios_cajas/", views.SucursalHorarioCajaAutocomplete.as_view(), name="visualizar_horarios_cajas_sucursal_autocomplete"),
+    path("autocomplete/puntopago_horarios_cajas/", views.PuntoPagoHorarioCajaAutocomplete.as_view(), name="visualizar_horarios_cajas_puntopago_autocomplete"),
+    path('eliminar_horario_caja/<int:horario_id>/', views.eliminar_horario_caja_view, name='eliminar_horario_caja'),
     path(
-        "agregar_horario_caja/",
-        HorarioCajaCreateAJAXView.as_view(),
-        name="agregar_horario_caja"
+        "editar_horarios_cajas/<int:puntopagoid>/",
+        views.EditarHorarioCajaView.as_view(),
+        name="editar_horarios_cajas"
+    ),
+
+    path(
+        "autocomplete/sucursal_caja_editar/",
+        views.SucursalDisponibleCajaAutocomplete.as_view(),
+        name="sucursal_caja_editar_autocomplete"
     ),
     path(
-        "autocomplete/caja/sucursal/",
-        SucursalHorarioCajaAutocomplete.as_view(),
-        name="sucursal_horario_caja_autocomplete"
-    ),
-    path(
-        "autocomplete/caja/puntopago/",
-        PuntosPagoHorarioCajaAutocomplete.as_view(),
-        name="puntopago_horario_caja_autocomplete"
+        "autocomplete/puntopago_caja_editar/",
+        views.PuntoCajaDisponibleAutocomplete.as_view(),
+        name="puntopago_caja_editar_autocomplete"
     ),
     
-    path(
-        "visualizar_horarios_cajas/",
-        views.VisualizarHorariosCajasView.as_view(),
-        name="visualizar_horarios_cajas"
-    ),
-    path(
-        "autocomplete/sucursal_horarios_cajas/",
-        views.SucursalHorarioCajaAutocomplete.as_view(),
-        name="visualizar_horarios_cajas_sucursal_autocomplete"
-    ),
-    path(
-        "autocomplete/puntopago_horarios_cajas/",
-        views.PuntoPagoHorarioCajaAutocomplete.as_view(),
-        name="visualizar_horarios_cajas_puntopago_autocomplete"
-    ),
-    path('eliminar_horario_caja/<int:horario_id>/', views.eliminar_horario_caja_view, name='eliminar_horario_caja'),
-    path('obtener_puntos_pago_con_horarios/', views.obtener_puntos_pago_con_horarios, name='obtener_puntos_pago_con_horarios'),
-    path('editar_horarios_cajas/<int:puntopagoid>/', views.editar_horarios_cajas_view, name='editar_horarios_cajas'),
-
+    
+    
     path('agregar_cliente/', views.agregar_cliente, name='agregar_cliente'),
     path('visualizar_clientes/', views.visualizar_clientes, name='visualizar_clientes'),
     path('editar_cliente/<int:clienteid>/', views.editar_cliente, name='editar_cliente'),

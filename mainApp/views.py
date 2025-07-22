@@ -2370,105 +2370,145 @@ def eliminar_horario_caja_view(request, horario_id):
         return JsonResponse({'success': False, 'message': 'Ocurrió un error al eliminar el horario.'})
 
 
-@login_required
-def obtener_puntos_pago_con_horarios(request):
-    sucursal_id = request.GET.get('sucursal_id')
-    puntos_con_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef('pk')).values('puntopagoid')
-    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).filter(Exists(puntos_con_horario))
-    opciones = ['<option value="">Seleccionar punto de pago</option>']
-    for punto_pago in puntos_pago:
-        opciones.append(f'<option value="{punto_pago.puntopagoid}">{punto_pago.nombre}</option>')
-    return JsonResponse(opciones, safe=False)
+# ──────────────────────────────────────────────────────────────
+#  Vista principal (GET  → plantilla  |  POST → JSON)
+# ──────────────────────────────────────────────────────────────
+@method_decorator(transaction.atomic, name="dispatch")
+class EditarHorarioCajaView(LoginRequiredMixin, View):
+    template_name = "editar_horario_caja.html"
+    form_class    = EditarHorarioCajaForm
+    success_msg   = "Horarios actualizados correctamente."
 
+    # ─── GET ────────────────────────────────────────────────────
+    def get(self, request, puntopagoid):
+        pp       = get_object_or_404(PuntosPago, pk=puntopagoid)
+        horarios = (HorarioCaja.objects
+                               .filter(puntopagoid=pp)
+                               .order_by("dia_semana"))
+        dias     = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
 
-@login_required
-def editar_horarios_cajas_view(request, puntopagoid):
-    """
-    Vista para editar (reemplazar) los horarios de una Caja en particular (punto_pago),
-    PERMITIENDO CAMBIAR a otra Sucursal y/o Punto de Pago que no tenga horario.
-    
-    GET:
-      - Muestra la página con los horarios ya existentes del puntopagoid actual.
-      - Muestra, en el input de Sucursal/Punto de Pago, la sucursal/punto de pago actual,
-        pero no "disabled" (para que el usuario pueda cambiarlos vía autocomplete).
-    POST (JSON):
-      {
-        "sucursalid": <ID de la sucursal elegida>,
-        "puntopagoid": <ID del punto de pago elegido>,
-        "horarios": [
-           {
-              "dia": "Lun",
-              "hora_apertura": "08:00",
-              "hora_cierre": "12:00"
-           },
-           ...
-        ]
-      }
-    """
-    punto_pago = get_object_or_404(PuntosPago, pk=puntopagoid)
-    sucursal = punto_pago.sucursalid
-    horarios_existentes = HorarioCaja.objects.filter(puntopagoid=punto_pago)
+        return render(request, self.template_name, {
+            "punto_pago": pp,
+            "sucursal"  : pp.sucursalid,
+            "horarios"  : horarios,
+            "days"      : dias,
+        })
 
-    if request.method == 'POST':
-        # Se asume que viene JSON en request.body:
+    # ─── POST (AJAX) ────────────────────────────────────────────
+    def post(self, request, puntopagoid):
         try:
-            data = json.loads(request.body)
+            payload = json.loads(request.body or "{}")
         except ValueError:
-            return JsonResponse({'success': False, 'error': 'JSON inválido.'}, status=400)
+            return JsonResponse({"success": False,
+                                 "error":   "JSON inválido."},
+                                status=400)
 
-        sucursal_id = data.get('sucursalid')
-        nuevo_puntopago_id = data.get('puntopagoid')
-        horarios_list = data.get('horarios', [])
+        form = self.form_class(payload,
+                               horarios_present=bool(payload.get("horarios")))
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors" : form.errors.as_json(escape_html=True)
+            }, status=400)
 
-        # Emulamos un POST dict para validaciones básicas
-        form_data = {
-            'sucursalid': sucursal_id,
-            'puntopagoid': nuevo_puntopago_id,
-            'dia_semana': '',    # Evitamos error si el form lo requiere
-            'horaapertura': '',  # igual
-            'horacierre': '',
-        }
-        form = EditarHorarioCajaForm(data=form_data, horarios_present=bool(horarios_list))
-        if form.is_valid():
-            try:
-                # 1) Borrar los horarios antiguos del puntopago original
-                HorarioCaja.objects.filter(puntopagoid=puntopagoid).delete()
+        new_sucursal_id  = form.cleaned_data["sucursalid"]
+        new_puntopago_id = form.cleaned_data["puntopagoid"]
 
-                # 2) Actualizar el punto_pago para que apunte a la nueva sucursal/puntopago (si es diferente)
-                #    OJO: si vas a permitir cambiar la sucursal del PUNTO DE PAGO en la BD,
-                #         necesitarías hacer algo como:
-                # punto_pago.sucursalid_id = sucursal_id
-                # punto_pago.nombre        = (puedes cambiar si quieres)
-                # punto_pago.save()
-                #
-                # PERO usualmente un PuntosPago no se "mueve" de sucursal, sino que se crea uno nuevo.
-                # En todo caso, si solamente actualizas la ForeignKey, se hace así:
-                punto_pago.sucursalid_id = sucursal_id
-                punto_pago.save(update_fields=['sucursalid'])
+        old_pp = get_object_or_404(PuntosPago, pk=puntopagoid)
 
-                # 3) Insertar los nuevos horarios en LA caja elegida (nuevo_puntopago_id)
-                for item in horarios_list:
-                    HorarioCaja.objects.create(
-                        puntopagoid_id=nuevo_puntopago_id,
-                        dia_semana=item['dia'],
-                        horaapertura=item['hora_apertura'],
-                        horacierre=item['hora_cierre']
+        try:
+            with transaction.atomic():
+
+                # 1 · Siempre borrar horarios del punto de pago original
+                HorarioCaja.objects.filter(puntopagoid=old_pp).delete()
+
+                # 2 · Si el usuario eligió OTRO punto de pago, limpiar ese nuevo
+                if str(new_puntopago_id) != str(old_pp.pk):
+                    HorarioCaja.objects.filter(puntopagoid_id=new_puntopago_id).delete()
+
+                # 3 · Mover la caja de sucursal **solo si**:
+                #       • El usuario NO cambió de punto de pago (sigue la misma caja)
+                #       • Y cambió la sucursal
+                if (str(new_puntopago_id) == str(old_pp.pk) and
+                    str(new_sucursal_id)  != str(old_pp.sucursalid_id)):
+                    new_suc = get_object_or_404(Sucursal, pk=new_sucursal_id)
+                    old_pp.sucursalid = new_suc
+                    old_pp.save(update_fields=["sucursalid"])
+
+                # 4 · Crear la lista nueva de horarios
+                nuevos = [
+                    HorarioCaja(
+                        puntopagoid_id=new_puntopago_id,
+                        dia_semana    =h["dia"],
+                        horaapertura  =h["horaapertura"],
+                        horacierre    =h["horacierre"],
                     )
+                    for h in payload["horarios"]
+                ]
+                HorarioCaja.objects.bulk_create(nuevos)
 
-                messages.success(request, f'Horarios de la caja en "{punto_pago.nombre}" editados exitosamente.')
-                return JsonResponse({'success': True})
-            except Exception as e:
-                return JsonResponse({'success': False, 'error': str(e)})
-        else:
-            errors_json = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors_json})
-    
-    # GET => render
-    return render(request, 'editar_horarios_cajas.html', {
-        'punto_pago': punto_pago,
-        'sucursal': sucursal,
-        'horarios': horarios_existentes,
-    })
+            messages.success(request, self.success_msg)
+            return JsonResponse({"success": True})
+
+        except Exception as exc:
+            # En desarrollo imprime el traceback para ver la causa exacta
+            import traceback, sys
+            traceback.print_exc(file=sys.stderr)
+            return JsonResponse({"success": False,
+                                 "error":   str(exc)},
+                                status=500)
+
+
+
+
+class SucursalDisponibleCajaAutocomplete(PaginatedAutocompleteMixin):
+    model = Sucursal
+
+    def extra_filter(self, qs, request):
+        """
+        Devuelve sucursales que tengan al menos un punto de pago sin horario
+        O la sucursal actualmente ligada al formulario (actual_id).
+        """
+        actual_id = request.GET.get("actual_id")
+
+        sub_libre = PuntosPago.objects.filter(
+            sucursalid=OuterRef("pk")
+        ).filter(~Exists(HorarioCaja.objects.filter(puntopagoid=OuterRef("pk"))))
+
+        qs = qs.annotate(tiene_libre=Exists(sub_libre))
+
+        filtros = Q(tiene_libre=True)
+        if actual_id and actual_id.isdigit():
+            filtros |= Q(pk=actual_id)
+
+        return qs.filter(filtros).distinct()
+
+
+class PuntoCajaDisponibleAutocomplete(PaginatedAutocompleteMixin):
+    model = PuntosPago
+
+    def extra_filter(self, qs, request):
+        """
+        Devuelve los puntos de pago de la sucursal seleccionada que no tengan
+        horario O el punto de pago actualmente ligado al formulario (actual_id).
+        """
+        suc_id    = request.GET.get("sucursal_id")
+        actual_id = request.GET.get("actual_id")
+
+        if suc_id and suc_id.isdigit():
+            qs = qs.filter(sucursalid_id=suc_id)
+
+        sub_horario = HorarioCaja.objects.filter(puntopagoid=OuterRef("pk"))
+        qs = qs.annotate(ocupado=Exists(sub_horario))
+
+        filtros = Q(ocupado=False)
+        if actual_id and actual_id.isdigit():
+            filtros |= Q(pk=actual_id)
+
+        return qs.filter(filtros).distinct()
+
+
+
 
 
 def agregar_cliente(request):
