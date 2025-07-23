@@ -2545,10 +2545,14 @@ class ClienteCreateAJAXView(LoginRequiredMixin, FormView):
         )
 
 
-@login_required
-def visualizar_clientes(request):
-    clientes = Cliente.objects.all().order_by('nombre')  # Se ordena por nombre (opcional)
-    return render(request, 'visualizar_clientes.html', {'clientes': clientes})
+class ClienteListView(LoginRequiredMixin, ListView):
+    """
+    Lista de clientes con DataTable.
+    """
+    template_name       = "visualizar_clientes.html"
+    model               = Cliente
+    context_object_name = "clientes"
+    ordering            = ["nombre", "apellido"]   # opcional
 
 
 @login_required
