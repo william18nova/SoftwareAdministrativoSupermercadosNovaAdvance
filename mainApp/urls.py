@@ -153,7 +153,9 @@ urlpatterns = [
     
     path("agregar_cliente/", views.ClienteCreateAJAXView.as_view(), name="agregar_cliente"),
     path("visualizar_clientes/", views.ClienteListView.as_view(), name="visualizar_clientes"),
-    path('editar_cliente/<int:clienteid>/', views.editar_cliente, name='editar_cliente'),
+    path("clientes/editar/<int:cliente_id>/",
+         views.ClienteUpdateAJAXView.as_view(),
+         name="editar_cliente"),
     path('eliminar_cliente/<int:clienteid>/', views.eliminar_cliente, name='eliminar_cliente'),
 
     path('generar_venta/', views.generar_venta, name='generar_venta'),

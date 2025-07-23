@@ -1,98 +1,102 @@
-// static/javascript/editar_cliente.js
+/*  editar_cliente.js
+    (versión con errores por campo)
+    ──────────────────────────────────────────────── */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('form-editar-cliente');
-    const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
-  
-    function clearMessages() {
-      errorMessageDiv.style.display = 'none';
-      errorMessageDiv.innerHTML = '';
-      successMessageDiv.style.display = 'none';
-      successMessageDiv.innerHTML = '';
-  
-      const errorFields = document.querySelectorAll('.field-error');
-      errorFields.forEach(function(errorField) {
-        errorField.innerHTML = '';
-        errorField.classList.remove('visible');
-      });
+  const $  = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+
+  const form   = $("#clienteForm");
+  const okBox  = $("#success-message");
+  const errBox = $("#error-message");
+
+  const csrftoken =
+    document.cookie.split(";")
+      .map(c => c.trim())
+      .find(c => c.startsWith("csrftoken="))
+      ?.split("=")[1] || "";
+
+  /* ───────── helpers ───────── */
+  const iErr = t => `<i class="fas fa-exclamation-circle"></i> ${t}`;
+  const iOk  = t => `<i class="fas fa-check-circle"></i> ${t}`;
+
+  const hide = el => {
+    if (!el) return;
+    el.style.display = "none";
+    el.innerHTML     = "";
+    el.classList.remove("visible");
+  };
+  const show = (el, html) => {
+    if (!el) return;
+    el.innerHTML = html;
+    el.style.display = "block";
+    el.classList.add("visible");
+  };
+
+  function resetUI() {
+    hide(errBox); hide(okBox);
+    $$(".field-error").forEach(hide);
+    $$(".input-error").forEach(inp => inp.classList.remove("input-error"));
+  }
+
+  function toObj(errors) {
+    return (typeof errors === "string") ? JSON.parse(errors) : errors;
+  }
+
+  /* pinta errores globales + por campo */
+  function renderErrors(raw) {
+    const errs = toObj(raw);
+
+    if (errs.__all__) {
+      show(errBox, errs.__all__.map(e => iErr(e.message)).join("<br>"));
     }
-  
-    function displayErrors(errors) {
-      clearMessages();
-      
-      // Errores generales
-      if (errors.__all__) {
-        const generalErrors = errors.__all__.map(e => e.message).join('<br>');
-        errorMessageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${generalErrors}`;
-        errorMessageDiv.style.display = 'block';
-      }
-  
-      // Errores específicos de campo
-      for (let fieldName in errors) {
-        if (fieldName === '__all__') continue;
-        const fieldErrors = errors[fieldName];
-        const errorDiv = document.getElementById(`error-id_${fieldName}`);
-        if (errorDiv) {
-          const messagesHTML = fieldErrors
-            .map(e => `<i class="fas fa-exclamation-circle"></i> ${e.message}`)
-            .join('<br>');
-          errorDiv.innerHTML = messagesHTML;
-          errorDiv.classList.add('visible');
-        }
-      }
-    }
-  
-    form.addEventListener('submit', function(event) {
-      event.preventDefault();
-      clearMessages();
-  
-      const formData = new FormData(form);
-  
-      fetch(form.action, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': getCookie('csrftoken'),
-          'Accept': 'application/json'
-        },
-        body: formData
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data.success) {
-          // Redirigimos a visualizar_clientes
-          window.location.href = data.redirect_url;
-        } else {
-          // Mostramos errores
-          const errors = JSON.parse(data.errors);
-          displayErrors(errors);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        errorMessageDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> Ocurrió un error inesperado.';
-        errorMessageDiv.style.display = 'block';
-      });
+    Object.entries(errs).forEach(([field, arr]) => {
+      if (field === "__all__") return;
+      const inp = $(`#id_${field}`);
+      const div = $(`#error-id_${field}`);
+      if (inp) inp.classList.add("input-error");
+      if (div) show(div, arr.map(e => iErr(e.message)).join("<br>"));
     });
-  
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-          cookie = cookie.trim();
-          if (cookie.startsWith(name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
+  }
+
+  /* ───────── submit AJAX ───────── */
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    resetUI();
+
+    try {
+      const res = await fetch(form.action, {
+        method : "POST",
+        headers: {
+          "X-CSRFToken"     : csrftoken,
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept"          : "application/json",
+        },
+        body   : new FormData(form)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        sessionStorage.setItem("flash-cliente", "Cliente editado correctamente.");
+        window.location.href = data.redirect_url;
+      } else {
+        renderErrors(data.errors);
       }
-      return cookieValue;
+    } catch (e) {
+      console.error(e);
+      show(errBox, iErr("Error de red o servidor."));
     }
   });
-  
+
+  /* ───────── limpiar error on-input ───────── */
+  $$("#clienteForm input").forEach(inp => {
+    inp.addEventListener("input", () => {
+      if (inp.classList.contains("input-error")) {
+        inp.classList.remove("input-error");
+        hide($(`#error-id_${inp.id.replace("id_", "")}`));
+        hide(errBox);
+      }
+    });
+  });
+})();

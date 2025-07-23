@@ -1,89 +1,48 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Editar Cliente{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet"
+        href="{% static 'css/agregar_cliente.css' %}">
+  <script defer
+          src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Editar Cliente</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
-  <!-- Reutilizamos el CSS de agregar_cliente.css o algo similar -->
-  <link rel="stylesheet" href="{% static 'css/agregar_cliente.css' %}">
-</head>
-<body>
-  <div class="container-empleado"><!-- o "container-cliente" -->
+  <div class="container-empleado">
     <i class="fas fa-user-edit icon-empleado"></i>
     <h2>Editar Cliente</h2>
+
     <p class="obligatorio-texto">
-      Todos los campos con <span class="required">*</span> son obligatorios.
+      Los campos marcados con <span class="required">*</span> son obligatorios.
     </p>
 
-    <!-- Mensajes de error/éxito en JS -->
-    <div id="error-message" class="alert alert-error" style="display: none;"></div>
-    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
+    <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
-    <!-- Form con POST al URL 'editar_cliente' -->
-    <form id="form-editar-cliente" method="POST" action="{% url 'editar_cliente' form.instance.pk %}">
+    <form id="clienteForm"
+          method="post"
+          action="{% url 'editar_cliente' form.instance.pk %}">
       {% csrf_token %}
 
-      <!-- Campo Número de Documento -->
-      <div class="form-group-empleado">
-        <label for="{{ form.numerodocumento.id_for_label }}">
-          {{ form.numerodocumento.label }} <span class="required">*</span>
-        </label>
-        {{ form.numerodocumento }}
-        <div class="field-error" id="error-id_numerodocumento"></div>
-      </div>
+      {% for field in form.visible_fields %}
+        <div class="form-group-empleado">
+          <label for="{{ field.id_for_label }}">
+            {{ field.label }}
+            {% if field.field.required %}<span class="required">*</span>{% endif %}
+          </label>
+          {{ field }}
+          <div class="field-error" id="error-id_{{ field.name }}"></div>
+        </div>
+      {% endfor %}
 
-      <!-- Campo Nombre -->
-      <div class="form-group-empleado">
-        <label for="{{ form.nombre.id_for_label }}">
-          {{ form.nombre.label }} <span class="required">*</span>
-        </label>
-        {{ form.nombre }}
-        <div class="field-error" id="error-id_nombre"></div>
-      </div>
-
-      <!-- Campo Apellido -->
-      <div class="form-group-empleado">
-        <label for="{{ form.apellido.id_for_label }}">
-          {{ form.apellido.label }} <span class="required">*</span>
-        </label>
-        {{ form.apellido }}
-        <div class="field-error" id="error-id_apellido"></div>
-      </div>
-
-      <!-- Campo Teléfono -->
-      <div class="form-group-empleado">
-        <label for="{{ form.telefono.id_for_label }}">
-          {{ form.telefono.label }} <span class="required">*</span>
-        </label>
-        {{ form.telefono }}
-        <div class="field-error" id="error-id_telefono"></div>
-      </div>
-
-      <!-- Campo Email -->
-      <div class="form-group-empleado">
-        <label for="{{ form.email.id_for_label }}">
-          {{ form.email.label }} <span class="required">*</span>
-        </label>
-        {{ form.email }}
-        <div class="field-error" id="error-id_email"></div>
-      </div>
-
-      <!-- Botón Guardar -->
-      <div class="form-group-empleado">
-        <button type="submit" class="btn-agregar-empleado">
-          Guardar Cambios
-        </button>
-      </div>
+      <button type="submit" class="btn-agregar-empleado">
+        Guardar cambios
+      </button>
     </form>
   </div>
 
-  <!-- Script para AJAX -->
-  <script src="{% static 'javascript/editar_cliente.js' %}"></script>
-</body>
-</html>
+  <script defer src="{% static 'javascript/editar_cliente.js' %}"></script>
 {% endblock %}

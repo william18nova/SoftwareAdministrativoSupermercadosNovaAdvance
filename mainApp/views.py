@@ -2563,32 +2563,39 @@ def eliminar_cliente(request, clienteid):
     return redirect('visualizar_clientes')
 
 
-@login_required
-def editar_cliente(request, clienteid):
-    from django.urls import reverse  # Asegúrate de importar
-    cliente = get_object_or_404(Cliente, pk=clienteid)
-    
-    if request.method == 'POST':
-        form = EditarClienteForm(request.POST, instance=cliente)
-        if form.is_valid():
-            form.save()
-            messages.success(
-                request,
-                f'Cliente con número de documento {cliente.numerodocumento} editado exitosamente.'
-            )
-            # Retornar JSON con success y URL de redirección
+class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
+    """
+    Edita un Cliente vía AJAX.  La lógica es idéntica a RolUpdateAJAXView.
+    """
+    model         = Cliente
+    pk_url_kwarg  = "cliente_id"
+    form_class    = EditarClienteForm
+    template_name = "editar_cliente.html"
+    success_url   = reverse_lazy("visualizar_clientes")
+
+    # ----- POST válido -----
+    def form_valid(self, form):
+        self.object = form.save()
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
-                'success': True,
-                'redirect_url': reverse('visualizar_clientes')
+                "success"      : True,
+                "message"      : "Cliente actualizado correctamente.",
+                "redirect_url" : str(self.success_url),
             })
-        else:
-            # Retornar JSON con errores
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = EditarClienteForm(instance=cliente)
-    
-    return render(request, 'editar_cliente.html', {'form': form})
+        messages.success(
+            self.request,
+            f"Cliente «{self.object.nombre} {self.object.apellido}» actualizado."
+        )
+        return super().form_valid(form)
+
+    # ----- POST con errores -----
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400
+            )
+        return super().form_invalid(form)
 
 
 @login_required
