@@ -1,270 +1,99 @@
-/* Importación de fuente (opcional) */
+/* Fuente */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* Variables CSS para facilitar cambios de color y mantenimiento */
-:root {
-    --color-principal: #005091;       /* Azul oscuro */
-    --color-secundario: #ADD8E6;      /* Azul claro */
-    --color-blanco: #ffffff;          
-    --color-rojo: #ff0000;
-    --color-gris-claro: #f0f8ff;
-    --color-gris: #ccc;
-    --color-gris-hover: #aaa;
-    --color-boton: #3b5998;
-    --color-boton-hover: #2b467d;
-    --fuente-principal: 'Roboto', Arial, sans-serif;
-    --fuente-secundaria: 'Arial', sans-serif;
-    --transicion: 0.3s;
-    --bordes-radio: 5px;
-    --sombra: 0 4px 8px rgba(0, 0, 0, 0.2);
-    --padding-contenedor: 40px;
-    --padding-contenedor-movil: 30px 20px;
-    --padding-input: 10px;
-    --padding-input-movil: 8px;
-    --tamanio-icono: 90px;
-    --tamanio-icono-movil: 60px;
-    --tamanio-titulo: 24px;
-    --tamanio-titulo-movil: 22px;
-    --tamanio-texto: 16px;
-    --tamanio-texto-movil: 14px;
-    --tamanio-texto-obligatorio: 14px;
-    --tamanio-texto-obligatorio-movil: 12px;
+/* ─── variables ─── */
+:root{
+  --azul:#005091; --azul-claro:#ADD8E6;
+  --blanco:#ffffff; --rojo:#ff0000; --verde:#3c763d;
+  --gris:#ccc; --gris-hover:#aaa; --gris-lite:#f0f8ff;
+  --btn:#3b5998; --btn-hover:#2b467d;
+  --font:'Roboto',Arial,sans-serif;
+  --radius:5px; --shadow:0 4px 8px rgba(0,0,0,.2);
 }
 
-/* Reset básico */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+/* ─── reset ─── */
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* ─── fondo ─── */
+body{
+  min-height:100vh;display:flex;justify-content:center;align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:var(--font);color:var(--blanco);overflow:auto;padding:20px;position:relative;
+}
+body::before{
+  content:"";position:fixed;inset:0;background:inherit;filter:blur(20px);z-index:-1;
 }
 
-/* Estilos del cuerpo */
-body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center; /* Opcional: Centra verticalmente */
-    background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-    font-family: var(--fuente-principal);
-    color: var(--color-blanco);
-    overflow: auto;
-    position: relative;
+/* ─── card ─── */
+.container-empleado{
+  width:90%;max-width:450px;background:rgba(255,255,255,.12);
+  padding:40px;border-radius:var(--radius);box-shadow:var(--shadow);text-align:center;
+}
+.icon-empleado{font-size:90px;margin-bottom:15px}
+h2{font-size:24px;margin-bottom:10px;font-weight:700}
+.obligatorio-texto{font-size:14px;font-style:italic;margin-bottom:20px}
+
+/* ─── form ─── */
+.form-group-empleado{margin-bottom:20px;text-align:left}
+
+/* etiqueta + asterisco en una sola línea */
+.form-group-empleado label{
+  display:inline-flex;          /* ♠ clave para que “*” se quede a la par */
+  align-items:center;
+  gap:4px;                      /* separación entre texto y asterisco   */
+  margin-bottom:5px;
+  color:var(--blanco);
+  font-weight:700;
+  font-size:16px;
 }
 
-body::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: inherit;
-    filter: blur(20px);
-    z-index: -1;
-    pointer-events: none;
+.required{
+  color:var(--blanco);
+  font-size:18px;
+  margin:0;                     /* sin márgenes verticales               */
 }
 
-/* Contenedor principal */
-.container-empleado {
-    background: rgba(255, 255, 255, 0.1);
-    padding: var(--padding-contenedor);
-    border-radius: var(--bordes-radio);
-    box-shadow: var(--sombra);
-    width: 90%;
-    max-width: 400px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
+/* inputs */
+.form-group-empleado input{
+  width:100%;padding:10px;border:1px solid var(--gris);border-radius:var(--radius);
+  background:var(--gris-lite);font-size:16px;transition:.25s
+}
+input:hover{background:#e0e8ff;border-color:var(--gris-hover)}
+input:focus{outline:none;border-color:var(--azul);box-shadow:0 0 5px rgba(0,80,145,.5)}
+
+/* alerts */
+.alert{padding:15px;border-radius:4px;font-size:16px;margin-bottom:20px;display:none}
+.alert-success{background:#dff0d8;color:var(--verde)}
+.alert-error  {background:#f2dede;color:var(--rojo)}
+.field-error{color:var(--rojo);font-size:14px;margin-top:5px;display:none}
+.field-error.visible{display:block}
+.input-error{border-color:var(--rojo)!important}
+
+/* botón */
+.btn-agregar-empleado{
+  width:100%;padding:12px;border:none;border-radius:var(--radius);
+  background:var(--btn);color:var(--blanco);font-size:18px;font-weight:700;
+  cursor:pointer;transition:background .25s, transform .2s, box-shadow .3s;
+  margin-top:10px;
+}
+.btn-agregar-empleado:hover{
+  background:var(--btn-hover);transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,.2)
 }
 
-.container-empleado h2 {
-    color: var(--color-blanco);
-    margin-bottom: 20px;
-    font-size: var(--tamanio-titulo);
+/* ─── responsive ─── */
+@media(max-width:768px){
+  .container-empleado{padding:30px 20px}
+  .icon-empleado{font-size:60px}
+  h2{font-size:22px}
+  input{font-size:14px;padding:8px}
+  .btn-agregar-empleado{font-size:16px;padding:10px}
 }
-
-/* Ícono */
-.icon-empleado {
-    font-size: var(--tamanio-icono);
-    margin-bottom: 15px;
-    color: var(--color-blanco);
-}
-
-/* Grupo de formulario */
-.form-group-empleado {
-    margin-bottom: 20px;
-    text-align: left;
-}
-
-/* Etiquetas de los campos */
-.form-group-empleado label {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--color-blanco);
-    font-weight: bold;
-    font-size: var(--tamanio-texto);
-}
-
-/* Asterisco para campos obligatorios */
-.form-group-empleado .required {
-    color: var(--color-blanco);
-    margin-left: 5px;
-    font-size: 18px;
-}
-
-/* Texto informativo sobre campos obligatorios */
-.obligatorio-texto {
-    font-style: italic;
-    color: var(--color-blanco);
-    margin-bottom: 20px;
-    font-size: var(--tamanio-texto-obligatorio);
-}
-
-/* Campos de entrada y select */
-.form-group-empleado input,
-.form-group-empleado select {
-    width: 100%;
-    padding: var(--padding-input);
-    border: 1px solid var(--color-gris);
-    border-radius: var(--bordes-radio);
-    background-color: var(--color-gris-claro);
-    font-size: var(--tamanio-texto);
-    transition: background-color var(--transicion), border-color var(--transicion);
-}
-
-/* Hover */
-.form-group-empleado input:hover,
-.form-group-empleado select:hover {
-    background-color: #e0e8ff;
-    border-color: var(--color-gris-hover);
-}
-
-/* Focus */
-.form-group-empleado input:focus,
-.form-group-empleado select:focus {
-    outline: none;
-    border-color: var(--color-principal);
-    box-shadow: 0 0 5px rgba(0, 80, 145, 0.5);
-}
-
-/* Botón */
-.btn-agregar-empleado {
-    background-color: var(--color-boton);
-    color: var(--color-blanco);
-    border: none;
-    cursor: pointer;
-    padding: 12px;
-    text-align: center;
-    width: 100%;
-    font-size: var(--tamanio-texto);
-    border-radius: var(--bordes-radio);
-    transition: background-color var(--transicion);
-    margin-top: 20px;
-}
-
-.btn-agregar-empleado:hover {
-    background-color: var(--color-boton-hover);
-}
-
-/* Estilos de alertas */
-.alert {
-    padding: 15px;
-    margin-top: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    text-align: center;
-    font-size: var(--tamanio-texto);
-}
-
-.alert-error {
-    color: var(--color-rojo);
-    background-color: #f2dede;
-    border-color: #ebccd1;
-    margin-bottom: 20px;
-}
-
-.alert-success {
-    color: #3c763d;
-    background-color: #dff0d8;
-    border-color: #d6e9c6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
-/* CSS para mensajes de error de campo */
-.field-error {
-    color: var(--color-rojo);
-    font-size: 14px;
-    margin-top: 5px;
-    display: none; /* Ocultar por defecto para animar su aparición */
-    text-align: left;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.field-error.visible {
-    display: block;
-    opacity: 1;
-}
-
-/* Icono dentro de mensajes de error */
-.field-error i {
-    margin-right: 5px;
-}
-
-/* Responsividad (tablets) */
-@media (max-width: 768px) {
-    .container-empleado {
-        padding: var(--padding-contenedor-movil);
-    }
-    .icon-empleado {
-        font-size: var(--tamanio-icono-movil);
-        margin-bottom: 10px;
-    }
-    .container-empleado h2 {
-        font-size: var(--tamanio-titulo-movil);
-        margin-bottom: 15px;
-    }
-    .form-group-empleado input,
-    .form-group-empleado select {
-        padding: var(--padding-input-movil);
-        font-size: 14px;
-    }
-    .btn-agregar-empleado {
-        font-size: 16px;
-        padding: 10px;
-    }
-    .obligatorio-texto {
-        font-size: var(--tamanio-texto-obligatorio-movil);
-    }
-}
-
-/* Responsividad (móviles) */
-@media (max-width: 480px) {
-    .container-empleado {
-        padding: 20px 15px;
-    }
-    .icon-empleado {
-        font-size: 50px;
-        margin-bottom: 8px;
-    }
-    .container-empleado h2 {
-        font-size: 20px;
-        margin-bottom: 10px;
-    }
-    .form-group-empleado input,
-    .form-group-empleado select {
-        font-size: 14px;
-        padding: 6px;
-    }
-    .btn-agregar-empleado {
-        font-size: 16px;
-        padding: 8px;
-    }
-    .obligatorio-texto {
-        font-size: 10px;
-    }
+@media(max-width:480px){
+  .container-empleado{padding:20px 15px}
+  .icon-empleado{font-size:50px}
+  h2{font-size:20px}
+  input{padding:6px}
+  .btn-agregar-empleado{font-size:16px;padding:8px}
+  .obligatorio-texto{font-size:12px}
 }

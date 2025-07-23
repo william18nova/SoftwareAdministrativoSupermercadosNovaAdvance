@@ -2511,24 +2511,38 @@ class PuntoCajaDisponibleAutocomplete(PaginatedAutocompleteMixin):
 
 
 
-def agregar_cliente(request):
+class ClienteCreateAJAXView(LoginRequiredMixin, FormView):
     """
-    Vista para agregar un cliente usando AJAX. La validación (número de documento,
-    teléfono, nombre, apellido, correo único) se maneja en ClienteForm.
-    Devuelve un JSON con success=True o success=False y la lista de errores.
+    • GET  → muestra el formulario clásico.
+    • POST → alta vía AJAX → responde JSON.
     """
-    if request.method == 'POST':
-        form = ClienteForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return JsonResponse({'success': True})
-        else:
-            errors = form.errors.as_json()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = ClienteForm()
-    
-    return render(request, 'agregar_cliente.html', {'form': form})
+    template_name = "agregar_cliente.html"
+    form_class    = ClienteForm
+
+    # ---------- POST OK ----------
+    def form_valid(self, form):
+        cliente = form.save()
+
+        # llamada AJAX (fetch)
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "message": "Cliente agregado exitosamente.",
+                "cliente": {
+                    "id":   cliente.pk,
+                    "name": f"{cliente.nombre} {cliente.apellido}"
+                }
+            })
+
+        # Petición clásica (no-AJAX) – redirecciona a donde corresponda
+        return redirect("listar_clientes")      # ajusta a tu flujo
+
+    # ---------- POST con errores ----------
+    def form_invalid(self, form):
+        return JsonResponse(
+            {"success": False, "errors": form.errors.get_json_data()},
+            status=400
+        )
 
 
 @login_required

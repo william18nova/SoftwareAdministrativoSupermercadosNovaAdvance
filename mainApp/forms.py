@@ -207,79 +207,78 @@ class EditarCategoriaForm(forms.ModelForm):
         return nombre
 
 class ClienteForm(forms.ModelForm):
-    class Meta:
-        model = Cliente
-        fields = ['numerodocumento', 'nombre', 'apellido', 'telefono', 'email']
-        labels = {
-            'numerodocumento': 'Número de Documento',
-            'nombre': 'Nombre',
-            'apellido': 'Apellido',
-            'telefono': 'Teléfono',
-            'email': 'Correo Electrónico',
-        }
-        widgets = {
-            'numerodocumento': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el número de documento',
-                'required': 'required'
-            }),
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el nombre',
-                'required': 'required'
-            }),
-            'apellido': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el apellido',
-                'required': 'required'
-            }),
-            'telefono': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el teléfono',
-                'required': 'required'
-            }),
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ingresa el correo electrónico',
-                'required': 'required'
-            }),
-        }
+    numerodocumento = forms.CharField(
+        label="Número de Documento",
+        max_length=30,
+        validators=[RegexValidator(r"^\d+$", "Solo dígitos.")],
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el número de documento",
+            "required": True
+        })
+    )
 
+    nombre = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el nombre",
+            "required": True
+        }),
+        validators=[RegexValidator(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$", "Solo letras y espacios.")],
+    )
+
+    apellido = forms.CharField(
+        max_length=50,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el apellido",
+            "required": True
+        }),
+        validators=[RegexValidator(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$", "Solo letras y espacios.")],
+    )
+
+    telefono = forms.CharField(
+        max_length=15,
+        validators=[RegexValidator(r"^\d{7,15}$", "Entre 7 y 15 dígitos.")],
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el teléfono",
+            "required": True
+        })
+    )
+
+    email = forms.EmailField(
+        label="Correo Electrónico",
+        widget=forms.EmailInput(attrs={
+            "class": "form-control",
+            "placeholder": "Ingresa el correo electrónico",
+            "required": True
+        })
+    )
+
+    class Meta:
+        model  = Cliente
+        fields = ("numerodocumento", "nombre", "apellido", "telefono", "email")
+
+    # ---------- validaciones de unicidad ----------
     def clean_numerodocumento(self):
-        numerodocumento = self.cleaned_data.get('numerodocumento')
-        if not numerodocumento.isdigit():
-            raise forms.ValidationError('El número de documento debe contener solo dígitos.')
-        if Cliente.objects.filter(numerodocumento=numerodocumento).exists():
-            raise forms.ValidationError('El número de documento ya está registrado.')
-        return numerodocumento
+        num = self.cleaned_data["numerodocumento"]
+        if Cliente.objects.filter(numerodocumento=num).exists():
+            raise forms.ValidationError("Ya existe un cliente con ese documento.")
+        return num
 
     def clean_telefono(self):
-        telefono = self.cleaned_data.get('telefono')
-        if not telefono.isdigit():
-            raise forms.ValidationError('El teléfono debe contener solo dígitos.')
-        if len(telefono) < 7 or len(telefono) > 15:
-            raise forms.ValidationError('El teléfono debe tener entre 7 y 15 dígitos.')
-        if Cliente.objects.filter(telefono=telefono).exists():
-            raise forms.ValidationError('El teléfono ya está registrado.')
-        return telefono
-
-    def clean_nombre(self):
-        nombre = self.cleaned_data.get('nombre')
-        if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', nombre):
-            raise forms.ValidationError('El nombre solo puede contener letras.')
-        return nombre
-
-    def clean_apellido(self):
-        apellido = self.cleaned_data.get('apellido')
-        if not re.match(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$', apellido):
-            raise forms.ValidationError('El apellido solo puede contener letras.')
-        return apellido
+        tel = self.cleaned_data["telefono"]
+        if Cliente.objects.filter(telefono=tel).exists():
+            raise forms.ValidationError("Ese teléfono ya está registrado.")
+        return tel
 
     def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if email and Cliente.objects.filter(email=email).exists():
-            raise forms.ValidationError('El correo electrónico ya está registrado.')
-        return email
+        mail = self.cleaned_data["email"]
+        if Cliente.objects.filter(email=mail).exists():
+            raise forms.ValidationError("Ese correo ya está registrado.")
+        return mail
 
 class EditarClienteForm(forms.ModelForm):
     class Meta:

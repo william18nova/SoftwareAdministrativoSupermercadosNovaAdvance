@@ -146,26 +146,12 @@ urlpatterns = [
     path("autocomplete/sucursal_horarios_cajas/", views.SucursalHorarioCajaAutocomplete.as_view(), name="visualizar_horarios_cajas_sucursal_autocomplete"),
     path("autocomplete/puntopago_horarios_cajas/", views.PuntoPagoHorarioCajaAutocomplete.as_view(), name="visualizar_horarios_cajas_puntopago_autocomplete"),
     path('eliminar_horario_caja/<int:horario_id>/', views.eliminar_horario_caja_view, name='eliminar_horario_caja'),
-    path(
-        "editar_horarios_cajas/<int:puntopagoid>/",
-        views.EditarHorarioCajaView.as_view(),
-        name="editar_horarios_cajas"
-    ),
-
-    path(
-        "autocomplete/sucursal_caja_editar/",
-        views.SucursalDisponibleCajaAutocomplete.as_view(),
-        name="sucursal_caja_editar_autocomplete"
-    ),
-    path(
-        "autocomplete/puntopago_caja_editar/",
-        views.PuntoCajaDisponibleAutocomplete.as_view(),
-        name="puntopago_caja_editar_autocomplete"
-    ),
+    path("editar_horarios_cajas/<int:puntopagoid>/", views.EditarHorarioCajaView.as_view(), name="editar_horarios_cajas"),
+    path("autocomplete/sucursal_caja_editar/", views.SucursalDisponibleCajaAutocomplete.as_view(), name="sucursal_caja_editar_autocomplete"),
+    path("autocomplete/puntopago_caja_editar/", views.PuntoCajaDisponibleAutocomplete.as_view(), name="puntopago_caja_editar_autocomplete"),
     
     
-    
-    path('agregar_cliente/', views.agregar_cliente, name='agregar_cliente'),
+    path("agregar_cliente/", views.ClienteCreateAJAXView.as_view(), name="agregar_cliente"),
     path('visualizar_clientes/', views.visualizar_clientes, name='visualizar_clientes'),
     path('editar_cliente/<int:clienteid>/', views.editar_cliente, name='editar_cliente'),
     path('eliminar_cliente/<int:clienteid>/', views.eliminar_cliente, name='eliminar_cliente'),
