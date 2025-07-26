@@ -1,203 +1,116 @@
-/* static/css/visualizar_pedidos.css */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+/* ─────  VARIABLES  ───── */
 :root{
-  --color-principal:#005091;
-  --color-secundario:#ADD8E6;
-  --color-blanco:#fff;
+  --azul:#005091;             --azul-claro:#ADD8E6;
+  --blanco:#ffffff;           --gris-table:#f9f9f9;   --gris-hover:#e9f3ff;
 
-  --color-editar:#ffc107;        /* amarillo */
-  --color-editar-hover:#e0a800;
-  --color-eliminar:#e74c3c;      /* rojo */
-  --color-eliminar-hover:#c0392b;
+  --amarillo:#ffc107;         --amarillo-h:#e0a800;
+  --rojo:#e74c3c;             --rojo-h:#c0392b;
 
-  --color-verde:#3c763d;         /* éxito */
-  --color-rojo:#ff0000;          /* usado en errores */
-  --color-gris:#ccc;
-  --fuente-principal:'Roboto',Arial,sans-serif;
+  --verde:#3c763d;            --rojo-err:#ff0000;
 }
 
-/* RESET */
-*{box-sizing:border-box;margin:0;padding:0}
-
-/* FONDO */
+/* ─────  FONDO  ───── */
 body{
-  font-family:var(--fuente-principal);
-  background:linear-gradient(to bottom right,var(--color-secundario),var(--color-principal));
-  min-height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
+  margin:0;min-height:100vh;
+  display:flex;justify-content:center;align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:'Roboto',Arial,sans-serif;
   overflow:auto;
 }
 
-/* CONTENEDOR PRINCIPAL */
-.container-precios-proveedor{
-  max-width:900px;
-  width:95%;
-  margin:20px auto;
-  padding:40px;
-  background:rgba(255,255,255,.12);
-  border-radius:10px;
-  box-shadow:0 4px 8px rgba(0,0,0,.2);
-  text-align:center;
-  color:var(--color-blanco);
+/* ─────  TARJETA  ───── */
+.container-pedidos{
+  width:95%;max-width:1200px;
+  background:var(--blanco);
+  border-radius:14px;
+  box-shadow:0 6px 14px rgba(0,0,0,.25);
+  padding:35px 25px;box-sizing:border-box;
 }
-.container-precios-proveedor h2{
-  margin-bottom:20px;
-  font-size:28px;
+.container-pedidos h2{
+  margin:0 0 25px;font-size:28px;font-weight:700;color:var(--azul);
+  display:flex;align-items:center;gap:10px;justify-content:center;
+}
+.container-pedidos h2 i{font-size:30px}
+
+/* ─────  BUSCADOR  ───── */
+.search-wrapper{position:relative;width:100%;margin:0 auto 20px}
+.search-wrapper i{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#888;
+}
+.search-input{
+  width:100%;padding:10px 12px 10px 35px;
+  border:1px solid #ccc;border-radius:8px;font-size:15px;
+  transition:border .25s;box-sizing:border-box;
+}
+.search-input:focus{
+  border-color:var(--azul);
+  box-shadow:0 0 4px rgba(0,80,145,.35);outline:none;
 }
 
-/* BUSCADOR */
-.form-control{
-  width:100%;
-  padding:10px;
-  margin-bottom:20px;
-  border:1px solid var(--color-gris);
-  border-radius:5px;
-  font-size:16px;
-  color:#333;
+/* ─────  TABLA (desktop)  ───── */
+table.dataTable{width:100%!important;border-collapse:collapse}
+table.dataTable thead{background:var(--azul);color:var(--blanco)}
+table.dataTable thead th{
+  padding:12px;font-weight:700;position:sticky;top:0;z-index:2;text-align:center
+}
+table.dataTable tbody tr:nth-child(even){background:var(--gris-table)}
+table.dataTable tbody tr:hover{background:var(--gris-hover)}
+table.dataTable tbody td{
+  padding:10px;vertical-align:middle;word-break:break-word;text-align:center
 }
 
-/* CONTENEDOR TABLA */
-.table-responsive{width:100%}
+/* iconos FA de orden */
+table.dataTable thead th.sorting,
+table.dataTable thead th.sorting_asc,
+table.dataTable thead th.sorting_desc{
+  background-image:none!important;cursor:pointer;position:relative}
+table.dataTable thead th.sorting::after     {content:'\f0dc'}
+table.dataTable thead th.sorting_asc::after {content:'\f106'}
+table.dataTable thead th.sorting_desc::after{content:'\f107'}
+table.dataTable thead th.sorting::after,
+table.dataTable thead th.sorting_asc::after,
+table.dataTable thead th.sorting_desc::after{
+  font-family:'Font Awesome 6 Free';font-weight:900;position:absolute;right:8px}
 
-/* TABLA (escritorio) */
-.table{
-  width:100%;
-  border-collapse:collapse;
-  background:#fff;
-  margin-top:20px;
-}
-.table thead{
-  background:var(--color-principal);
-  color:var(--color-blanco);
-}
-.table thead th{
-  padding:12px;
-  text-align:left;
-  font-size:14px;
-}
-
-/* Bordes claros para todas las celdas */
-.table tbody td{
-  padding:10px;
-  text-align:left;
-  color:#333;
-  font-size:14px;
-  vertical-align:middle;
-  word-wrap:break-word;
-  border:1px solid #e0e0e0;
-}
-.table tbody tr:nth-child(even){background:#f9f9f9}
-.table tbody tr:hover{background:#e8e8e8}
-
-/* Columna Acciones centrada */
-.acciones{text-align:center!important}
-
-/* ───────── BOTONES ───────── */
+/* ─────  BOTONES  ───── */
+.actions-cell{display:flex;gap:10px;justify-content:center;align-items:center}
+.btn-container{display:flex;gap:10px}
 .btn{
-  padding:6px 12px;
-  border:none;
-  border-radius:5px;
-  cursor:pointer;
-  font-size:14px;
-  display:inline-flex;           /* centra icono */
-  align-items:center;
-  justify-content:center;
+  border:none;border-radius:5px;cursor:pointer;display:flex;
+  align-items:center;justify-content:center;width:35px;height:35px;font-size:15px;
 }
-/* EDITAR */
-.btn-primary{
-  background:var(--color-editar);
-  color:#fff;
-}
-.btn-primary:hover{
-  background:var(--color-editar-hover);
-}
-.btn-primary i{ color:#fff; }    /* lápiz blanco */
+.btn.editar{background:var(--amarillo);color:#fff}
+.btn.editar:hover{background:var(--amarillo-h)}
+.btn.borrar{background:var(--rojo);color:#fff}
+.btn.borrar:hover{background:var(--rojo-h)}
 
-/* ELIMINAR */
-.btn-danger{
-  background:var(--color-eliminar);
-  color:#fff;
-}
-.btn-danger:hover{
-  background:var(--color-eliminar-hover);
-}
-.btn-danger i{ color:#fff; }
+/* ─────  ALERTAS  ───── */
+.messages{margin-bottom:20px}
+.alert{padding:10px 15px;border-radius:6px;font-size:15px;margin-bottom:10px}
+.alert-success{background:#d4edda;color:var(--verde)}
+.alert-error  {background:#f2dede;color:var(--rojo-err)}
 
-/* ALERTAS */
-.alert{
-  padding:15px;margin-top:20px;border:1px solid transparent;
-  border-radius:4px;font-size:16px;margin-bottom:20px;text-align:center;
-}
-.alert-success{
-  color:var(--color-verde);          /* #3c763d */
-  background-color:#dff0d8;          /* verde pastel */
-  border-color:#d6e9c6;              /* borde verde claro */
-}
-.alert-error{
-  color:var(--color-rojo);
-  background:#f2dede;
-  border-color:#ebccd1;
-  position:relative;z-index:9999;
-}
-
-/* ─────  MÓVILES ≤ 768 px (tarjetas)  ───── */
+/* ─────  RESPONSIVE ≤768 px (tarjetas)  ───── */
 @media(max-width:768px){
-  body{align-items:flex-start}
-  .container-precios-proveedor{
-    padding:24px;
-    width:100%;
-    max-width:550px;
-  }
-  .table-responsive{overflow-x:hidden}
+  .container-pedidos{padding:20px}
+  h2{font-size:22px}
+  .search-input{padding:8px 12px 8px 35px;font-size:14px}
+  .search-wrapper i{left:8px}
 
-  /* Ocultar cabecera */
-  .table thead{display:none}
-
-  /* Tarjetas */
-  .table, .table tbody, .table tr{width:100%!important}
-  .table tbody tr{
-    display:block;
-    background:#fff;
-    border:1px solid #e0e0e0;
-    border-radius:8px;
-    margin-bottom:18px;
-    box-shadow:0 2px 6px rgba(0,0,0,.09);
+  table.dataTable thead{display:none}
+  table.dataTable tbody tr{
+    display:block;margin-bottom:15px;border:1px solid #ccc;border-radius:10px;
+    background:var(--blanco)!important;box-shadow:0 2px 4px rgba(0,0,0,.1)
   }
-  .table tbody td{
-    display:block;
-    width:100%;
-    padding:10px 14px;
-    font-size:14px;
-    border-bottom:1px solid #e5e5e5;
-    text-align:left;
-    word-break:break-word;
-    border-left:none;
-    border-right:none;
+  table.dataTable tbody td{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:8px 12px;font-size:13px;border-bottom:1px solid #f0f0f0;text-align:left
   }
-  .table tbody td:last-child{border-bottom:none}
-
-  .table tbody td::before{
-    content:attr(data-label);
-    display:block;
-    font-weight:700;
-    color:var(--color-principal);
-    margin-bottom:4px;
+  table.dataTable tbody td:last-child{border-bottom:none}
+  table.dataTable tbody td::before{
+    content:attr(data-label);font-weight:700;color:var(--azul);margin-right:10px
   }
-  /* Celda Acciones */
-  .table tbody td[data-label="Acciones"]{
-    text-align:right;
-    border-bottom:none;
-  }
-  .table tbody td[data-label="Acciones"]::before{content:''}
-}
-
-/* EXTRAPEQUEÑAS ≤ 480 px */
-@media(max-width:480px){
-  .container-precios-proveedor h2{font-size:24px}
-  .form-control{font-size:15px}
-  .table tbody td{font-size:13px}
-  .btn{font-size:13px}
+  .actions-cell{justify-content:flex-start}
 }

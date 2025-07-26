@@ -1,102 +1,82 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
+
 {% block title %}Visualizar Pedidos{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visualizar Pedidos</title>
+  <div class="container-pedidos"><!--  ⬅️ MISMA clase que el CSS -->
+    <h2><i class="fas fa-truck"></i> Lista de Pedidos</h2>
 
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <!-- DataTables CSS -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
-  <!-- CSS propio -->
-  <link rel="stylesheet" href="{% static 'css/visualizar_pedidos.css' %}">
-
-  <!-- jQuery + DataTables -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-</head>
-<body>
-  <div class="container-precios-proveedor">
-
-    <h2>Visualizar Pedidos</h2>
-
-    <!-- Alertas -->
+    <!-- flashes -->
     <div id="success-message" class="alert alert-success"
-         {% if not just_updated %}style="display:none;"{% endif %}>
+         {% if not just_updated %}style="display:none"{% endif %}>
       Pedido actualizado exitosamente.
     </div>
-    <div id="error-message" class="alert alert-error" style="display:none;"></div>
+    <div id="error-message" class="alert alert-error" style="display:none"></div>
 
-    <!-- Buscador -->
-    <input id="buscador-pedidos" class="form-control" type="text"
-           placeholder="Buscar en pedidos...">
+    <!-- buscador externo -->
+    <div class="search-wrapper">
+      <i class="fas fa-search"></i>
+      <input id="buscador-pedidos" class="search-input"
+             type="text" placeholder="Buscar…">
+    </div>
 
-    <!-- Tabla -->
-    <div class="table-responsive">
-      <table id="pedidos-table" class="table">
-        <thead>
-          <tr>
-            <th>ID</th><th>Proveedor</th><th>Sucursal</th>
-            <th>Fecha&nbsp;Pedido</th><th>Fecha&nbsp;Estimada</th>
-            <th>Costo&nbsp;Total</th><th>Estado</th>
-            <th class="acciones">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for pedido in pedidos %}
-          <tr data-id="{{ pedido.pedidoid }}" class="clickable-row">
-            <td data-label="ID">{{ pedido.pedidoid }}</td>
-            <td data-label="Proveedor">{{ pedido.proveedorid.nombre }}</td>
-            <td data-label="Sucursal">{{ pedido.sucursalid.nombre }}</td>
-            <td data-label="Fecha Pedido">{{ pedido.fechapedido }}</td>
-            <td data-label="Fecha Estimada">{{ pedido.fechaestimadaentrega }}</td>
-            <td data-label="Costo Total">{{ pedido.costototal }}</td>
-            <td data-label="Estado">{{ pedido.estado }}</td>
-            <td data-label="Acciones" class="acciones">
-              <a href="{% url 'editar_pedido' pedido.pedidoid %}"
-                 class="btn btn-primary btn-editar-pedido" title="Editar">
+    <!-- tabla -->
+    <table id="pedidosTable" class="display">
+      <thead>
+        <tr>
+          <th>ID</th><th>Proveedor</th><th>Sucursal</th>
+          <th>Fecha&nbsp;Pedido</th><th>Fecha&nbsp;Estimada</th>
+          <th>Costo&nbsp;Total</th><th>Estado</th>
+          <th class="no-sort">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pedidos %}
+        <tr data-id="{{ p.pedidoid }}">
+          <td data-label="ID">{{ p.pedidoid }}</td>
+          <td data-label="Proveedor">{{ p.proveedorid.nombre }}</td>
+          <td data-label="Sucursal">{{ p.sucursalid.nombre }}</td>
+          <td data-label="Fecha Pedido">{{ p.fechapedido|date:"d/m/Y" }}</td>
+          <td data-label="Fecha Estimada">
+            {{ p.fechaestimadaentrega|default:"—" }}
+          </td>
+          <td data-label="Costo Total">${{ p.costototal|floatformat:2 }}</td>
+          <td data-label="Estado">{{ p.estado }}</td>
+          <td data-label="Acciones" class="actions-cell">
+            <div class="btn-container">
+              <a href="{% url 'editar_pedido' p.pedidoid %}"
+                 class="btn editar" title="Editar">
                 <i class="fas fa-edit"></i>
               </a>
-              <button type="button"
-                      class="btn btn-danger btn-eliminar-pedido"
-                      data-id="{{ pedido.pedidoid }}" title="Eliminar">
+              <button type="button" class="btn borrar"
+                      data-id="{{ p.pedidoid }}" title="Eliminar">
                 <i class="fas fa-trash-alt"></i>
               </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div><!-- /table-responsive -->
+            </div>
+            <form class="delete-form"
+                  action="{% url 'eliminar_pedido' p.pedidoid %}"
+                  method="post" style="display:none">{% csrf_token %}</form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
-  <!-- CSRF helper -->
-  <script>
-    function getCookie(name){
-      let cv=null;if(document.cookie&&document.cookie!==''){
-        for(let c of document.cookie.split(';')){
-          c=c.trim();
-          if(c.substring(0,name.length+1)===name+'='){
-            cv=decodeURIComponent(c.substring(name.length+1)); break; }
-        }}
-      return cv;
-    }
-    const csrftoken = getCookie('csrftoken');
-  </script>
+  <!-- Font-Awesome + DataTables -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 
-  <!-- URLs JS -->
+  <!-- estilos + lógica -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_pedidos.css' %}">
   <script>
     const eliminarPedidoUrl = "{% url 'eliminar_pedido' 0 %}";
     const verPedidoUrl      = "{% url 'ver_pedido' 0 %}";
   </script>
-
-  <!-- JS específico -->
-  <script src="{% static 'javascript/visualizar_pedidos.js' %}"></script>
-</body>
-</html>
+  <script src="{% static 'javascript/visualizar_pedidos.js' %}" defer></script>
 {% endblock %}

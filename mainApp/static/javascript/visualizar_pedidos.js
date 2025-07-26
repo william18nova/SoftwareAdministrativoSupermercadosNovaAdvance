@@ -1,75 +1,62 @@
-/* static/javascript/visualizar_pedidos.js */
-$(document).ready(function () {
+/* visualizar_pedidos.js */
+$(function () {
   "use strict";
 
-  /* ───────────────  MOSTRAR / OCULTAR ALERTA DE ÉXITO  ─────────────── */
-  if ($("#success-message").is(":visible")) {
-    // El template la dejó visible (just_updated=True)
-    setTimeout(() => $("#success-message").fadeOut(), 3000);
-  }
-
-  /* ───────────────  DATA-TABLE + BUSCADOR EXTERNO  ─────────────── */
-  const table = $("#pedidos-table").DataTable({
-    paging: false,
-    info: false,
-    searching: true,
-    dom: "t",
-    language: { emptyTable: "" },
+  /* DataTable + buscador externo */
+  const table = $("#pedidosTable").DataTable({
+    paging     : true,
+    searching  : true,
+    responsive : true,
+    columnDefs : [{ targets:"no-sort", orderable:false }],
+    language   : {
+      search:"", zeroRecords:"No se encontraron pedidos",
+      info:"Mostrando _START_ a _END_ de _TOTAL_ pedidos",
+      infoEmpty:"Mostrando 0 a 0 de 0 pedidos",
+      paginate:{ first:"Primero", last:"Último",
+                 next:"Siguiente", previous:"Anterior" }
+    }
   });
-
   $("#buscador-pedidos").on("keyup", function () {
     table.search(this.value).draw();
   });
 
-  /* ───────────────  CSRF HELPER  ─────────────── */
-  function getCookie(name) {
-    let cv = null;
-    if (document.cookie && document.cookie !== "") {
-      document.cookie.split(";").forEach((c) => {
-        c = c.trim();
-        if (c.substring(0, name.length + 1) === name + "=") {
-          cv = decodeURIComponent(c.substring(name.length + 1));
-        }
-      });
-    }
-    return cv;
+  /* flashes */
+  function flash(txt,isErr=false){
+    $("#success-message,#error-message").hide();
+    const $el=isErr?$("#error-message"):$("#success-message");
+    $el.text(txt).fadeIn();
+    setTimeout(()=>$el.fadeOut(),3000);
   }
-  const csrftoken = getCookie("csrftoken");
-
-  /* ───────────────  FLASH DE MENSAJES  ─────────────── */
-  function flash(msg, isError = false) {
-    $("#success-message, #error-message").hide();
-    const $el = isError ? $("#error-message") : $("#success-message");
-    $el.text(msg).fadeIn();
-    setTimeout(() => $el.fadeOut(), 3000);
+  if($("#success-message").is(":visible")){
+    setTimeout(()=>$("#success-message").fadeOut(),3000);
   }
 
-  /* ───────────────  ELIMINAR  ─────────────── */
-  $("#pedidos-table").on("click", ".btn-eliminar-pedido", function (e) {
+  /* CSRF helper */
+  const csrftoken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || "";
+
+  /* eliminar */
+  $("#pedidosTable").on("click",".btn.borrar",function (e){
     e.stopPropagation();
-    const id = $(this).data("id");
-    if (!confirm("¿Está seguro de eliminar este pedido?")) return;
-
-    $.post({
-      url: eliminarPedidoUrl.replace("0", id),
-      headers: { "X-CSRFToken": csrftoken },
-      success: (data) => {
-        if (data.success) {
-          table.row($(`tr[data-id="${id}"]`)).remove().draw();
+    const id=$(this).data("id"), $row=$(this).closest("tr");
+    if(!confirm("¿Desea eliminar este pedido?")) return;
+    $.ajax({
+      url:eliminarPedidoUrl.replace("0",id),
+      method:"POST",
+      headers:{"X-CSRFToken":csrftoken},
+      success:res=>{
+        if(res.success){
+          table.row($row).remove().draw();
           flash("Pedido eliminado exitosamente.");
-        } else flash(data.message || "Error al eliminar.", true);
+        }else flash(res.message||"Error al eliminar.",true);
       },
-      error: () => flash("Error al eliminar.", true),
+      error:()=>flash("Error de red.",true)
     });
   });
 
-  /* ───────────────  IGNORAR PROPAGACIÓN EN EDITAR  ─────────────── */
-  $("#pedidos-table").on("click", ".btn-editar-pedido", (e) => e.stopPropagation());
-
-  /* ───────────────  DETALLE (clic de fila)  ─────────────── */
-  $("#pedidos-table tbody").on("click", "tr", function (e) {
-    if ($(e.target).closest(".btn-eliminar-pedido,.btn-editar-pedido").length) return;
-    const id = $(this).data("id");
-    window.location.href = verPedidoUrl.replace("0", id);
+  /* navegar al detalle */
+  $("#pedidosTable tbody").on("click","tr",function (e){
+    if($(e.target).closest(".btn").length) return;   // evitamos botones
+    const id=$(this).data("id");
+    window.location.href = verPedidoUrl.replace("0",id);
   });
 });

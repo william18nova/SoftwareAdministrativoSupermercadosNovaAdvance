@@ -3089,22 +3089,24 @@ class ProductoPedidoAutocomplete(PaginatedAutocompleteMixin):
             safe=False
         )
 
-@login_required
-def visualizar_pedidos_view(request):
+class PedidoListView(LoginRequiredMixin, ListView):
     """
-    Lista todos los pedidos, más recientes primero.
-    Si llega con ?updated=1 (vuelta desde “Editar Pedido”)
-    pasamos la bandera just_updated al template para que muestre
-    la alerta de éxito.
+    Lista de pedidos a proveedor, más recientes primero, paginada
+    y con la variable *just_updated* para mostrar la alerta cuando
+    se vuelve desde “Editar Pedido”.
     """
-    pedidos = PedidoProveedor.objects.all().order_by("-fechapedido")
-    just_updated = request.GET.get("updated") == "1"
-    return render(
-        request,
-        "visualizar_pedidos.html",
-        {"pedidos": pedidos, "just_updated": just_updated},
-    )
+    model               = PedidoProveedor
+    template_name       = "visualizar_pedidos.html"
+    context_object_name = "pedidos"
+    paginate_by         = 50
+    ordering            = ["-fechapedido"]
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["just_updated"] = self.request.GET.get("updated") == "1"
+        return ctx
+    
+    
 @login_required
 def eliminar_pedido(request, pedido_id):
     if request.method == 'POST':
