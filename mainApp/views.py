@@ -45,8 +45,6 @@ from .forms import (
     UsuarioEditarForm,
     GenerarVentaForm,
     PedidoProveedorForm,
-    DevolucionFormSet,
-    DevolucionForm,
 )
 from dal import autocomplete
 from decimal import Decimal, InvalidOperation
@@ -2935,156 +2933,161 @@ def visualizar_cambios_view(request):
 
 
 
-@login_required
-def agregar_pedido_proveedor_view(request):
+@method_decorator(transaction.atomic, name="dispatch")
+class PedidoProveedorCreateAJAXView(LoginRequiredMixin, View):
     """
-    Crea un pedido a proveedor.
-    Ahora también valida que todos los productos añadidos
-    efectivamente los venda el proveedor seleccionado.
+    • GET  → renderiza form + selects iniciales
+    • POST → valida, guarda y responde JSON {success, message|errors}
     """
-    if request.method == "POST":
-        form = PedidoProveedorForm(request.POST)
-        if form.is_valid():
-            proveedor = form.cleaned_data["proveedor"]
-            sucursal = form.cleaned_data["sucursal"]
-            fechaestimadaentrega = form.cleaned_data.get("fechaestimadaentrega")
-            comentario = form.cleaned_data.get("comentario")
-            detalles_json = form.cleaned_data["detalles"]
+    template_name = "agregar_pedido.html"
+    form_class    = PedidoProveedorForm
+    success_msg   = "Pedido guardado exitosamente."
 
-            # Detalles a lista -------------------------------------------------
-            try:
-                detalles = json.loads(detalles_json)
-            except json.JSONDecodeError:
-                detalles = []
-
-            if not detalles:
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "errors": {
-                            "detalles": [
-                                {"message": "Debe agregar al menos un producto."}
-                            ]
-                        },
-                    }
-                )
-
-            # ---------- Validar compatibilidad de productos ----------
-            productos_invalidos = []
-            for item in detalles:
-                productoid = item.get("productoid")
-                if not PreciosProveedor.objects.filter(
-                    productoid_id=productoid, proveedorid=proveedor
-                ).exists():
-                    # Obtener nombre legible si es posible
-                    try:
-                        nombre = Producto.objects.get(pk=productoid).nombre
-                    except Producto.DoesNotExist:
-                        nombre = f"ID {productoid}"
-                    productos_invalidos.append(nombre)
-
-            if productos_invalidos:
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": (
-                            "El proveedor seleccionado NO vende los siguientes "
-                            f"productos: {', '.join(productos_invalidos)}. "
-                            "Revise el pedido."
-                        ),
-                    }
-                )
-
-            # Calcular costo total --------------------------------------------
-            total_cost = Decimal("0.00")
-            for item in detalles:
-                cant = Decimal(str(item.get("cantidad", 0)))
-                pu = Decimal(str(item.get("precio_unitario", "0.00")))
-                total_cost += cant * pu
-
-            # Guardar ----------------------------------------------------------
-            try:
-                with transaction.atomic():
-                    pedido = PedidoProveedor.objects.create(
-                        proveedorid=proveedor,
-                        sucursalid=sucursal,
-                        fechaestimadaentrega=fechaestimadaentrega,
-                        costototal=total_cost,
-                        comentario=comentario,
-                        estado="En espera",
-                    )
-                    for item in detalles:
-                        DetallePedidoProveedor.objects.create(
-                            pedidoid=pedido,
-                            productoid_id=item["productoid"],
-                            cantidad=item["cantidad"],
-                            preciounitario=item["precio_unitario"],
-                        )
-                return JsonResponse(
-                    {"success": True, "message": "Pedido guardado exitosamente."}
-                )
-            except Exception as e:
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": f"Error al guardar el pedido: {str(e)}",
-                    }
-                )
-        # Form no válido ------------------------------------------------------
-        return JsonResponse({"success": False, "errors": form.errors.get_json_data()})
-    # GET --------------------------------------------------------------------
-    form = PedidoProveedorForm()
-    return render(request, "agregar_pedido.html", {"form": form})
-
-
-@login_required
-def producto_pedido_autocomplete(request):
-    term = request.GET.get('term', '').strip()
-    proveedor_id = request.GET.get('proveedor_id', '').strip()  # Se espera que se envíe este parámetro
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '10').strip()
-
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 10
-    if per_page < 1:
-        per_page = 10
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    qs = Producto.objects.all()
-    if proveedor_id:
-        qs = qs.filter(Exists(
-            PreciosProveedor.objects.filter(productoid=OuterRef('pk'), proveedorid=proveedor_id)
-        ))
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-    
-    qs = qs.order_by('nombre')
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    results = []
-    for prod in qs:
-        precio_obj = PreciosProveedor.objects.filter(productoid=prod, proveedorid=proveedor_id).first()
-        precio = str(precio_obj.precio) if precio_obj else "0.00"
-        results.append({
-            'id': prod.productoid,
-            'text': prod.nombre,
-            'precio': precio
+    def get(self, request):
+        form        = self.form_class()
+        # opcionales: lista completa de proveedores y sucursales
+        proveedores = Proveedor.objects.all().order_by("nombre")
+        sucursales  = Sucursal.objects.all().order_by("nombre")
+        return render(request, self.template_name, {
+            "form": form,
+            "proveedores": proveedores,
+            "sucursales": sucursales,
         })
-    has_more = end < total_results
 
-    return JsonResponse({'results': results, 'has_more': has_more})
+    def post(self, request):
+        form = self.form_class(request.POST)
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps(form.errors.get_json_data())
+            })
+        # datos base
+        prov   = form.cleaned_data["proveedor"]
+        suc    = form.cleaned_data["sucursal"]
+        fecha  = form.cleaned_data.get("fechaestimadaentrega")
+        comen  = form.cleaned_data.get("comentario", "")
+        detalles = json.loads(form.cleaned_data["detalles"])
+
+        # 1) al menos uno
+        if not detalles:
+            return JsonResponse({
+                "success": False,
+                "errors": json.dumps({
+                    "detalles":[{"message":"Debe agregar al menos un producto."}]
+                })
+            })
+
+        # 2) validar que el proveedor venda cada producto
+        invalidos = []
+        for d in detalles:
+            pid = d["productoid"]
+            if not PreciosProveedor.objects.filter(
+                productoid_id=pid, proveedorid=prov
+            ).exists():
+                nombre = Producto.objects.filter(pk=pid).first()
+                invalidos.append(nombre.nombre if nombre else f"ID {pid}")
+        if invalidos:
+            return JsonResponse({
+                "success": False,
+                "message": (
+                  "El proveedor NO vende: "
+                  + ", ".join(invalidos)
+                  + ". Revise el pedido."
+                )
+            })
+
+        # 3) calcular total
+        total = Decimal("0.00")
+        for d in detalles:
+            c = Decimal(str(d["cantidad"]))
+            p = Decimal(str(d["precio_unitario"]))
+            total += c * p
+
+        # 4) guardar
+        try:
+            pedido = PedidoProveedor.objects.create(
+                proveedorid=prov,
+                sucursalid=suc,
+                fechaestimadaentrega=fecha,
+                costototal=total,
+                comentario=comen,
+                estado="En espera"
+            )
+            for d in detalles:
+                DetallePedidoProveedor.objects.create(
+                    pedidoid=pedido,
+                    productoid_id=d["productoid"],
+                    cantidad=d["cantidad"],
+                    preciounitario=d["precio_unitario"]
+                )
+        except Exception as e:
+            return JsonResponse({
+                "success": False,
+                "message": f"Error al guardar: {e}"
+            })
+
+        return JsonResponse({
+            "success": True,
+            "message": self.success_msg
+        })
+
+
+class ProductoPedidoAutocomplete(PaginatedAutocompleteMixin):
+    """
+    • Filtra por proveedor (GET ?proveedor_id=)  
+    • Excluye los IDs ya listados (?excluded=1,2,3)  
+    • Devuelve   id, text, precio   por página
+    """
+    model      = Producto
+    text_field = "nombre"
+    id_field   = "productoid"
+    per_page   = 10           # si tu mixin ya lo trae, esta línea es opcional
+
+    # --- filtros dinámicos --------------------------------------------------
+    def extra_filter(self, qs, request):
+        prov_id = request.GET.get("proveedor_id", "").strip()
+        if prov_id:
+            qs = qs.filter(
+                Exists(
+                    PreciosProveedor.objects.filter(
+                        productoid=OuterRef("pk"),
+                        proveedorid=prov_id
+                    )
+                )
+            )
+
+        excl = request.GET.get("excluded", "").split(",")
+        excl_ids = [int(x) for x in excl if x.isdigit()]
+        if excl_ids:
+            qs = qs.exclude(productoid__in=excl_ids)
+
+        return qs.order_by("nombre")
+
+    # --- sobrescribimos GET para inyectar el precio -------------------------
+    def get(self, request, *args, **kwargs):
+        import json
+
+        # respuesta «base» del mixin (JsonResponse)
+        base_response = super().get(request, *args, **kwargs)
+
+        # lo convertimos a dict
+        base_data = json.loads(base_response.content)
+
+        prov_id = request.GET.get("proveedor_id")
+        nuevos  = []
+        for itm in base_data["results"]:
+            precio = (
+                PreciosProveedor.objects
+                .filter(productoid_id=itm["id"], proveedorid=prov_id)
+                .values_list("precio", flat=True)
+                .first()   # None → usamos 0
+            ) or 0
+            nuevos.append({**itm, "precio": str(precio)})
+
+        return JsonResponse(
+            {"results": nuevos, "has_more": base_data["has_more"]},
+            safe=False
+        )
 
 @login_required
 def visualizar_pedidos_view(request):

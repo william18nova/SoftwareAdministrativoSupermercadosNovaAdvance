@@ -9,6 +9,7 @@ from dal import autocomplete
 import json
 from django.db.models import Exists, OuterRef, Count, Q  # Agrega esta línea
 from django.forms import formset_factory
+from datetime import date
 
 MEDIO_PAGO_CHOICES = (
     ('nequi', 'Nequi'),
@@ -1844,66 +1845,78 @@ class GenerarVentaForm(forms.Form):
 
 
 class PedidoProveedorForm(forms.Form):
+    # -------- PROVEEDOR ----------
+    # el visible (solo UI) **NO** debe ser obligatorio en el servidor
     proveedor_autocomplete = forms.CharField(
-        required=True,
+        required=False,                               #  <──  cambia a False
         widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Buscar proveedor...',
-            'autocomplete': 'off'
+            "class": "form-control",
+            "placeholder": "Buscar proveedor…",
+            "autocomplete": "off"
         })
     )
     proveedor = forms.ModelChoiceField(
         queryset=Proveedor.objects.all(),
-        widget=forms.HiddenInput(),
+        widget=forms.HiddenInput(),                   # lo rellena el JS
         required=True
     )
+
+    # -------- SUCURSAL (hidden) ---
     sucursal = forms.ModelChoiceField(
-        queryset=Sucursal.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-control'}),
+        queryset=Sucursal.objects.order_by("nombre"),
+        widget=forms.HiddenInput(),                   # idem: lo pone el JS
         required=True
     )
+
+    # -------- FECHA ---------------
     fechaestimadaentrega = forms.DateField(
         required=False,
-        input_formats=['%d/%m/%Y'],  # acepta dd/mm/yyyy
-        widget=forms.TextInput(
-            attrs={
-                'class': 'form-control',
-                'placeholder': 'dd/mm/yyyy'
-            }
-        )
+        input_formats=["%Y-%m-%d"],
+        widget=forms.DateInput(attrs={
+            "type": "date",
+            "class": "form-control",
+            "min": date.today().isoformat()
+        })
     )
+
+    # -------- OTROS ---------------
     comentario = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'placeholder': 'Comentario (opcional)',
-            'rows': 3
+            "class": "form-control",
+            "placeholder": "Comentario (opcional)",
+            "rows": 3
         })
     )
     detalles = forms.CharField(
-        required=True,
-        widget=forms.HiddenInput()
+        widget=forms.HiddenInput(),
+        required=True
     )
 
-    def clean_fechaestimadaentrega(self):
-        """
-        Si el usuario no ingresa nada, puede quedar en blanco.
-        Si ingresa algo, se valida con el formato dd/mm/yyyy
-        (gracias a input_formats).
-        """
-        data = self.cleaned_data.get('fechaestimadaentrega')
-        # data será un objeto date si pasa la validación
-        # o None si no se ingresó
-        return data
-    
-class LineaDevolucionForm(forms.Form):
-    """Un input por línea de venta (cantidad a devolver)."""
-    detalle_id = forms.IntegerField(widget=forms.HiddenInput)
-    devolver   = forms.IntegerField(
-        min_value=0, label="Cant.",
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "style": "width:5em"}))
+    # -------- LIMPIEZA GLOBAL -----
+    def clean(self):
+        cleaned = super().clean()
 
-DevolucionFormSet = formset_factory(LineaDevolucionForm, extra=0)
+        # Validar proveedor → si falta, manda el error al campo visible
+        if not cleaned.get("proveedor"):
+            self.add_error("proveedor_autocomplete", "Seleccione un proveedor.")
+
+        # Validar sucursal
+        if not cleaned.get("sucursal"):
+            self.add_error("sucursal", "Seleccione una sucursal.")
+
+        # Validar JSON de detalles
+        try:
+            items = json.loads(cleaned.get("detalles", "[]"))
+        except json.JSONDecodeError:
+            self.add_error("detalles", "Formato inválido de detalles.")
+            return cleaned
+
+        if not items:
+            self.add_error("detalles", "Debe agregar al menos un producto.")
+        return cleaned
+
+
 
 class DevolucionForm(forms.Form):
     """

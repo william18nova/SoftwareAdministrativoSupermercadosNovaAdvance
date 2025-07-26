@@ -1,409 +1,153 @@
+/*  agregar_pedido.css
+   ──────────────────────────────────────────────────────────────
+   Clon de “agregar_inventario.css” + bloque responsive y
+   field-error persistente.
+*/
+
+/* ───────── Google Font ───────── */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-:root {
-  --color-principal: #005091;
-  --color-secundario: #ADD8E6;
-  --color-blanco: #ffffff;
-  --color-rojo: #ff0000;
-  --color-verde: #3c763d;
-  --color-gris-claro: #f0f8ff;
-  --color-gris: #ccc;
-  --color-gris-hover: #aaa;
-  --color-boton: #3b5998;
-  --color-boton-hover: #2b467d;
-  --fuente-principal: 'Roboto', Arial, sans-serif;
-  --tamanio-icono: 90px;
-
-  /* Ajustes de color para el DatePicker */
+/* ─────────  PALETA / TOKENS  ───────── */
+:root{
+  --azul:#005091;    --azul-claro:#ADD8E6;
+  --blanco:#ffffff;  --rojo:#ff0004;   --verde:#3c763d;
+  --gris:#ccc;       --gris-light:#f0f8ff; --gris-hover:#a5a5a5;
+  --btn:#304c8c;     --btn-hover:#223a70;
+  --radius:8px;      --shadow:0 4px 12px rgba(0,0,0,.25);
+  --font:'Roboto',Arial,sans-serif;  --icon-size:88px;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ───────── RESET + BODY ───────── */
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  min-height:100vh;display:flex;justify-content:center;align-items:center;
+  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
+  font-family:var(--font);color:var(--blanco);overflow:auto;padding:20px;
+}
+body::before{
+  content:"";position:fixed;inset:0;background:inherit;
+  filter:blur(22px);z-index:-1;
 }
 
-/* Fondo general */
-body {
-  font-family: var(--fuente-principal);
-  background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: auto;
+/* ───────── CARD ───────── */
+.container-inventario{
+  width:95%;max-width:650px;background:rgba(255,255,255,.12);
+  border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:40px 32px 28px;text-align:center;
+}
+.icon-inventario{font-size:var(--icon-size);margin-bottom:8px}
+
+/* ───────── TITULARES ───────── */
+h2{font-size:26px;margin-bottom:6px;font-weight:700}
+.obligatorio-texto{font-size:14px;font-style:italic;margin-bottom:24px}
+
+/* ───────── INPUTS / LABEL ───────── */
+.form-group-precio{margin-bottom:20px;text-align:left;position:relative}
+.form-group-precio label{display:block;font-weight:700;margin-bottom:6px}
+
+input[type="text"],input[type="number"],input[type="date"],
+select,textarea{
+  width:100%;padding:10px 12px;border:1px solid var(--gris);
+  border-radius:var(--radius);background:var(--gris-light);
+  font-size:15px;color:#222;transition:.25s;
+}
+input:hover,select:hover,textarea:hover{
+  background:#e2ebff;border-color:var(--gris-hover)}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--azul);
+  box-shadow:0 0 5px rgba(0,80,145,.45)}
+.input-error{border-color:var(--rojo)!important}
+
+/* total aproximado */
+#total-aproximado{
+  margin:18px 0 10px;
+  font-size:18px;font-weight:700;text-align:center;color:var(--blanco);
 }
 
-.container-precios-proveedor {
-  max-width: 700px;
-  width: 90%;
-  margin: 20px auto;
-  padding: 40px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  text-align: center;
-  position: relative;
-  box-sizing: border-box;
-  color: var(--color-blanco);
-}
+/* ───────── BOTONES ───────── */
+.btn-agregar-precio,.btn-guardar-precio{
+  width:100%;padding:12px;border:none;border-radius:var(--radius);
+  background:var(--btn);color:var(--blanco);font-size:17px;font-weight:700;
+  cursor:pointer;transition:background .25s,transform .2s,box-shadow .25s}
+.btn-agregar-precio:hover,.btn-guardar-precio:hover{
+  background:var(--btn-hover);transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.btn-agregar-precio:active,.btn-guardar-precio:active{transform:none}
 
-.container-precios-proveedor h2 {
-  margin-bottom: 10px;
-  font-size: 24px;
-}
+/* ───────── ALERTAS ───────── */
+.alert{display:none;padding:14px 16px;border-radius:var(--radius);
+       font-size:15px;margin-bottom:18px}
+.alert-success{background:#dff0d8;color:var(--verde)}
+.alert-error  {background:#fbe4e6;color:var(--rojo)}
 
-.icon-proveedor {
-  font-size: var(--tamanio-icono);
-  margin-bottom: 10px;
-  color: var(--color-blanco);
+/* ───────── MENSAJE DE ERROR ───────── */
+.field-error{
+  display:block;            /* reserva espacio SIEMPRE */
+  min-height:18px;
+  font-size:14px;color:var(--rojo);
+  visibility:hidden;
 }
+.field-error.visible{visibility:visible}
+.field-error i{margin-right:5px}
 
-.obligatorio-texto {
-  font-style: italic;
-  margin-bottom: 20px;
-  font-size: 14px;
+/* ───────── AUTOCOMPLETE ───────── */
+.autocomplete-results{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;
+  max-height:220px;overflow-y:auto;
+  background:var(--gris-light);border:1px solid var(--gris);
+  border-radius:var(--radius);box-shadow:0 2px 6px rgba(0,0,0,.2);
+  z-index:20;display:none;
 }
-
-.alert {
-  padding: 15px;
-  margin-top: 20px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 16px;
-  margin-bottom: 20px;
+.autocomplete-option{
+  padding:10px 10px 10px 0;     /* ← sin padding a la izquierda  */
+  font-size:15px;cursor:pointer;color:#333;
+  text-align:left;              /* ← asegura la alineación */
 }
+.autocomplete-option:hover{background:var(--btn-hover);color:var(--blanco)}
+.autocomplete-no-result{padding:10px;font-size:15px;color:#777}
 
-.alert-success {
-  color: var(--color-verde);
-  background-color: #dff0d8;
-  border-color: #d6e9c6;
-}
+/* ───────── TABLA (desktop) ───────── */
+.table-wrap{margin:24px 0}
+table.dataTable{width:100%!important;border-collapse:collapse;background:var(--blanco)}
+table.dataTable thead{background:var(--btn);color:var(--blanco)}
+table.dataTable thead th{padding:10px;font-weight:700;white-space:nowrap}
+table.dataTable tbody td{padding:10px;color:#000}
+table.dataTable tbody tr:nth-child(even){background:#fafafa}
 
-.alert-error {
-  color: var(--color-rojo);
-  background-color: #f2dede;
-  border-color: #ebccd1;
-  position: relative;
-  z-index: 9999;
-}
+table.dataTable thead th.sorting::after,
+table.dataTable thead th.sorting_asc::after,
+table.dataTable thead th.sorting_desc::after{
+  font-family:"Font Awesome 6 Free";font-weight:900;margin-left:4px}
+table.dataTable thead th.sorting::after      {content:"\f0dc"}
+table.dataTable thead th.sorting_asc::after  {content:"\f106"}
+table.dataTable thead th.sorting_desc::after {content:"\f107"}
 
-.form-group-pedido {
-  margin-bottom: 15px;
-  position: relative;
-  text-align: left;
-}
+.btn-eliminar{
+  background:#e74c3c;color:#fff;border:none;border-radius:6px;
+  padding:7px 10px;cursor:pointer}
+.btn-eliminar:hover{background:#c0392b}
 
-.form-group-pedido label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--color-blanco) !important;
-  font-weight: bold;
-}
+/* ───────── RESPONSIVE ≤ 480 px ───────── */
+@media(max-width:480px){
 
-/* Inputs básicos */
-.form-group-pedido input[type="text"],
-.form-group-pedido input[type="number"],
-.form-group-pedido select,
-.form-group-pedido textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid var(--color-gris);
-  border-radius: 5px;
-  background-color: var(--color-gris-claro);
-  font-size: 16px;
-  color: #333;
-  transition: background-color 0.3s, border-color 0.3s;
-}
+  .container-inventario{padding:28px 18px}
+  .btn-agregar-precio,.btn-guardar-precio{font-size:15px}
 
-.form-group-pedido input[type="text"]:hover,
-.form-group-pedido input[type="number"]:hover,
-.form-group-pedido select:hover,
-.form-group-pedido textarea:hover {
-  background-color: #e0e8ff;
-  border-color: var(--color-gris-hover);
-}
-
-.form-group-pedido input[type="text"]:focus,
-.form-group-pedido input[type="number"]:focus,
-.form-group-pedido select:focus,
-.form-group-pedido textarea:focus {
-  outline: none;
-  border-color: var(--color-principal);
-  box-shadow: 0 0 5px rgba(0,80,145,0.5);
-}
-
-/* Campo de fecha con estilo personalizado */
-.form-group-pedido #id_fechaestimadaentrega {
-  width: 220px;  /* Ajusta el ancho del campo de fecha */
-  border: none;
-  border-bottom: 2px solid var(--color-blanco);
-  border-radius: 0;
-  background: transparent;
-  padding: 8px 0;
-  font-size: 16px;
-  color: var(--color-blanco); /* Texto en blanco */
-}
-
-.form-group-pedido #id_fechaestimadaentrega:hover {
-  background: transparent;
-  border-color: var(--color-fecha-borde);
-}
-
-.form-group-pedido #id_fechaestimadaentrega:focus {
-  outline: none;
-  border-bottom: 2px solid var(--color-principal);
-  box-shadow: none;
-}
-
-.form-group-pedido #id_fechaestimadaentrega::placeholder {
-  color: var(--color-blanco); /* Placeholder en blanco */
-}
-
-.form-group-pedido .ui-datepicker-trigger {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  margin-left: 5px;
-  vertical-align: middle;
-}
-
-.form-group-pedido .ui-datepicker-trigger img {
-  filter: invert(50%) sepia(20%) hue-rotate(90deg) brightness(1.1); 
-  width: 24px;
-  height: 24px;
-}
-
-/* Botones */
-.btn-agregar-pedido,
-.btn-guardar-pedido {
-  background-color: var(--color-boton);
-  color: var(--color-blanco);
-  border: none;
-  padding: 12px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 18px;
-  width: 100%;
-  margin-top: 10px;
-  font-weight: bold;
-}
-
-.btn-agregar-pedido:hover,
-.btn-guardar-pedido:hover {
-  background-color: var(--color-boton-hover);
-}
-
-#total-valor {
-  margin-bottom: 5px;
-}
-
-#buscador-detalles {
-  margin-top: 10px;
-}
-
-/* Autocomplete results */
-.autocomplete-results {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  right: 0;
-  background-color: var(--color-gris-claro);
-  border: 1px solid var(--color-gris);
-  max-height: 200px;
-  overflow-y: auto;
-  display: none;
-  border-radius: 5px;
-  z-index: 1000;
-}
-
-.autocomplete-option {
-  padding: 10px;
-  cursor: pointer;
-  font-size: 16px;
-  color: #333;
-}
-
-.autocomplete-option:hover {
-  background-color: var(--color-boton-hover);
-  color: var(--color-blanco);
-}
-
-.autocomplete-no-result {
-  padding: 10px;
-  color: #999;
-  font-size: 16px;
-}
-
-/* Errores de campo */
-.field-error {
-  color: var(--color-rojo);
-  font-size: 14px;
-  margin-top: 5px;
-  display: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.field-error.visible {
-  display: block !important;
-  opacity: 1 !important;
-}
-
-.field-error i {
-  margin-right: 5px;
-}
-
-/* Contenedor de la tabla */
-.table-container-pedido {
-  margin-top: 20px;
-  margin-bottom: 20px;
-  background-color: #ffffff;
-  padding: 0;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  overflow: hidden;
-}
-
-/* DataTables */
-#detalle-productos {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #fff;
-}
-
-#detalle-productos thead th,
-#detalle-productos tbody td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  word-wrap: break-word;
-  color: #333;
-  text-align: left;
-}
-
-#detalle-productos thead th {
-  background-color: #3b5998;
-  font-weight: bold;
-  color: #ffffff;
-}
-
-/* Columna de Acciones centrada */
-#detalle-productos thead th:nth-child(5),
-#detalle-productos tbody td:nth-child(5) {
-  text-align: center;
-}
-
-.btn-eliminar {
-  background-color: #e74c3c;
-  color: #fff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 5px;
-  cursor: pointer;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  transition: background-color 0.3s;
-}
-
-.btn-eliminar:hover {
-  background-color: #c0392b;
-}
-
-/* Estilos del Datepicker de jQuery UI */
-.ui-datepicker {
-  background: #ffffff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-}
-
-.ui-datepicker .ui-datepicker-header {
-  background: var(--color-boton);
-  color: #fff;
-  border: none;
-  border-radius: 4px 4px 0 0;
-  padding: 10px 0;
-}
-
-.ui-datepicker .ui-datepicker-title {
-  font-weight: bold;
-  color: #fff;
-}
-
-.ui-datepicker a.ui-state-default {
-  color: #333;
-  text-decoration: none;
-}
-
-.ui-datepicker a.ui-state-hover {
-  background: var(--color-gris-claro);
-}
-
-.ui-datepicker .ui-state-active,
-.ui-datepicker .ui-state-active:hover {
-  background: var(--color-principal) !important;
-  color: #fff !important;
-  border-radius: 4px;
-}
-
-.ui-datepicker .ui-datepicker-prev span,
-.ui-datepicker .ui-datepicker-next span {
-  color: #fff !important;
-}
-
-.ui-datepicker table {
-  width: 100%;
-  font-size: 14px;
-  border-collapse: collapse;
-}
-
-.ui-datepicker th {
-  color: #444;
-  font-weight: 600;
-  padding-bottom: 5px;
-  text-transform: capitalize;
-}
-
-.ui-datepicker td {
-  padding: 3px;
-  text-align: center;
-}
-
-/* Responsivo */
-@media (max-width: 768px) {
-  .container-precios-proveedor {
-    max-width: 100%;
-    width: 100%;
-    margin: 0;
-    border-radius: 0;
-    padding: 20px;
+  /* tabla -> “cards”  */
+  table.dataTable thead{display:none}
+  table.dataTable tbody tr{
+    display:block;margin-bottom:15px;border:1px solid #ccc;
+    border-radius:10px;background:var(--blanco)!important;
+    box-shadow:0 2px 4px rgba(0,0,0,.1)
   }
-
-  .form-group-pedido input,
-  .form-group-pedido select,
-  .form-group-pedido textarea {
-    font-size: 14px;
-    padding: 8px;
+  table.dataTable tbody td{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:8px 12px;font-size:13px;border-bottom:1px solid #f0f0f0;text-align:left
   }
-
-  .btn-agregar-pedido,
-  .btn-guardar-pedido {
-    font-size: 16px;
-    padding: 10px;
+  table.dataTable tbody td:last-child{border-bottom:none}
+  table.dataTable tbody td::before{
+    content:attr(data-label);font-weight:700;color:var(--azul);margin-right:10px
   }
-
-  #detalle-productos thead th,
-  #detalle-productos tbody td {
-    font-size: 12px;
-    padding: 6px;
-  }
-
-  .ui-datepicker {
-    font-size: 13px;
-  }
+  table.dataTable tbody tr:nth-child(even){background:var(--blanco)!important}
 }
