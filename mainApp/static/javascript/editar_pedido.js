@@ -1,176 +1,379 @@
-/* static/javascript/editar_pedido.js */
-$(document).ready(function () {
+/*  static/javascript/editar_pedido.js
+    ——————————————————————————————————————————————————————————
+    · Precarga initialDetalles
+    · Autocompletados (proveedor, sucursal, producto)
+    · Cambio de proveedor ⇒ conserva líneas válidas, confirma antes de descartar
+    · Cantidad editable + botón 🗑️ con delegación
+    · Validaciones con mensajes de error por campo (incl. Sucursal)
+----------------------------------------------------------------*/
+(() => {
   "use strict";
 
-  /* ─────────  INIT  ───────── */
-  $("#id_fechaestimadaentrega").datepicker({ minDate: 0, dateFormat: "dd/mm/yy" });
+  /* ═════ helpers básicos ══════════════════════════════════════ */
+  const $id = (id) => document.getElementById(id);
+  const money = (n = 0) =>
+    new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(n);
 
-  const table = $("#detalle-productos").DataTable({
-    paging:false, info:false, searching:true, dom:"t", language:{ emptyTable:"" }
+  /* ═════ UI helpers (flashes + errors) ════════════════════════ */
+  const ERR_BOX_MAP = {
+    proveedor: "proveedor",
+    proveedor_autocomplete: "proveedor",
+    sucursal: "sucursal",
+    sucursal_autocomplete: "sucursal",
+    producto: "detalles",
+    cantidad: "cantidad",
+    detalles: "detalles",
+  };
+  const INPUT_MAP = {
+    proveedor: $id("id_proveedor_autocomplete"),
+    proveedor_autocomplete: $id("id_proveedor_autocomplete"),
+    sucursal: $id("id_sucursal_autocomplete"),
+    sucursal_autocomplete: $id("id_sucursal_autocomplete"),
+    producto: $id("producto-input"),
+    cantidad: $id("cantidad-input"),
+    detalles: $id("producto-input"),
+  };
+
+  const UI = {
+    flash(kind, msg) {
+      const box = $id(`${kind}-message`);
+      box.innerHTML = `<i class="fas fa-${kind === "error" ? "exclamation" : "check"}-circle"></i> ${msg}`;
+      box.style.display = "block";
+    },
+    clearFlashes() {
+      ["success", "error"].forEach((k) => {
+        const b = $id(`${k}-message`);
+        b.style.display = "none";
+        b.innerHTML = "";
+      });
+    },
+    clearFieldErrors() {
+      document.querySelectorAll(".field-error.visible").forEach((b) => {
+        b.classList.remove("visible");
+        b.innerHTML = "";
+      });
+      document.querySelectorAll(".input-error").forEach((i) => i.classList.remove("input-error"));
+    },
+    fieldError(field, msg) {
+      const key = ERR_BOX_MAP[field] || field;
+      const input = INPUT_MAP[field] || INPUT_MAP[key];
+      let box = document.querySelector(`#error-id_${key}`);
+
+      if (!box && input) {
+        box = document.createElement("div");
+        box.id = `error-id_${key}`;
+        box.className = "field-error";
+        input.parentNode.insertBefore(box, input.nextSibling);
+      }
+      if (box) {
+        box.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+        box.classList.add("visible");
+      }
+      input?.classList.add("input-error");
+    },
+  };
+
+  /* ═════ DataTable ════════════════════════════════════════════ */
+  const HEADERS = ["Producto", "Cantidad", "Precio U.", "Subtotal", "Acciones"];
+  const dt = $("#detalle-pedido").DataTable({
+    paging: false,
+    searching: false,
+    info: false,
+    responsive: true,
+    columnDefs: [{ targets: 4, orderable: false }],
+    rowCallback: (row) =>
+      $("td", row).each((i, td) => (td.dataset.label = HEADERS[i])),
   });
 
-  let detalles = initialDetalles || [];
-  window.selectedProductPrice = 0;
+  /* ═════ estado global ════════════════════════════════════════ */
+  let detalles = (initialDetalles || []).map((d) => ({
+    ...d,
+    proveedorid: d.proveedorid ?? $id("id_proveedor").value,
+  }));
+  let precioSel = 0;
+  let proveedorActual = $id("id_proveedor").value || null;
+  let proveedorNombre = $id("id_proveedor_autocomplete").value || "";
 
-  /* ─────────  HELPER ALERTAS  ───────── */
-  function showError(msg){
-    $("#error-message").hide().text(msg).fadeIn();
-  }
-  function clearAlerts(){ $("#success-message,#error-message").hide().text(""); }
-
-  /* ─────────  ACTUALIZAR TABLA  ───────── */
-  function refrescarTabla(){
-    table.clear();
-    let total=0;
-    detalles.forEach(d=>{
-      total += +d.subtotal;
-      table.row.add([
+  /* ═════ render tabla + total ═════════════════════════════════ */
+  function drawTable() {
+    dt.clear();
+    let total = 0;
+    detalles.forEach((d) => {
+      total += d.subtotal;
+      dt.row.add([
         d.producto,
-        d.cantidad,
-        (+d.precio_unitario).toFixed(2),
-        (+d.subtotal).toFixed(2),
-        `<button class="btn-eliminar btn-eliminar-producto" data-id="${d.detallepedidoid}">
+        `<input type="number" class="qty-input" min="0" step="1"
+                data-id="${d.detallepedidoid}" value="${d.cantidad}">`,
+        money(d.precio_unitario),
+        money(d.subtotal),
+        `<button type="button" class="btn-eliminar" data-id="${d.detallepedidoid}">
            <i class="fas fa-trash-alt"></i>
-         </button>`
+         </button>`,
       ]);
     });
-    table.draw();
-    $("#id_detalles").val(JSON.stringify(detalles));
-    $("#total-valor").text(
-      new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP"}).format(total)
-    );
+    dt.draw(false);
+    $id("total-valor").textContent = money(total);
+    $id("id_detalles").value = JSON.stringify(detalles);
   }
-  refrescarTabla();
+  drawTable();
 
-  /* ─────────  AGREGAR / ELIMINAR PRODUCTOS  ───────── */
-  $("#agregarProductoPedido").on("click",()=>{
-    clearAlerts();
-    const prodIdTxt=$("#producto_id").val().trim(),
-          prodName=$("#producto_autocomplete").val().trim(),
-          cant=parseInt($("#cantidad").val(),10),
-          pu=window.selectedProductPrice||0;
+  /* ═════ qty / eliminar (delegación) ══════════════════════════ */
+  $("#detalle-pedido tbody")
+    .on("change", ".qty-input", function () {
+      const id = String(this.dataset.id);
+      const v = parseInt(this.value, 10);
+      const row = detalles.find((d) => String(d.detallepedidoid) === id);
+      if (!row) return;
 
-    if(!prodIdTxt)               return showError("Debe seleccionar un producto.");
-    if(isNaN(cant)||cant<1)      return showError("Ingrese una cantidad válida.");
-
-    const prodId=+prodIdTxt;
-    const existe=detalles.find(i=>+i.productoid===prodId);
-    if(existe){
-      existe.cantidad += cant;
-      existe.subtotal  = existe.cantidad * existe.precio_unitario;
-    }else{
-      detalles.push({
-        detallepedidoid:"tmp-"+Date.now(),
-        productoid:prodId,
-        producto:prodName,
-        cantidad:cant,
-        precio_unitario:pu,
-        subtotal:pu*cant
-      });
-    }
-    $("#producto_autocomplete,#producto_id").val("");
-    $("#cantidad").val("1"); window.selectedProductPrice=0;
-    refrescarTabla();
-  });
-
-  $("#detalle-productos").on("click",".btn-eliminar-producto",function(){
-    detalles = detalles.filter(d=>d.detallepedidoid!=$(this).data("id"));
-    refrescarTabla();
-  });
-
-  $("#buscador-detalles").on("keyup",function(){ table.search(this.value).draw(); });
-
-  /* ─────────  VALIDAR PRODUCTOS vs PROVEEDOR  ───────── */
-  function validarConProveedor(provId, onOk){
-    $.getJSON(
-      productoPedidoAutocompleteUrl,
-      { proveedor_id: provId, term: "" },
-      data=>{
-        const permitidos = data.results.map(r=> +r.id);
-        const prohibidos = detalles.filter(d=>!permitidos.includes(+d.productoid));
-        if(prohibidos.length){
-          const nombres = prohibidos.map(p=>p.producto).join(", ");
-          showError("El proveedor no vende los siguientes productos: "+nombres);
-        }else{
-          onOk(); // todo correcto, continuar
-        }
+      if (isNaN(v) || v <= 0) {
+        detalles = detalles.filter((d) => String(d.detallepedidoid) !== id);
+      } else {
+        row.cantidad = v;
+        row.subtotal = v * row.precio_unitario;
       }
-    ).fail(()=> showError("No se pudo validar productos del proveedor."));
-  }
-
-  /* ─────────  SUBMIT  ───────── */
-  $("#pedidoForm").on("submit",function(e){
-    e.preventDefault(); clearAlerts();
-    if(!detalles.length) return showError("Debe agregar al menos un producto.");
-
-    const proveedorId = $("#id_proveedor").val();
-    if(!proveedorId)    return showError("Seleccione un proveedor.");
-
-    $("#id_detalles").val(JSON.stringify(detalles));
-
-    validarConProveedor(proveedorId, () => {
-      // solo si pasa la validación
-      $.post({
-        url: $(this).attr("action"),
-        data: $(this).serialize(),
-        dataType:"json",
-        success:data=>{
-          if(data.success){
-            window.location.href = visualizarPedidosUrl + "?updated=1";
-          }else if(data.errors){
-            let msg=""; Object.values(data.errors).forEach(errs=>errs.forEach(e=>msg+=e.message+"\n"));
-            showError(msg||"Error al actualizar.");
-          }else showError(data.message||"Error inesperado.");
-        },
-        error:()=> showError("Error al conectar con el servidor.")
-      });
+      drawTable();
+    })
+    .on("click", ".btn-eliminar", function () {
+      const id = String(this.dataset.id);
+      detalles = detalles.filter((d) => String(d.detallepedidoid) !== id);
+      drawTable();
     });
-  });
 
-  /* ─────────  AUTOCOMPLETES  ───────── */
-  function auto($inp, url, hiddenSel){
-    $inp.autocomplete({
-      delay:100, minLength:0,
-      source:(r,resp)=>$.getJSON(url,{term:r.term},d=>resp(
-        d.results.map(i=>({label:i.text, id:i.id}))
-      )),
-      select:(e,ui)=>{
-        $inp.val(ui.item.label);
-        if(hiddenSel) $(hiddenSel).val(ui.item.id);
-        return false;
+  /* ═════ autocomplete mini-factory ════════════════════════════ */
+  function autocomplete({
+    inp,
+    hidden,
+    box,
+    url,
+    extra = () => ({}),
+    allowEmpty = false,
+    onSelect,
+  }) {
+    let timer;
+    async function render() {
+      const term = inp.value.trim();
+      if (!allowEmpty && !term) {
+        box.style.display = "none";
+        return;
       }
-    }).on("focus",function(){ $(this).autocomplete("search",""); });
+      const qs = new URLSearchParams({ term, ...extra() });
+      const js = await (await fetch(`${url}?${qs}`)).json();
+
+      const used = new Set(detalles.map((d) => String(d.productoid)));
+      const opts = js.results.filter((r) => !used.has(String(r.id)));
+
+      box.innerHTML = opts
+        .map(
+          (r) => `<div class="autocomplete-option" data-id="${r.id}"
+                     ${r.precio !== undefined ? `data-precio="${r.precio}"` : ""}>
+                    ${r.text}
+                  </div>`
+        )
+        .join("");
+      box.style.display = opts.length ? "block" : "none";
+    }
+
+    inp.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(render, 200);
+      hidden.value = "";
+    });
+    inp.addEventListener("focus", render);
+
+    box.addEventListener("click", (e) => {
+      const opt = e.target.closest(".autocomplete-option");
+      if (!opt) return;
+      inp.value = opt.textContent.trim();
+      hidden.value = opt.dataset.id;
+      box.style.display = "none";
+      onSelect?.(opt);
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!inp.contains(e.target) && !box.contains(e.target))
+        box.style.display = "none";
+    });
   }
 
-  // Proveedor con pre-validación al cambiar
-  $("#id_proveedor_autocomplete").autocomplete({
-    delay:100,minLength:0,
-    source:(r,resp)=>$.getJSON(proveedorAutocompleteUrl,{term:r.term},d=>resp(
-      d.results.map(i=>({label:i.text,id:i.id}))
-    )),
-    select:(e,ui)=>{
-      $("#id_proveedor_autocomplete").val(ui.item.label);
-      $("#id_proveedor").val(ui.item.id);
-      // Revisar incompatibilidades inmediatamente
-      validarConProveedor(ui.item.id, ()=>{});
-      return false;
-    }
-  }).on("focus",function(){ $(this).autocomplete("search",""); });
+  /* ═════ util: comprobar si un producto pertenece a un proveedor ═*/
+  async function productoPerteneceAProveedor(prodId, prodName, provId) {
+    const qs = new URLSearchParams({
+      term: prodName,
+      proveedor_id: provId,
+    });
+    const js = await (await fetch(`${productoPedidoAutocompleteUrl}?${qs}`)).json();
+    return js.results.some((r) => String(r.id) === String(prodId));
+  }
 
-  auto($("#id_sucursal_autocomplete"), sucursalAutocompleteUrl, "#id_sucursal");
+  /* ═════ PROVEEDOR autocomplete ═══════════════════════════════ */
+  autocomplete({
+    inp: $id("id_proveedor_autocomplete"),
+    hidden: $id("id_proveedor"),
+    box: $id("proveedor-autocomplete-results"),
+    url: proveedorAutocompleteUrl,
+    allowEmpty: true, // despliega todos si está vacío
+    onSelect: async (opt) => {
+      const nuevoID = opt.dataset.id;
+      const nuevoNombre = opt.textContent.trim();
+      if (nuevoID === proveedorActual) return;
 
-  $("#producto_autocomplete").autocomplete({
-    delay:100,minLength:0,
-    source:(r,resp)=>$.getJSON(
-      productoPedidoAutocompleteUrl,
-      { term:r.term, proveedor_id: $("#id_proveedor").val() },
-      d=>resp(d.results.map(i=>({ label:i.text, id:i.id, precio:i.precio||0 })))
-    ),
-    select:(e,ui)=>{
-      $("#producto_autocomplete").val(ui.item.label);
-      $("#producto_id").val(ui.item.id);
-      window.selectedProductPrice = parseFloat(ui.item.precio)||0;
-      return false;
+      // averiguar líneas que sobran
+      const checks = await Promise.all(
+        detalles.map(async (d) => ({
+          det: d,
+          ok: await productoPerteneceAProveedor(d.productoid, d.producto, nuevoID),
+        }))
+      );
+
+      const conservar = checks.filter((c) => c.ok).map((c) => c.det);
+      const eliminados = checks.length - conservar.length;
+
+      let proceed = true;
+      if (eliminados) {
+        proceed = confirm(
+          `${eliminados} producto(s) no pertenecen al proveedor seleccionado y se eliminarán. ¿Continuar?`
+        );
+      }
+
+      if (!proceed) {
+        // restaurar proveedor anterior
+        $id("id_proveedor_autocomplete").value = proveedorNombre;
+        $id("id_proveedor").value = proveedorActual;
+        return;
+      }
+
+      detalles = conservar.map((d) => ({ ...d, proveedorid: nuevoID }));
+      proveedorActual = nuevoID;
+      proveedorNombre = nuevoNombre;
+
+      // reset producto
+      $id("producto-input").value = "";
+      $id("producto-id").value = "";
+      precioSel = 0;
+
+      drawTable();
+    },
+  });
+
+  /* ═════ SUCURSAL autocomplete ════════════════════════════════ */
+  autocomplete({
+    inp: $id("id_sucursal_autocomplete"),
+    hidden: $id("id_sucursal"),
+    box: $id("sucursal-autocomplete-results"),
+    url: sucursalAutocompleteUrl,
+  });
+
+  /* ═════ PRODUCTO autocomplete ════════════════════════════════ */
+  autocomplete({
+    inp: $id("producto-input"),
+    hidden: $id("producto-id"),
+    box: $id("producto-autocomplete-results"),
+    url: productoPedidoAutocompleteUrl,
+    allowEmpty: true,
+    extra: () => ({ proveedor_id: $id("id_proveedor").value }),
+    onSelect: (opt) => {
+      precioSel = parseFloat(opt.dataset.precio) || 0;
+    },
+  });
+
+  /* ═════ Agregar producto ═════════════════════════════════════ */
+  $id("agregarDetalleBtn").addEventListener("click", () => {
+    UI.clearFlashes();
+    UI.clearFieldErrors();
+
+    let valid = true;
+    if (!$id("id_proveedor").value.trim()) {
+      UI.fieldError("proveedor", "Seleccione un proveedor.");
+      valid = false;
     }
-  }).on("focus",function(){ $(this).autocomplete("search",""); });
-});
+    if (!$id("id_sucursal").value.trim()) {
+      UI.fieldError("sucursal", "Seleccione una sucursal.");
+      valid = false;
+    }
+    const pid = $id("producto-id").value.trim();
+    if (!pid) {
+      UI.fieldError("producto", "Seleccione un producto.");
+      valid = false;
+    }
+    const qtyV = $id("cantidad-input").value.trim();
+    const qty = parseInt(qtyV, 10);
+    if (!qtyV || isNaN(qty) || qty < 1) {
+      UI.fieldError("cantidad", "Cantidad inválida.");
+      valid = false;
+    }
+    if (!valid) return;
+
+    const name = $id("producto-input").value.trim();
+
+    const row = detalles.find((d) => d.productoid === pid);
+    if (row) {
+      row.cantidad += qty;
+      row.subtotal = row.cantidad * row.precio_unitario;
+    } else {
+      detalles.push({
+        detallepedidoid: `tmp-${Date.now()}`,
+        productoid: pid,
+        proveedorid: proveedorActual,
+        producto: name,
+        cantidad: qty,
+        precio_unitario: precioSel,
+        subtotal: qty * precioSel,
+      });
+    }
+
+    $id("producto-input").value = "";
+    $id("producto-id").value = "";
+    $id("cantidad-input").value = "1";
+    precioSel = 0;
+
+    drawTable();
+  });
+
+  /* ═════ Submit AJAX ══════════════════════════════════════════ */
+  $id("pedidoForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    UI.clearFlashes();
+    UI.clearFieldErrors();
+
+    let valid = true;
+    if (!$id("id_proveedor").value.trim()) {
+      UI.fieldError("proveedor", "Seleccione un proveedor.");
+      valid = false;
+    }
+    if (!$id("id_sucursal").value.trim()) {
+      UI.fieldError("sucursal", "Seleccione una sucursal.");
+      valid = false;
+    }
+    if (!detalles.length) {
+      UI.fieldError("detalles", "Agregue al menos un producto.");
+      valid = false;
+    }
+    if (!valid) return;
+
+    const fd = new FormData(e.target);
+    fd.set("detalles", JSON.stringify(detalles));
+
+    fetch(e.target.action, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": document.cookie.match(/csrftoken=([^;]+)/)[1],
+        Accept: "application/json",
+      },
+      body: fd,
+    })
+      .then((r) => r.json())
+      .then((js) => {
+        if (js.success) {
+          window.location = visualizarPedidosUrl + "?updated=1";
+        } else if (js.errors) {
+          Object.entries(js.errors).forEach(([field, arr]) =>
+            arr.forEach((eObj) => UI.fieldError(field, eObj.message))
+          );
+          UI.flash("error", "Corrija los campos indicados.");
+        } else {
+          UI.flash("error", js.message || "Error al guardar.");
+        }
+      })
+      .catch(() => UI.flash("error", "Error de red."));
+  });
+})();

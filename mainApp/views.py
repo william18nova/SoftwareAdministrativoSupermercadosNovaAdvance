@@ -15,6 +15,7 @@ import subprocess
 import os
 from .nequi_websocket import verificacionPago
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import F, ExpressionWrapper, DecimalField
 from .forms import (
     CategoriaForm,
     ClienteForm,
@@ -45,6 +46,7 @@ from .forms import (
     UsuarioEditarForm,
     GenerarVentaForm,
     PedidoProveedorForm,
+    EditarPedidoForm,
 )
 from dal import autocomplete
 from decimal import Decimal, InvalidOperation
@@ -3140,76 +3142,123 @@ def ver_pedido_view(request, pedido_id):
         "detalles": detalles,
     })
     
-@login_required
-def editar_pedido_view(request, pedido_id):
-    pedido = get_object_or_404(PedidoProveedor, pk=pedido_id)
-    detalles_qs = DetallePedidoProveedor.objects.filter(pedidoid=pedido)
-    detalles = []
-    for det in detalles_qs:
-        detalles.append({
-            'detallepedidoid': det.detallepedidoid,
-            'productoid': det.productoid.pk,
-            'producto': det.productoid.nombre,
-            'cantidad': det.cantidad,
-            'precio_unitario': float(det.preciounitario),
-            'subtotal': float(det.preciounitario) * det.cantidad,
-        })
-    detalles_json = json.dumps(detalles)
+@method_decorator(login_required, name="dispatch")
+class EditarPedidoView(View):
+    """GET → muestra formulario precargado | POST → actualiza / valida."""
 
-    if request.method == "POST":
-        form = PedidoProveedorForm(request.POST)
-        if form.is_valid():
-            proveedor = form.cleaned_data['proveedor']
-            sucursal = form.cleaned_data['sucursal']
-            fechaestimadaentrega = form.cleaned_data.get('fechaestimadaentrega')
-            comentario = form.cleaned_data.get('comentario')
-            detalles_data = form.cleaned_data['detalles']
-            try:
-                detalles_list = json.loads(detalles_data)
-            except json.JSONDecodeError:
-                detalles_list = []
-            if not detalles_list:
-                return JsonResponse({
-                    'success': False,
-                    'errors': {'detalles': [{'message': 'Debe agregar al menos un producto.'}]}
-                })
-            # Calcular costo total
-            total_cost = sum(Decimal(str(item.get('precio_unitario', '0.00'))) * Decimal(str(item.get('cantidad', 0))) for item in detalles_list)
-            try:
-                with transaction.atomic():
-                    pedido.proveedorid = proveedor
-                    pedido.sucursalid = sucursal
-                    pedido.fechaestimadaentrega = fechaestimadaentrega
-                    pedido.comentario = comentario
-                    pedido.costototal = total_cost
-                    pedido.save()
-                    # Eliminar detalles anteriores y crearlos de nuevo
-                    DetallePedidoProveedor.objects.filter(pedidoid=pedido).delete()
-                    for item in detalles_list:
-                        productoid = item.get('productoid')
-                        cantidad = item.get('cantidad')
-                        precio_unitario = item.get('precio_unitario')
-                        if productoid and cantidad and precio_unitario:
-                            DetallePedidoProveedor.objects.create(
-                                pedidoid=pedido,
-                                productoid_id=productoid,
-                                cantidad=cantidad,
-                                preciounitario=precio_unitario
-                            )
-                # Aquí puedes usar el sistema de mensajes de Django para enviar un mensaje de éxito
-                # Ejemplo: messages.success(request, "Pedido editado exitosamente.")
-                return JsonResponse({'success': True})
-            except Exception as e:
-                return JsonResponse({'success': False, 'message': 'Error al guardar el pedido.'})
-        else:
-            errors = form.errors.get_json_data()
-            return JsonResponse({'success': False, 'errors': errors})
-    else:
-        form = PedidoProveedorForm(initial={
-            'proveedor': pedido.proveedorid.pk,
-            'sucursal': pedido.sucursalid.pk,
-            'fechaestimadaentrega': pedido.fechaestimadaentrega,
-            'comentario': pedido.comentario,
-            'detalles': detalles_json,
+    template_name = "editar_pedido.html"
+
+    # ---------- GET ----------
+    def get(self, request, pedido_id):
+        pedido = get_object_or_404(PedidoProveedor, pk=pedido_id)
+
+        # ----- Detalles + subtotal precalculado en la BD -----
+        detalles_qs = (
+            DetallePedidoProveedor.objects
+            .filter(pedidoid=pedido)
+            .select_related("productoid")
+            .annotate(
+                subtotal=ExpressionWrapper(
+                    F("cantidad") * F("preciounitario"),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            )
+            .order_by("productoid__nombre")
+        )
+
+        # ----- JSON usado por el JS (DataTable) -----
+        detalles_json = json.dumps([
+            {
+                "detallepedidoid": det.detallepedidoid,
+                "productoid": det.productoid_id,
+                "producto": det.productoid.nombre,
+                "cantidad": det.cantidad,
+                "precio_unitario": float(det.preciounitario),
+                "subtotal": float(det.subtotal),
+            }
+            for det in detalles_qs
+        ])
+
+        form = EditarPedidoForm(initial={
+            "proveedor": pedido.proveedorid_id,
+            "proveedor_autocomplete": pedido.proveedorid.nombre,
+            "sucursal": pedido.sucursalid_id,
+            "sucursal_autocomplete": pedido.sucursalid.nombre,
+            "fechaestimadaentrega": pedido.fechaestimadaentrega,
+            "comentario": pedido.comentario,
+            "detalles": detalles_json,
         })
-    return render(request, 'editar_pedido.html', {'form': form, 'pedido': pedido, 'detalles_json': detalles_json})
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "form": form,
+                "pedido": pedido,
+                "detalles_json": detalles_json,
+                "detalles_qs": detalles_qs,   # para precargar la tabla en el HTML
+            },
+        )
+
+    # ---------- POST ----------
+    @transaction.atomic
+    def post(self, request, pedido_id):
+        form = EditarPedidoForm(request.POST)
+        if not form.is_valid():
+            errs = {
+                f: [{"message": e["message"]} for e in ferr]
+                for f, ferr in form.errors.get_json_data().items()
+            }
+            return JsonResponse({"success": False, "errors": errs})
+
+        pedido = get_object_or_404(PedidoProveedor, pk=pedido_id)
+
+        proveedor   = form.cleaned_data["proveedor"]
+        sucursal    = form.cleaned_data["sucursal"]
+        estimada    = form.cleaned_data["fechaestimadaentrega"]
+        comentario  = form.cleaned_data.get("comentario")
+        raw_detalle = form.cleaned_data["detalles"]
+
+        try:
+            detalles = json.loads(raw_detalle or "[]")
+        except json.JSONDecodeError:
+            return JsonResponse({
+                "success": False,
+                "errors": {"detalles": [{"message": "JSON inválido."}]}
+            })
+
+        if not detalles:
+            return JsonResponse({
+                "success": False,
+                "errors": {"detalles": [{"message": "Debe agregar al menos un producto."}]}
+            })
+
+        total = sum(
+            Decimal(str(d["precio_unitario"])) * Decimal(str(d["cantidad"]))
+            for d in detalles
+        )
+
+        # --- update & re-crear detalles ---
+        pedido.proveedorid          = proveedor
+        pedido.sucursalid           = sucursal
+        pedido.fechaestimadaentrega = estimada
+        pedido.comentario           = comentario
+        pedido.costototal           = total
+        pedido.save()
+
+        DetallePedidoProveedor.objects.filter(pedidoid=pedido).delete()
+        DetallePedidoProveedor.objects.bulk_create([
+            DetallePedidoProveedor(
+                pedidoid=pedido,
+                productoid_id=d["productoid"],
+                cantidad=d["cantidad"],
+                preciounitario=d["precio_unitario"],
+            )
+            for d in detalles
+        ])
+
+        messages.success(request, "Pedido actualizado correctamente.")
+        return JsonResponse({
+            "success": True,
+            "redirect_url": reverse("visualizar_pedidos") + "?updated=1",
+        })

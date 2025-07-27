@@ -1932,3 +1932,7 @@ class DevolucionForm(forms.Form):
         })
     )
     detalle_id = forms.IntegerField(widget=forms.HiddenInput())
+    
+class EditarPedidoForm(PedidoProveedorForm):
+    """Hereda toda la validación de PedidoProveedorForm sin cambios."""
+    pass
