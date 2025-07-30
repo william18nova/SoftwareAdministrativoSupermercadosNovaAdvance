@@ -2598,214 +2598,282 @@ class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
 
-@login_required
-def generar_venta(request):
-    if request.method == 'POST':
-        cliente_id = request.POST.get('cliente_id')
-        sucursal_id = request.POST.get('sucursal_id')
-        puntopago_id = request.POST.get('puntopago_id')
-        productos = json.loads(request.POST.get('productos', '[]'))
-        cantidades = json.loads(request.POST.get('cantidades', '[]'))
-        medio_pago = request.POST.get('medio_pago')
+class GenerarVentaView(LoginRequiredMixin, View):
+    """
+    GET  → muestra formulario
+    POST → procesa la venta (ajax)
+    """
+    template_name = "generar_venta.html"
+    success_url   = reverse_lazy("generar_venta")
 
-        total = 0
-        detalles = []
+    def get(self, request, *args, **kwargs):
+        form = GenerarVentaForm(request.GET or None)
+        context = self._base_context(form)
+        return render(request, self.template_name, context)
+
+    # POST AJAX --------------------------------------------------
+    def post(self, request, *args, **kwargs):
+        form = GenerarVentaForm(request.POST)
+        if not form.is_valid():
+            return JsonResponse({'success': False, 'error': 'Formulario inválido.'})
+
+        data = form.cleaned_data
+        productos  = data['productos']
+        cantidades = data['cantidades']
+        detalles   = []
+        total      = 0
 
         try:
             productos_obj = Producto.objects.filter(productoid__in=productos)
-            inventarios = Inventario.objects.filter(productoid__in=productos_obj, sucursalid=sucursal_id)
+            inventarios   = Inventario.objects.filter(productoid__in=productos_obj,
+                                                      sucursalid=data['sucursal'].pk)
 
-            for i, producto in enumerate(productos_obj):
-                inventario = inventarios.get(productoid=producto)
-                cantidad = int(cantidades[i])
-                if cantidad > inventario.cantidad:
+            for i, prod in enumerate(productos_obj):
+                inv   = inventarios.get(productoid=prod)
+                qty   = int(cantidades[i])
+                if qty > inv.cantidad:
                     return JsonResponse({
                         'success': False,
-                        'error': f'No hay suficiente stock de {producto.nombre} en la sucursal seleccionada.'
+                        'error': f"No hay suficiente stock de {prod.nombre}."
+                    })
+                subtotal = prod.precio * qty
+                total   += subtotal
+                detalles.append({
+                    'productoid'     : prod.productoid,
+                    'producto'       : prod.nombre,
+                    'cantidad'       : qty,
+                    'precio_unitario': prod.precio,
+                    'subtotal'       : subtotal
+                })
+        except Exception:
+            return JsonResponse({'success': False,
+                                 'error': 'Error al procesar los productos.'})
+
+        # Si es Nequi y no viene confirmado
+        if data['medio_pago'] == 'nequi' and not request.POST.get('confirmar_nequi'):
+            ok, err = self._esperar_confirmacion_nequi()
+            if not ok:
+                return JsonResponse({'success': False, 'error': err})
+
+        return self._crear_venta(request.user, data, detalles, total)
+
+    # ----------------------------------------------------------------------
+    #  helpers internos
+    # ----------------------------------------------------------------------
+    def _base_context(self, form, detalles=None, total=0):
+        return {
+            'form'            : form,
+            'detalles'        : detalles or [],
+            'total'           : total,
+        }
+
+    def _esperar_confirmacion_nequi(self):
+        """
+        Lanza el script websocket y espera confirmación.
+        """
+        import os, subprocess, sys, pathlib, json, shlex, time
+        script_path = pathlib.Path(__file__).with_name("nequi_websocket.py")
+        try:
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                capture_output=True, text=True, timeout=60
+            )
+            if "se pago" in result.stdout:
+                return True, ""
+            return False, "El pago no fue confirmado."
+        except subprocess.TimeoutExpired:
+            return False, "Tiempo de espera agotado para confirmar pago."
+        except Exception as e:
+            return False, f"Error conexión WebSocket: {e}"
+
+    @staticmethod
+    def _crear_venta(user, data, detalles, total):
+        """
+        Crea la venta y actualiza inventario / caja.
+        """
+        try:
+            with transaction.atomic():
+                empleado = getattr(user, "empleado", None)
+                if empleado is None:
+                    return JsonResponse({
+                        'success': False,
+                        'error'  : 'El usuario no tiene un empleado asociado.'
                     })
 
-                subtotal = producto.precio * cantidad
-                total += subtotal
-                detalles.append({
-                    'producto': producto.nombre,
-                    'cantidad': cantidad,
-                    'precio_unitario': producto.precio,
-                    'subtotal': subtotal,
-                    'productoid': producto.productoid
-                })
+                venta = Venta.objects.create(
+                    fecha       = timezone.now().date(),
+                    hora        = timezone.now().time(),
+                    clienteid   = Cliente.objects.filter(pk=data['cliente_id']).first(),
+                    empleadoid  = empleado,
+                    sucursalid  = data['sucursal'],
+                    puntopagoid = data['puntopago'],
+                    total       = total,
+                    mediopago   = data['medio_pago']
+                )
 
+                for d in detalles:
+                    DetalleVenta.objects.create(
+                        ventaid       = venta,
+                        productoid_id = d['productoid'],
+                        cantidad      = d['cantidad'],
+                        preciounitario= d['precio_unitario']
+                    )
+                    inv = Inventario.objects.get(
+                        productoid_id=d['productoid'],
+                        sucursalid   =data['sucursal'].pk
+                    )
+                    inv.cantidad -= d['cantidad']
+                    inv.save(update_fields=["cantidad"])
+
+                if data['medio_pago'].lower() == "efectivo":
+                    pp = data['puntopago']
+                    pp.dinerocaja = (pp.dinerocaja or 0) + total
+                    pp.save(update_fields=["dinerocaja"])
+
+            return JsonResponse({'success': True})
         except Exception:
-            return JsonResponse({'success': False, 'error': 'Error al procesar los productos.'})
+            return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
 
-        # Si el pago es con Nequi, esperar confirmación (a menos que ya se haya confirmado)
-        if medio_pago == 'nequi' and not request.POST.get('confirmar_nequi'):
-            try:
-                script_path = os.path.join(os.path.dirname(__file__), 'nequi_websocket.py')
-                result = subprocess.run(['python', script_path], capture_output=True, text=True, timeout=60)
-                if 'se pago' not in result.stdout:
-                    return JsonResponse({'success': False, 'error': 'El pago no fue confirmado.'})
-            except subprocess.TimeoutExpired:
-                return JsonResponse({'success': False, 'error': 'El tiempo de espera para la confirmación del pago ha expirado.'})
-            except Exception as e:
-                return JsonResponse({'success': False, 'error': f'Error en la conexión de WebSocket: {str(e)}'})
+class SucursalAutocompleteView(PaginatedAutocompleteMixin):
+    model      = Sucursal
+    text_field = "nombre"
+    id_field   = "sucursalid"
 
-        return procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, cantidades, medio_pago, detalles, total)
+    @staticmethod
+    def extra_filter(qs, request):
+        # IDs de sucursales con stock positivo
+        inv_ids = Inventario.objects \
+                            .filter(cantidad__gt=0) \
+                            .values_list('sucursalid', flat=True) \
+                            .distinct()
+        # IDs de sucursales con puntos de pago
+        pp_ids  = PuntosPago.objects \
+                            .values_list('sucursalid', flat=True) \
+                            .distinct()
+        # Primero filtras por inventario, luego por puntos de pago
+        return qs.filter(pk__in=inv_ids) \
+                 .filter(pk__in=pp_ids)
 
-    # GET => mostrar plantilla
-    sucursal_id = request.GET.get('sucursal_id')
-    puntopago_id = request.GET.get('puntopago_id')
-    return render(request, 'generar_venta.html', obtener_contexto(sucursal_id, puntopago_id))
 
+class PuntoPagoAutocompleteView(PaginatedAutocompleteMixin):
+    """
+    Lista puntos de pago para la sucursal seleccionada.
+    """
+    model      = PuntosPago
+    text_field = "nombre"
+    id_field   = "puntopagoid"
 
-def procesar_venta(request, cliente_id, sucursal_id, puntopago_id, productos, cantidades, medio_pago, detalles, total):
-    try:
-        with transaction.atomic():
-            empleado = getattr(request.user, 'empleado', None)
-            if empleado is None:
-                # Antes se retornaba 'message'
-                return JsonResponse({
-                    'success': False,
-                    'error': 'El usuario autenticado no tiene un empleado asociado.'
-                })
+    @staticmethod
+    def extra_filter(qs, request):
+        sid = request.GET.get("sucursal_id")
+        if sid:
+            return qs.filter(sucursalid__sucursalid=sid)
+        return qs.none()  # si no hay sucursal, no listar
 
-            cliente = Cliente.objects.get(pk=cliente_id) if cliente_id else None
-            sucursal = Sucursal.objects.get(pk=sucursal_id)
-            puntopago = PuntosPago.objects.get(pk=puntopago_id)
+class ProductoAutocompleteView(PaginatedAutocompleteMixin):
+    """
+    Productos con stock > 0 en la sucursal seleccionada.
+    """
+    model      = Producto
+    text_field = "nombre"
+    id_field   = "productoid"
+    per_page   = 15
 
-            venta = Venta.objects.create(
-                fecha=timezone.now().date(),
-                hora=timezone.now().time(),
-                clienteid=cliente,
-                empleadoid=empleado,
-                sucursalid=sucursal,
-                puntopagoid=puntopago,
-                total=total,
-                mediopago=medio_pago
+    @staticmethod
+    def extra_filter(qs, request):
+        sid = request.GET.get("sucursal_id")
+        if sid:
+            return qs.filter(
+                inventario__sucursalid=sid,
+                inventario__cantidad__gt=0
+            ).distinct()
+        return qs.none()
+
+class ClienteAutocompleteView(PaginatedAutocompleteMixin):
+    """
+    Cliente por nombre / apellido / documento.
+    Usamos un override para poder buscar en varios campos a la vez.
+    """
+    model = Cliente
+    id_field = "clienteid"
+
+    def get(self, request, *args, **kwargs):
+        term   = request.GET.get("term", "").strip()
+        page   = max(int(request.GET.get("page", 1)), 1)
+        start, end = (page-1)*self.per_page, page*self.per_page
+
+        qs = Cliente.objects.all()
+        if term:
+            qs = qs.filter(
+                Q(nombre__icontains=term)  |
+                Q(apellido__icontains=term)|
+                Q(numerodocumento__icontains=term)
             )
 
-            for detalle in detalles:
-                DetalleVenta.objects.create(
-                    ventaid=venta,
-                    productoid_id=detalle['productoid'],
-                    cantidad=detalle['cantidad'],
-                    preciounitario=detalle['precio_unitario']
-                )
-                inventario = Inventario.objects.get(
-                    productoid_id=detalle['productoid'],
-                    sucursalid=sucursal_id
-                )
-                inventario.cantidad -= detalle['cantidad']
-                inventario.save()
-
-            # Si el medio de pago es efectivo, se incrementa el dinero en caja
-            if medio_pago.lower() == 'efectivo':
-                puntopago.dinerocaja = (puntopago.dinerocaja or 0) + total
-                puntopago.save(update_fields=['dinerocaja'])
-
-        return JsonResponse({'success': True, 'sucursal_id': sucursal_id, 'puntopago_id': puntopago_id})
-    except Exception:
-        # Antes se retornaba 'message'
-        return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
+        total   = qs.count()
+        results = [
+            {
+              "id"  : c.clienteid,
+              "text": f"{c.nombre} {c.apellido} ({c.numerodocumento})"
+            }
+            for c in qs.order_by("nombre")[start:end]
+        ]
+        return JsonResponse({"results": results, "has_more": end < total})
 
 
-def obtener_contexto(sucursal_id=None, puntopago_id=None, detalles=[], total=0):
-    return {
-        'clientes': Cliente.objects.all(),
-        'sucursales': Sucursal.objects.all(),
-        'puntos_pago': (
-            PuntosPago.objects.filter(sucursalid=sucursal_id)
-            if sucursal_id else PuntosPago.objects.none()
-        ),
-        'productos': Producto.objects.all(),
-        'detalles': detalles,
-        'total': total,
-        'selected_sucursal': sucursal_id,
-        'selected_puntopago': puntopago_id
-    }
 
-
-@login_required
-def verificar_producto(request):
-    if request.method == 'POST':
-        producto_id = request.POST.get('producto_id')
-        cantidad = int(request.POST.get('cantidad'))
-        sucursal_id = request.POST.get('sucursal_id')
+# ───────────────────────────────────────────────────────────────────────────
+# ··· Vistas AJAX utilitarias ···
+# ───────────────────────────────────────────────────────────────────────────
+class VerificarProductoView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        producto_id = request.POST.get("producto_id")
+        sucursal_id = request.POST.get("sucursal_id")
+        cantidad    = int(request.POST.get("cantidad", 0))
 
         try:
-            producto = Producto.objects.get(productoid=producto_id)
+            producto   = Producto.objects.get(productoid=producto_id)
             inventario = Inventario.objects.get(productoid=producto, sucursalid=sucursal_id)
-
-            if inventario.cantidad >= cantidad:
-                precio_unitario = producto.precio
-                subtotal = precio_unitario * cantidad
-                return JsonResponse({
-                    'exists': True,
-                    'precio_unitario': precio_unitario,
-                    'subtotal': subtotal,
-                    'precio_unitario_formatted': "${:,.2f}".format(precio_unitario),
-                    'subtotal_formatted': "${:,.2f}".format(subtotal),
-                    'cantidad_disponible': inventario.cantidad,
-                    'nombre': producto.nombre,
-                    'codigo_de_barras': producto.codigo_de_barras
-                })
-            else:
-                return JsonResponse({'exists': True, 'cantidad_disponible': inventario.cantidad})
-        except Producto.DoesNotExist:
+        except (Producto.DoesNotExist, Inventario.DoesNotExist):
             return JsonResponse({'exists': False})
-    return JsonResponse({'exists': False})
+
+        if inventario.cantidad < cantidad:
+            return JsonResponse({
+                'exists': True,
+                'cantidad_disponible': inventario.cantidad
+            })
+
+        precio     = producto.precio
+        subtotal   = precio * cantidad
+        return JsonResponse({
+            'exists': True,
+            'precio_unitario':      precio,
+            'precio_unitario_fmt':  f"${precio:,.2f}",
+            'subtotal':             subtotal,
+            'subtotal_fmt':         f"${subtotal:,.2f}",
+            'cantidad_disponible':  inventario.cantidad,
+            'nombre':               producto.nombre,
+            'codigo_de_barras':     producto.codigo_de_barras
+        })
 
 
-@login_required
-def obtener_puntos_pago(request):
-    sucursal_id = request.GET.get('sucursal_id')
-    puntos_pago = PuntosPago.objects.filter(sucursalid=sucursal_id).values('puntopagoid', 'nombre')
-    return JsonResponse({'puntos_pago': list(puntos_pago)})
-
-
-@login_required
-def buscar_productos(request):
-    term = request.GET.get('term', '')
-    sucursal_id = request.GET.get('sucursal_id')
-    try:
-        term_as_int = int(term)
-        productos = Producto.objects.filter(
-            Q(productoid=term_as_int) | Q(nombre__icontains=term) | Q(codigo_de_barras__icontains=term),
-            inventario__sucursalid=sucursal_id
-        ).values('productoid', 'nombre', 'codigo_de_barras').distinct()
-    except ValueError:
-        productos = Producto.objects.filter(
-            Q(nombre__icontains=term) | Q(codigo_de_barras__icontains=term),
-            inventario__sucursalid=sucursal_id
-        ).values('productoid', 'nombre', 'codigo_de_barras').distinct()
-    
-    return JsonResponse({'productos': list(productos)})
-
-
-@login_required
-def buscar_cliente(request):
-    term = request.GET.get('term', '')
-    clientes = Cliente.objects.filter(
-        Q(nombre__icontains=term) | Q(apellido__icontains=term) | Q(numerodocumento__icontains=term)
-    )
-    clientes_list = list(clientes.values('clienteid', 'nombre', 'apellido'))
-    return JsonResponse({'clientes': clientes_list})
-
-
-@login_required
-def buscar_producto_por_codigo(request):
-    codigo_de_barras = request.GET.get('codigo_de_barras')
-    sucursal_id = request.GET.get('sucursal_id')
-    producto = Producto.objects.filter(codigo_de_barras=codigo_de_barras, inventario__sucursalid=sucursal_id).first()
-    if producto:
+class BuscarProductoPorCodigoView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        codigo      = request.GET.get("codigo_de_barras", "")
+        sucursal_id = request.GET.get("sucursal_id")
+        producto = Producto.objects.filter(
+            codigo_de_barras=codigo, inventario__sucursalid=sucursal_id
+        ).first()
+        if not producto:
+            return JsonResponse({'exists': False})
         return JsonResponse({
             'exists': True,
             'producto': {
-                'id': producto.productoid,
-                'nombre': producto.nombre,
-                'codigo_de_barras': producto.codigo_de_barras
+                'id':              producto.productoid,
+                'nombre':          producto.nombre,
+                'codigo_de_barras':producto.codigo_de_barras
             }
         })
-    return JsonResponse({'exists': False})
 
 
 @csrf_exempt
@@ -2821,44 +2889,7 @@ def verificar_pago_nequi(request):
     return JsonResponse({'success': False, 'error': 'Método no permitido.'})
 
 
-@login_required
-def puntopago_autocomplete_venta(request):
-    term = request.GET.get('term', '').strip()
-    sucursal_id = request.GET.get('sucursal_id', '').strip()
-    page_str = request.GET.get('page', '1').strip()
-    per_page_str = request.GET.get('per_page', '10').strip()
 
-    try:
-        page = int(page_str)
-    except ValueError:
-        page = 1
-    if page < 1:
-        page = 1
-
-    try:
-        per_page = int(per_page_str)
-    except ValueError:
-        per_page = 10
-    if per_page < 1:
-        per_page = 10
-
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    qs = PuntosPago.objects.all()
-    if sucursal_id:
-        qs = qs.filter(sucursalid__sucursalid=sucursal_id)
-    if term:
-        qs = qs.filter(nombre__icontains=term)
-    
-    qs = qs.order_by('nombre')
-    total_results = qs.count()
-    qs = qs[start:end]
-
-    results = [{'id': punto.puntopagoid, 'text': punto.nombre} for punto in qs]
-    has_more = end < total_results
-
-    return JsonResponse({'results': results, 'has_more': has_more})  
 
 @login_required
 def visualizar_ventas_view(request):

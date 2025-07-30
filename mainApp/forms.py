@@ -1799,49 +1799,30 @@ class UsuarioEditarForm(forms.ModelForm):
 
 class GenerarVentaForm(forms.Form):
     cliente_id = forms.IntegerField(required=False)
-    sucursal = forms.ModelChoiceField(
-        queryset=Sucursal.objects.all(),
-        required=True,
-        label="Sucursal"
-    )
-    puntopago = forms.ModelChoiceField(
-        queryset=PuntosPago.objects.all(),
-        required=True,
-        label="Punto de Pago"
-    )
-    productos = forms.CharField(
-        widget=forms.HiddenInput(),
-        required=False,
-        label="Productos (JSON)"
-    )
-    cantidades = forms.CharField(
-        widget=forms.HiddenInput(),
-        required=False,
-        label="Cantidades (JSON)"
-    )
+    sucursal   = forms.ModelChoiceField(queryset=Sucursal.objects.all(),  label="Sucursal")
+    puntopago  = forms.ModelChoiceField(queryset=PuntosPago.objects.all(), label="Punto de Pago")
+
+    productos  = forms.CharField(widget=forms.HiddenInput(), required=False)
+    cantidades = forms.CharField(widget=forms.HiddenInput(), required=False)
+
     medio_pago = forms.ChoiceField(
-        choices=[('nequi', 'Nequi'), ('efectivo', 'Efectivo'), ('daviplata', 'Daviplata'), ('tarjeta', 'Tarjeta')],
-        widget=forms.HiddenInput(),
-        required=True,
-        label="Medio de Pago"
+        choices=[
+            ("nequi", "Nequi"), ("efectivo", "Efectivo"),
+            ("daviplata", "Daviplata"), ("tarjeta", "Tarjeta")
+        ],
+        widget=forms.HiddenInput()
     )
 
-    def clean_productos(self):
-        data = self.cleaned_data.get('productos', '[]')
+    # ───── helpers JSON ─────
+    def _clean_json(self, field):
+        raw = self.cleaned_data.get(field, "[]")
         try:
-            parsed = json.loads(data)
+            return json.loads(raw)
         except Exception:
-            raise forms.ValidationError("Productos inválidos.")
-        return parsed
+            raise forms.ValidationError(f"{field.capitalize()} inválidos.")
 
-    def clean_cantidades(self):
-        data = self.cleaned_data.get('cantidades', '[]')
-        try:
-            parsed = json.loads(data)
-        except Exception:
-            raise forms.ValidationError("Cantidades inválidas.")
-        return parsed
-
+    def clean_productos(self):  return self._clean_json("productos")
+    def clean_cantidades(self): return self._clean_json("cantidades")
 
 
 class PedidoProveedorForm(forms.Form):

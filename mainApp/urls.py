@@ -158,14 +158,24 @@ urlpatterns = [
          name="editar_cliente"),
     path('eliminar_cliente/<int:clienteid>/', views.eliminar_cliente, name='eliminar_cliente'),
 
-    path('generar_venta/', views.generar_venta, name='generar_venta'),
-    path('obtener_puntos_pago/', views.obtener_puntos_pago, name='obtener_puntos_pago'),
-    path('buscar_productos/', views.buscar_productos, name='buscar_productos'),
-    path('verificar_producto/', views.verificar_producto, name='verificar_producto'),
-    path('buscar_producto_por_codigo/', views.buscar_producto_por_codigo, name='buscar_producto_por_codigo'),
-    path('buscar_cliente/', views.buscar_cliente, name='buscar_cliente'),
-    path('verificar_pago_nequi/', views.verificar_pago_nequi, name='verificar_pago_nequi'),
-    path('autocomplete/puntopago_venta/', views.puntopago_autocomplete_venta, name='puntopago_autocomplete_venta'),
+    path("generar_venta/", views.GenerarVentaView.as_view(), name="generar_venta"),
+
+    # Autocompletes
+    path('autocomplete/sucursal/',   views.SucursalAutocompleteView.as_view(),
+         name='sucursal_autocomplete'),
+
+    path('autocomplete/puntopago/',  views.PuntoPagoAutocompleteView.as_view(),
+         name='puntopago_autocomplete'),
+
+    path('autocomplete/cliente/',    views.ClienteAutocompleteView.as_view(),
+         name='cliente_autocomplete'),
+
+    path('autocomplete/producto/',   views.ProductoAutocompleteView.as_view(),
+         name='producto_autocomplete'),
+
+    # AJAX utilitarios
+    path("verificar_producto/",       views.VerificarProductoView.as_view(),       name="verificar_producto"),
+    path("producto_por_codigo/",      views.BuscarProductoPorCodigoView.as_view(), name="buscar_producto_por_codigo"),
     
     path('visualizar_ventas/', views.visualizar_ventas_view, name='visualizar_ventas'),
     #  … otras urls …
