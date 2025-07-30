@@ -47,6 +47,7 @@ from .forms import (
     GenerarVentaForm,
     PedidoProveedorForm,
     EditarPedidoForm,
+    DevolucionForm,
 )
 from dal import autocomplete
 from decimal import Decimal, InvalidOperation
@@ -2876,28 +2877,16 @@ class BuscarProductoPorCodigoView(LoginRequiredMixin, View):
         })
 
 
-@csrf_exempt
-@login_required
-def verificar_pago_nequi(request):
-    if request.method == 'POST':
-        total = float(request.POST.get('total'))
-        flag = verificacionPago(total)  # Ajustar verificacionPago para que tome el total
-        if flag:
-            return JsonResponse({'success': True})
-        else:
-            return JsonResponse({'success': False, 'error': 'Pago Nequi no confirmado.'})
-    return JsonResponse({'success': False, 'error': 'Método no permitido.'})
-
-
-
-
-@login_required
-def visualizar_ventas_view(request):
-    # Se recuperan las ventas con relaciones para evitar consultas repetidas
-    ventas = Venta.objects.select_related(
-        'clienteid', 'empleadoid', 'sucursalid', 'puntopagoid'
-    ).order_by('-fecha', '-hora')
-    return render(request, 'visualizar_ventas.html', {'ventas': ventas})
+class VentaListView(LoginRequiredMixin, ListView):
+    """
+    Lista de ventas, más recientes primero, paginada
+    y con tabla responsive + buscador externo.
+    """
+    model               = Venta
+    template_name       = "visualizar_ventas.html"
+    context_object_name = "ventas"
+    paginate_by         = 50
+    ordering            = ["-fecha", "-hora"]
 
 
 # mainApp/views.py

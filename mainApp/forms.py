@@ -1898,6 +1898,17 @@ class PedidoProveedorForm(forms.Form):
         return cleaned
 
 
+class LineaDevolucionForm(forms.Form):
+    """Un input por línea de venta (cantidad a devolver)."""
+    detalle_id = forms.IntegerField(widget=forms.HiddenInput)
+    devolver   = forms.IntegerField(
+        min_value=0, label="Cant.",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "style": "width:5em"}))
+
+DevolucionFormSet = formset_factory(LineaDevolucionForm, extra=0)
+
+
+
 
 class DevolucionForm(forms.Form):
     """
