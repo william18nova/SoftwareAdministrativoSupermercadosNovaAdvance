@@ -3,74 +3,99 @@
 
 {% block title %}Detalle Venta #{{ venta.ventaid }}{% endblock %}
 
+{% block extra_head %}
+  <!-- reutilizamos estilo de Generar Venta y agregamos el nuestro -->
+  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
+  <link rel="stylesheet" href="{% static 'css/ver_venta.css' %}">
+{% endblock %}
+
 {% block content %}
-    <!-- mismas hojas que usa “Generar Venta” + la nuestra -->
-    <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
-    <link rel="stylesheet" href="{% static 'css/ver_venta.css' %}">
+<div class="venta-card">
+  <h1 class="venta-card__title">
+    <i class="fas fa-file-invoice-dollar me-2"></i>
+    Detalle de la Venta #{{ venta.ventaid }}
+  </h1>
 
-    <div class="venta-card">
-
-        <h1 class="venta-card__title">
-          <i class="fas fa-file-invoice-dollar me-2"></i>
-          Detalle de la Venta #{{ venta.ventaid }}
-        </h1>
-
-        <div class="venta-grid">
-          <div><label>Fecha</label>         <input readonly value="{{ venta.fecha }}"></div>
-          <div><label>Hora</label>          <input readonly value="{{ venta.hora }}"></div>
-          <div><label>Medio de Pago</label> <input readonly value="{{ venta.mediopago|title }}"></div>
-          <div><label>Cliente</label>
-            <input readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
-          </div>
-          <div><label>Empleado</label>
-            <input readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
-          </div>
-          <div><label>Sucursal</label>      <input readonly value="{{ venta.sucursalid.nombre }}"></div>
-          <div><label>Punto de Pago</label> <input readonly value="{{ venta.puntopagoid.nombre }}"></div>
-        </div>
-
-        <form method="post">
-          {% csrf_token %}
-          {{ formset.management_form }}
-
-          <h2 class="venta-card__subtitle">Productos</h2>
-
-          <div class="table-responsive rounded-2 overflow-hidden">
-            <table class="venta-table">
-              <thead>
-                <tr>
-                  <th>Producto</th><th>Cant.</th>
-                  <th>Precio U.</th><th>Subtotal</th><th>Devolver</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for det, f in filas %}
-                <tr>
-                  <td>{{ det.productoid.nombre }}</td>
-                  <td class="text-end">{{ det.cantidad }}</td>
-                  <td class="text-end">${{ det.preciounitario|floatformat:2 }}</td>
-                  <td class="text-end">${{ det.subtotal|floatformat:2 }}</td>
-                  <td class="text-end">{{ f.devolver }} {{ f.detalle_id }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="5" class="empty">Sin productos</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="venta-footer">
-            <h3>Total actual: <span>${{ venta.total|floatformat:2 }}</span></h3>
-
-            <div class="btn-group">
-              <button type="submit" class="btn-primary-alt">
-                <i class="fas fa-undo me-1"></i> Registrar devolución
-              </button>
-              <a href="{% url 'visualizar_ventas' %}" class="btn-primary">
-                <i class="fas fa-list me-1"></i> Volver a la lista
-              </a>
-            </div>
-          </div>
-        </form>
+  <div class="venta-grid">
+    <div>
+      <label>Fecha</label>
+      <input readonly value="{{ venta.fecha|date:'d/m/Y' }}">
     </div>
+    <div>
+      <label>Hora</label>
+      <input readonly value="{{ venta.hora|time:'H:i' }}">
+    </div>
+    <div>
+      <label>Medio de Pago</label>
+      <input readonly value="{{ venta.mediopago|title }}">
+    </div>
+    <div>
+      <label>Cliente</label>
+      <input readonly
+         value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
+    </div>
+    <div>
+      <label>Empleado</label>
+      <input readonly
+             value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
+    </div>
+    <div>
+      <label>Sucursal</label>
+      <input readonly value="{{ venta.sucursalid.nombre }}">
+    </div>
+    <div>
+      <label>Punto de Pago</label>
+      <input readonly value="{{ venta.puntopagoid.nombre }}">
+    </div>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <h2 class="venta-card__subtitle">Productos</h2>
+    <div class="table-responsive rounded-2 overflow-hidden">
+      <table class="venta-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cant.</th>
+            <th>Precio U.</th>
+            <th>Subtotal</th>
+            <th>Devolver</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for det, f in filas %}
+          <tr>
+            <td>{{ det.productoid.nombre }}</td>
+            <td class="text-end">{{ det.cantidad }}</td>
+            <td class="text-end">${{ det.preciounitario|floatformat:2 }}</td>
+            <td class="text-end">${{ det.subtotal|floatformat:2 }}</td>
+            <td class="text-end">
+              {{ f.devolver }} {{ f.detalle_id }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="empty">Sin productos</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="venta-footer">
+      <h3>Total actual: <span>${{ venta.total|floatformat:2 }}</span></h3>
+      <div class="btn-group">
+        <button type="submit" class="btn-primary-alt">
+          <i class="fas fa-undo me-1"></i> Registrar devolución
+        </button>
+        <a href="{% url 'visualizar_ventas' %}" class="btn-primary">
+          <i class="fas fa-list me-1"></i> Volver a la lista
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
 {% endblock %}

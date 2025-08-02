@@ -1,273 +1,137 @@
-/* static/css/visualizar_cambios.css */
-
-/* ----------------------------------------------------
-   Variables globales y fuente
----------------------------------------------------- */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
+/* ─── VARIABLES ─── */
 :root {
-  --color-principal: #005091;
-  --color-secundario: #ADD8E6;
-  --color-blanco: #fff;
-
-  --color-editar: #ffc107;
-  --color-editar-hover: #e0a800;
-  --color-eliminar: #e74c3c;
-  --color-eliminar-hover: #c0392b;
-
-  --color-verde: #3c763d;
-  --color-rojo: #ff0000;
-  --color-gris: #ccc;
-  --fuente-principal: 'Roboto', Arial, sans-serif;
+  --azul: #005091;
+  --azul-claro: #ADD8E6;
+  --blanco: #ffffff;
+  --gris-table: #f9f9f9;
+  --gris-hover: #e9f3ff;
 }
 
-/* ----------------------------------------------------
-   RESET
----------------------------------------------------- */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-/* ----------------------------------------------------
-   Fondo y contenedor
----------------------------------------------------- */
+/* ─── FONDO & CONTAINER ─── */
 body {
-  font-family: var(--fuente-principal);
-  background: linear-gradient(to bottom right, var(--color-secundario), var(--color-principal));
+  margin: 0;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: auto;
+  background: linear-gradient(135deg, var(--azul-claro), var(--azul));
+  font-family: 'Roboto', Arial, sans-serif;
+  overflow:auto;
 }
-
-.container-precios-proveedor {
-  max-width: 900px;
+.container-pedidos {
   width: 95%;
+  max-width: 900px;
   margin: 20px auto;
   padding: 40px;
   background: rgba(255,255,255,0.12);
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0,0,0,.2);
   text-align: center;
-  color: var(--color-blanco);
-
-  /* alto máximo con scroll vertical */
-  max-height: calc(100vh - 80px);
-  overflow-y: auto;
+  color: var(--blanco);
 }
 
-/* ----------------------------------------------------
-   Título
----------------------------------------------------- */
-.container-precios-proveedor h2 {
+/* ─── TÍTULO ─── */
+.container-pedidos h2 {
   margin-bottom: 20px;
   font-size: 1.8rem;
 }
 
-/* ----------------------------------------------------
-   Tabla wrapper
----------------------------------------------------- */
-.table-responsive {
+/* ─── BUSCADOR ─── */
+.search-wrapper {
+  position: relative;
   width: 100%;
-  overflow-x: auto;
-  margin-top: 20px;
-  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+.search-wrapper i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+}
+.search-input {
+  width: 100%;
+  padding: 10px 12px 10px 35px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+.search-input:focus {
+  border-color: var(--azul);
+  box-shadow: 0 0 4px rgba(0,80,145,.35);
+  outline:none;
 }
 
-/* ----------------------------------------------------
-   Tabla cambios & devoluciones
----------------------------------------------------- */
-.table {
-  width: 100%;
+/* ─── TABLA ─── */
+table.display {
+  width: 100% !important;
   border-collapse: collapse;
   background: #fff;
 }
-
-.table thead {
-  background: var(--color-principal);
-  color: var(--color-blanco);
+table.display thead {
+  background: var(--azul);
+  color: var(--blanco);
 }
-
-.table thead th {
+table.display thead th {
   padding: 12px;
+  font-weight:700;
   text-align: left;
-  font-size: 14px;
+  position: sticky; top: 0; z-index: 2;
 }
-
-.table tbody td {
+table.display tbody tr:nth-child(even) {
+  background: var(--gris-table);
+}
+table.display tbody tr:hover {
+  background: var(--gris-hover);
+}
+table.display tbody td {
   padding: 10px;
   text-align: left;
-  vertical-align: middle;
   color: #333;
-  font-size: 14px;
-  word-wrap: break-word;
+  vertical-align: middle;
+  word-break: break-word;
   border: 1px solid #e0e0e0;
 }
 
-.table tbody tr:nth-child(even) {
-  background: #f9f9f9;
-}
-
-.table tbody tr:hover {
-  background: #e8e8e8;
-}
-
-.acciones {
-  text-align: center !important;
-}
-
-/* enlaces dentro de tabla */
-.table a {
+/* ─── LINKS ─── */
+table.display a {
   color: #007bff;
   text-decoration: none;
 }
-.table a:hover {
+table.display a:hover {
   text-decoration: underline;
 }
 
-/* ----------------------------------------------------
-   Botones
----------------------------------------------------- */
-.btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* editar */
-.btn-primary {
-  background: var(--color-editar);
-  color: #fff;
-}
-.btn-primary:hover {
-  background: var(--color-editar-hover);
-}
-.btn-primary i {
-  color: #fff;
-}
-
-/* eliminar */
-.btn-danger {
-  background: var(--color-eliminar);
-  color: #fff;
-}
-.btn-danger:hover {
-  background: var(--color-eliminar-hover);
-}
-.btn-danger i {
-  color: #fff;
-}
-
-/* ----------------------------------------------------
-   Alertas (si las utilizas)
----------------------------------------------------- */
-.alert {
-  padding: 15px;
-  margin-top: 20px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  font-size: 16px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-.alert-success {
-  color: var(--color-verde);
-  background-color: #dff0d8;
-  border-color: #d6e9c6;
-}
-.alert-error {
-  color: var(--color-rojo);
-  background: #f2dede;
-  border-color: #ebccd1;
-}
-
-/* ----------------------------------------------------
-   Responsive ≤ 768px: tarjetas verticales
----------------------------------------------------- */
+/* ─── RESPONSIVE (≤768px) ─── */
 @media(max-width:768px) {
-  body {
-    align-items: flex-start;
+  body { align-items: flex-start; }
+  .container-pedidos { padding:24px; max-width:550px; }
+  table.display thead { display:none; }
+  table.display tbody tr {
+    display:block;
+    margin-bottom:15px;
+    background:#fff;
+    border:1px solid #e0e0e0;
+    border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,.1);
   }
-  .container-precios-proveedor {
-    padding: 24px;
-    width: 100%;
-    max-width: 550px;
+  table.display tbody td {
+    display:flex;
+    justify-content:space-between;
+    padding:8px 12px;
+    font-size:13px;
+    border-bottom:1px solid #f0f0f0;
   }
-  .table-responsive {
-    overflow-x: hidden;
+  table.display tbody td::before {
+    content:attr(data-label);
+    font-weight:700;
+    color:var(--azul);
+    margin-right:10px;
   }
-
-  /* oculta <thead> */
-  .table thead {
-    display: none;
-  }
-
-  /* convierte filas en tarjetas */
-  .table,
-  .table tbody,
-  .table tr {
-    width: 100% !important;
-  }
-  .table tbody tr {
-    display: block;
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    margin-bottom: 18px;
-    box-shadow: 0 2px 6px rgba(0,0,0,.09);
-  }
-  .table tbody td {
-    display: block;
-    width: 100%;
-    padding: 10px 14px;
-    font-size: 14px;
-    border-bottom: 1px solid #e5e5e5;
-    text-align: left;
-    word-break: break-word;
-    border-left: none;
-    border-right: none;
-  }
-  .table tbody td:last-child {
-    border-bottom: none;
-  }
-  .table tbody td::before {
-    content: attr(data-label);
-    display: block;
-    font-weight: 700;
-    color: var(--color-principal);
-    margin-bottom: 4px;
-  }
-  .table tbody td[data-label="Acciones"] {
-    text-align: right;
-    border-bottom: none;
-  }
-  .table tbody td[data-label="Acciones"]::before {
-    content: '';
-  }
-}
-
-/* ----------------------------------------------------
-   Extra pequeños ≤ 480px
----------------------------------------------------- */
-@media(max-width:480px) {
-  .container-precios-proveedor h2 {
-    font-size: 24px;
-  }
-  .form-control {
-    font-size: 15px;
-  }
-  .table tbody td {
-    font-size: 13px;
-  }
-  .btn {
-    font-size: 13px;
+  table.display tbody td:last-child {
+    border-bottom:none;
   }
 }

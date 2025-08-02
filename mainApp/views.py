@@ -2889,66 +2889,81 @@ class VentaListView(LoginRequiredMixin, ListView):
     ordering            = ["-fecha", "-hora"]
 
 
-# mainApp/views.py
-from django.contrib import messages
-from django.shortcuts import redirect
 
-@login_required
-@transaction.atomic
-def ver_venta_view(request, venta_id):
-    venta     = get_object_or_404(
-                   Venta.objects.select_related(
-                       "clienteid", "empleadoid", "sucursalid"),
-                   pk=venta_id)
-    detalles  = DetalleVenta.objects.filter(ventaid=venta).select_related("productoid")
+class VentaDetailView(LoginRequiredMixin, View):
+    """
+    Muestra el detalle de una venta y permite registrar devoluciones.
+    """
+    template_name = "ver_venta.html"
 
-    DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
-    filas = list(zip(detalles, DevolucionFormSet(initial=[
-              {"detalle_id": d.pk, "devolver": 0} for d in detalles])))
+    def get(self, request, venta_id):
+        venta = get_object_or_404(
+            Venta.objects.select_related(
+                "clienteid", "empleadoid", "sucursalid", "puntopagoid"
+            ),
+            pk=venta_id
+        )
 
-    if request.method == "POST":
+        # Anotamos subtotal = cantidad * preciounitario
+        detalles = (
+            DetalleVenta.objects
+            .filter(ventaid=venta)
+            .select_related("productoid")
+            .annotate(
+                subtotal=ExpressionWrapper(
+                    F("cantidad") * F("preciounitario"),
+                    output_field=DecimalField(max_digits=10, decimal_places=2)
+                )
+            )
+        )
+
+        DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
+        formset = DevolucionFormSet(initial=[
+            {"detalle_id": d.pk, "devolver": 0} for d in detalles
+        ])
+
+        return render(request, self.template_name, {
+            "venta":   venta,
+            "filas":   zip(detalles, formset.forms),
+            "formset": formset,
+        })
+
+    @transaction.atomic
+    def post(self, request, venta_id):
+        venta    = get_object_or_404(Venta, pk=venta_id)
+        detalles = DetalleVenta.objects.filter(ventaid=venta)
+        DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
         formset = DevolucionFormSet(request.POST)
+
         if formset.is_valid():
             devoluciones = []
-            for form in formset.cleaned_data:
-                cant = form["devolver"]
+            for data in formset.cleaned_data:
+                cant = data.get("devolver", 0)
                 if cant:
                     devoluciones.append({
-                        "detalle": detalles.get(pk=form["detalle_id"]),
+                        "detalle": detalles.get(pk=data["detalle_id"]),
                         "cantidad": cant
                     })
 
             if devoluciones:
                 CambioDevolucion.registrar_devolucion(venta, devoluciones)
-                # ------------- MENSAJE ÉXITO -------------
-                messages.success(
-                    request,
-                    "✅ Devolución registrada correctamente."
-                )
-        # Redirige **siempre** a la lista de ventas
-        return redirect("visualizar_ventas")
+                messages.success(request, "✅ Devolución registrada correctamente.")
 
-    else:
-        formset = DevolucionFormSet(initial=[
-            {"detalle_id": d.pk, "devolver": 0} for d in detalles
-        ])
+        return redirect(reverse_lazy("visualizar_ventas"))
 
-    return render(request, "ver_venta.html", {
-        "venta": venta,
-        "filas": zip(detalles, formset.forms),   # (det, f) para la plantilla
-        "formset": formset,
-    })
+class CambiosListView(LoginRequiredMixin, ListView):
+    model = CambioDevolucion
+    template_name = "visualizar_cambios.html"
+    context_object_name = "cambios"
+    paginate_by = 50
+    ordering = ["-fecha", "-cambioid"]
 
-@login_required
-def visualizar_cambios_view(request):
-    cambios = (
-        CambioDevolucion.objects
-        .select_related('venta', 'productoid', 'detalle')
-        .order_by('-fecha', '-cambioid')
-    )
-    return render(request, 'visualizar_cambios.html', {
-        'cambios': cambios,
-    })
+    def get_queryset(self):
+        return (
+            CambioDevolucion.objects
+            .select_related("venta", "productoid", "detalle")
+            .order_by("-fecha", "-cambioid")
+        )
 
 
 

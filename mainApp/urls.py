@@ -179,8 +179,8 @@ urlpatterns = [
     
     path('visualizar_ventas/', views.VentaListView.as_view(), name='visualizar_ventas'),
     #  … otras urls …
-    path("ver_venta/<int:venta_id>/", views.ver_venta_view, name="ver_venta"),
-    path('cambios/', views.visualizar_cambios_view, name='visualizar_cambios'),
+    path('ver_venta/<int:venta_id>/', views.VentaDetailView.as_view(), name='ver_venta'),
+    path("cambios/", views.CambiosListView.as_view(), name="visualizar_cambios"),
 
     
     
