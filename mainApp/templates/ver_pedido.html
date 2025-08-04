@@ -1,125 +1,107 @@
-{% extends 'base.html' %}
+{# templates/ver_pedido.html #}
+{% extends "base.html" %}
 {% load static %}
-{% block title %}Detalle del Pedido{% endblock %}
+
+{% block title %}Detalle del Pedido #{{ pedido.pedidoid }}{% endblock %}
+
+{% block extra_head %}
+  <!-- Font-Awesome + DataTables CSS -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet"
+        href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
+
+  <!-- Misma hoja que editar/agregar pedido -->
+  <link rel="stylesheet" href="{% static 'css/agregar_pedido.css' %}"/>
+  <!-- Estilos comunes para tablas (de visualizar_pedidos.css) -->
+  <link rel="stylesheet" href="{% static 'css/visualizar_pedidos.css' %}"/>
+{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Detalle del Pedido</title>
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-  <!-- DataTables CSS -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css" />
-  <!-- jQuery UI CSS -->
-  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-  <!-- CSS personalizado (se reutiliza el de agregar pedido para mantener consistencia) -->
-  <link rel="stylesheet" href="{% static 'css/agregar_pedido.css' %}" />
-  <style>
-    /* Si se desea ajustar algo específico para la vista de detalle, se puede hacer aquí */
-  </style>
-</head>
-<body>
-  <div class="container-precios-proveedor">
-    <i class="fas fa-truck icon-proveedor"></i>
-    <h2>Detalle del Pedido #{{ pedido.pedidoid }}</h2>
-    <p class="obligatorio-texto">Los campos están en modo solo lectura.</p>
-    
-    <!-- Formulario en modo solo lectura -->
-    <form id="verPedidoForm">
-      <!-- Proveedor -->
-      <div class="form-group-pedido">
-        <label for="ver_proveedor">Proveedor</label>
-        <input type="text" id="ver_proveedor" class="form-control" value="{{ pedido.proveedorid.nombre }}" disabled>
-      </div>
-      
-      <!-- Sucursal -->
-      <div class="form-group-pedido">
-        <label for="ver_sucursal">Sucursal</label>
-        <input type="text" id="ver_sucursal" class="form-control" value="{{ pedido.sucursalid.nombre }}" disabled>
-      </div>
-      
-      <!-- Fecha Estimada de Entrega -->
-      <div class="form-group-pedido">
-        <label for="ver_fechaestimadaentrega">Fecha Estimada de Entrega</label>
-        <input type="text" id="ver_fechaestimadaentrega" class="form-control" value="{{ pedido.fechaestimadaentrega|date:'d/m/Y' }}" disabled>
-      </div>
-      
-      <!-- Comentario -->
-      <div class="form-group-pedido">
-        <label for="ver_comentario">Comentario</label>
-        <textarea id="ver_comentario" class="form-control" rows="3" disabled>{{ pedido.comentario }}</textarea>
-      </div>
-    </form>
-    
-    <!-- Total Aproximado -->
-    <h3 id="total-aproximado">
-      Total Aproximado: <span id="total-valor">{{ pedido.costototal|floatformat:2 }}</span>
-    </h3>
-    
-    <!-- Barra de búsqueda externa para filtrar los detalles -->
-    <div class="form-group-pedido">
-      <input type="text" id="buscador-detalles" class="form-control" placeholder="Buscar en el pedido...">
+<div class="container-inventario">
+  <i class="fas fa-truck icon-inventario"></i>
+  <h2>Detalle del Pedido #{{ pedido.pedidoid }}</h2>
+  <p class="obligatorio-texto">Los campos están en modo solo lectura.</p>
+
+  <form id="verPedidoForm">
+    {% csrf_token %}
+
+    <div class="form-group-precio">
+      <label for="ver_proveedor">Proveedor</label>
+      <input type="text" id="ver_proveedor" class="form-control"
+             value="{{ pedido.proveedorid.nombre }}" disabled>
     </div>
-    
-    <!-- Tabla de detalles del pedido -->
-    <div class="table-container-pedido">
-      <table id="detalle-productos" class="table">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-            <th>Precio Unitario</th>
-            <th>Subtotal</th>
-            <th class="acciones">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for det in detalles %}
-          <tr data-id="{{ det.detallepedidoid }}">
-            <td data-label="Producto">{{ det.productoid.nombre }}</td>
-            <td data-label="Cantidad">{{ det.cantidad }}</td>
-            <td data-label="Precio Unitario">{{ det.preciounitario|floatformat:2 }}</td>
-            <td data-label="Subtotal">{{ det.subtotal|floatformat:2 }}</td>
-            <td data-label="Acciones" class="acciones">
-              <!-- El botón eliminar se muestra para poder eliminar si así lo deseas.
-                   Asegúrate de que la lógica en el JS decida si se permite eliminar en esta vista. -->
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+
+    <div class="form-group-precio">
+      <label for="ver_sucursal">Sucursal</label>
+      <input type="text" id="ver_sucursal" class="form-control"
+             value="{{ pedido.sucursalid.nombre }}" disabled>
     </div>
-    
-    <!-- Botón Volver -->
-    <div class="form-group-pedido">
-      <a href="{% url 'visualizar_pedidos' %}" class="btn-guardar-pedido" style="display:inline-block; text-decoration:none; text-align: center;">Volver a Pedidos</a>
+
+    <div class="form-group-precio">
+      <label for="ver_fechaestimadaentrega">Fecha Estimada de Entrega</label>
+      <input type="text" id="ver_fechaestimadaentrega" class="form-control"
+             value="{{ pedido.fechaestimadaentrega|date:'d/m/Y' }}" disabled>
     </div>
+
+    <div class="form-group-precio">
+      <label for="ver_comentario">Comentario</label>
+      <textarea id="ver_comentario" class="form-control" rows="3"
+                disabled>{{ pedido.comentario }}</textarea>
+    </div>
+  </form>
+
+  <h3 id="total-aproximado">
+    Total Aproximado: 
+    <span id="total-valor">${{ pedido.costototal|floatformat:2 }}</span>
+  </h3>
+
+  <!-- Buscador externo tal como en editar_pedido -->
+  <div class="search-wrapper">
+    <input id="buscador-detalles" class="search-input"
+           type="text" placeholder="Buscar en el pedido…">
   </div>
-  
-  <!-- jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <!-- DataTables JS -->
-  <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-  <!-- Script para inicializar el DataTable y filtrar -->
-  <script>
-    $(document).ready(function() {
-      "use strict";
-      const dataTable = $('#detalle-productos').DataTable({
-        paging: false,
-        info: false,
-        searching: true,
-        dom: 't',
-        language: { emptyTable: "" }
-      });
-      
-      $('#buscador-detalles').on('keyup', function() {
-        dataTable.search(this.value).draw();
-      });
-    });
-  </script>
-</body>
-</html>
+
+  <!-- Tabla con estilo DataTables -->
+  <div class="table-wrap">
+    <table id="detalle-pedido" class="display">
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad</th>
+          <th>Precio U.</th>
+          <th>Subtotal</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for det in detalles %}
+        <tr data-id="{{ det.detallepedidoid }}">
+          <td data-label="Producto">{{ det.productoid.nombre }}</td>
+          <td data-label="Cantidad">{{ det.cantidad }}</td>
+          <td data-label="Precio U.">${{ det.preciounitario|floatformat:2 }}</td>
+          <td data-label="Subtotal">${{ det.subtotal|floatformat:2 }}</td>
+          <td data-label="Acciones">
+            
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="text-align:center; margin-top:30px;">
+    <a href="{% url 'visualizar_pedidos' %}"
+       class="btn-guardar-precio"
+       style="text-decoration:none; display:inline-block;">
+      Volver a Pedidos
+    </a>
+  </div>
+</div>
+
+<!-- jQuery + DataTables JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script defer src="{% static 'javascript/ver_pedido.js' %}"></script>
+
 {% endblock %}
