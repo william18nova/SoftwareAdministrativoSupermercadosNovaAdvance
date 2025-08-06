@@ -4,14 +4,15 @@
     · Autocompletados (proveedor, sucursal, producto)
     · Cambio de proveedor ⇒ conserva líneas válidas, confirma antes de descartar
     · Cantidad editable + botón 🗑️ con delegación
-    · Validaciones con mensajes de error por campo (incl. Sucursal)
+    · Validaciones con mensajes de error por campo (incl. Estado)
+    · Gestión de errores 500 mostrando el body en consola
 ----------------------------------------------------------------*/
 (() => {
   "use strict";
 
   /* ═════ helpers básicos ══════════════════════════════════════ */
-  const $id = (id) => document.getElementById(id);
-  const money = (n = 0) =>
+  const $id = id => document.getElementById(id);
+  const money = n =>
     new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(n);
 
   /* ═════ UI helpers (flashes + errors) ════════════════════════ */
@@ -23,6 +24,7 @@
     producto: "detalles",
     cantidad: "cantidad",
     detalles: "detalles",
+    estado: "estado",            // ← añadido
   };
   const INPUT_MAP = {
     proveedor: $id("id_proveedor_autocomplete"),
@@ -32,6 +34,7 @@
     producto: $id("producto-input"),
     cantidad: $id("cantidad-input"),
     detalles: $id("producto-input"),
+    estado: $id("id_estado"),    // ← añadido
   };
 
   const UI = {
@@ -41,24 +44,25 @@
       box.style.display = "block";
     },
     clearFlashes() {
-      ["success", "error"].forEach((k) => {
+      ["success", "error"].forEach(k => {
         const b = $id(`${k}-message`);
         b.style.display = "none";
         b.innerHTML = "";
       });
     },
     clearFieldErrors() {
-      document.querySelectorAll(".field-error.visible").forEach((b) => {
+      document.querySelectorAll(".field-error.visible").forEach(b => {
         b.classList.remove("visible");
         b.innerHTML = "";
       });
-      document.querySelectorAll(".input-error").forEach((i) => i.classList.remove("input-error"));
+      document.querySelectorAll(".input-error").forEach(i =>
+        i.classList.remove("input-error")
+      );
     },
     fieldError(field, msg) {
       const key = ERR_BOX_MAP[field] || field;
       const input = INPUT_MAP[field] || INPUT_MAP[key];
       let box = document.querySelector(`#error-id_${key}`);
-
       if (!box && input) {
         box = document.createElement("div");
         box.id = `error-id_${key}`;
@@ -81,12 +85,12 @@
     info: false,
     responsive: true,
     columnDefs: [{ targets: 4, orderable: false }],
-    rowCallback: (row) =>
+    rowCallback: row =>
       $("td", row).each((i, td) => (td.dataset.label = HEADERS[i])),
   });
 
   /* ═════ estado global ════════════════════════════════════════ */
-  let detalles = (initialDetalles || []).map((d) => ({
+  let detalles = (initialDetalles || []).map(d => ({
     ...d,
     proveedorid: d.proveedorid ?? $id("id_proveedor").value,
   }));
@@ -98,7 +102,7 @@
   function drawTable() {
     dt.clear();
     let total = 0;
-    detalles.forEach((d) => {
+    detalles.forEach(d => {
       total += d.subtotal;
       dt.row.add([
         d.producto,
@@ -122,11 +126,10 @@
     .on("change", ".qty-input", function () {
       const id = String(this.dataset.id);
       const v = parseInt(this.value, 10);
-      const row = detalles.find((d) => String(d.detallepedidoid) === id);
+      const row = detalles.find(d => String(d.detallepedidoid) === id);
       if (!row) return;
-
       if (isNaN(v) || v <= 0) {
-        detalles = detalles.filter((d) => String(d.detallepedidoid) !== id);
+        detalles = detalles.filter(d => String(d.detallepedidoid) !== id);
       } else {
         row.cantidad = v;
         row.subtotal = v * row.precio_unitario;
@@ -135,20 +138,12 @@
     })
     .on("click", ".btn-eliminar", function () {
       const id = String(this.dataset.id);
-      detalles = detalles.filter((d) => String(d.detallepedidoid) !== id);
+      detalles = detalles.filter(d => String(d.detallepedidoid) !== id);
       drawTable();
     });
 
   /* ═════ autocomplete mini-factory ════════════════════════════ */
-  function autocomplete({
-    inp,
-    hidden,
-    box,
-    url,
-    extra = () => ({}),
-    allowEmpty = false,
-    onSelect,
-  }) {
+  function autocomplete({ inp, hidden, box, url, extra = () => ({}), allowEmpty = false, onSelect }) {
     let timer;
     async function render() {
       const term = inp.value.trim();
@@ -158,29 +153,23 @@
       }
       const qs = new URLSearchParams({ term, ...extra() });
       const js = await (await fetch(`${url}?${qs}`)).json();
-
-      const used = new Set(detalles.map((d) => String(d.productoid)));
-      const opts = js.results.filter((r) => !used.has(String(r.id)));
-
-      box.innerHTML = opts
-        .map(
-          (r) => `<div class="autocomplete-option" data-id="${r.id}"
-                     ${r.precio !== undefined ? `data-precio="${r.precio}"` : ""}>
-                    ${r.text}
-                  </div>`
-        )
-        .join("");
+      const used = new Set(detalles.map(d => String(d.productoid)));
+      const opts = js.results.filter(r => !used.has(String(r.id)));
+      box.innerHTML = opts.map(r =>
+        `<div class="autocomplete-option" data-id="${r.id}"
+             ${r.precio !== undefined ? `data-precio="${r.precio}"` : ""}>
+           ${r.text}
+         </div>`
+      ).join("");
       box.style.display = opts.length ? "block" : "none";
     }
-
     inp.addEventListener("input", () => {
       clearTimeout(timer);
       timer = setTimeout(render, 200);
       hidden.value = "";
     });
     inp.addEventListener("focus", render);
-
-    box.addEventListener("click", (e) => {
+    box.addEventListener("click", e => {
       const opt = e.target.closest(".autocomplete-option");
       if (!opt) return;
       inp.value = opt.textContent.trim();
@@ -188,8 +177,7 @@
       box.style.display = "none";
       onSelect?.(opt);
     });
-
-    document.addEventListener("click", (e) => {
+    document.addEventListener("click", e => {
       if (!inp.contains(e.target) && !box.contains(e.target))
         box.style.display = "none";
     });
@@ -197,65 +185,49 @@
 
   /* ═════ util: comprobar si un producto pertenece a un proveedor ═*/
   async function productoPerteneceAProveedor(prodId, prodName, provId) {
-    const qs = new URLSearchParams({
-      term: prodName,
-      proveedor_id: provId,
-    });
+    const qs = new URLSearchParams({ term: prodName, proveedor_id: provId });
     const js = await (await fetch(`${productoPedidoAutocompleteUrl}?${qs}`)).json();
-    return js.results.some((r) => String(r.id) === String(prodId));
+    return js.results.some(r => String(r.id) === String(prodId));
   }
 
-  /* ═════ PROVEEDOR autocomplete ═══════════════════════════════ */
+  /* ═════ inicializa autocompletes ═══════════════════════════════ */
   autocomplete({
     inp: $id("id_proveedor_autocomplete"),
     hidden: $id("id_proveedor"),
     box: $id("proveedor-autocomplete-results"),
     url: proveedorAutocompleteUrl,
-    allowEmpty: true, // despliega todos si está vacío
-    onSelect: async (opt) => {
+    allowEmpty: true,
+    onSelect: async opt => {
       const nuevoID = opt.dataset.id;
       const nuevoNombre = opt.textContent.trim();
       if (nuevoID === proveedorActual) return;
-
-      // averiguar líneas que sobran
-      const checks = await Promise.all(
-        detalles.map(async (d) => ({
-          det: d,
-          ok: await productoPerteneceAProveedor(d.productoid, d.producto, nuevoID),
-        }))
-      );
-
-      const conservar = checks.filter((c) => c.ok).map((c) => c.det);
+      const checks = await Promise.all(detalles.map(async d => ({
+        det: d,
+        ok: await productoPerteneceAProveedor(d.productoid, d.producto, nuevoID),
+      })));
+      const conservar = checks.filter(c => c.ok).map(c => c.det);
       const eliminados = checks.length - conservar.length;
-
       let proceed = true;
       if (eliminados) {
         proceed = confirm(
           `${eliminados} producto(s) no pertenecen al proveedor seleccionado y se eliminarán. ¿Continuar?`
         );
       }
-
       if (!proceed) {
-        // restaurar proveedor anterior
         $id("id_proveedor_autocomplete").value = proveedorNombre;
         $id("id_proveedor").value = proveedorActual;
         return;
       }
-
-      detalles = conservar.map((d) => ({ ...d, proveedorid: nuevoID }));
+      detalles = conservar.map(d => ({ ...d, proveedorid: nuevoID }));
       proveedorActual = nuevoID;
       proveedorNombre = nuevoNombre;
-
-      // reset producto
       $id("producto-input").value = "";
       $id("producto-id").value = "";
       precioSel = 0;
-
       drawTable();
     },
   });
 
-  /* ═════ SUCURSAL autocomplete ════════════════════════════════ */
   autocomplete({
     inp: $id("id_sucursal_autocomplete"),
     hidden: $id("id_sucursal"),
@@ -263,7 +235,6 @@
     url: sucursalAutocompleteUrl,
   });
 
-  /* ═════ PRODUCTO autocomplete ════════════════════════════════ */
   autocomplete({
     inp: $id("producto-input"),
     hidden: $id("producto-id"),
@@ -271,16 +242,15 @@
     url: productoPedidoAutocompleteUrl,
     allowEmpty: true,
     extra: () => ({ proveedor_id: $id("id_proveedor").value }),
-    onSelect: (opt) => {
+    onSelect: opt => {
       precioSel = parseFloat(opt.dataset.precio) || 0;
     },
   });
 
-  /* ═════ Agregar producto ═════════════════════════════════════ */
+  /* ═════ Agregar producto ══════════════════════════════════════ */
   $id("agregarDetalleBtn").addEventListener("click", () => {
     UI.clearFlashes();
     UI.clearFieldErrors();
-
     let valid = true;
     if (!$id("id_proveedor").value.trim()) {
       UI.fieldError("proveedor", "Seleccione un proveedor.");
@@ -302,10 +272,8 @@
       valid = false;
     }
     if (!valid) return;
-
     const name = $id("producto-input").value.trim();
-
-    const row = detalles.find((d) => d.productoid === pid);
+    const row = detalles.find(d => d.productoid === pid);
     if (row) {
       row.cantidad += qty;
       row.subtotal = row.cantidad * row.precio_unitario;
@@ -320,21 +288,18 @@
         subtotal: qty * precioSel,
       });
     }
-
     $id("producto-input").value = "";
     $id("producto-id").value = "";
     $id("cantidad-input").value = "1";
     precioSel = 0;
-
     drawTable();
   });
 
   /* ═════ Submit AJAX ══════════════════════════════════════════ */
-  $id("pedidoForm").addEventListener("submit", (e) => {
+  $id("pedidoForm").addEventListener("submit", e => {
     e.preventDefault();
     UI.clearFlashes();
     UI.clearFieldErrors();
-
     let valid = true;
     if (!$id("id_proveedor").value.trim()) {
       UI.fieldError("proveedor", "Seleccione un proveedor.");
@@ -342,6 +307,11 @@
     }
     if (!$id("id_sucursal").value.trim()) {
       UI.fieldError("sucursal", "Seleccione una sucursal.");
+      valid = false;
+    }
+    // ─── VALIDACIÓN NUEVA: estado ───────────────────────────────
+    if (!$id("id_estado").value.trim()) {
+      UI.fieldError("estado", "Seleccione un estado.");
       valid = false;
     }
     if (!detalles.length) {
@@ -361,19 +331,27 @@
       },
       body: fd,
     })
-      .then((r) => r.json())
-      .then((js) => {
+      .then(async res => {
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Error 500 del servidor:", text);
+          UI.flash("error", "Error interno del servidor (mira la consola).");
+          throw new Error("Server error");
+        }
+        return res.json();
+      })
+      .then(js => {
         if (js.success) {
           window.location = visualizarPedidosUrl + "?updated=1";
         } else if (js.errors) {
-          Object.entries(js.errors).forEach(([field, arr]) =>
-            arr.forEach((eObj) => UI.fieldError(field, eObj.message))
+          Object.entries(js.errors).forEach(([f, arr]) =>
+            arr.forEach(eo => UI.fieldError(f, eo.message))
           );
           UI.flash("error", "Corrija los campos indicados.");
         } else {
           UI.flash("error", js.message || "Error al guardar.");
         }
       })
-      .catch(() => UI.flash("error", "Error de red."));
+      .catch(err => console.error(err));
   });
 })();

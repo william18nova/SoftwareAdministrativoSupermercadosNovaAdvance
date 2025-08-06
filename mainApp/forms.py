@@ -8,8 +8,9 @@ from django.core.validators import RegexValidator
 from dal import autocomplete
 import json
 from django.db.models import Exists, OuterRef, Count, Q  # Agrega esta línea
-from django.forms import formset_factory
+from django.forms import formset_factory, DecimalField, DateField, HiddenInput, TextInput, DateInput
 from datetime import date
+from django.utils import timezone
 
 MEDIO_PAGO_CHOICES = (
     ('nequi', 'Nequi'),
@@ -1925,6 +1926,28 @@ class DevolucionForm(forms.Form):
     )
     detalle_id = forms.IntegerField(widget=forms.HiddenInput())
     
-class EditarPedidoForm(PedidoProveedorForm):
-    """Hereda toda la validación de PedidoProveedorForm sin cambios."""
-    pass
+class EditarPedidoForm(forms.Form):
+    proveedor                  = forms.IntegerField(widget=forms.HiddenInput())
+    proveedor_autocomplete     = forms.CharField(label="Proveedor")
+    sucursal                   = forms.IntegerField(widget=forms.HiddenInput())
+    sucursal_autocomplete      = forms.CharField(label="Sucursal")
+    fechaestimadaentrega       = forms.DateField(
+                                   required=False,
+                                   widget=forms.DateInput(attrs={"type": "date"}),
+                                   label="Fecha Estimada"
+                                 )
+    comentario                 = forms.CharField(
+                                   required=False,
+                                   widget=forms.Textarea(attrs={"rows": 3}),
+                                   label="Comentario"
+                                 )
+    # *** ATENCIÓN A LA CADENA EXACTA: “En espera” ***
+    estado                     = forms.ChoiceField(
+                                   choices=[
+                                     ("En espera", "En espera"),
+                                     ("Recibido",  "Recibido"),
+                                     ("Devuelto",  "Devuelto"),
+                                   ],
+                                   label="Estado"
+                                 )
+    detalles                   = forms.CharField(widget=forms.HiddenInput())
