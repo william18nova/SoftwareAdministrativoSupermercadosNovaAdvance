@@ -3,6 +3,7 @@ from django.db import models
 from decimal import Decimal
 from datetime import date
 from django.db import models, transaction
+from django.db.models import Q
 
 class Sucursal(models.Model):
     sucursalid = models.AutoField(primary_key=True)
@@ -240,36 +241,42 @@ class PedidoProveedor(models.Model):
         ('Devuelto',  'Devuelto'),
     ]
 
-    pedidoid = models.AutoField(primary_key=True)
-    proveedorid = models.ForeignKey(
-        'Proveedor',
-        on_delete=models.CASCADE,
-        db_column='proveedorid'
-    )
-    sucursalid = models.ForeignKey(
-        'Sucursal',
-        on_delete=models.CASCADE,
-        db_column='sucursalid'
-    )
-    fechapedido = models.DateField(auto_now_add=True)
-    fechaestimadaentrega = models.DateField(null=True, blank=True)
-    costototal = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal('0.00')
-    )
-    estado = models.CharField(
-        max_length=50,
-        choices=ESTADOS,
-        default='En espera'
-    )
-    comentario = models.TextField(null=True, blank=True)
+    pedidoid               = models.AutoField(primary_key=True)
+    proveedorid            = models.ForeignKey('Proveedor',
+                                               on_delete=models.CASCADE,
+                                               db_column='proveedorid')
+    sucursalid             = models.ForeignKey('Sucursal',
+                                               on_delete=models.CASCADE,
+                                               db_column='sucursalid')
+    fechapedido            = models.DateField(auto_now_add=True)
+    fechaestimadaentrega   = models.DateField(null=True, blank=True)
+    costototal             = models.DecimalField(max_digits=10,
+                                                decimal_places=2,
+                                                default=Decimal('0.00'))
+    estado                 = models.CharField(max_length=50,
+                                              choices=ESTADOS,
+                                              default='En espera')
+    comentario             = models.TextField(null=True, blank=True)
+
+    # Nuevos campos para "Recibido"
+    fecha_recibido         = models.DateField(null=True, blank=True)
+    monto_pagado           = models.DecimalField(max_digits=12,
+                                                decimal_places=2,
+                                                null=True, blank=True)
+    caja_pago               = models.ForeignKey('PuntosPago',
+                                               on_delete=models.SET_NULL,
+                                               null=True, blank=True,
+                                               db_column='caja_pagoid')
 
     class Meta:
         db_table = 'pedidosproveedor'
         constraints = [
             models.CheckConstraint(
-                check=models.Q(estado__in=[e[0] for e in [ ('En espera', 'En espera'), ('Recibido',  'Recibido'), ('Devuelto',  'Devuelto'),]]),
+                check=Q(estado__in=[e[0] for e in [
+        ('En espera', 'En espera'),
+        ('Recibido',  'Recibido'),
+        ('Devuelto',  'Devuelto'),
+    ]]),
                 name='pedidosproveedor_estado_check',
             ),
         ]

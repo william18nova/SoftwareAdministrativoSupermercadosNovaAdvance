@@ -1927,27 +1927,71 @@ class DevolucionForm(forms.Form):
     detalle_id = forms.IntegerField(widget=forms.HiddenInput())
     
 class EditarPedidoForm(forms.Form):
-    proveedor                  = forms.IntegerField(widget=forms.HiddenInput())
-    proveedor_autocomplete     = forms.CharField(label="Proveedor")
-    sucursal                   = forms.IntegerField(widget=forms.HiddenInput())
-    sucursal_autocomplete      = forms.CharField(label="Sucursal")
+    proveedor                  = forms.IntegerField(
+        widget=forms.HiddenInput()
+    )
+    proveedor_autocomplete     = forms.CharField(
+        label="Proveedor"
+    )
+
+    sucursal                   = forms.IntegerField(
+        widget=forms.HiddenInput()
+    )
+    sucursal_autocomplete      = forms.CharField(
+        label="Sucursal"
+    )
+
     fechaestimadaentrega       = forms.DateField(
-                                   required=False,
-                                   widget=forms.DateInput(attrs={"type": "date"}),
-                                   label="Fecha Estimada"
-                                 )
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        label="Fecha Estimada"
+    )
+
     comentario                 = forms.CharField(
-                                   required=False,
-                                   widget=forms.Textarea(attrs={"rows": 3}),
-                                   label="Comentario"
-                                 )
-    # *** ATENCIÓN A LA CADENA EXACTA: “En espera” ***
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Comentario"
+    )
+
     estado                     = forms.ChoiceField(
-                                   choices=[
-                                     ("En espera", "En espera"),
-                                     ("Recibido",  "Recibido"),
-                                     ("Devuelto",  "Devuelto"),
-                                   ],
-                                   label="Estado"
-                                 )
-    detalles                   = forms.CharField(widget=forms.HiddenInput())
+        choices=PedidoProveedor.ESTADOS,
+        label="Estado"
+    )
+
+    # — Sólo si estado == "Recibido" —
+    monto_pagado               = forms.DecimalField(
+        required=False,
+        max_digits=12,
+        decimal_places=2,
+        label="Monto Pagado"
+    )
+    caja_pagoid                = forms.IntegerField(
+        required=False,
+        widget=forms.HiddenInput()
+    )
+    caja_pago_autocomplete     = forms.CharField(
+        required=False,
+        label="Caja de Pago"
+    )
+
+    detalles                   = forms.CharField(
+        widget=forms.HiddenInput()
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+
+        if cleaned.get("estado") == "Recibido":
+            # Validar monto pagado
+            monto = cleaned.get("monto_pagado")
+            if monto is None or monto == "":
+                self.add_error("monto_pagado", "Debe indicar el monto pagado.")
+
+            # Validar caja de pago
+            if not cleaned.get("caja_pagoid"):
+                self.add_error(
+                    "caja_pago_autocomplete",
+                    "Seleccione la caja de pago."
+                )
+
+        return cleaned

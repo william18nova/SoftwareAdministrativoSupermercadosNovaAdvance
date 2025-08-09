@@ -3205,15 +3205,17 @@ class EditarPedidoView(View):
         ])
 
         form = EditarPedidoForm(initial={
-            "proveedor":              pedido.proveedorid_id,
-            "proveedor_autocomplete": pedido.proveedorid.nombre,
-            "sucursal":               pedido.sucursalid_id,
-            "sucursal_autocomplete":  pedido.sucursalid.nombre,
-            "fechaestimadaentrega":   pedido.fechaestimadaentrega,
-            "comentario":             pedido.comentario or "",
-            # <<< aquí se inicializa con EXACTO "En espera" o el valor real >>>
-            "estado":                 pedido.estado,
-            "detalles":               detalles_json,
+            "proveedor":               pedido.proveedorid_id,
+            "proveedor_autocomplete":  pedido.proveedorid.nombre,
+            "sucursal":                pedido.sucursalid_id,
+            "sucursal_autocomplete":   pedido.sucursalid.nombre,
+            "fechaestimadaentrega":    pedido.fechaestimadaentrega,
+            "comentario":              pedido.comentario or "",
+            "estado":                  pedido.estado,
+            "monto_pagado":            pedido.monto_pagado or "",
+            "caja_pagoid":             pedido.caja_pago_id or "",
+            "caja_pago_autocomplete":  pedido.caja_pago.nombre if pedido.caja_pago else "",
+            "detalles":                detalles_json,
         })
 
         return render(request, self.template_name, {
@@ -3235,38 +3237,99 @@ class EditarPedidoView(View):
 
         pedido = get_object_or_404(PedidoProveedor, pk=pedido_id)
 
-        # Usamos los campos *_id para asignar enteros directamente
-        pedido.proveedorid_id       = form.cleaned_data["proveedor"]
-        pedido.sucursalid_id        = form.cleaned_data["sucursal"]
-        pedido.fechaestimadaentrega = form.cleaned_data["fechaestimadaentrega"]
-        pedido.comentario           = form.cleaned_data.get("comentario", "")
-        # ¡ojo! esto tiene que coincidir EXACTO: "En espera", "Recibido" o "Devuelto"
-        pedido.estado               = form.cleaned_data["estado"]
+        # Guardamos estado anterior para decidir si descontamos caja otra vez
+        previo_estado   = pedido.estado
+        previo_caja_id  = pedido.caja_pago_id  # puede ser None
 
-        # Recalcular total
+        # Campos básicos
+        pedido.proveedorid_id        = form.cleaned_data["proveedor"]
+        pedido.sucursalid_id         = form.cleaned_data["sucursal"]
+        pedido.fechaestimadaentrega  = form.cleaned_data["fechaestimadaentrega"]
+        pedido.comentario            = form.cleaned_data.get("comentario", "")
+        pedido.estado                = form.cleaned_data["estado"]
+
+        # Recalcular total a partir de los detalles del form
         detalles = json.loads(form.cleaned_data["detalles"] or "[]")
         total = sum(
             Decimal(str(d["precio_unitario"])) * Decimal(str(d["cantidad"]))
             for d in detalles
         )
         pedido.costototal = total
+
+        # Estado "Recibido" => validar y (si aplica) descontar de la caja
+        if pedido.estado == "Recibido":
+            monto   = Decimal(str(form.cleaned_data["monto_pagado"]))
+            caja_id = form.cleaned_data["caja_pagoid"]
+
+            # Sólo descontar si antes NO estaba recibido o si cambió la caja
+            debe_descontar = (previo_estado != "Recibido") or (str(previo_caja_id) != str(caja_id))
+
+            if debe_descontar:
+                caja = get_object_or_404(
+                    PuntosPago.objects.select_for_update(), pk=caja_id
+                )
+                if caja.dinerocaja < monto:
+                    return JsonResponse({
+                        "success": False,
+                        "errors": {
+                            "monto_pagado": [{"message": "Saldo insuficiente en la caja seleccionada."}]
+                        }
+                    })
+                caja.dinerocaja -= monto
+                caja.save(update_fields=["dinerocaja"])
+
+            pedido.monto_pagado   = monto
+            pedido.caja_pago_id   = caja_id
+            pedido.fecha_recibido = date.today()
+        else:
+            # Limpiamos campos de recibido si cambió de estado
+            pedido.monto_pagado   = None
+            pedido.caja_pago      = None
+            pedido.fecha_recibido = None
+
+        # Guardamos el pedido base antes de tocar líneas
         pedido.save()
 
-        # Sustituir líneas
+        # Reemplazar detalles del pedido
         DetallePedidoProveedor.objects.filter(pedidoid=pedido).delete()
         nuevas = [
             DetallePedidoProveedor(
                 pedidoid        = pedido,
                 productoid_id   = d["productoid"],
                 cantidad        = d["cantidad"],
-                preciounitario  = d["precio_unitario"],
+                preciounitario  = Decimal(str(d["precio_unitario"])),
             )
             for d in detalles
         ]
-        DetallePedidoProveedor.objects.bulk_create(nuevas)
+        if nuevas:
+            DetallePedidoProveedor.objects.bulk_create(nuevas)
+
+        # *** ACTUALIZAR precios de proveedor si cambió el precio unitario ***
+        # Para cada línea, asegura que PreciosProveedor(producto, proveedor) apunte al precio editado.
+        proveedor_id = pedido.proveedorid_id
+        for d in detalles:
+            prod_id = int(d["productoid"])
+            precio  = Decimal(str(d["precio_unitario"]))
+            PreciosProveedor.objects.update_or_create(
+                productoid_id  = prod_id,
+                proveedorid_id = proveedor_id,
+                defaults       = {"precio": precio},
+            )
 
         messages.success(request, "Pedido actualizado correctamente.")
         return JsonResponse({
             "success":      True,
             "redirect_url": reverse("visualizar_pedidos") + "?updated=1",
         })
+        
+class PuntoPagoPorSucursalAutocomplete(PaginatedAutocompleteMixin):
+    model      = PuntosPago
+    text_field = "nombre"
+    id_field   = "puntopagoid"
+    per_page   = 10
+
+    def extra_filter(self, qs, request):
+        sid = request.GET.get("sucursal_id")
+        if sid:
+            qs = qs.filter(sucursalid_id=sid)
+        return qs.order_by(self.text_field)

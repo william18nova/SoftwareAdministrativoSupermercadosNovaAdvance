@@ -190,6 +190,11 @@ urlpatterns = [
     path('eliminar_pedido/<int:pedido_id>/', views.eliminar_pedido, name='eliminar_pedido'),
     path('ver_pedido/<int:pedido_id>/', views.PedidoDetailView.as_view(), name='ver_pedido'),
     path('editar_pedido/<int:pedido_id>/', views.EditarPedidoView.as_view(), name='editar_pedido'),
+    path(
+      "autocomplete/puntopago/",
+      views.PuntoPagoPorSucursalAutocomplete.as_view(),
+      name="puntopago_autocomplete"
+    ),
     
      
 ]
