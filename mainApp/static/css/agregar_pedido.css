@@ -1,153 +1,289 @@
-/*  agregar_pedido.css
-   ──────────────────────────────────────────────────────────────
-   Clon de “agregar_inventario.css” + bloque responsive y
-   field-error persistente.
-*/
+/*  agregar_pedido.css  (home tones + centrado robusto + tabla vivid + inputs estilo login)
+   ────────────────────────────────────────────────────────────── */
 
-/* ───────── Google Font ───────── */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+/* Fuente */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
-/* ─────────  PALETA / TOKENS  ───────── */
+/* Paleta tomada del home + tokens de inputs del login */
 :root{
-  --azul:#005091;    --azul-claro:#ADD8E6;
-  --blanco:#ffffff;  --rojo:#ff0004;   --verde:#3c763d;
-  --gris:#ccc;       --gris-light:#f0f8ff; --gris-hover:#a5a5a5;
-  --btn:#304c8c;     --btn-hover:#223a70;
-  --radius:8px;      --shadow:0 4px 12px rgba(0,0,0,.25);
-  --font:'Roboto',Arial,sans-serif;  --icon-size:88px;
+  --bg-1:#153060;
+  --bg-2:#20497d;
+  --brand:#4da6ff;
+  --brand-2:#3d8cff;
+  --text:#f8fbff;
+  --text-muted:#d8e8ff;
+
+  /* Superficies / glass */
+  --glass-bg: rgba(33,64,120,.28);
+  --glass-bg-strong: rgba(33,64,120,.34);
+  --glass-brd: rgba(255,255,255,.18);
+  --glass-sh: 0 18px 40px rgba(0,0,0,.35);
+
+  /* Tabla/auxiliares */
+  --slate-50:#f8fafc; --slate-100:#eef2f7; --slate-200:#e2e8f0;
+
+  /* Inputs (mismo diseño que login) */
+  --input-bg: rgba(255,255,255,.10);
+  --input-hov: rgba(255,255,255,.18);
+  --input-brd: rgba(255,255,255,.22);
+  --ring:#b8dbff;
+
+  /* Botones */
+  --btn-grad: linear-gradient(180deg,#5cb8ff,#4da6ff 60%,#3d8cff);
+  --btn-grad-hov: linear-gradient(180deg,#6ec0ff,#58b1ff 60%,#4da6ff);
+  --btn-shadow: 0 12px 28px rgba(77,166,255,.45), inset 0 0 0 1px rgba(255,255,255,.22);
+
+  /* Errores (alto contraste) */
+  --err:#ff5b6b;
+  --err-strong:#ff4d5f;
+  --err-bg-soft: rgba(255, 77, 95, .18);
+  --err-brd-soft: rgba(255,140,150,.65);
+
+  --radius:16px; --radius-sm:12px;
+  --font:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  --icon-size:92px;
+  --transition:.22s cubic-bezier(.2,.6,.2,1);
 }
 
-/* ───────── RESET + BODY ───────── */
+/* Reset + fondo */
 *{margin:0;padding:0;box-sizing:border-box}
-
+html,body{height:100%}
 body{
-  min-height:100vh;display:flex;justify-content:center;align-items:center;
-  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
-  font-family:var(--font);color:var(--blanco);overflow:auto;padding:20px;
+  font-family:var(--font); color:var(--text);
+  min-height:100svh; overflow:auto;
+  padding:clamp(20px,4vw,32px);
+  background:
+    radial-gradient(1400px 800px at 10% 20%, rgba(77,166,255,.35), transparent 60%),
+    radial-gradient(1200px 700px at 85% 85%, rgba(77,166,255,.25), transparent 60%),
+    linear-gradient(135deg,var(--bg-1),var(--bg-2));
 }
-body::before{
-  content:"";position:fixed;inset:0;background:inherit;
-  filter:blur(22px);z-index:-1;
-}
+body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12px);z-index:-1}
 
-/* ───────── CARD ───────── */
+/* Card (centrado) */
 .container-inventario{
-  width:95%;max-width:650px;background:rgba(255,255,255,.12);
-  border-radius:var(--radius);box-shadow:var(--shadow);
-  padding:40px 32px 28px;text-align:center;
+  width:min(95vw,780px);
+  background:var(--glass-bg);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--glass-brd);
+  border-radius:var(--radius);
+  box-shadow:var(--glass-sh);
+  padding:clamp(28px,4.8vw,40px);
+  text-align:left;
+
+  display:block; margin-inline:auto; float:none;
 }
-.icon-inventario{font-size:var(--icon-size);margin-bottom:8px}
 
-/* ───────── TITULARES ───────── */
-h2{font-size:26px;margin-bottom:6px;font-weight:700}
-.obligatorio-texto{font-size:14px;font-style:italic;margin-bottom:24px}
-
-/* ───────── INPUTS / LABEL ───────── */
-.form-group-precio{margin-bottom:20px;text-align:left;position:relative}
-.form-group-precio label{display:block;font-weight:700;margin-bottom:6px}
-
-input[type="text"],input[type="number"],input[type="date"],
-select,textarea{
-  width:100%;padding:10px 12px;border:1px solid var(--gris);
-  border-radius:var(--radius);background:var(--gris-light);
-  font-size:15px;color:#222;transition:.25s;
+/* Header centrado */
+.container-inventario > :is(.icon-inventario,h2,.obligatorio-texto){
+  display:block; margin-left:auto; margin-right:auto; text-align:center;
 }
-input:hover,select:hover,textarea:hover{
-  background:#e2ebff;border-color:var(--gris-hover)}
-input:focus,select:focus,textarea:focus{
-  outline:none;border-color:var(--azul);
-  box-shadow:0 0 5px rgba(0,80,145,.45)}
-.input-error{border-color:var(--rojo)!important}
+.icon-inventario{
+  font-size:var(--icon-size); color:var(--brand);
+  filter:drop-shadow(0 8px 20px rgba(0,0,0,.28));
+  margin-bottom:10px;
+}
+h2{
+  font-size:clamp(24px,3.6vw,32px); font-weight:800; letter-spacing:.2px;
+  color:var(--text); text-shadow:0 6px 16px rgba(0,0,0,.22); margin-bottom:8px;
+}
+.obligatorio-texto{font-size:13px; color:var(--text-muted); font-style:italic; margin-bottom:22px}
 
-/* total aproximado */
+/* Formulario — inputs con el MISMO look del login */
+.form-group-precio{ margin-bottom:18px; position:relative; }
+.form-group-precio label{ display:block; font-weight:700; color:var(--text); margin:0 0 6px; }
+
+input[type="text"], input[type="number"], input[type="date"],
+select, textarea{
+  width:100%;
+  padding:14px;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--input-brd);
+  background:var(--input-bg);
+  color:var(--text);
+  font-size:15px;
+  outline:none;
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+}
+input::placeholder, textarea::placeholder{ color:var(--text-muted); }
+
+input:hover, select:hover, textarea:hover{
+  background:var(--input-hov);
+  transform:translateY(-1px);
+}
+input:focus, select:focus, textarea:focus{
+  background:var(--input-hov);
+  border-color:var(--ring);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+/* Icono del datepicker visible en modo oscuro */
+input[type="date"]::-webkit-calendar-picker-indicator{
+  filter: invert(1) opacity(.85);
+}
+
+/* Estado error en campo (más notorio) */
+.input-error{
+  border-color:#ff6b77 !important;
+  background: color-mix(in srgb, var(--err-bg-soft) 100%, transparent);
+  box-shadow:0 0 0 3px rgba(255, 77, 95, .22);
+}
+.input-error:focus{
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--err) 45%, transparent)!important;
+}
+
+/* Total aproximado */
 #total-aproximado{
-  margin:18px 0 10px;
-  font-size:18px;font-weight:700;text-align:center;color:var(--blanco);
+  margin:16px 0 12px;
+  font-size:16px; font-weight:800; color:var(--text);
+  text-align:center; padding:10px 12px; border-radius:var(--radius-sm);
+  background:var(--glass-bg-strong);
+  border:1px solid var(--glass-brd);
 }
 
-/* ───────── BOTONES ───────── */
-.btn-agregar-precio,.btn-guardar-precio{
-  width:100%;padding:12px;border:none;border-radius:var(--radius);
-  background:var(--btn);color:var(--blanco);font-size:17px;font-weight:700;
-  cursor:pointer;transition:background .25s,transform .2s,box-shadow .25s}
-.btn-agregar-precio:hover,.btn-guardar-precio:hover{
-  background:var(--btn-hover);transform:translateY(-2px);
-  box-shadow:0 4px 12px rgba(0,0,0,.2)}
-.btn-agregar-precio:active,.btn-guardar-precio:active{transform:none}
+/* Botones */
+.btn-agregar-precio, .btn-guardar-precio{
+  width:100%; padding:13px 14px; border:none; border-radius:var(--radius-sm);
+  background:var(--btn-grad); color:#06203f; font-size:15px; font-weight:900; letter-spacing:.2px;
+  cursor:pointer; box-shadow:var(--btn-shadow);
+  transition: transform .2s, filter .22s, box-shadow .22s, background .22s;
+}
+.btn-agregar-precio:hover, .btn-guardar-precio:hover{
+  background:var(--btn-grad-hov); transform:translateY(-1px);
+  filter:saturate(1.06);
+  box-shadow:0 14px 30px rgba(77,166,255,.45), inset 0 0 0 1px rgba(255,255,255,.26);
+}
 
-/* ───────── ALERTAS ───────── */
-.alert{display:none;padding:14px 16px;border-radius:var(--radius);
-       font-size:15px;margin-bottom:18px}
-.alert-success{background:#dff0d8;color:var(--verde)}
-.alert-error  {background:#fbe4e6;color:var(--rojo)}
+/* Alertas */
+.alert{
+  display:none; padding:12px 14px; border-radius:var(--radius-sm);
+  font-size:14px; margin-bottom:16px; border:1px solid transparent;
+}
+.alert-success{ background: color-mix(in srgb,#16a34a 18%, white); color:#064e1a; border-color: color-mix(in srgb,#16a34a 38%, white); }
+.alert-error  { background: var(--err-bg-soft); color: var(--err-strong); border-color: var(--err-brd-soft); }
 
-/* ───────── MENSAJE DE ERROR ───────── */
+/* Errores por campo — rojo legible */
 .field-error{
-  display:block;            /* reserva espacio SIEMPRE */
+  display:flex; align-items:center; gap:6px;
   min-height:18px;
-  font-size:14px;color:var(--rojo);
-  visibility:hidden;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:.1px;
+  color:var(--err-strong);
+  visibility:hidden; margin-top:6px;
 }
-.field-error.visible{visibility:visible}
-.field-error i{margin-right:5px}
+.field-error.visible{ visibility:visible; }
+.field-error i{ color:var(--err-strong); font-size:12px; }
 
-/* ───────── AUTOCOMPLETE ───────── */
+/* Autocomplete (mantiene fondo claro para contraste con inputs) */
 .autocomplete-results{
-  position:absolute;top:calc(100% + 6px);left:0;right:0;
-  max-height:220px;overflow-y:auto;
-  background:var(--gris-light);border:1px solid var(--gris);
-  border-radius:var(--radius);box-shadow:0 2px 6px rgba(0,0,0,.2);
-  z-index:20;display:none;
+  position:absolute; top:calc(100% + 6px); left:0; right:0;
+  max-height:260px; overflow-y:auto; background:#fff;
+  border:1px solid var(--slate-200); border-radius:var(--radius-sm);
+  box-shadow:0 16px 30px rgba(0,0,0,.16); z-index:20; display:none;
 }
-.autocomplete-option{
-  padding:10px 10px 10px 0;     /* ← sin padding a la izquierda  */
-  font-size:15px;cursor:pointer;color:#333;
-  text-align:left;              /* ← asegura la alineación */
-}
-.autocomplete-option:hover{background:var(--btn-hover);color:var(--blanco)}
-.autocomplete-no-result{padding:10px;font-size:15px;color:#777}
+.autocomplete-option{ padding:10px 12px; font-size:15px; cursor:pointer; color:#0b1220; text-align:left; }
+.autocomplete-option:hover{ background:#eaf3ff; }
+.autocomplete-no-result{ padding:10px 12px; font-size:14px; color:#64748b; }
 
-/* ───────── TABLA (desktop) ───────── */
-.table-wrap{margin:24px 0}
-table.dataTable{width:100%!important;border-collapse:collapse;background:var(--blanco)}
-table.dataTable thead{background:var(--btn);color:var(--blanco)}
-table.dataTable thead th{padding:10px;font-weight:700;white-space:nowrap}
-table.dataTable tbody td{padding:10px;color:#000}
-table.dataTable tbody tr:nth-child(even){background:#fafafa}
+/* Tabla (colores pedidos) */
+.table-wrap{ margin:18px 0 12px; }
+
+table.dataTable{
+  width:100%!important; border-collapse:separate; border-spacing:0;
+  background:#fff; border-radius:var(--radius-sm); overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,.12);
+}
+table.dataTable thead{
+  background:linear-gradient(180deg,#3563b8,#2a4f9a);
+  color:#fff;
+}
+table.dataTable thead th{ padding:11px 12px; font-weight:700; white-space:nowrap; text-align:left; }
+table.dataTable tbody td{ padding:10px 12px; color:#0b1220; border-top:1px solid #eef2f7; }
+table.dataTable tbody tr:nth-child(even){ background:#f9fbff; }
+
+/* Centrar cabecera y celdas de "Acciones" en desktop */
+@media (min-width: 481px){
+  table.dataTable thead th:last-child,
+  table.dataTable tbody td:last-child{
+    text-align: center;
+  }
+  table.dataTable tbody td:last-child{
+    vertical-align: middle;
+  }
+}
 
 table.dataTable thead th.sorting::after,
 table.dataTable thead th.sorting_asc::after,
 table.dataTable thead th.sorting_desc::after{
-  font-family:"Font Awesome 6 Free";font-weight:900;margin-left:4px}
-table.dataTable thead th.sorting::after      {content:"\f0dc"}
-table.dataTable thead th.sorting_asc::after  {content:"\f106"}
-table.dataTable thead th.sorting_desc::after {content:"\f107"}
+  font-family:"Font Awesome 6 Free"; font-weight:900; margin-left:6px;
+}
+table.dataTable thead th.sorting::after      { content:"\f0dc"; }
+table.dataTable thead th.sorting_asc::after  { content:"\f106"; }
+table.dataTable thead th.sorting_desc::after { content:"\f107"; }
 
+/* Botón eliminar (centrado y cuadrado) */
 .btn-eliminar{
-  background:#e74c3c;color:#fff;border:none;border-radius:6px;
-  padding:7px 10px;cursor:pointer}
-.btn-eliminar:hover{background:#c0392b}
+  background:#e74c3c; color:#fff; border:none; border-radius:8px;
+  width:30px; height:30px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:.18s;
+}
+.btn-eliminar i{ pointer-events:none; }
+.btn-eliminar:hover{ background:#c0392b; transform:translateY(-1px); }
 
-/* ───────── RESPONSIVE ≤ 480 px ───────── */
-@media(max-width:480px){
+/* Responsive: centrado robusto del contenedor */
+@media (max-width:768px){
+  .container-inventario{
+    width:calc(100vw - 24px);
+    max-width:680px;
+    position:relative; left:50%; transform:translateX(-50%);
+    margin:0 auto !important; float:none !important;
+  }
+}
+/* Centrado limpio si hay :has() */
+@supports selector(:has(*)) {
+  @media (max-width:768px){
+    .page-wrap:has(.container-inventario){ display:grid; justify-items:center; }
+    .page-wrap:has(.container-inventario) .container-inventario{
+      position:static; transform:none; left:auto; width:min(100%,780px); margin-inline:auto;
+    }
+  }
+}
 
-  .container-inventario{padding:28px 18px}
-  .btn-agregar-precio,.btn-guardar-precio{font-size:15px}
+/* Responsive extra */
+@media (max-width:480px){
+  .container-inventario{ padding:22px 16px; background:var(--glass-bg-strong); }
 
-  /* tabla -> “cards”  */
-  table.dataTable thead{display:none}
+  table.dataTable thead{ display:none; }
+  table.dataTable{ border-radius:12px; overflow:hidden; }
   table.dataTable tbody tr{
-    display:block;margin-bottom:15px;border:1px solid #ccc;
-    border-radius:10px;background:var(--blanco)!important;
-    box-shadow:0 2px 4px rgba(0,0,0,.1)
+    display:block; margin-bottom:14px; border:1px solid var(--slate-200);
+    border-radius:12px; background:#fff!important; box-shadow:0 4px 10px rgba(0,0,0,.08);
   }
   table.dataTable tbody td{
-    display:flex;justify-content:space-between;align-items:flex-start;
-    padding:8px 12px;font-size:13px;border-bottom:1px solid #f0f0f0;text-align:left
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:10px 12px; font-size:13px; border-bottom:1px solid var(--slate-100); text-align:left;
   }
-  table.dataTable tbody td:last-child{border-bottom:none}
+
+  /* Acciones: título (label) a la izquierda y botón a la derecha */
+  table.dataTable tbody td:last-child{
+    justify-content:flex-start;               /* label a la izquierda */
+  }
+  table.dataTable tbody td:last-child::before{
+    text-align:left;
+    flex:0 0 auto;
+  }
+  table.dataTable tbody td:last-child .btn-eliminar{
+    margin-left:auto;                          /* botón a la derecha */
+  }
+
+  table.dataTable tbody td:last-child{ border-bottom:none; }
   table.dataTable tbody td::before{
-    content:attr(data-label);font-weight:700;color:var(--azul);margin-right:10px
+    content:attr(data-label); font-weight:700; color:#2a4f9a; margin-right:10px;
   }
-  table.dataTable tbody tr:nth-child(even){background:var(--blanco)!important}
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion:reduce){
+  .btn-agregar-precio,.btn-guardar-precio,input,select,textarea{ transition:none!important; }
 }
