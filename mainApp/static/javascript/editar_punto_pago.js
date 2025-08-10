@@ -1,10 +1,9 @@
 /*  static/javascript/editar_punto_pago.js
     ────────────────────────────────────────────────────────────
-    · Misma arquitectura que agregar_punto_pago.js
     · Autocomplete (scroll-infinito + caché)
     · DataTable card-view ≤ 768 px
-    · Inputs con borde rojo (.input-error)
-    · ✨ NUEVO: muestra error si el nombre ya existe
+    · Edición inline y submit AJAX
+    · Limpieza AGRESIVA de errores server-side al cargar
 ----------------------------------------------------------------*/
 (() => {
   "use strict";
@@ -27,6 +26,7 @@
     cajaInp: $id("id_dinerocaja"),
 
     btnAdd : $id("agregarPuntoPagoBtn"),
+    table  : $id("puntos-pago-list"),
     tbody  : $id("puntos-pago-body"),
     hidden : $id("id_puntos_temp"),
 
@@ -80,6 +80,33 @@
       (map[field]||null)?.classList.add("input-error");
     }
   };
+
+  /* ───── Limpieza agresiva de errores server-side ───── */
+  function clearNombreError() {
+    const box = $id("error-id_nombre");
+    if (box) { box.textContent = ""; box.classList.remove("visible"); }
+    dom.nomInp?.classList.remove("input-error");
+    // Si el input está vacío, quita cualquier <ul class="errorlist"> que Django haya dejado
+    const ul = dom.nomInp?.parentElement?.querySelector("ul.errorlist");
+    if (ul) ul.remove();
+  }
+  function clearAllErrorsOnLoad() {
+    UI.clrFieldErr();
+    clearNombreError();
+  }
+  // Ejecuta la limpieza al cargar y ante cambios en sucursal/nombre
+  document.addEventListener("DOMContentLoaded", clearAllErrorsOnLoad);
+  clearAllErrorsOnLoad();
+  ["input","focus"].forEach(evt => dom.nomInp?.addEventListener(evt, clearNombreError));
+  dom.sucInp?.addEventListener("input", () => { dom.sucHid.value = ""; clearNombreError(); });
+
+  // Evitar Enter = submit accidental en los inputs cortos
+  ["id_nombre","id_descripcion","id_dinerocaja"].forEach(id=>{
+    const el=$id(id);
+    el?.addEventListener("keydown",e=>{
+      if(e.key==="Enter"){ e.preventDefault(); }
+    });
+  });
 
   /* ───── cache + debounce ───── */
   const cSuc = Object.create(null);
@@ -142,12 +169,17 @@
   });
 
   /* ───── precarga BD (existingPuntos) ───── */
-  existingPuntos.forEach(p=>{
-    state.items.push({id:p.puntopagoid,nombre:p.nombre,descripcion:p.descripcion,dinerocaja:p.dinerocaja});
+  (existingPuntos || []).forEach(p=>{
+    state.items.push({
+      id: p.puntopagoid,
+      nombre: p.nombre,
+      descripcion: p.descripcion ?? "",
+      dinerocaja: p.dinerocaja ?? "0"
+    });
     const node = dt.row.add([
       p.nombre,
-      `<input type="text"  class="edit-descripcion" data-nombre="${p.nombre}" value="${p.descripcion}">`,
-      `<input type="number" class="edit-dinerocaja"  data-nombre="${p.nombre}" value="${p.dinerocaja}" min="0" step="0.01">`,
+      `<input type="text"  class="edit-descripcion" data-nombre="${p.nombre}" value="${p.descripcion ?? ""}">`,
+      `<input type="number" class="edit-dinerocaja"  data-nombre="${p.nombre}" value="${p.dinerocaja ?? "0"}" min="0" step="0.01">`,
       `<button type="button" class="btn-eliminar" data-nombre="${p.nombre}">
          <i class="fas fa-trash-alt"></i>
        </button>`
@@ -155,40 +187,55 @@
     setLabels($(node));
   });
 
-  /* ───── agregar punto ───── */
-  dom.btnAdd.addEventListener("click",()=>{
-    UI.clrAlerts(); UI.clrFieldErr();
+  /* ───── agregar / actualizar punto ───── */
+  dom.btnAdd.addEventListener("click", () => {
+    UI.clrAlerts(); UI.clrFieldErr(); clearNombreError();
 
-    const sid   = dom.sucHid.value.trim();
-    const nombre= dom.nomInp.value.trim();
-    const descr = dom.desInp.value.trim();
-    const caja  = dom.cajaInp.value.trim() || "0";
+    const sid    = dom.sucHid.value.trim();
+    const nombre = dom.nomInp.value.trim();
+    const descr  = dom.desInp.value.trim();
+    const caja   = (dom.cajaInp.value.trim() || "0");
 
     let bad=false;
-    if(!sid){   UI.fErr("sucursal","Seleccione una sucursal."); bad=true;}
-    if(!nombre){UI.fErr("nombre","El nombre es obligatorio.");  bad=true;}
+    if(!sid){   UI.fErr("sucursal","Seleccione una sucursal."); bad=true; }
+    if(!nombre){UI.fErr("nombre","El nombre es obligatorio.");  bad=true; }
     if(bad) return;
 
-    /* ── Duplicado: mostramos error y salimos ── */
-    const dup = state.items.find(i=>i.nombre.trim().toLowerCase()===nombre.toLowerCase());
-    if(dup){
-      UI.fErr("nombre", `«${nombre}» ya está en la lista.`);
-      return;
+    const idx = state.items.findIndex(
+      i => i.nombre.trim().toLowerCase() === nombre.toLowerCase()
+    );
+
+    if (idx >= 0) {
+      // Actualiza en memoria y en la fila existente
+      state.items[idx].descripcion = descr;
+      state.items[idx].dinerocaja  = caja;
+
+      const dInp = dom.tbody.querySelector(`.edit-descripcion[data-nombre="${state.items[idx].nombre}"]`);
+      const cInp = dom.tbody.querySelector(`.edit-dinerocaja[data-nombre="${state.items[idx].nombre}"]`);
+      if (dInp) dInp.value = descr;
+      if (cInp) cInp.value = caja;
+
+      UI.ok("Punto de pago actualizado.");
+    } else {
+      // Alta normal
+      state.items.push({ id:null, nombre, descripcion: descr, dinerocaja: caja });
+      const node = dt.row.add([
+        nombre,
+        `<input type="text"  class="edit-descripcion" data-nombre="${nombre}" value="${descr}">`,
+        `<input type="number" class="edit-dinerocaja"  data-nombre="${nombre}" value="${caja}" min="0" step="0.01">`,
+        `<button type="button" class="btn-eliminar" data-nombre="${nombre}">
+           <i class="fas fa-trash-alt"></i>
+         </button>`
+      ]).draw(false).node();
+      setLabels($(node));
+      UI.ok("Punto de pago agregado.");
     }
 
-    /* ✔ Alta normal */
-    state.items.push({id:null,nombre,descripcion:descr,dinerocaja:caja});
-    const node = dt.row.add([
-      nombre,
-      `<input type="text"  class="edit-descripcion" data-nombre="${nombre}" value="${descr}">`,
-      `<input type="number" class="edit-dinerocaja"  data-nombre="${nombre}" value="${caja}" min="0" step="0.01">`,
-      `<button type="button" class="btn-eliminar" data-nombre="${nombre}">
-         <i class="fas fa-trash-alt"></i>
-       </button>`
-    ]).draw(false).node();
-    setLabels($(node));
-
-    dom.nomInp.value=""; dom.desInp.value=""; dom.cajaInp.value="";
+    // Limpiar formulario pequeño
+    dom.nomInp.value = "";
+    dom.desInp.value = "";
+    dom.cajaInp.value = "";
+    clearNombreError();
   });
 
   /* ───── eliminar ───── */
@@ -199,7 +246,7 @@
     state.items = state.items.filter(i=>i.nombre.toLowerCase()!==nombre);
   });
 
-  /* ───── edición inline ───── */
+  /* ───── edición inline en la tabla ───── */
   dom.tbody.addEventListener("input",e=>{
     const t=e.target;
     if(!t.dataset.nombre) return;
@@ -213,7 +260,7 @@
   /* ───── submit ───── */
   dom.form.addEventListener("submit",async ev=>{
     ev.preventDefault();
-    UI.clrAlerts(); UI.clrFieldErr();
+    UI.clrAlerts(); UI.clrFieldErr(); clearNombreError();
 
     if(!dom.sucHid.value.trim()){
       UI.fErr("sucursal","Seleccione una sucursal."); return;
@@ -237,7 +284,7 @@
       if(data.success){
         window.location.href = data.redirect_url;
       }else{
-        const errs = JSON.parse(data.errors||"{}");
+        const errs = typeof data.errors === "string" ? JSON.parse(data.errors||"{}") : (data.errors||{});
         Object.entries(errs).forEach(([f,arr])=>
           arr.forEach(e=>{
             if(f==="puntos_temp"){ UI.err(e.message); }

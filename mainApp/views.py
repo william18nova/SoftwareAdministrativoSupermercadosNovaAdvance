@@ -1408,15 +1408,16 @@ class PuntosPagoUpdateAJAXView(View):
         )
         puntos = [
             {
-                "id"        : p["puntopagoid"],
-                "nombre"    : p["nombre"],
+                "id"         : p["puntopagoid"],
+                "nombre"     : p["nombre"],
                 "descripcion": p["descripcion"] or "",
-                "dinerocaja": float(p["dinerocaja"] or 0),
-            } for p in puntos_qs
+                "dinerocaja" : float(p["dinerocaja"] or 0),
+            }
+            for p in puntos_qs
         ]
 
         form = self.form_class(initial={
-            "sucursal"            : sucursal.pk,
+            "sucursal"             : sucursal.pk,
             "sucursal_autocomplete": sucursal.nombre,
         })
 
@@ -1427,20 +1428,20 @@ class PuntosPagoUpdateAJAXView(View):
         })
 
     # ---------- POST ----------
+    @transaction.atomic
     def post(self, request, sucursal_id):
         old_suc = get_object_or_404(Sucursal, pk=sucursal_id)
         form    = self.form_class(request.POST, initial={"sucursal": old_suc.pk})
 
-        # 1▪ validación básica
         if not form.is_valid():
             return JsonResponse({
                 "success": False,
                 "errors" : json.dumps(form.errors.get_json_data(escape_html=True))
             })
 
-        new_suc = form.cleaned_data["sucursal"]
+        new_suc = form.cleaned_data["sucursal"]  # instancia
 
-        # 2▪ leer JSON
+        # JSON de la tabla
         try:
             items = json.loads(request.POST.get("puntos_temp", "[]"))
         except json.JSONDecodeError:
@@ -1454,24 +1455,35 @@ class PuntosPagoUpdateAJAXView(View):
                 })
             })
 
-        # 3▪ diccionario de existentes (para delete / update)
-        existentes_qs   = PuntosPago.objects.filter(sucursalid=old_suc)
-        existentes_dict = {pp.puntopagoid: pp for pp in existentes_qs}
+        # helpers
+        norm = lambda s: (s or "").strip().casefold()
+
+        # existentes en sucursal origen (para eliminar los que no vengan)
+        existentes_origen = {
+            pp.puntopagoid: pp
+            for pp in PuntosPago.objects.select_for_update().filter(sucursalid=old_suc)
+        }
+
+        # existentes por nombre en sucursal destino (para “merge” al crear)
+        existentes_dest_por_nombre = {
+            norm(pp.nombre): pp
+            for pp in PuntosPago.objects.select_for_update().filter(sucursalid=new_suc)
+        }
 
         keep_ids, to_create = set(), []
 
-        # 4▪ loop items (create / update)
         for it in items:
-            pid   = it.get("id")
-            nombre= (it.get("nombre") or "").strip()
-            descr = (it.get("descripcion") or "").strip()
-            caja  = it.get("dinerocaja") or "0"
+            pid    = it.get("id")
+            nombre = (it.get("nombre") or "").strip()
+            descr  = (it.get("descripcion") or "").strip()
+            caja   = it.get("dinerocaja") or "0"
 
             if not nombre:
+                # OJO: esta validación es por ítem de la tabla, no por el input de arriba
                 return JsonResponse({
                     "success": False,
                     "errors" : json.dumps({
-                        "nombre": [{"message": "El nombre es obligatorio."}]
+                        "puntos_temp": [{"message": "Hay una fila sin nombre en la tabla."}]
                     })
                 })
 
@@ -1482,57 +1494,64 @@ class PuntosPagoUpdateAJAXView(View):
             except (InvalidOperation, ValueError):
                 caja_dec = Decimal("0")
 
-            # --- UPDATE ---
+            # ---------- UPDATE ----------
             if pid:
                 pid = int(pid)
                 keep_ids.add(pid)
-                obj = existentes_dict.get(pid)
+                obj = existentes_origen.get(pid)
 
-                #  • si no existe (se borró en BD) => tratar como nuevo
                 if not obj:
+                    # el ID ya no existe en BD: lo tratamos como nuevo
+                    # y seguimos la rama CREATE (ver abajo) sin error
+                    pid = None
+                else:
+                    name_changed = norm(obj.nombre) != norm(nombre)
+                    suc_changed  = obj.sucursalid_id != new_suc.pk
+
+                    if name_changed or suc_changed:
+                        # ¿Hay otro con el mismo nombre en la sucursal destino?
+                        dup = PuntosPago.objects.filter(
+                            sucursalid=new_suc, nombre__iexact=nombre
+                        ).exclude(puntopagoid=pid).first()
+                        if dup:
+                            # En lugar de error, “fusionamos” al duplicado
+                            dup.descripcion = descr
+                            dup.dinerocaja  = caja_dec
+                            dup.save(update_fields=["descripcion", "dinerocaja"])
+                            keep_ids.add(dup.puntopagoid)
+                            # y este lo marcamos para borrar si venía de old_suc
+                            continue
+
+                    # actualización normal
+                    obj.sucursalid  = new_suc
+                    obj.nombre      = nombre
+                    obj.descripcion = descr
+                    obj.dinerocaja  = caja_dec
+                    obj.save()
+                    continue  # next item
+
+            # ---------- CREATE ----------
+            if not pid:
+                name_key = norm(nombre)
+                if name_key in existentes_dest_por_nombre:
+                    # Si ya existe en la sucursal destino con ese nombre,
+                    # lo tratamos como UPDATE (merge), no como error.
+                    obj = existentes_dest_por_nombre[name_key]
+                    obj.descripcion = descr
+                    obj.dinerocaja  = caja_dec
+                    obj.save(update_fields=["descripcion", "dinerocaja"])
+                    keep_ids.add(obj.puntopagoid)
+                else:
                     to_create.append(PuntosPago(
                         sucursalid=new_suc, nombre=nombre,
                         descripcion=descr, dinerocaja=caja_dec
                     ))
-                else:
-                    # duplicados por nombre (distinto ID)
-                    if PuntosPago.objects.filter(
-                        sucursalid=new_suc,
-                        nombre__iexact=nombre
-                    ).exclude(puntopagoid=pid).exists():
-                        return JsonResponse({
-                            "success": False,
-                            "errors" : json.dumps({
-                                "nombre": [{"message": f"«{nombre}» ya existe en la sucursal."}]
-                            })
-                        })
-                    obj.sucursalid = new_suc
-                    obj.nombre     = nombre
-                    obj.descripcion= descr
-                    obj.dinerocaja = caja_dec
-                    obj.save()
-            # --- CREATE ---
-            else:
-                if PuntosPago.objects.filter(
-                    sucursalid=new_suc, nombre__iexact=nombre
-                ).exists():
-                    return JsonResponse({
-                        "success": False,
-                        "errors" : json.dumps({
-                            "nombre": [{"message": f"«{nombre}» ya existe en la sucursal."}]
-                        })
-                    })
-                to_create.append(PuntosPago(
-                    sucursalid=new_suc, nombre=nombre,
-                    descripcion=descr, dinerocaja=caja_dec
-                ))
 
-        # 5▪ eliminar los que ya no vienen
-        delete_ids = [pk for pk in existentes_dict if pk not in keep_ids]
+        # eliminar los que ya no vienen (solo de la sucursal origen)
+        delete_ids = [pk for pk in existentes_origen if pk not in keep_ids]
         if delete_ids:
             PuntosPago.objects.filter(puntopagoid__in=delete_ids).delete()
 
-        # 6▪ bulk create
         if to_create:
             PuntosPago.objects.bulk_create(to_create)
 
