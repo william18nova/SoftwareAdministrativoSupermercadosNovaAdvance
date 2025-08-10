@@ -116,6 +116,26 @@ input:focus, select:focus, textarea:focus{
   box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
 }
 
+/* Select themed (popup oscuro + flecha personalizada) */
+.container-inventario select{ color-scheme:dark; }
+.container-inventario select{
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  padding-right:44px; /* espacio para la flecha */
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d8e8ff'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  background-size:16px 16px;
+}
+.container-inventario select::-ms-expand{display:none;}
+.container-inventario select option{
+  background-color:#1b3663;
+  color:var(--text);
+}
+.container-inventario select option:checked,
+.container-inventario select option:hover{
+  background-color:#2a4f9a; color:#fff;
+}
+
 /* Icono del datepicker visible en modo oscuro */
 input[type="date"]::-webkit-calendar-picker-indicator{
   filter: invert(1) opacity(.85);
@@ -143,7 +163,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{
 /* Botones */
 .btn-agregar-precio, .btn-guardar-precio{
   width:100%; padding:13px 14px; border:none; border-radius:var(--radius-sm);
-  background:var(--btn-grad); color:#06203f; font-size:15px; font-weight:900; letter-spacing:.2px;
+  background:var(--btn-grad); color:#ffffff; font-size:15px; font-weight:900; letter-spacing:.2px;
   cursor:pointer; box-shadow:var(--btn-shadow);
   transition: transform .2s, filter .22s, box-shadow .22s, background .22s;
 }
@@ -199,6 +219,36 @@ table.dataTable thead{
 }
 table.dataTable thead th{ padding:11px 12px; font-weight:700; white-space:nowrap; text-align:left; }
 table.dataTable tbody td{ padding:10px 12px; color:#0b1220; border-top:1px solid #eef2f7; }
+
+/* ── Inputs editables dentro de la tabla (qty / price) ───────────────────── */
+table.dataTable tbody td{ vertical-align:middle; }
+
+table.dataTable tbody input.qty-input,
+table.dataTable tbody input.price-input{
+  height:36px;
+  padding:6px 10px;
+  border-radius:10px;
+  border:1px solid #dbe4f3;
+  background:#f7fbff;
+  color:#0b1220;
+  font-weight:700;
+  outline:none;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+table.dataTable tbody input.qty-input{ width:76px; text-align:center; }
+table.dataTable tbody input.price-input{ width:120px; text-align:right; }
+
+table.dataTable tbody input.qty-input:hover,
+table.dataTable tbody input.price-input:hover{ background:#eef5ff; }
+table.dataTable tbody input.qty-input:focus,
+table.dataTable tbody input.price-input:focus{
+  border-color:var(--ring);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 45%, transparent);
+  background:#eef5ff;
+}
+table.dataTable tbody input[type="number"]::-webkit-outer-spin-button,
+table.dataTable tbody input[type="number"]::-webkit-inner-spin-button{ opacity:.6; }
+
 table.dataTable tbody tr:nth-child(even){ background:#f9fbff; }
 
 /* Centrar cabecera y celdas de "Acciones" en desktop */
@@ -212,6 +262,7 @@ table.dataTable tbody tr:nth-child(even){ background:#f9fbff; }
   }
 }
 
+/* Orden (indicadores) */
 table.dataTable thead th.sorting::after,
 table.dataTable thead th.sorting_asc::after,
 table.dataTable thead th.sorting_desc::after{
@@ -267,19 +318,29 @@ table.dataTable thead th.sorting_desc::after { content:"\f107"; }
 
   /* Acciones: título (label) a la izquierda y botón a la derecha */
   table.dataTable tbody td:last-child{
-    justify-content:flex-start;               /* label a la izquierda */
+    justify-content:flex-start;
   }
   table.dataTable tbody td:last-child::before{
     text-align:left;
     flex:0 0 auto;
   }
   table.dataTable tbody td:last-child .btn-eliminar{
-    margin-left:auto;                          /* botón a la derecha */
+    margin-left:auto;
   }
 
   table.dataTable tbody td:last-child{ border-bottom:none; }
   table.dataTable tbody td::before{
     content:attr(data-label); font-weight:700; color:#2a4f9a; margin-right:10px;
+  }
+
+  /* Inputs editables a ancho completo en móvil */
+  table.dataTable tbody input.qty-input,
+  table.dataTable tbody input.price-input{ width:100%; }
+
+  /* Cantidad alineada a la izquierda en móvil */
+  table.dataTable tbody input.qty-input{
+    text-align:right !important;
+    padding-left:12px;
   }
 }
 
