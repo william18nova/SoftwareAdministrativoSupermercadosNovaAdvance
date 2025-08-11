@@ -27,7 +27,16 @@ $(function () {
     $el.text(txt).fadeIn();
     setTimeout(()=>$el.fadeOut(),3000);
   }
+
+  // Ocultar automático si está visible por el servidor
   if($("#success-message").is(":visible")){
+    setTimeout(()=>$("#success-message").fadeOut(),3000);
+  }
+
+  // Fallback: si ?updated=1 está en la URL, mostrar alert
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("updated") === "1" && !$("#success-message").is(":visible")) {
+    $("#success-message").fadeIn();
     setTimeout(()=>$("#success-message").fadeOut(),3000);
   }
 

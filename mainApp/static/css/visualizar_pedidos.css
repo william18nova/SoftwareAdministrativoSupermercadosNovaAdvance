@@ -31,7 +31,6 @@ html, body{ height:100% }
 
 body{
   margin:0; font-family:var(--font); color:var(--text);
-  /* Gradiente directamente en body (sin attachment fixed) */
   background:
     radial-gradient(1400px 800px at 10% 20%, rgba(77,166,255,.35), transparent 60%),
     radial-gradient(1200px 700px at 85% 85%, rgba(77,166,255,.25), transparent 60%),
@@ -39,11 +38,7 @@ body{
   min-height:100svh; overflow:auto;
   padding: clamp(18px, 3.8vw, 36px);
 }
-
-/* Anula overlays/pseudo-elementos que pueden dibujar la franja */
 body::before, body::after{ content:none !important; display:none !important; }
-
-/* Cualquier wrapper/footer no debe pintar fondo propio */
 .page-wrap, .content, .wrapper, footer, .footer, .page-footer{
   background:transparent !important;
   box-shadow:none !important;
@@ -62,12 +57,8 @@ body::before, body::after{ content:none !important; display:none !important; }
   border-radius:var(--radius);
   padding: clamp(22px, 4.2vw, 36px);
 }
-
-/* Centrado si existe .page-wrap */
 @supports selector(:has(*)){
-  .page-wrap:has(.container-pedidos){
-    display:grid; justify-items:center;
-  }
+  .page-wrap:has(.container-pedidos){ display:grid; justify-items:center; }
 }
 
 /* ── Título ─────────────────────────────────────────────────── */
@@ -99,12 +90,28 @@ body::before, body::after{ content:none !important; display:none !important; }
   box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
 }
 
+/* ── Alertas (alineadas con agregar_pedido.css) ─────────────── */
+.alert{
+  display:none; padding:12px 14px; border-radius:12px;
+  font-size:14px; margin-bottom:16px; border:1px solid transparent;
+}
+.alert-success{
+  background: color-mix(in srgb,#16a34a 18%, white);
+  color:#064e1a;
+  border-color: color-mix(in srgb,#16a34a 38%, white);
+}
+.alert-error{
+  background: rgba(255, 77, 95, .18);
+  color:#ff4d5f;
+  border-color: rgba(255,140,150,.65);
+}
+
 /* ── Tabla ──────────────────────────────────────────────────── */
 .table-wrap{ margin-top:6px; }
 
 table.dataTable{
   width:100%!important; border-collapse:separate; border-spacing:0;
-  background:#fff; border-radius:var(--radius-sm); overflow:hidden;
+  background:#fff; border-radius:12px; overflow:hidden;
   box-shadow:0 6px 18px rgba(0,0,0,.12);
   font-size:15.5px;
 }
@@ -196,10 +203,19 @@ table.dataTable thead th.sorting_desc::after{
 
 .btn.borrar { background:#e74c3c; } .btn.borrar:hover { background:#c0392b; }
 
-/* ── Responsive (tarjetas) ─────────────────────────────────── */
+/* ── Responsive (tarjetas + centrado fuerte) ────────────────── */
 @media (max-width:768px){
-  .container-pedidos{ width:calc(100vw - 24px); padding:20px 16px; margin-block: clamp(18px, 10vh, 48px); }
+  /* Centrado robusto del contenedor */
+  .container-pedidos{
+    width: calc(100vw - 24px);
+    max-width: 780px;
+    margin: 0 auto !important;
+    float: none !important;
+    position: relative; left: 50%; transform: translateX(-50%);
+  }
+  html, body{ overflow-x: hidden; }
 
+  /* Tabla como tarjetas */
   table.dataTable thead{ display:none; }
   table.dataTable{ border-radius:12px; overflow:hidden; }
   table.dataTable tbody tr{
@@ -220,6 +236,21 @@ table.dataTable thead th.sorting_desc::after{
   /* Acciones: label a la izquierda y botones a la derecha */
   table.dataTable tbody td:last-child{ justify-content:flex-start; }
   table.dataTable tbody td:last-child .actions-cell{ margin-left:auto; }
+}
+
+/* Centrado limpio si hay :has() (anula el fallback de translate) */
+@supports selector(:has(*)){
+  @media (max-width:768px){
+    .page-wrap:has(.container-pedidos){
+      min-height:100svh;
+      display:grid; justify-items:center; align-content:start;
+      padding-block: clamp(18px, 4vh, 36px);
+    }
+    .page-wrap:has(.container-pedidos) .container-pedidos{
+      position:static; transform:none; left:auto;
+      width:min(100%,780px); margin-inline:auto !important;
+    }
+  }
 }
 
 /* Reduce motion */

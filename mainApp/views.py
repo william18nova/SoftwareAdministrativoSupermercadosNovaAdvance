@@ -3256,43 +3256,40 @@ class EditarPedidoView(View):
 
         pedido = get_object_or_404(PedidoProveedor, pk=pedido_id)
 
-        # Guardamos estado anterior para decidir si descontamos caja otra vez
-        previo_estado   = pedido.estado
-        previo_caja_id  = pedido.caja_pago_id  # puede ser None
+        # Estado previo para decidir caja y si sumar inventario
+        previo_estado  = pedido.estado
+        previo_caja_id = pedido.caja_pago_id  # puede ser None
 
-        # Campos básicos
-        pedido.proveedorid_id        = form.cleaned_data["proveedor"]
-        pedido.sucursalid_id         = form.cleaned_data["sucursal"]
-        pedido.fechaestimadaentrega  = form.cleaned_data["fechaestimadaentrega"]
-        pedido.comentario            = form.cleaned_data.get("comentario", "")
-        pedido.estado                = form.cleaned_data["estado"]
+        # Campos base
+        pedido.proveedorid_id       = form.cleaned_data["proveedor"]
+        pedido.sucursalid_id        = form.cleaned_data["sucursal"]
+        pedido.fechaestimadaentrega = form.cleaned_data["fechaestimadaentrega"]
+        pedido.comentario           = form.cleaned_data.get("comentario", "")
+        pedido.estado               = form.cleaned_data["estado"]
 
-        # Recalcular total a partir de los detalles del form
+        # Detalles desde el form (JSON)
         detalles = json.loads(form.cleaned_data["detalles"] or "[]")
+
+        # Recalcular total
         total = sum(
             Decimal(str(d["precio_unitario"])) * Decimal(str(d["cantidad"]))
             for d in detalles
         )
         pedido.costototal = total
 
-        # Estado "Recibido" => validar y (si aplica) descontar de la caja
+        # Si pasa a "Recibido", validar caja/pago
         if pedido.estado == "Recibido":
             monto   = Decimal(str(form.cleaned_data["monto_pagado"]))
             caja_id = form.cleaned_data["caja_pagoid"]
 
-            # Sólo descontar si antes NO estaba recibido o si cambió la caja
+            # Descontar solo si antes no estaba recibido o cambió la caja
             debe_descontar = (previo_estado != "Recibido") or (str(previo_caja_id) != str(caja_id))
-
             if debe_descontar:
-                caja = get_object_or_404(
-                    PuntosPago.objects.select_for_update(), pk=caja_id
-                )
+                caja = get_object_or_404(PuntosPago.objects.select_for_update(), pk=caja_id)
                 if caja.dinerocaja < monto:
                     return JsonResponse({
                         "success": False,
-                        "errors": {
-                            "monto_pagado": [{"message": "Saldo insuficiente en la caja seleccionada."}]
-                        }
+                        "errors": {"monto_pagado": [{"message": "Saldo insuficiente en la caja seleccionada."}]}
                     })
                 caja.dinerocaja -= monto
                 caja.save(update_fields=["dinerocaja"])
@@ -3301,44 +3298,69 @@ class EditarPedidoView(View):
             pedido.caja_pago_id   = caja_id
             pedido.fecha_recibido = date.today()
         else:
-            # Limpiamos campos de recibido si cambió de estado
+            # Limpiar campos de recibido si cambió de estado
             pedido.monto_pagado   = None
             pedido.caja_pago      = None
             pedido.fecha_recibido = None
 
-        # Guardamos el pedido base antes de tocar líneas
+        # Guardar cabecera antes de tocar líneas
         pedido.save()
 
         # Reemplazar detalles del pedido
         DetallePedidoProveedor.objects.filter(pedidoid=pedido).delete()
         nuevas = [
             DetallePedidoProveedor(
-                pedidoid        = pedido,
-                productoid_id   = d["productoid"],
-                cantidad        = d["cantidad"],
-                preciounitario  = Decimal(str(d["precio_unitario"])),
+                pedidoid       = pedido,
+                productoid_id  = d["productoid"],
+                cantidad       = d["cantidad"],
+                preciounitario = Decimal(str(d["precio_unitario"])),
             )
             for d in detalles
         ]
         if nuevas:
             DetallePedidoProveedor.objects.bulk_create(nuevas)
 
-        # *** ACTUALIZAR precios de proveedor si cambió el precio unitario ***
-        # Para cada línea, asegura que PreciosProveedor(producto, proveedor) apunte al precio editado.
-        proveedor_id = pedido.proveedorid_id
-        for d in detalles:
-            prod_id = int(d["productoid"])
-            precio  = Decimal(str(d["precio_unitario"]))
-            PreciosProveedor.objects.update_or_create(
-                productoid_id  = prod_id,
-                proveedorid_id = proveedor_id,
-                defaults       = {"precio": precio},
-            )
+        # === Si quedó RECIBIDO ===
+        if pedido.estado == "Recibido":
+            proveedor_id = pedido.proveedorid_id
+            sucursal_id  = pedido.sucursalid_id
 
-        messages.success(request, "Pedido actualizado correctamente.")
+            # 1) Actualizar precios del proveedor si cambiaron
+            for d in detalles:
+                prod_id      = int(d["productoid"])
+                precio_nuevo = Decimal(str(d["precio_unitario"])).quantize(Decimal("0.01"))
+                pp, created = PreciosProveedor.objects.get_or_create(
+                    productoid_id=prod_id,
+                    proveedorid_id=proveedor_id,
+                    defaults={"precio": precio_nuevo},
+                )
+                if not created and pp.precio != precio_nuevo:
+                    pp.precio = precio_nuevo
+                    pp.save(update_fields=["precio"])
+
+            # 2) Sumar al inventario de la sucursal (solo si antes NO estaba recibido)
+            if previo_estado != "Recibido":
+                for d in detalles:
+                    prod_id = int(d["productoid"])
+                    qty     = Decimal(str(d["cantidad"]))  # usa int(...) si tu campo es entero
+
+                    inv, _ = Inventario.objects.select_for_update().get_or_create(
+                        sucursalid_id=sucursal_id,
+                        productoid_id=prod_id,
+                        defaults={"cantidad": 0}
+                    )
+                    # Incremento atómico
+                    Inventario.objects.filter(pk=inv.pk).update(
+                        cantidad = F("cantidad") + qty
+                    )
+
+        # ✅ Mensaje de éxito (sistema de mensajes de Django)
+        messages.success(request, f"El pedido #{pedido.pedidoid} se actualizó correctamente.")
+
+        # ✅ Redirección con query param para alert en visualizar_pedidos
         return JsonResponse({
-            "success":      True,
-            "redirect_url": reverse("visualizar_pedidos") + "?updated=1",
+            "success": True,
+            "redirect_url": reverse("visualizar_pedidos") + "?updated=1&msg=Pedido%20actualizado%20correctamente",
         })
         
 class PuntoPagoPorSucursalAutocomplete(PaginatedAutocompleteMixin):
