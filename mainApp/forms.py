@@ -827,7 +827,7 @@ class EditarHorarioCajaForm(forms.Form):
     
 class ProductoForm(forms.ModelForm):
     _ean_validator = RegexValidator(
-        regex=r"^\d{12}$",
+        regex=r"^\d{13}$",
         message="El código de barras debe contener exactamente 12 dígitos."
     )
 
