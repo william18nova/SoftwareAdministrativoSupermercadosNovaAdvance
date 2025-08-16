@@ -164,13 +164,21 @@ table.dataTable thead th.sorting_desc::after{
   background:var(--input-bg); border:1px solid var(--input-brd);
   color:var(--text); border-radius:10px; padding:6px 8px;
 }
+
+/* FIX: Opciones del select visibles */
+.dataTables_wrapper .dataTables_length select option{
+  background:#fff; 
+  color:#0b1220; 
+  padding:4px 8px;
+}
+
 .dataTables_wrapper .dataTables_filter input{
   background:var(--input-bg); border:1px solid var(--input-brd);
   color:var(--text); border-radius:10px; padding:6px 10px;
 }
 .dataTables_wrapper .dataTables_filter input::placeholder{ color:var(--text-muted); }
 
-/* Paginación “pill” */
+/* Paginación "pill" */
 .dataTables_wrapper .dataTables_paginate .paginate_button{
   padding:7px 12px; margin:0 3px; border-radius:999px; border:1px solid transparent;
   color:#06203f!important; background:linear-gradient(180deg,#5cb8ff,#4da6ff 60%,#3d8cff);
