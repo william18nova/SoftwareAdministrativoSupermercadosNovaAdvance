@@ -2,19 +2,16 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion
-from django.db.models import Count, Sum, Exists, OuterRef, Q
+from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login as auth_login
 import json
-from datetime import datetime, date
+from datetime import date
 from django.utils import timezone
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate
 import logging
 from django.db import transaction
 from django.views.generic import DetailView
-from .nequi_websocket import verificacionPago
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import F, ExpressionWrapper, DecimalField
 from .forms import (
     CategoriaForm,
     ClienteForm,
@@ -2893,6 +2890,42 @@ class BuscarProductoPorCodigoView(LoginRequiredMixin, View):
                 'codigo_de_barras':producto.codigo_de_barras
             }
         })
+        
+class ProductoCodigoAutocompleteView(LoginRequiredMixin, View):
+    per_page = 15
+    def get(self, request, *args, **kwargs):
+        term = (request.GET.get("term","") or "").strip()
+        sid  = request.GET.get("sucursal_id")
+        qs = Producto.objects.filter(
+            inventario__sucursalid=sid, inventario__cantidad__gt=0
+        ).distinct()
+        if term:
+            filt = Q(nombre__icontains=term)
+            if term.isdigit():
+                try:
+                    filt |= Q(productoid=int(term))
+                except ValueError:
+                    pass
+            qs = qs.filter(filt)
+        total = qs.count()
+        qs = qs.order_by("nombre")[:self.per_page]
+        results = [{"id": p.productoid, "text": p.nombre} for p in qs]
+        return JsonResponse({"results": results, "has_more": total > self.per_page})
+
+class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
+    per_page = 15
+    def get(self, request, *args, **kwargs):
+        term = (request.GET.get("term","") or "").strip()
+        sid  = request.GET.get("sucursal_id")
+        qs = Producto.objects.filter(
+            inventario__sucursalid=sid, inventario__cantidad__gt=0
+        ).distinct()
+        if term:
+            qs = qs.filter(Q(codigo_de_barras__icontains=term) | Q(nombre__icontains=term))
+        total = qs.count()
+        qs = qs.order_by("nombre")[:self.per_page]
+        results = [{"id": p.productoid, "text": p.nombre, "barcode": p.codigo_de_barras or ""} for p in qs]
+        return JsonResponse({"results": results, "has_more": total > self.per_page})
 
 
 class VentaListView(LoginRequiredMixin, ListView):

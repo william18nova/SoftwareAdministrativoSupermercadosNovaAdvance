@@ -5,11 +5,8 @@
 {% block title %}Generar Venta{% endblock %}
 
 {% block extra_head %}
-  <!-- Font-Awesome · jQuery-UI · Quagga CSS -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-  <link rel="stylesheet"
-        href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css"/>
   <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
   <link rel="stylesheet" href="{% static 'css/modal_venta.css' %}">
 {% endblock %}
@@ -20,34 +17,40 @@
 
   <form id="venta-form" action="{% url 'generar_venta' %}" method="post">
     {% csrf_token %}
-    <!-- Cliente -->
+
+    <!-- Cliente (opcional) -->
     <div class="form-group">
       <label for="cliente_busqueda">Cliente</label>
       <input type="text" id="cliente_busqueda" placeholder="Buscar por nombre o cédula">
       <input type="hidden" id="cliente_id" name="cliente_id">
     </div>
-    <!-- Sucursal -->
+
+    <!-- Sucursal (obligatorio) -->
     <div class="form-group">
-      <label for="sucursal_autocomplete">Sucursal</label>
-      <input type="text" id="sucursal_autocomplete" placeholder="Buscar…">
+      <label for="sucursal_autocomplete">Sucursal <span class="req">*</span></label>
+      <input type="text" id="sucursal_autocomplete" placeholder="Buscar…" required aria-required="true">
       <input type="hidden" id="sucursal_id" name="sucursal">
     </div>
-    <!-- Punto de Pago -->
+
+    <!-- Punto de Pago (obligatorio) -->
     <div class="form-group">
-      <label for="puntopago_autocomplete">Punto de Pago</label>
-      <input type="text" id="puntopago_autocomplete" placeholder="Buscar…">
+      <label for="puntopago_autocomplete">Punto de Pago <span class="req">*</span></label>
+      <input type="text" id="puntopago_autocomplete" placeholder="Buscar…" required aria-required="true">
       <input type="hidden" id="puntopago_id" name="puntopago">
     </div>
+
     <!-- Producto: nombre -->
     <div class="form-group">
       <label for="producto_busqueda_nombre">Producto</label>
       <input type="text" id="producto_busqueda_nombre" placeholder="Buscar por nombre">
     </div>
+
     <!-- Producto: código -->
     <div class="form-group">
       <label for="producto_busqueda_codigo">Código</label>
       <input type="text" id="producto_busqueda_codigo" placeholder="Buscar por código">
     </div>
+
     <!-- Producto: código de barras -->
     <div class="form-group">
       <label for="producto_busqueda_codigo_barras">Código de Barras</label>
@@ -62,10 +65,10 @@
     <input type="hidden" id="cantidades"  name="cantidades">
     <input type="hidden" id="medio_pago"  name="medio_pago">
 
-    <!-- Cantidad -->
+    <!-- Cantidad (obligatorio para agregar) -->
     <div class="form-group">
-      <label for="cantidad">Cantidad</label>
-      <input type="number" id="cantidad" min="1" value="1" required disabled>
+      <label for="cantidad">Cantidad <span class="req">*</span></label>
+      <input type="number" id="cantidad" min="1" value="1" required aria-required="true" disabled>
     </div>
 
     <button type="button" id="agregar-producto" class="btn btn-success" disabled>
@@ -101,7 +104,7 @@
           <td>{{ d.precio_unitario|floatformat:2 }}</td>
           <td>{{ d.subtotal|floatformat:2 }}</td>
           <td class="text-center">
-            <button class="btn btn-danger btn-sm eliminar-producto">
+            <button class="btn btn-danger btn-sm eliminar-producto" title="Eliminar">
               <i class="fas fa-trash-alt"></i>
             </button>
           </td>
@@ -109,28 +112,28 @@
       {% endfor %}
     </tbody>
   </table>
-</div><!-- /.container -->
+</div>
 
-{# Incluimos el modal desde un archivo aparte #}
+{# Modal de pago #}
 {% include "modal_venta.html" %}
-
-<!-- ───────── Scripts (dentro de content) ───────── -->
 
 <!-- 1) Librerías -->
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
-<!-- 2) Endpoints AJAX -->
+<!-- 2) Endpoints AJAX publicados en window.* -->
 <script>
-  const sucursalAutocompleteUrl    = "{% url 'sucursal_autocomplete' %}";
-  const puntopagoAutocompleteUrl   = "{% url 'puntopago_autocomplete' %}";
-  const clienteAutocompleteUrl     = "{% url 'cliente_autocomplete' %}";
-  const productoAutocompleteUrl    = "{% url 'producto_autocomplete' %}";
-  const verificarProductoUrl       = "{% url 'verificar_producto' %}";
-  const buscarProductoPorCodigoUrl = "{% url 'buscar_producto_por_codigo' %}";
+  window.sucursalAutocompleteUrl        = "{% url 'sucursal_autocomplete' %}";
+  window.puntopagoAutocompleteUrl       = "{% url 'puntopago_autocomplete' %}";
+  window.clienteAutocompleteUrl         = "{% url 'cliente_autocomplete' %}";
+  window.productoAutocompleteUrl        = "{% url 'producto_autocomplete' %}";
+  window.productoAutocompleteCodigoUrl  = "{% url 'producto_autocomplete_codigo' %}";
+  window.productoAutocompleteBarrasUrl  = "{% url 'producto_autocomplete_barras' %}";
+  window.verificarProductoUrl           = "{% url 'verificar_producto' %}";
+  window.buscarProductoPorCodigoUrl     = "{% url 'buscar_producto_por_codigo' %}";
 </script>
 
-<!-- 3) Tu lógica JavaScript -->
+<!-- 3) Lógica -->
 <script src="{% static 'javascript/generar_venta.js' %}"></script>
 {% endblock %}
