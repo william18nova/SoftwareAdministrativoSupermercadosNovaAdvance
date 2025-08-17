@@ -9,9 +9,9 @@
 
   {# ——— Alertas Django ——— #}
   {% if messages %}
-    <div class="messages">
+    <div class="messages" aria-live="polite">
       {% for message in messages %}
-        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">
           {{ message }}
         </div>
       {% endfor %}
@@ -21,67 +21,65 @@
   {# ——— Buscador externo ——— #}
   <div class="search-wrapper">
     <i class="fas fa-search"></i>
-    <input id="buscador-ventas" class="search-input"
-           type="text" placeholder="Buscar…">
+    <input id="buscador-ventas" class="search-input" type="text" placeholder="Buscar…">
   </div>
 
   {# ——— Tabla de ventas ——— #}
-  <table id="ventasTable" class="display">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Fecha</th>
-        <th>Hora</th>
-        <th>Cliente</th>
-        <th>Empleado</th>
-        <th>Sucursal</th>
-        <th>Punto Pago</th>
-        <th>Total</th>
-        <th>Medio Pago</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for v in ventas %}
-      <tr data-id="{{ v.ventaid }}" class="clickable-row">
-        <td data-label="ID">{{ v.ventaid }}</td>
-        <td data-label="Fecha">{{ v.fecha|date:"d/m/Y" }}</td>
-        <td data-label="Hora">{{ v.hora|time:"H:i" }}</td>
-        <td data-label="Cliente">
-          {% if v.clienteid %}
-            {{ v.clienteid.nombre }} {{ v.clienteid.apellido }}
-          {% else %}—
-          {% endif %}
-        </td>
-        <td data-label="Empleado">
-          {{ v.empleadoid.nombre }} {{ v.empleadoid.apellido }}
-        </td>
-        <td data-label="Sucursal">{{ v.sucursalid.nombre }}</td>
-        <td data-label="Punto Pago">{{ v.puntopagoid.nombre }}</td>
-        <td data-label="Total">${{ v.total|floatformat:2 }}</td>
-        <td data-label="Medio Pago">{{ v.mediopago|title }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table id="ventasTable" class="display">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>Cliente</th>
+          <th>Empleado</th>
+          <th>Sucursal</th>
+          <th>Punto Pago</th>
+          <th>Total</th>
+          <th>Medio Pago</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in ventas %}
+        <tr data-id="{{ v.ventaid }}" class="clickable-row">
+          <td data-label="ID">{{ v.ventaid }}</td>
+          <td data-label="Fecha">{{ v.fecha|date:"d/m/Y" }}</td>
+          <td data-label="Hora">{{ v.hora|time:"H:i" }}</td>
+          <td data-label="Cliente">
+            {% if v.clienteid %}
+              {{ v.clienteid.nombre }} {{ v.clienteid.apellido }}
+            {% else %}—
+            {% endif %}
+          </td>
+          <td data-label="Empleado">{{ v.empleadoid.nombre }} {{ v.empleadoid.apellido }}</td>
+          <td data-label="Sucursal">{{ v.sucursalid.nombre }}</td>
+          <td data-label="Punto Pago">{{ v.puntopagoid.nombre }}</td>
+          <td data-label="Total">${{ v.total|floatformat:2 }}</td>
+          <td data-label="Medio Pago">{{ v.mediopago|title }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-{# ——— Incluimos Font-Awesome + DataTables ——— #}
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet"
-      href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
-
+{# ——— CDNs ——— #}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 
-{# ——— Estilos comunes (mismos que visualizar_pedidos.css) ——— #}
+{# ——— Estilos base (igual a listar_pedidos.css) ——— #}
 <link rel="stylesheet" href="{% static 'css/visualizar_pedidos.css' %}">
+{# ——— Overrides específicos de ventas (muestra los alerts) ——— #}
+<link rel="stylesheet" href="{% static 'css/visualizar_ventas.css' %}">
 
-{# URL base para el click en la fila #}
+{# URL base para navegar al ver_venta/id #}
 <script>
   const verVentaUrl = "{% url 'ver_venta' 0 %}";
 </script>
 
-{# Lógica JS para inicializar la tabla y búsqueda — defer opcional #}
+{# ——— Lógica JS ——— #}
 <script src="{% static 'javascript/visualizar_ventas.js' %}" defer></script>
 {% endblock %}
