@@ -1,10 +1,14 @@
-/*  editar_horario_caja.js
+/*  static/javascript/editar_horario_caja.js
     ────────────────────────────────────────────────────────────────
-    · Autocomplete de Sucursal y Punto de Pago
-    · Selector de días (los botones quedan “bloqueados” cuando el día ya está en la tabla)
+    · Autocompletes “ultra-rápidos” (filtro local + fetch en paralelo)
+    · Siempre muestra el ítem actualmente vinculado (sucursal / punto de pago)
+    · ENTER:
+        - en autocompletes selecciona la 1ª opción y salta al siguiente input
+        - en inputs normales salta al siguiente input
+        - en Hora de Cierre (ciInp) equivale a “Agregar horario”
+    · Selector de días (bloquea botón si el día ya está en la tabla)
     · Tabla editable (añadir / quitar filas)
-    · Envío AJAX (JSON) + flashes de éxito / error
-    · Misma estructura & helpers que agregar_horario_caja.js
+    · Envío AJAX (JSON) + flashes
 */
 (() => {
   "use strict";
@@ -25,14 +29,15 @@
         ppHid  = $("#id_puntopagoid"),
         ppBox  = $("#puntopago-autocomplete-results");
 
-  /* valores “comprometidos” (lo que YA está vinculado al horario)  */
-  let currentSucId = sucHid.value;   // ID de sucursal “actual”
-  let currentPpId  = ppHid.value;    // ID de punto de pago “actual”
+  /* valores actuales (pre-cargados en el form) */
+  let currentSucId = sucHid.value;
+  let currentPpId  = ppHid.value;
 
   /* → horario nuevo */
   const dayBtns = $$(".day-button"),
         apInp   = $("#horaapertura"),
-        ciInp   = $("#horacierre");
+        ciInp   = $("#horacierre"),
+        addBtn  = $("#btn-agregar-horario");
 
   /* → flashes / errores */
   const err = $("#error-message"),
@@ -53,6 +58,17 @@
     $$(".field-error").forEach(hide);
   };
 
+  /* ══════════════ orden de foco (para salto con ENTER) ══════════════ */
+  const focusOrder = [sucInp, ppInp, apInp, ciInp];
+  function focusNext(fromEl){
+    const list = focusOrder.filter(Boolean);
+    const i = list.indexOf(fromEl);
+    if(i > -1 && i < list.length - 1){
+      list[i+1].focus();
+      if(list[i+1].select) list[i+1].select();
+    }
+  }
+
   /* ══════════════ helper → congela / libera los botones de día ══════════════ */
   const order = ["Lun","Mar","Mie","Jue","Vie","Sab","Dom"];
   function syncDayButtons () {
@@ -66,91 +82,232 @@
       .sort((a,b)=> order.indexOf(a.dataset.dia) - order.indexOf(b.dataset.dia))
       .forEach(tr => tabla.appendChild(tr));
   }
-  syncDayButtons();               // primera sincronización
+  syncDayButtons();
 
-  /* ══════════════ GENERADOR genérico de autocomplete ══════════════ */
-  function makeAutocomplete (inp, hid, box, url, extraParams, onSelect) {
-    let cache={}, state={term:"", pg:1, more:true, loading:false};
-    const deb=(fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}};
+  /* ══════════════ AUTOCOMPLETE ultra-rápido (local + fetch) ══════════════
+     + “includeCurrent”: asegura que el valor actualmente vinculado SIEMPRE
+       aparezca en la lista (aunque el backend lo excluya).
+  */
+  function setupAutocomplete (inp, hid, box, url, extraParams, onSelect, includeCurrent) {
+    let page=1, more=true, loading=false;
+    let snapshot = [];               // última “foto” del fetch [{id,text}]
+    const cache  = new Map();        // key -> {items, has_more, ts}
 
-    async function fetcher (term, pg=1) {
-      if(state.loading||!state.more) return;
-      state.loading=true;
+    const norm = s => (s||"").toString()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .toLowerCase().replace(/\s+/g," ").trim();
 
-      const key = `${term}_${pg}_${JSON.stringify(extraParams&&extraParams())}`;
-      let data  = cache[key];
-      if(!data){
-        const qs  = new URLSearchParams({term,page:pg});
-        if(extraParams) Object.entries(extraParams()).forEach(([k,v])=>qs.append(k,v));
-        data = await fetch(`${url}?${qs}`).then(r=>r.json());
-        cache[key]=data;
+    function injectCurrent(items){
+      if(!includeCurrent) return items;
+      const cur = includeCurrent();  // {id, text} | null
+      if(!cur || !cur.id) return items;
+      const exists = items.some(it => String(it.id) === String(cur.id));
+      if(!exists){
+        // Lo insertamos al principio para que sea siempre visible.
+        return [{ id: cur.id, text: cur.text || inp.value || "" }, ...items];
       }
-
-      if(pg===1) box.innerHTML="";
-      if(data.results.length){
-        data.results.forEach(r=>{
-          box.insertAdjacentHTML("beforeend",
-            `<div class="autocomplete-option" data-id="${r.id}">${r.text}</div>`);
-        });
-        state.more=data.has_more;
-      }else if(pg===1){
-        box.innerHTML=`<div class="autocomplete-no-result">Sin resultados</div>`;
-        state.more=false;
-      }
-      box.style.display="block";
-      state.loading=false;
+      return items;
     }
-    const debFetch=deb(fetcher,300);
 
-    inp.addEventListener("input",()=>{
-      hid.value="";
-      state={term:inp.value.trim(), pg:1, more:true, loading:false};
-      debFetch(state.term,1);
+    function renderList(list){
+      if(!list.length){
+        box.innerHTML = `<div class="autocomplete-no-result">Sin resultados</div>`;
+        box.style.display = "block";
+        return;
+      }
+      box.innerHTML = list.map(r =>
+        `<div class="autocomplete-option" data-id="${r.id}">${r.text}</div>`
+      ).join("");
+      box.style.display = "block";
+    }
+
+    function instantFilter(term){
+      const t = norm(term);
+      const base = snapshot.slice(0); // copia
+      const arr  = injectCurrent(base); // garantizar current en la instantánea
+      if(!t) return arr.slice(0, 40);
+      const starts=[], contains=[];
+      for(const r of arr){
+        const n = norm(r.text);
+        if(n.startsWith(t)) starts.push(r);
+        else if(n.includes(t)) contains.push(r);
+      }
+      return [...starts, ...contains].slice(0, 40);
+    }
+
+    async function fetchPage(term, pg){
+      const params = new URLSearchParams({ term, page: pg });
+      if (extraParams){
+        const extra = extraParams();
+        Object.keys(extra||{}).forEach(k => params.append(k, extra[k]));
+      }
+      const key = `${url}?${params.toString()}`;
+      if(cache.has(key)){
+        const data = cache.get(key);
+        const itemsWithCur = injectCurrent(data.items);
+        if(pg===1) snapshot = itemsWithCur.slice();
+        else snapshot = snapshot.concat(itemsWithCur);
+        more = !!data.has_more;
+        return data;
+      }
+      loading = true;
+      try{
+        const res  = await fetch(`${url}?${params.toString()}`);
+        const data = await res.json();
+        const items = (data.results||[]).map(r => ({ id:r.id, text:r.text }));
+        const itemsWithCur = injectCurrent(items);
+        cache.set(key, { items: itemsWithCur, has_more: !!data.has_more, ts: Date.now() });
+        if(pg===1) snapshot = itemsWithCur.slice(); else snapshot = snapshot.concat(itemsWithCur);
+        more = !!data.has_more;
+        return { items: itemsWithCur, has_more: more };
+      } finally { loading=false; }
+    }
+
+    const debounce = (fn, ms=60) => {
+      let t; return (...a) => { clearTimeout(t); t=setTimeout(()=>fn(...a), ms); };
+    };
+
+    const refresh = async ()=>{
+      const term = inp.value.trim();
+      renderList(instantFilter(term));   // instantáneo
+      page = 1; more = true;
+      await fetchPage(term, 1);          // red
+      renderList(instantFilter(inp.value.trim())); // re-pintar
+    };
+    const debRefresh = debounce(refresh, 50);
+
+    // INPUT → rápido al escribir/borrar
+    inp.addEventListener("input", ()=>{
+      hid.value = "";
+      debRefresh();
     });
-    inp.addEventListener("focus",()=>{
-      state={term:inp.value.trim(), pg:1, more:true, loading:false};
-      fetcher(state.term,1);
-    });
-    box.addEventListener("scroll",()=>{
-      if(box.scrollTop+box.clientHeight>=box.scrollHeight-5 && state.more && !state.loading){
-        state.pg++; fetcher(state.term,state.pg);
+
+    // FOCUS → mostrar lista actual (o fetch inicial)
+    inp.addEventListener("focus", ()=>{
+      const term = inp.value.trim();
+      if(!snapshot.length){
+        // si no hay snapshot aún, renderizamos al menos el “current”
+        const cur = includeCurrent?.();
+        if(cur && cur.id){
+          snapshot = injectCurrent([]);
+          renderList(instantFilter(term));
+        }
+        fetchPage(term,1).then(()=> renderList(instantFilter(term)));
+      } else {
+        renderList(instantFilter(term));
       }
     });
-    box.addEventListener("click",e=>{
-      const opt=e.target.closest(".autocomplete-option");
-      if(!opt) return;
-      inp.value=opt.textContent;
-      hid.value=opt.dataset.id;
-      box.innerHTML=""; box.style.display="none"; state.more=false;
 
-      onSelect && onSelect(opt.dataset.id);   // callback al seleccionar
+    // ENTER → elegir la primera opción y pasar al siguiente input
+    inp.addEventListener("keydown", async (e)=>{
+      if(e.key !== "Enter") return;
+      e.preventDefault();
+
+      if(box.style.display !== "block"){
+        const term = inp.value.trim();
+        if(!snapshot.length) await fetchPage(term,1);
+        renderList(instantFilter(term));
+      }
+
+      const first = box.querySelector(".autocomplete-option");
+      if(first){
+        inp.value = first.textContent;
+        hid.value = first.dataset.id;
+        box.innerHTML = ""; box.style.display = "none";
+        onSelect && onSelect(first.dataset.id);
+        focusNext(inp);
+      }else{
+        const term = inp.value.trim();
+        await fetchPage(term,1);
+        const again = box.querySelector(".autocomplete-option");
+        if(again){
+          inp.value = again.textContent;
+          hid.value = again.dataset.id;
+          box.innerHTML = ""; box.style.display = "none";
+          onSelect && onSelect(again.dataset.id);
+        }
+        focusNext(inp);
+      }
     });
-    document.addEventListener("click",e=>{
-      if(!inp.contains(e.target)&&!box.contains(e.target)) box.style.display="none";
+
+    // SCROLL infinito
+    box.addEventListener("scroll", async ()=>{
+      if(loading || !more) return;
+      if(box.scrollTop + box.clientHeight >= box.scrollHeight - 6){
+        page += 1;
+        await fetchPage(inp.value.trim(), page);
+        renderList(instantFilter(inp.value.trim()));
+      }
     });
+
+    // CLICK selección
+    box.addEventListener("click", e=>{
+      const opt = e.target.closest(".autocomplete-option");
+      if(!opt) return;
+      inp.value = opt.textContent;
+      hid.value = opt.dataset.id;
+      box.innerHTML = ""; box.style.display = "none";
+      onSelect && onSelect(opt.dataset.id);
+      focusNext(inp);
+    });
+
+    // Ocultar al click fuera
+    document.addEventListener("click", e=>{
+      if(!inp.contains(e.target) && !box.contains(e.target)){
+        box.style.display = "none";
+      }
+    });
+
+    return {
+      reset(){
+        page=1; more=true; loading=false;
+        snapshot=[]; cache.clear();
+        // NO borramos hid/inp aquí porque en edición ya hay valores vigentes.
+        box.innerHTML=""; box.style.display="none";
+      }
+    };
   }
 
-  /* → Sucursal */
-  makeAutocomplete(
+  /* → Sucursal (incluir siempre la sucursal actual, si existe) */
+  const sucAC = setupAutocomplete(
     sucInp, sucHid, sucBox,
     sucursalAutocompleteUrl,
     () => ({ actual_id: currentSucId }),
     newId => {
       currentSucId = newId;
+      // al elegir sucursal: limpiar y reiniciar Punto de Pago
       ppInp.value=""; ppHid.value=""; currentPpId=""; ppBox.innerHTML="";
-    }
+      ppAC.reset();
+    },
+    // includeCurrent
+    () => currentSucId ? ({ id: currentSucId, text: sucInp.value }) : null
   );
 
-  /* → Punto de Pago */
-  makeAutocomplete(
+  /* → Punto de Pago (incluir SIEMPRE el que ya está vinculado) */
+  const ppAC = setupAutocomplete(
     ppInp, ppHid, ppBox,
     puntopagoAutocompleteUrl,
-    () => ({
-      sucursal_id: currentSucId,
-      actual_id  : currentPpId
-    }),
-    newId => { currentPpId = newId; }
+    () => ({ sucursal_id: currentSucId, actual_id: currentPpId }),
+    newId => { currentPpId = newId; },
+    // includeCurrent
+    () => currentPpId ? ({ id: currentPpId, text: ppInp.value }) : null
   );
+
+  /* ══════════════ ENTER en inputs normales ══════════════
+     - En hora de APERTURA → pasa al siguiente
+     - En hora de CIERRE   → equivale a click en “Agregar horario”  */
+  [apInp, ciInp].forEach(inp=>{
+    if(!inp) return;
+    inp.addEventListener("keydown", e=>{
+      if(e.key !== "Enter") return;
+      e.preventDefault();
+      if(inp === ciInp && addBtn){
+        addBtn.click();                 // ⟵ simula “Agregar horario”
+      }else{
+        focusNext(inp);                 // ⟵ salta al siguiente input
+      }
+    });
+  });
 
   /* ══════════════ selector de días ══════════════ */
   dayBtns.forEach(btn=>{
@@ -161,7 +318,7 @@
   });
 
   /* ══════════════ Agregar fila ══════════════ */
-  $("#btn-agregar-horario").addEventListener("click",()=>{
+  addBtn.addEventListener("click",()=>{
     resetUI();
 
     if(!sucHid.value.trim()) fieldErr("sucursalid","Seleccione sucursal.");
@@ -191,6 +348,7 @@
     });
     apInp.value=""; ciInp.value="";
     syncDayButtons();
+    apInp.focus();                      // vuelve al flujo natural
   });
 
   /* ══════════════ eliminar fila ══════════════ */
@@ -211,7 +369,6 @@
     const rows=[...tabla.querySelectorAll("tr[data-dia]")];
     if(!rows.length){ fieldErr("dia_semana","No hay horarios listados."); return; }
 
-    /* ←––– CLAVES SIN GUION BAJO –––→ */
     const horarios=rows.map(r=>({
       dia         : r.dataset.dia,
       horaapertura: r.querySelectorAll("input")[0].value,

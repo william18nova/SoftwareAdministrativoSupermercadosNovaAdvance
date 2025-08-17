@@ -3,9 +3,9 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — autocompletes + cross-fill + qty editable + scanner global");
+  console.log("⚡ generar_venta.js — fast autocompletes + enter picks top + focus chain + scanner");
 
-  /* URLs (inyectadas en la plantilla) */
+  /* URLs */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
   const PUNTOPAGO_URL  = window.puntopagoAutocompleteUrl;
   const CLIENTE_URL    = window.clienteAutocompleteUrl;
@@ -15,7 +15,7 @@ $(function () {
   const VERIFICAR_URL  = window.verificarProductoUrl;
   const POR_COD_URL    = window.buscarProductoPorCodigoUrl;
 
-  /* selectores cacheados */
+  /* Selectores */
   const $nombre   = $("#producto_busqueda_nombre");
   const $codigo   = $("#producto_busqueda_codigo");
   const $barras   = $("#producto_busqueda_codigo_barras");
@@ -25,7 +25,7 @@ $(function () {
   const $tbody    = $("#detalle-productos tbody");
   const $totalEl  = $("#total");
 
-  /* dinero */
+  /* Dinero */
   const money = (n) =>
     new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(Number(n) || 0);
 
@@ -40,15 +40,7 @@ $(function () {
     cache: true,
   });
 
-  /* caché GET simple */
-  const cache = {};
-  function fetchCached(url, params = {}) {
-    const key = url + JSON.stringify(params);
-    if (cache[key]) return Promise.resolve(cache[key]);
-    return $.getJSON(url, params).then((data) => (cache[key] = data));
-  }
-
-  /* ===== estado persistido ===== */
+  /* Estado persistido */
   let sucursalID = localStorage.getItem("sucursalID") || "";
   const savedPunto = {
     id:  localStorage.getItem("puntopagoID") || "",
@@ -56,11 +48,12 @@ $(function () {
     suc: localStorage.getItem("puntopagoSucursalID") || ""
   };
 
-  /* estado de la venta */
+  /* Estado venta */
   const productos = [];
   const cantidades = [];
   let runningTotal = 0;
 
+  /* Cache producto + índices */
   const FRESH_MS = 30000;
   const productCache = new Map();  // pid -> {nombre, barcode, price, stock, ts}
   const barcodeIndex = new Map();  // barcode -> pid
@@ -68,8 +61,7 @@ $(function () {
   const now = () => Date.now();
   const isFresh = (ts) => ts && now() - ts < FRESH_MS;
 
-  /* normalizador nombre */
-  function onlyName(s) {
+  const onlyName = (s) => {
     s = String(s || "").trim();
     s = s.replace(/^[\s•·\-\u2013\u2014:|.,;]+/, "");
     let m;
@@ -79,20 +71,18 @@ $(function () {
     if (m2) s = m2[1].trim();
     s = s.replace(/^[\s•·\-\u2013\u2014:|.,;]+/, "");
     return s;
-  }
+  };
 
   function enableQtyAndAdd(enable) {
     $cantidad.prop("disabled", !enable);
     $agregar.prop("disabled", !enable);
   }
-
   function maybeFocusQty() {
     if ($pid.val() && $nombre.val() && $codigo.val() && $barras.val()) {
       enableQtyAndAdd(true);
       setTimeout(() => { $cantidad.focus().select(); }, 0);
     }
   }
-
   function setProductFields({ nombre, pid, barcode }) {
     if (nombre != null) $nombre.val(onlyName(nombre));
     if (pid != null)    $codigo.val(pid);
@@ -101,7 +91,6 @@ $(function () {
     maybeFocusQty();
   }
 
-  /* ---------- caché productos + índices ---------- */
   function updateCache(pid, data = {}) {
     const key = String(pid);
     const prev = productCache.get(key) || {};
@@ -117,8 +106,6 @@ $(function () {
     if (rec.nombre)  nameIndex.set(rec.nombre.toLowerCase(), key);
     return rec;
   }
-
-  /* ✅ cross-fill INSTANTÁNEO */
   function instantFromPid(pid) {
     const rec = productCache.get(String(pid));
     if (!rec) return false;
@@ -143,7 +130,6 @@ $(function () {
     return ok;
   }
 
-  /* ---------- verificación REAL (solo en Enter/selección) ---------- */
   async function fillFromProductId(pid) {
     if (!pid) return;
     try {
@@ -154,7 +140,6 @@ $(function () {
       enableQtyAndAdd(true);
     } catch (e) { console.error(e); }
   }
-
   async function fillFromBarcode(barcode) {
     if (!barcode) return;
     try {
@@ -167,64 +152,162 @@ $(function () {
     } catch (e) { console.error(e); }
   }
 
-  /* ---------- helper autocompletes ---------- */
-  function ingestFromAC(items) {
-    items.forEach((it) => {
-      if (!it || !it.id) return;
-      updateCache(it.id, { nombre: it.name || "", barcode: it.barcode });
+  /* ============== FAST AUTOCOMPLETE (filtro local + remoto + ENTER top + focus chain) ============== */
+
+  // Normalización + ranking
+  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  const tokens = q => norm(q).split(/\s+/).filter(Boolean);
+  const matchesAll = (text, q) => { const t=norm(text), toks=tokens(q); for(const k of toks) if(!t.includes(k)) return false; return true; };
+  const score = (text, q) => {
+    const t=norm(text), s=norm(q); if(!s) return 1;
+    if(t===s) return 1e6; let sc=0;
+    if(t.startsWith(s)) sc+=800;
+    const idx=t.indexOf(s); if(idx>=0) sc += Math.max(0, 500-idx*4);
+    sc += Math.max(0, 150 - Math.abs(t.length-s.length)*6);
+    return sc;
+  };
+  const rankFilter = (arr, q, max=40) =>
+    arr.filter(r=>matchesAll(r.label||r.text||r.name||"",q))
+       .map(r=>({r,sc:score(r.label||r.text||r.name||"",q)}))
+       .sort((a,b)=>b.sc-a.sc || String(a.r.label||a.r.text).localeCompare(String(b.r.label||b.r.text)))
+       .slice(0,max).map(x=>x.r);
+
+  // Fetcher abortable + cache
+  function makeFetcher(){
+    let inflight=null;
+    const cache=new Map();
+    return {
+      async get(url, params){
+        const key=url+"::"+JSON.stringify(params||{});
+        if(cache.has(key)) return cache.get(key);
+        if(inflight) inflight.abort();
+        inflight=new AbortController();
+        try{
+          const res=await fetch(url+"?"+new URLSearchParams(params||{}),{signal:inflight.signal});
+          const js=await res.json(); cache.set(key,js); return js;
+        }catch(e){ if(e.name!=="AbortError") console.error(e); return {results:[]}; }
+      },
+      warm(url, params){
+        const key=url+"::"+JSON.stringify(params||{});
+        if(cache.has(key)) return;
+        fetch(url+"?"+new URLSearchParams(params||{})).then(r=>r.json()).then(js=>cache.set(key,js)).catch(()=>{});
+      }
+    };
+  }
+  const fetcher = makeFetcher();
+
+  /**
+   * createFastAC
+   * · respuesta local inmediata con rank
+   * · remoto en paralelo (abort)
+   * · ENTER siempre elige la opción superior y salta al siguiente input
+   * · si input vacío => muestra todo (prefetch)
+   */
+  function createFastAC({ $inp, url, mapItem, extra=()=>({}), onSelect, nextFocus=null, allowEmpty=true, uniqueBy="id" }){
+    let index=[]; const seen=new Set(); let ctxKey="";
+
+    const contextKey=()=>{const e=extra()||{}; return Object.keys(e).sort().map(k=>`${k}:${e[k]}`).join("|");};
+
+    $inp.autocomplete({
+      minLength:0, delay:0, autoFocus:true, appendTo:"body",
+      position:{ my:"left top+6", at:"left bottom", collision:"flipfit" },
+      source: async (req, resp)=>{
+        const term=req.term||"";
+        const ck=contextKey();
+        if(ck!==ctxKey){ ctxKey=ck; index=[]; seen.clear(); }
+
+        if(index.length){ resp(rankFilter(index, term)); }
+        else if(!term && allowEmpty){ resp([]); }
+
+        const data=await fetcher.get(url, {term, ...extra()});
+        const items=(data.results||[]).map(mapItem).filter(Boolean);
+        for(const it of items){
+          const key=String(it[uniqueBy] ?? it.id ?? it.value ?? it.label);
+          if(!key) continue;
+          if(!seen.has(key)){ seen.add(key); index.push(it); }
+        }
+        if($inp.val()===term) resp(rankFilter(index, term));
+      },
+      open(){ $inp.autocomplete("widget").css("z-index", 3000); },
+      select(_e, ui){
+        if(!ui||!ui.item) return false;
+        onSelect?.(ui.item);
+        setTimeout(()=>{
+          if(typeof nextFocus==="string") $(nextFocus).focus().select?.();
+          else if(typeof nextFocus==="function") nextFocus();
+        }, 0);
+        return false;
+      }
     });
+
+    // Mostrar todo al enfocar y al quedar vacío
+    $inp.on("focus", function(){ $(this).autocomplete("search", this.value || ""); });
+    if(allowEmpty){
+      $inp.on("input", function(){ if(!this.value) $(this).autocomplete("search",""); });
+    }
+
+    // ENTER = elegir siempre la PRIMERA opción y avanzar
+    $inp.on("keydown", function(e){
+      if(e.key!=="Enter") return;
+      const term=this.value||"";
+      const ac=$(this).data("ui-autocomplete");
+      const $menu=ac && ac.menu && ac.menu.element;
+      e.preventDefault();
+
+      if($menu && $menu.is(":visible")){
+        const $first=$menu.find("li:visible .ui-menu-item-wrapper").first();
+        if($first.length){ $first.trigger("mouseenter").trigger("click"); return; }
+      }
+
+      // Sin menú visible: usa índice local
+      const localTop = rankFilter(index, term, 1)[0];
+      if(localTop){
+        onSelect?.(localTop);
+        setTimeout(()=>{
+          if(typeof nextFocus==="string") $(nextFocus).focus().select?.();
+          else if(typeof nextFocus==="function") nextFocus();
+        },0);
+        return;
+      }
+
+      // Fallback remoto
+      fetcher.get(url, {term, ...extra()}).then(data=>{
+        const items=(data.results||[]).map(mapItem).filter(Boolean);
+        if(!items.length) return;
+        onSelect?.(items[0]);
+        setTimeout(()=>{
+          if(typeof nextFocus==="string") $(nextFocus).focus().select?.();
+          else if(typeof nextFocus==="function") nextFocus();
+        },0);
+      });
+    });
+
+    // Warm prefetch
+    if(allowEmpty){ fetcher.warm(url, {term:"", ...extra()}); }
   }
 
-  function makeAC({ selector, url, extra = () => ({}), parse, onSel }) {
-    const $inp = $(selector);
-    $inp
-      .autocomplete({
-        minLength: 0,
-        delay: 0,
-        autoFocus: true,
-        appendTo: "body",
-        position: { my: "left top+6", at: "left bottom", collision: "flipfit" },
-        source(req, resp) {
-          fetchCached(url, { term: req.term || "", ...extra() })
-            .then((d) => {
-              const items = parse(d) || [];
-              ingestFromAC(items.map((x) => ({ id: x.id, name: x.name, barcode: x.barcode })));
-              resp(items);
-            })
-            .catch(() => resp([]));
-        },
-        open() { $inp.autocomplete("widget").css("z-index", 3000); },
-        select(_e, ui) { onSel(ui.item); return false; },
-      })
-      .on("focus", function () { $(this).autocomplete("search", ""); });
-  }
+  /* Autocompletes */
 
-  /* ---------- Sucursal / Punto / Cliente (con cache) ---------- */
-
-  // Prefill sucursal desde cache
   if (sucursalID) {
     $("#sucursal_autocomplete").val(localStorage.getItem("sucursalName") || "");
     $("#sucursal_id").val(sucursalID);
   }
-
-  // Prefill Punto de Pago desde cache SOLO si pertenece a la misma sucursal guardada
   if (savedPunto.id && savedPunto.suc && savedPunto.suc === sucursalID) {
     $("#puntopago_autocomplete").val(savedPunto.name || "");
     $("#puntopago_id").val(savedPunto.id);
   }
 
-  makeAC({
-    selector: "#sucursal_autocomplete",
+  // Sucursal
+  createFastAC({
+    $inp: $("#sucursal_autocomplete"),
     url: SUCURSAL_URL,
-    parse: (d) => d.results.map((r) => ({ label: r.text, value: r.text, id: r.id, name: r.text })),
-    onSel: ({ id, label }) => {
+    mapItem: r => ({ label:r.text, value:r.text, id:r.id, name:r.text }),
+    onSelect: ({ id, label }) => {
       sucursalID = id;
       $("#sucursal_id").val(id);
       $("#sucursal_autocomplete").val(label);
       localStorage.setItem("sucursalID", id);
       localStorage.setItem("sucursalName", label);
-
-      // Si el Punto de Pago guardado era de otra sucursal, lo limpiamos
       const ppSuc = localStorage.getItem("puntopagoSucursalID");
       if (ppSuc && ppSuc !== String(id)) {
         $("#puntopago_autocomplete").val("");
@@ -233,88 +316,94 @@ $(function () {
         localStorage.removeItem("puntopagoName");
         localStorage.removeItem("puntopagoSucursalID");
       }
-
       enableQtyAndAdd(false);
     },
+    nextFocus: "#puntopago_autocomplete",
+    allowEmpty: true
   });
 
-  makeAC({
-    selector: "#puntopago_autocomplete",
+  // Punto de pago
+  createFastAC({
+    $inp: $("#puntopago_autocomplete"),
     url: PUNTOPAGO_URL,
     extra: () => ({ sucursal_id: sucursalID }),
-    parse: (d) => d.results.map((r) => ({ label: r.text, value: r.text, id: r.id, name: r.text })),
-    onSel: ({ id, label }) => {
+    mapItem: r => ({ label:r.text, value:r.text, id:r.id, name:r.text }),
+    onSelect: ({ id, label }) => {
       $("#puntopago_autocomplete").val(label);
       $("#puntopago_id").val(id);
-      // ⬇️ Guardar Punto de Pago en cache, vinculado a la sucursal actual
       localStorage.setItem("puntopagoID", id);
       localStorage.setItem("puntopagoName", label);
       localStorage.setItem("puntopagoSucursalID", sucursalID || "");
     },
+    nextFocus: "#cliente_busqueda",
+    allowEmpty: true
   });
 
-  makeAC({
-    selector: "#cliente_busqueda",
+  // Cliente
+  createFastAC({
+    $inp: $("#cliente_busqueda"),
     url: CLIENTE_URL,
-    parse: (d) => d.results.map((c) => ({ label: c.text, value: c.text, id: c.id, name: c.text })),
-    onSel: ({ id, label }) => { $("#cliente_busqueda").val(label); $("#cliente_id").val(id); },
+    mapItem: c => ({ label:c.text, value:c.text, id:c.id, name:c.text }),
+    onSelect: ({ id, label }) => {
+      $("#cliente_busqueda").val(label);
+      $("#cliente_id").val(id);
+    },
+    nextFocus: "#producto_busqueda_nombre",
+    allowEmpty: true
   });
 
-  /* ---------- Producto por NOMBRE ---------- */
-  makeAC({
-    selector: "#producto_busqueda_nombre",
+  // Producto por Nombre
+  createFastAC({
+    $inp: $nombre,
     url: PRODUCTO_URL,
     extra: () => ({ sucursal_id: sucursalID }),
-    parse: (d) => d.results.map((p) => ({ label: p.text, value: p.text, id: p.id, name: p.text })),
-    onSel: (item) => {
+    mapItem: p => ({ label:p.text, value:p.text, id:p.id, name:p.text }),
+    onSelect: (item) => {
       updateCache(item.id, { nombre: item.name });
       if (!instantFromName(item.name)) setProductFields({ pid: item.id });
       enableQtyAndAdd(true);
       fillFromProductId(item.id);
     },
+    nextFocus: "#cantidad",
+    allowEmpty: true
   });
 
-  /* ---------- Producto por CÓDIGO (ID) ---------- */
-  makeAC({
-    selector: "#producto_busqueda_codigo",
+  // Producto por Código (ID)
+  createFastAC({
+    $inp: $codigo,
     url: AC_CODIGO_URL,
     extra: () => ({ sucursal_id: sucursalID }),
-    parse: (d) =>
-      (d.results || []).map((p) => ({
-        label: String(p.id),
-        value: String(p.id),
-        id: p.id,
-        name: p.text || "",
-      })),
-    onSel: (item) => {
+    mapItem: p => ({ label:String(p.id), value:String(p.id), id:p.id, name:p.text||"" }),
+    onSelect: (item) => {
       updateCache(item.id, { nombre: item.name });
       instantFromPid(item.id);
       fillFromProductId(item.id);
     },
+    nextFocus: "#cantidad",
+    allowEmpty: true
   });
 
-  /* ---------- Producto por CÓDIGO DE BARRAS ---------- */
-  makeAC({
-    selector: "#producto_busqueda_codigo_barras",
+  // Producto por Código de Barras
+  createFastAC({
+    $inp: $barras,
     url: AC_BARRAS_URL,
     extra: () => ({ sucursal_id: sucursalID }),
-    parse: (d) =>
-      (d.results || []).map((p) => ({
-        label: p.barcode || p.codigo_de_barras || "",
-        value: p.barcode || p.codigo_de_barras || "",
-        id: p.id,
-        name: p.text || "",
-        barcode: p.barcode || p.codigo_de_barras || "",
-      })).filter((x) => x.label),
-    onSel: (item) => {
-      updateCache(item.id, { nombre: item.name, barcode: item.barcode });
-      instantFromBarcode(item.barcode) || setProductFields({ nombre: item.name, pid: item.id, barcode: item.barcode });
+    mapItem: p => {
+      const bc=p.barcode||p.codigo_de_barras||"";
+      if(!bc) return null;
+      return { label:bc, value:bc, id:p.id, name:p.text||"", barcode:bc };
+    },
+    onSelect: (item) => {
+      updateCache(item.id, { nombre:item.name, barcode:item.barcode });
+      instantFromBarcode(item.barcode) || setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode });
       enableQtyAndAdd(true);
       fillFromProductId(item.id);
     },
+    nextFocus: "#cantidad",
+    allowEmpty: true
   });
 
-  /* Scanner: no seleccionar primer ítem con Enter */
+  // Evitar que ENTER del escáner seleccione primer ítem del menú
   (function fixScannerEnter() {
     $barras.autocomplete("option", "autoFocus", false);
     $barras.on("keydown", function (e) {
@@ -330,12 +419,12 @@ $(function () {
     });
   })();
 
-  /* Cross-fill mientras escribes (sin verificar) */
+  // Cross-fill live
   $codigo.on("input", function () { const v=$.trim(this.value); if (v) instantFromPid(v); });
   $barras.on("input", function () { const bc=$.trim(this.value); if (bc) instantFromBarcode(bc); });
   $nombre.on("input", function () { const nm=$.trim(this.value); if (nm) instantFromName(nm); });
 
-  /* Confirmación con Enter (sin blur) */
+  // Confirmación con Enter cuando no hay menú visible (nombre/código/código barras)
   function bindEnterConfirm(selector, handler, instant) {
     $(selector).on("keydown", function (e) {
       if (e.key !== "Enter") return;
@@ -347,26 +436,27 @@ $(function () {
         if (!val) return;
         if (instant) instant(val);
         handler(val);
+        // foco a cantidad si corresponde
+        setTimeout(()=> $("#cantidad").focus().select(), 0);
       }
     });
   }
   bindEnterConfirm("#producto_busqueda_codigo", (pid) => fillFromProductId(pid), (pid)=>instantFromPid(pid));
   bindEnterConfirm("#producto_busqueda_codigo_barras", (bc) => fillFromBarcode(bc), (bc)=>instantFromBarcode(bc));
   bindEnterConfirm("#producto_busqueda_nombre", (term) => {
-    fetchCached(PRODUCTO_URL, { term, sucursal_id: sucursalID })
-      .then((d) => {
+    fetch(PRODUCTO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID }))
+      .then(r=>r.json())
+      .then(d => {
         const items = d.results || [];
         if (!items.length) return;
-        const m = items.find((x) => onlyName(x.text || "").toLowerCase() === onlyName(term).toLowerCase()) || items[0];
-        if (m && m.id) { instantFromPid(m.id); fillFromProductId(m.id); }
-      })
-      .catch(() => {});
+        const match = items.find(x => onlyName(x.text||"").toLowerCase() === onlyName(term).toLowerCase()) || items[0];
+        if (match && match.id) { instantFromPid(match.id); fillFromProductId(match.id); }
+      }).catch(()=>{});
   }, (term)=>instantFromName(term));
 
-  /* Foco a Cantidad cuando los 3 campos están llenos */
   $nombre.add($codigo).add($barras).on("change input", maybeFocusQty);
 
-  /* Quagga (EAN) */
+  /* Quagga */
   $("#btnEscanear").click(() => {
     $("#interactive").show();
     Quagga.init(
@@ -382,7 +472,7 @@ $(function () {
     });
   });
 
-  /* total O(1) + serialización */
+  /* Total + serialización */
   function setTotal(v) {
     runningTotal = v;
     $totalEl.text(money(runningTotal));
@@ -449,7 +539,7 @@ $(function () {
     });
   });
 
-  /* Enter en CANTIDAD agrega al carrito */
+  /* ENTER en cantidad = agregar */
   $cantidad.on("keydown", function (e) {
     if (e.key === "Enter" && !$agregar.prop("disabled")) {
       e.preventDefault();
@@ -484,7 +574,7 @@ $(function () {
     addToTotal(price * (newQty - oldQty));
   });
 
-  /* eliminar del carrito */
+  /* Eliminar fila */
   $tbody.on("click", ".eliminar-producto", function () {
     const $row = $(this).closest("tr");
     const pid = $row.data("pid").toString();
@@ -496,7 +586,7 @@ $(function () {
     $row.remove();
   });
 
-  /* ===== Modal de pago ===== */
+  /* Modal de pago */
   const $modal      = $("#myModal");
   const $efOptions  = $("#efectivo-options");
   const $amountIn   = $("#monto-recibido");
@@ -512,7 +602,6 @@ $(function () {
     $changeOut.text("");
     $modal.show();
   });
-
   $(".close").click(() => $modal.hide());
   $(window).on("click", (e) => { if (e.target === $modal[0]) $modal.hide(); });
 
@@ -521,14 +610,12 @@ $(function () {
     $amountIn.val("");
     $changeOut.text("");
   });
-
   $(document).on("click", ".radio-wrap", function (e) {
     if (e.target.tagName !== "INPUT") {
       $(this).find("input[type=radio]").prop("checked", true).trigger("change");
     }
     $(this).closest(".modal-content").attr("tabindex","-1").focus();
   });
-
   $amountIn.on("input", function () {
     const received = parseFloat(this.value) || 0;
     const change = received - runningTotal;
@@ -536,7 +623,6 @@ $(function () {
   }).on("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); $confirmBtn.click(); }
   });
-
   $confirmBtn.click(() => {
     const m = $("input[name='payment_method']:checked").val();
     if (!m) return alert("Seleccione medio de pago.");
@@ -549,7 +635,7 @@ $(function () {
     $("#venta-form").submit();
   });
 
-  /* submit AJAX — alert positivo en éxito */
+  /* submit AJAX */
   $("#venta-form").submit(function (e) {
     e.preventDefault();
     $.post($(this).attr("action"), $(this).serialize())
@@ -573,20 +659,16 @@ $(function () {
   /* init */
   enableQtyAndAdd(false);
 
-  /* 🔦 Detector global de pistola (keyboard-wedge) */
+  /* Detector global de pistola */
   (function globalScannerDetector() {
-    const MIN_CHARS = 8;
-    const GAP_MS    = 35;
-
-    let buf = "", first = 0, last = 0, idleTimer = null;
+    const MIN_CHARS = 8, GAP_MS = 35;
+    let buf="", first=0, last=0, idleTimer=null;
     function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
-
     document.addEventListener("keydown", function (e) {
       if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
-
       const t = Date.now();
       if (e.key === "Enter" || e.key === "Tab") {
-        const fastEnough = buf && (t - first) < buf.length * (GAP_MS + 5) && (t - last) < GAP_MS * 3;
+        const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
         if (fastEnough && buf.length >= MIN_CHARS) {
           e.preventDefault(); e.stopImmediatePropagation();
           const code = buf; reset();
@@ -598,13 +680,12 @@ $(function () {
         }
         reset(); return;
       }
-
       if (e.key && e.key.length === 1) {
-        if (buf && (t - last) > GAP_MS) { buf = ""; first = t; }
+        if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
         if (!buf) first = t;
         buf += e.key; last = t;
         if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(reset, GAP_MS * 5);
+        idleTimer = setTimeout(reset, GAP_MS*5);
       } else {
         if (e.key !== "Shift") reset();
       }

@@ -54,7 +54,7 @@ from .views import (
                     HorarioUpdateAJAXView,
                     HorarioCajaCreateAJAXView,
                     SucursalHorarioCajaAutocomplete,
-                    PuntosPagoHorarioCajaAutocomplete,)
+                    )
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
@@ -140,8 +140,8 @@ urlpatterns = [
     path('eliminar_horario/<int:horario_id>/', views.eliminar_horario_view, name='eliminar_horario'),
 
     path("agregar_horario_caja/",HorarioCajaCreateAJAXView.as_view(),name="agregar_horario_caja"),
-    path("autocomplete/caja/sucursal/", SucursalHorarioCajaAutocomplete.as_view(), name="sucursal_horario_caja_autocomplete"),
-    path("autocomplete/caja/puntopago/", PuntosPagoHorarioCajaAutocomplete.as_view(), name="puntopago_horario_caja_autocomplete"),
+    path("autocomplete/caja/sucursal/", views.SucursalAgregarHorarioCajaAutocomplete.as_view(), name="sucursal_horario_caja_autocomplete"),
+    path("autocomplete/caja/puntopago/", views.PuntosPagoAgregarHorarioCajaAutocomplete.as_view(), name="puntopago_horario_caja_autocomplete"),
     path("visualizar_horarios_cajas/", views.VisualizarHorariosCajasView.as_view(), name="visualizar_horarios_cajas"),
     path("autocomplete/sucursal_horarios_cajas/", views.SucursalHorarioCajaAutocomplete.as_view(), name="visualizar_horarios_cajas_sucursal_autocomplete"),
     path("autocomplete/puntopago_horarios_cajas/", views.PuntoPagoHorarioCajaAutocomplete.as_view(), name="visualizar_horarios_cajas_puntopago_autocomplete"),

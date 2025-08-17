@@ -57,6 +57,8 @@ from django.views.generic.edit import FormView, UpdateView
 from django.views.generic import ListView
 from django.utils.decorators import method_decorator
 from django.utils.html import escape
+from django.db.models import Subquery
+from django.core.paginator import Paginator
 
 
 logger = logging.getLogger(__name__)
@@ -2234,59 +2236,68 @@ class HorarioCajaCreateAJAXView(LoginRequiredMixin, View):
         return JsonResponse({"success": True})
 
 
-class SucursalHorarioCajaAutocomplete(PaginatedAutocompleteMixin):
+class SucursalAgregarHorarioCajaAutocomplete(View):
     """
-    Autocomplete de Sucursales que tienen al menos un PuntoPago
-    sin ningún HorarioCaja asignado.
+    Devuelve sucursales que tienen >=1 Punto de Pago SIN ningún HorarioCaja.
+    JSON: { results: [{id, text}], has_more: bool }
     """
-    model      = Sucursal
-    id_field   = "pk"
-    text_field = "nombre"
-    per_page   = 10
+    per_page = 10
 
-    def extra_filter(self, qs, request):
-        # Subconsulta: ¿existe algún PuntoPago de esta sucursal
-        #   para el que NO exista HorarioCaja?
-        puntos_sin_horario = PuntosPago.objects.filter(
-            sucursalid=OuterRef('pk')
-        ).annotate(
-            tiene_horario=Exists(
-                HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
-            )
-        ).filter(tiene_horario=False)
+    def get(self, request):
+        term = (request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
 
-        return qs.annotate(
-            tiene_pp_sin=Exists(puntos_sin_horario)
-        ).filter(tiene_pp_sin=True)
+        # IDs de sucursales con al menos un punto de pago sin horarios
+        suc_ids = (
+            PuntosPago.objects
+            .filter(horarios_caja__isnull=True)        # ← usa related_name en HorarioCaja
+            .values("sucursalid_id")
+            .distinct()
+        )
+
+        qs = Sucursal.objects.filter(sucursalid__in=Subquery(suc_ids))
+        if term:
+            qs = qs.filter(nombre__icontains=term)
+
+        qs = qs.order_by("nombre", "sucursalid")       # orden estable para paginación
+
+        paginator = Paginator(qs, self.per_page)
+        page_obj  = paginator.get_page(page)
+
+        results = [{"id": s.sucursalid, "text": s.nombre} for s in page_obj.object_list]
+        return JsonResponse({"results": results, "has_more": page_obj.has_next()})
 
 
-class PuntosPagoHorarioCajaAutocomplete(PaginatedAutocompleteMixin):
+class PuntosPagoAgregarHorarioCajaAutocomplete(View):
     """
-    Autocomplete de PuntosPago de la sucursal seleccionada
-    que aún no tengan HorarioCaja.
+    Devuelve puntos de pago de la sucursal dada que NO tengan HorarioCaja.
+    JSON: { results: [{id, text}], has_more: bool }
     """
-    model      = PuntosPago
-    id_field   = "pk"
-    text_field = "nombre"
-    per_page   = 10
+    per_page = 10
 
-    def extra_filter(self, qs, request):
+    def get(self, request):
+        term   = (request.GET.get("term") or "").strip()
+        page   = int(request.GET.get("page") or 1)
         suc_id = request.GET.get("sucursal_id")
+
         if not suc_id:
-            # Sin sucursal, no devolvemos nada
-            return qs.none()
+            return JsonResponse({"results": [], "has_more": False})
 
-        # Subconsulta: ¿existe HorarioCaja para este PuntoPago?
-        tiene_horario = Exists(
-            HorarioCaja.objects.filter(puntopagoid=OuterRef('pk'))
+        qs = PuntosPago.objects.filter(
+            sucursalid_id=suc_id,
+            horarios_caja__isnull=True                 # ← usa related_name en HorarioCaja
         )
+        if term:
+            qs = qs.filter(nombre__icontains=term)
 
-        return (
-            qs
-            .filter(sucursalid_id=suc_id)
-            .annotate(tiene_hor= tiene_horario)
-            .filter(tiene_hor=False)
-        )
+        qs = qs.order_by("nombre", "puntopagoid")      # orden estable para paginación
+
+        paginator = Paginator(qs, self.per_page)
+        page_obj  = paginator.get_page(page)
+
+        results = [{"id": p.puntopagoid, "text": p.nombre} for p in page_obj.object_list]
+        return JsonResponse({"results": results, "has_more": page_obj.has_next()})
+
 
 # ─────────── Vista principal ───────────
 @method_decorator(login_required, name="dispatch")
