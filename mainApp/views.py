@@ -2580,31 +2580,30 @@ def eliminar_cliente(request, clienteid):
 
 
 class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
-    """
-    Edita un Cliente vía AJAX.  La lógica es idéntica a RolUpdateAJAXView.
-    """
     model         = Cliente
     pk_url_kwarg  = "cliente_id"
     form_class    = EditarClienteForm
     template_name = "editar_cliente.html"
     success_url   = reverse_lazy("visualizar_clientes")
 
-    # ----- POST válido -----
     def form_valid(self, form):
         self.object = form.save()
+        msg = f"Cliente «{self.object.nombre} {self.object.apellido}» actualizado."
+
+        # Guarda SIEMPRE el mensaje en sesión (sirve tanto para AJAX como no-AJAX)
+        messages.success(self.request, msg)
+
+        # Respuesta AJAX: el front hace window.location = redirect_url
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
-                "success"      : True,
-                "message"      : "Cliente actualizado correctamente.",
-                "redirect_url" : str(self.success_url),
+                "success": True,
+                "message": msg,
+                "redirect_url": str(self.success_url),
             })
-        messages.success(
-            self.request,
-            f"Cliente «{self.object.nombre} {self.object.apellido}» actualizado."
-        )
+
+        # No-AJAX: redirección estándar
         return super().form_valid(form)
 
-    # ----- POST con errores -----
     def form_invalid(self, form):
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse(
