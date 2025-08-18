@@ -1,9 +1,13 @@
 /* static/javascript/editar_horario.js
    ─────────────────────────────────────────
-   · Autocomplete sucursal
+   · Autocomplete sucursal ultra-rápido (filtro local + fetch en paralelo)
+   · ENTER:
+       - en autocomplete: selecciona la 1ª opción y avanza
+       - en inputs: pasa al siguiente
+       - en Hora de Cierre: clic a “Agregar horario”
    · Selector de días
    · Tabla editable
-   · Envío AJAX (JSON) y flashes
+   · Envío AJAX (JSON) + flashes
 */
 (() => {
   "use strict";
@@ -22,12 +26,13 @@
   const dayBtns = $$(".day-button");
   const apInp   = $("#horaapertura");
   const ciInp   = $("#horacierre");
+  const addBtn  = $("#btn-agregar-horario");
 
   const err = $("#error-message");
   const ok  = $("#success-message");
   const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]").value;
 
-  /* ══════════════ helpers ══════════════ */
+  /* ══════════════ helpers UI ══════════════ */
   const iconErr = t => `<i class="fas fa-exclamation-circle"></i> ${t}`;
   const iconOk  = t => `<i class="fas fa-check-circle"></i> ${t}`;
   const show    = (el, html) => { el.innerHTML = html; el.style.display = "block"; };
@@ -35,11 +40,22 @@
 
   function resetUI () {
     [err, ok].forEach(hide);
-    $$(".field-error").forEach(hide);
+    $$(".field-error").forEach(h => { h.style.display="none"; h.innerHTML=""; });
   }
   function fieldErr (field, msg) {
     const div = $(`#error-id_${field}`);
     div ? show(div, iconErr(msg)) : show(err, iconErr(msg));
+  }
+
+  /* ══════════════ foco con ENTER ══════════════ */
+  const focusOrder = [sucInp, apInp, ciInp];
+  function focusNext(fromEl){
+    const list = focusOrder.filter(Boolean);
+    const i = list.indexOf(fromEl);
+    if(i > -1 && i < list.length - 1){
+      list[i+1].focus();
+      if(typeof list[i+1].select === "function") list[i+1].select();
+    }
   }
 
   /* ══════════════ ordenar filas existentes (Lun → Dom) ══════════════ */
@@ -48,90 +64,185 @@
     .sort((a, b) => order.indexOf(a.dataset.dia) - order.indexOf(b.dataset.dia))
     .forEach(tr => tabla.appendChild(tr));
 
-  /* ══════════════ AUTOCOMPLETE ══════════════ */
-  let cache = Object.create(null);
-  let state = { term:"", pg:1, more:true, loading:false };
+  /* ══════════════ AUTOCOMPLETE ultra-rápido ══════════════ */
+  // estado + caché + control de concurrencia
+  const acState = { term:"", page:1, more:true };
+  const acCache = new Map();           // key -> {results, has_more}
+  let   acVersion = 0;                 // invalida respuestas antiguas
+  let   controller = null;             // AbortController
 
-  /* última selección confirmada (texto + id) */
+  // snapshots para filtro local instantáneo
+  let snapshot = [];    // resultados de la búsqueda actual
+  let fullSnap = [];    // primera página de term === "" (lista base)
+
+  // recordar última selección (para no borrar hidden si coincide)
   let currentSelection = {
-    text : sucInp.value.trim(),
-    id   : sucHid.value.trim()
+    text : sucInp?.value.trim() || "",
+    id   : sucHid?.value.trim() || ""
   };
 
-  async function fetchSuc (term, pg = 1) {
-    if (state.loading || !state.more) return;
-    state.loading = true;
+  const norm = s => (s||"").toString()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase().replace(/\s+/g," ").trim();
 
-    const key = `${term}_${pg}`;
-    let data  = cache[key];
-
-    if (!data) {
-      const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${pg}`;
-      const res = await fetch(url);
-      data      = await res.json();
-      cache[key]= data;
-    }
-
-    if (pg === 1) box.innerHTML = "";
-    if (data.results.length) {
-      data.results.forEach(r => {
-        box.insertAdjacentHTML(
-          "beforeend",
-          `<div class="autocomplete-option" data-id="${r.id}">${r.text}</div>`
-        );
-      });
-      state.more = data.has_more;
-    } else if (pg === 1) {
+  const render = items => {
+    if(!items.length){
       box.innerHTML = `<div class="autocomplete-no-result">Sin resultados</div>`;
-      state.more = false;
+    } else {
+      box.innerHTML = items.map(r =>
+        `<div class="autocomplete-option" data-id="${r.id}">${r.text}</div>`
+      ).join("");
     }
     box.style.display = "block";
-    state.loading = false;
+  };
+
+  const instantFilter = (term, base) => {
+    const t = norm(term);
+    if(!t) return (base||[]).slice(0,40);
+    const starts=[], contains=[];
+    for(const r of (base||[])){
+      const n = norm(r.text);
+      if(n.startsWith(t)) starts.push(r);
+      else if(n.includes(t)) contains.push(r);
+    }
+    return starts.concat(contains).slice(0,40);
+  };
+
+  const debounce = (fn, ms=60) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+
+  async function fetchPageSafely(term, page, version){
+    const key = `${term}::${page}`;
+    if(acCache.has(key)){
+      const data = acCache.get(key);
+      if(page===1) snapshot = data.results.slice();
+      else snapshot = snapshot.concat(data.results);
+      if(term==="" ){ if(page===1) fullSnap=data.results.slice(); else fullSnap=fullSnap.concat(data.results); }
+      acState.more = !!data.has_more;
+      if(version===acVersion){
+        const base = term==="" ? fullSnap : snapshot;
+        render(instantFilter(sucInp.value.trim(), base));
+      }
+      return;
+    }
+
+    try{ controller?.abort(); }catch(_){}
+    controller = new AbortController();
+
+    const params = new URLSearchParams({ term, page });
+    const res = await fetch(`${sucursalAutocompleteUrl}?${params}`, { signal: controller.signal }).catch(()=>null);
+    if(!res) return;
+
+    const data = await res.json();
+    const results = (data.results||[]).map(r=>({id:r.id, text:r.text}));
+    acCache.set(key, { results, has_more:!!data.has_more });
+
+    if(version!==acVersion) return; // respuesta vieja
+    if(page===1) snapshot = results.slice(); else snapshot = snapshot.concat(results);
+    if(term==="" ){ if(page===1) fullSnap=results.slice(); else fullSnap=fullSnap.concat(results); }
+    acState.more = !!data.has_more;
+
+    const base = term==="" ? fullSnap : snapshot;
+    render(instantFilter(sucInp.value.trim(), base));
   }
 
-  const debounce = (fn, ms = 300) => {
-    let timer;
-    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
-  };
-  const debFetchSuc = debounce(fetchSuc, 300);
+  const refreshAC = debounce(()=>{
+    const term = sucInp.value.trim();
+    acState.term = term; acState.page = 1; acState.more = true;
+    const myV = ++acVersion;
 
-  sucInp.addEventListener("input", () => {
-    /* Vacía hidden sólo si el texto ya no coincide con la última selección */
-    if (sucInp.value.trim() !== currentSelection.text) {
+    // pintar instantáneo con lo que tengamos
+    const base = term==="" ? fullSnap : snapshot;
+    render(instantFilter(term, base));
+
+    // pedir red y repintar al llegar (si sigue vigente)
+    fetchPageSafely(term, 1, myV);
+  }, 50);
+
+  // input: limpiar hidden si ya no coincide con la última selección
+  sucInp.addEventListener("input", ()=>{
+    if(sucInp.value.trim() !== currentSelection.text){
       sucHid.value = "";
     }
-    state = { term:sucInp.value.trim(), pg:1, more:true, loading:false };
-    debFetchSuc(state.term, 1);
+    refreshAC();
   });
 
-  sucInp.addEventListener("focus", () => {
-    state = { term:sucInp.value.trim(), pg:1, more:true, loading:false };
-    fetchSuc(state.term, 1);
-  });
-
-  box.addEventListener("scroll", () => {
-    if (
-      box.scrollTop + box.clientHeight >= box.scrollHeight - 5 &&
-      state.more && !state.loading
-    ) {
-      state.pg++;
-      fetchSuc(state.term, state.pg);
+  // focus: mostrar al toque; si no hay datos aún, cargar página 1
+  sucInp.addEventListener("focus", ()=>{
+    const term = sucInp.value.trim();
+    if((term==="" && fullSnap.length) || (term!=="" && snapshot.length)){
+      const base = term==="" ? fullSnap : snapshot;
+      render(instantFilter(term, base));
+    }else{
+      acState.term = term; acState.page = 1; acState.more = true;
+      const myV = ++acVersion;
+      fetchPageSafely(term, 1, myV);
     }
   });
 
-  box.addEventListener("click", e => {
-    const opt = e.target.closest(".autocomplete-option");
-    if (!opt) return;
-    sucInp.value      = opt.textContent;
-    sucHid.value      = opt.dataset.id;
-    currentSelection  = { text: sucInp.value.trim(), id: sucHid.value.trim() };
-    box.innerHTML     = "";
-    box.style.display = "none";
-    state.more        = false;
+  // scroll infinito
+  box.addEventListener("scroll", ()=>{
+    if(!acState.more || !box.style.display || box.style.display==="none") return;
+    if(box.scrollTop + box.clientHeight >= box.scrollHeight - 6){
+      const myV = acVersion;
+      acState.page += 1;
+      fetchPageSafely(acState.term, acState.page, myV);
+    }
   });
 
-  document.addEventListener("click", e => {
-    if (!sucInp.contains(e.target) && !box.contains(e.target)) {
+  // selección por click
+  box.addEventListener("click", e=>{
+    const opt = e.target.closest(".autocomplete-option");
+    if(!opt) return;
+    sucInp.value = opt.textContent;
+    sucHid.value = opt.dataset.id;
+    currentSelection = { text:sucInp.value.trim(), id:sucHid.value.trim() };
+    box.innerHTML = ""; box.style.display = "none";
+    focusNext(sucInp);
+  });
+
+  // ENTER en autocomplete: seleccionar 1ª opción y avanzar
+  sucInp.addEventListener("keydown", async (e)=>{
+    if(e.key!=="Enter") return;
+    e.preventDefault();
+
+    // 1) si ya hay opciones pintadas
+    const firstDom = box.querySelector(".autocomplete-option");
+    if(firstDom){
+      sucInp.value = firstDom.textContent;
+      sucHid.value = firstDom.dataset.id;
+      currentSelection = { text:sucInp.value.trim(), id:sucHid.value.trim() };
+      box.innerHTML = ""; box.style.display = "none";
+      return focusNext(sucInp);
+    }
+
+    // 2) intenta con filtro local
+    const term = sucInp.value.trim();
+    const base = term==="" ? fullSnap : snapshot;
+    const list = instantFilter(term, base);
+    if(list.length){
+      sucInp.value = list[0].text;
+      sucHid.value = list[0].id;
+      currentSelection = { text:sucInp.value.trim(), id:sucHid.value.trim() };
+      box.innerHTML = ""; box.style.display = "none";
+      return focusNext(sucInp);
+    }
+
+    // 3) si aún no hay datos, fetch rápido y seleccionar al llegar
+    const myV = ++acVersion;
+    await fetchPageSafely(term, 1, myV);
+    const again = box.querySelector(".autocomplete-option");
+    if(again){
+      sucInp.value = again.textContent;
+      sucHid.value = again.dataset.id;
+      currentSelection = { text:sucInp.value.trim(), id:sucHid.value.trim() };
+    }
+    box.innerHTML = ""; box.style.display = "none";
+    focusNext(sucInp);
+  });
+
+  // cerrar dropdown al click fuera
+  document.addEventListener("click", e=>{
+    if(!sucInp.contains(e.target) && !box.contains(e.target)){
       box.style.display = "none";
     }
   });
@@ -142,6 +253,20 @@
       btn.disabled = true;
     }
     btn.addEventListener("click", () => btn.classList.toggle("active"));
+  });
+
+  /* ══════════════ ENTER en inputs normales ══════════════
+     - en hora de CIERRE → clic a “Agregar horario”
+     - en los demás → foco al siguiente
+  */
+  [apInp, ciInp].forEach(inp=>{
+    if(!inp) return;
+    inp.addEventListener("keydown", e=>{
+      if(e.key!=="Enter") return;
+      e.preventDefault();
+      if(inp===ciInp && addBtn){ addBtn.click(); }
+      else { focusNext(inp); }
+    });
   });
 
   /* ══════════════ agregar fila ══════════════ */
@@ -167,45 +292,33 @@
       tabla.insertAdjacentHTML("beforeend", `
         <tr data-dia="${d}">
           <td data-label="Día">${d}</td>
-          <td data-label="Apertura">
-            <input type="time" value="${apInp.value}" readonly>
-          </td>
-          <td data-label="Cierre">
-            <input type="time" value="${ciInp.value}" readonly>
-          </td>
+          <td data-label="Apertura"><input type="time" value="${apInp.value}" readonly></td>
+          <td data-label="Cierre"><input type="time" value="${ciInp.value}" readonly></td>
           <td data-label="Acciones">
-            <button type="button" class="btn-eliminar">
-              <i class="fas fa-trash"></i>
-            </button>
+            <button type="button" class="btn-eliminar"><i class="fas fa-trash"></i></button>
           </td>
         </tr>`);
       const b = dayBtns.find(x => x.dataset.day === d);
-      if (b) {
-        b.disabled = true;
-        b.classList.remove("active");
-      }
+      if (b) { b.disabled = true; b.classList.remove("active"); }
     });
 
     apInp.value = "";
     ciInp.value = "";
+    apInp.focus(); // flujo natural
   });
 
   /* ══════════════ eliminar fila ══════════════ */
   tabla.addEventListener("click", e => {
-    const btn = e.target.closest(".btn-eliminar");
+    const btn = e.target.closest("button.btn-eliminar");
     if (!btn) return;
 
     const tr  = btn.closest("tr");
     const dia = tr.dataset.dia;
-    tr.remove();  // quitamos la fila
+    tr.remove();
 
-    // reactivar el botón solamente si ya no queda ninguna fila con ese día
     if (!tabla.querySelector(`tr[data-dia="${dia}"]`)) {
       const b = [...dayBtns].find(x => x.dataset.day === dia);
-      if (b) {
-        b.disabled = false;
-        b.classList.remove("active");
-      }
+      if (b) { b.disabled = false; b.classList.remove("active"); }
     }
   });
 
