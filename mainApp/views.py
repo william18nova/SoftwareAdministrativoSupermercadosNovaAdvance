@@ -1649,16 +1649,16 @@ class RolUpdateAJAXView(LoginRequiredMixin, UpdateView):
     # -------- AJAX OK --------
     def form_valid(self, form):
         self.object = form.save()
+        msg = f'Rol «{self.object.nombre}» actualizado correctamente.'
+        # Siempre guardar el mensaje (aparecerá tras la redirección)
+        messages.success(self.request, msg)
+
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
                 "success": True,
-                "message": f'Rol «{self.object.nombre}» actualizado.',
+                "message": msg,
                 "redirect_url": str(self.success_url),
             })
-        messages.success(
-            self.request,
-            f'Rol «{self.object.nombre}» actualizado correctamente.',
-        )
         return super().form_valid(form)
 
     # -------- AJAX KO --------

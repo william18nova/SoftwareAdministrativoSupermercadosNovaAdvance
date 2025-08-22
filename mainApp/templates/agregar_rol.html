@@ -26,7 +26,10 @@
       {% csrf_token %}
       {% for field in form %}
         <div class="form-group">
-          {{ field.label_tag }}
+          {# Si el campo es obligatorio, se añade el * al label #}
+          <label for="{{ field.id_for_label }}">
+            {{ field.label }}{% if field.field.required %} <span class="required">*</span>{% endif %}
+          </label>
           {{ field }}
           <div class="field-error" id="error-{{ field.html_name }}"></div>
         </div>

@@ -1,9 +1,7 @@
 /*  static/javascript/agregar_rol.js
     ──────────────────────────────────────────────────
-    Misma lógica que “agregar_sucursal.js”:
-      · envíos AJAX
-      · resaltado .input-error en rojo
-      · alertas globales & de campo
+    • Envío AJAX + resaltado de errores
+    • Enter → siguiente campo; si es el último, envía
 ----------------------------------------------------*/
 (() => {
   "use strict";
@@ -18,6 +16,7 @@
   const divSuccess = $("#success-message");
   const fieldErrs  = document.querySelectorAll(".field-error");
   const inputs     = form.querySelectorAll("input, textarea");
+  const submitBtn  = form.querySelector('button[type="submit"], .btn-agregar-rol');
 
   /* ---------- UI helpers ---------- */
   const hide = el => { el.style.display = "none"; el.innerHTML = ""; };
@@ -36,7 +35,59 @@
     if (inp)    inp.classList.add("input-error");
   }
 
-  /* ---------- submit ---------- */
+  /* ---------- Enter → siguiente / enviar ---------- */
+  function visible(el){
+    return !!(el && el.offsetParent !== null);
+  }
+  function focusNextOrSubmit(current){
+    // Orden natural de tabulación dentro del form
+    const focusables = Array.from(
+      form.querySelectorAll(
+        'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])'
+      )
+    ).filter(visible);
+
+    const idx = focusables.indexOf(current);
+    const next = focusables[idx + 1];
+
+    if (next && next.tagName !== "BUTTON") {
+      next.focus();
+      // Seleccionar texto si es input/textarea
+      if (/^(INPUT|TEXTAREA)$/.test(next.tagName) && typeof next.select === "function") {
+        try { next.select(); } catch(_){}
+      }
+    } else {
+      // Último campo → enviar
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit(submitBtn || undefined);
+      } else if (submitBtn) {
+        submitBtn.click();
+      } else {
+        form.dispatchEvent(new Event("submit", { cancelable:true }));
+      }
+    }
+  }
+
+  // Manejo de Enter en todo el formulario
+  form.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+
+    const t = e.target;
+    // En TEXTAREA permitimos salto de línea con Shift+Enter
+    if (t.tagName === "TEXTAREA") {
+      if (e.shiftKey) return; // permite nueva línea
+      e.preventDefault();
+      focusNextOrSubmit(t);
+      return;
+    }
+    // Inputs y selects: siempre avanzar
+    if (t.tagName === "INPUT" || t.tagName === "SELECT") {
+      e.preventDefault();
+      focusNextOrSubmit(t);
+    }
+  });
+
+  /* ---------- submit (AJAX) ---------- */
   form.addEventListener("submit", async e => {
     e.preventDefault();
     clearAll();
@@ -50,7 +101,7 @@
       const data = await resp.json();
 
       if (resp.ok && data.success) {
-        show(divSuccess, iconOk(data.message));
+        show(divSuccess, iconOk(data.message || "Rol agregado correctamente."));
         form.reset();
       } else {
         const errs = data.errors || {};
