@@ -1,8 +1,13 @@
 /*  visualizar_puntos_pago.js
     ─────────────────────────────────────────
     · DataTable responsivo
-    · Autocomplete sucursal (scroll infinito + debounce + caché)
+    · Autocomplete sucursal INSTANTÁNEO (SWR: local→remoto)
+      - Filtro local inmediato (basePage) y/o caché
+      - Revalidación con servidor con reqId anti-stale
+      - Vacío → muestra lista base (página 1)
+    · Scroll infinito
     · Eliminación vía AJAX
+    · Enter → selecciona la primera opción visible
 */
 $(function () {
   "use strict";
@@ -20,8 +25,7 @@ $(function () {
   }) : null;
 
   /* ---------- flash helper ---------- */
-  const $flash = $("<div class='alert' style='display:none'></div>")
-                 .insertAfter("h2");
+  const $flash = $("<div class='alert' style='display:none'></div>").insertAfter("h2");
   const flash  = (ok,msg)=> $flash.removeClass("alert-success alert-error")
                                   .addClass(ok?"alert-success":"alert-error")
                                   .text(msg).show();
@@ -39,58 +43,139 @@ $(function () {
     }).fail(()=> flash(false,"Error al eliminar el punto de pago."));
   });
 
-  /* ---------- autocomplete sucursal ---------- */
+  /* ---------- autocomplete sucursal (instantáneo) ---------- */
   const $inp = $("#id_sucursal_autocomplete"),
         $hid = $("#id_sucursal"),
-        $box = $("#sucursal-autocomplete-results");
+        $box = $("#sucursal-autocomplete-results"),
+        $form = $("#sucursalForm");
 
-  let pg=1, term="", loading=false, more=true;
+  // Estado y caché
+  let page = 1, term = "", loading = false, more = true;
+  let basePage = [], baseHasMore = true;
   const cache = Object.create(null);
+  let reqId = 0;
+  let xhr = null;
 
-  const fetchSuc = ()=>{
-    if(loading||!more) return;
-    loading=true;
-    const url = `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${pg}`;
-    if(cache[url]){ render(cache[url]); return; }
-    $.getJSON(url).done(data=>{ cache[url]=data; render(data); })
-                  .always(()=> loading=false);
-  };
-  const render = data=>{
-    if(pg===1){ $box.empty(); }
-    if(data.results.length){
-      data.results.forEach(r=>{
-        $("<div>",{"class":"autocomplete-option",text:r.text,"data-id":r.id})
-          .appendTo($box);
+  const openBox  = ()=>{ $box.show(); };
+  const closeBox = ()=>{ $box.hide(); };
+  const clearBox = ()=>{ $box.empty(); };
+
+  // Render rápido (rAF)
+  function paint(list, replace = true){
+    window.requestAnimationFrame(()=>{
+      if(replace) $box.empty();
+      const frag = document.createDocumentFragment();
+      list.forEach(r=>{
+        const d = document.createElement("div");
+        d.className = "autocomplete-option";
+        d.dataset.id = r.id;
+        d.textContent = r.text;
+        frag.appendChild(d);
       });
-      more=data.has_more;
-    }else if(pg===1){
-      $box.html('<div class="autocomplete-no-result">Sin resultados</div>');
-      more=false;
+      $box[0].appendChild(frag);
+      openBox();
+    });
+  }
+
+  // Fetch con caché + reqId anti-stale
+  function fetchPage(q, p, {replace=true} = {}){
+    const key = `${q}::${p}`;
+    if (cache[key]) {
+      paint(cache[key].results || [], replace);
+      more = !!cache[key].has_more;
     }
-    $box.show();
-  };
-  const deb = (fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(fn,ms,...a);};};
+    if (xhr && xhr.readyState !== 4) { try { xhr.abort(); } catch(e) {} }
+    const myReq = ++reqId;
+    loading = true;
+    xhr = $.getJSON(`${sucursalAutocompleteUrl}?term=${encodeURIComponent(q)}&page=${p}`)
+      .done(data=>{
+        cache[key] = data || {results:[], has_more:false};
+        if (myReq !== reqId || q !== term || p !== page) return;
+        if (!replace && p>1) { paint(data.results || [], false); }
+        else { clearBox(); paint(data.results || [], true); }
+        more = !!data.has_more;
+      })
+      .always(()=>{ loading = false; });
+  }
 
-  const kick = deb(()=>{pg=1;more=true;fetchSuc();},300);
+  // Instantáneo: pinta local/caché y revalida
+  function instantSearch(){
+    const key = `${term}::1`;
+    let painted = false;
+    if (cache[key]?.results) {
+      clearBox(); paint(cache[key].results, true);
+      more = !!cache[key].has_more; painted = true;
+    } else if (basePage.length) {
+      const t = term.toLowerCase();
+      const local = basePage.filter(r => r.text.toLowerCase().includes(t)).slice(0,50);
+      clearBox(); paint(local, true);
+      more = baseHasMore; painted = true;
+    }
+    page = 1; more = true;
+    fetchPage(term, page, {replace:true});
+    if (!painted) { openBox(); }
+  }
 
-  $inp.on("input",()=>{
-    $hid.val(""); term=$.trim($inp.val()); kick();
-  }).on("focus",()=>{
-    term=$.trim($inp.val()); pg=1; more=true; fetchSuc();
+  /* ---- Eventos ---- */
+  $inp.on("input", ()=>{
+    $hid.val("");
+    term = $.trim($inp.val());
+    if (!term) {
+      page = 1; more = baseHasMore;
+      if (basePage.length) { clearBox(); paint(basePage, true); }
+      fetchPage("", 1, {replace:true});
+      return;
+    }
+    instantSearch();
   });
 
-  $box.on("click",".autocomplete-option",function(){
-    $inp.val($(this).text()); $hid.val($(this).data("id"));
-    $box.hide(); $("#sucursalForm").submit();
-  }).on("scroll",function(){
-    if(this.scrollTop+this.clientHeight>=this.scrollHeight-5 && more && !loading){
-      pg++; fetchSuc();
+  $inp.on("focus", ()=>{
+    term = $.trim($inp.val());
+    if (!term) {
+      if (basePage.length) { clearBox(); paint(basePage, true); }
+      page = 1; more = true; fetchPage("", 1, {replace:true});
+    } else { instantSearch(); }
+  });
+
+  $box.on("scroll", function(){
+    if (this.scrollTop + this.clientHeight >= this.scrollHeight - 4 && more && !loading){
+      page += 1; fetchPage(term, page, {replace:false});
     }
   });
 
-  $(document).on("click",e=>{
-    if(!$(e.target).closest("#id_sucursal_autocomplete, #sucursal-autocomplete-results").length){
-      $box.hide();
+  $box.on("click", ".autocomplete-option", function(){
+    $inp.val($(this).text());
+    $hid.val($(this).data("id"));
+    closeBox();
+    $form.trigger("submit");
+  });
+
+  $(document).on("click", e=>{
+    if (!$(e.target).closest("#id_sucursal_autocomplete, #sucursal-autocomplete-results").length) closeBox();
+  });
+
+  // ⬅️ Enter → seleccionar la primera opción
+  $inp.on("keydown", e=>{
+    if(e.key === "Enter"){
+      e.preventDefault();
+      const $first = $box.find(".autocomplete-option").first();
+      if($first.length){
+        $inp.val($first.text());
+        $hid.val($first.data("id"));
+        closeBox();
+        $form.trigger("submit");
+      }
     }
   });
+
+  // Prefetch base
+  (function prefetchBase(){
+    const key = `::1`;
+    if (cache[key]){ basePage = cache[key].results||[]; baseHasMore=!!cache[key].has_more; return; }
+    $.getJSON(`${sucursalAutocompleteUrl}?term=&page=1`).done(data=>{
+      cache[key] = data || {results:[], has_more:false};
+      basePage = cache[key].results||[];
+      baseHasMore = !!cache[key].has_more;
+    });
+  })();
 });
