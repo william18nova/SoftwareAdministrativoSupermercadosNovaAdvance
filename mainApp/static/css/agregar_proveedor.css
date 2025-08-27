@@ -1,156 +1,163 @@
-/* ───────────────────────────────
-   agregar_proveedor.css
-   Versión final con:
-   • variables CSS
-   • layout responsivo
-   • alert-success centrado (icono + texto)
-   • mensajes de error siempre en rojo
-──────────────────────────────── */
+/*  agregar_proveedor.css — estética unificada Nova Advance
+    – Fondo degradado + glass card centrada
+    – Tipografía Inter
+    – Inputs y alerts consistentes
+    – Botón con gradiente
+*/
 
-/* fuente Roboto */
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
-/* ---------- Variables ---------- */
+/* Tokens */
 :root{
-  --azul       : #005091;
-  --azul-claro : #ADD8E6;
-  --blanco     : #fff;
-  --rojo       : #ff0000;
-  --verde      : #3c763d;
-  --gris       : #ccc;
-  --gris-lite  : #f0f8ff;
-  --gris-hover : #aaa;
-  --btn        : #3b5998;
-  --btn-hover  : #2b467d;
-  --font       : "Roboto", Arial, sans-serif;
-  --icon-size  : 88px;
+  --bg-1:#153060; --bg-2:#20497d;
+  --brand:#4da6ff; --brand-2:#3d8cff;
+
+  --text:#f8fbff; --text-muted:#d8e8ff;
+
+  --glass-bg: rgba(33,64,120,.28);
+  --glass-brd: rgba(255,255,255,.18);
+  --glass-sh: 0 18px 40px rgba(0,0,0,.35);
+
+  --input-bg: rgba(255,255,255,.10);
+  --input-hov: rgba(255,255,255,.18);
+  --input-brd: rgba(255,255,255,.22);
+  --ring:#b8dbff;
+
+  --err:#ff4d5f; --err-bg: rgba(255,77,95,.14); --err-brd: rgba(255,140,150,.55);
+  --ok:#16a34a;  --ok-bg: color-mix(in srgb,#16a34a 18%, #ffffff); --ok-brd: color-mix(in srgb,#16a34a 40%, #ffffff);
+
+  --btn-grad: linear-gradient(180deg,#5cb8ff,#4da6ff 60%,#3d8cff);
+  --btn-grad-hov: linear-gradient(180deg,#6ec0ff,#58b1ff 60%,#4da6ff);
+  --btn-shadow: 0 12px 28px rgba(77,166,255,.45), inset 0 0 0 1px rgba(255,255,255,.22);
+
+  --radius:16px; --radius-sm:12px;
+  --font:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  --icon-size: 96px;
 }
 
-/* ---------- Reset ---------- */
+/* Reset + fondo */
 *{box-sizing:border-box;margin:0;padding:0}
-
-/* ---------- Body ---------- */
+html,body{height:100%}
 body{
-  min-height:100vh;
-  display:flex;justify-content:center;align-items:center;
-  background:linear-gradient(135deg,var(--azul-claro),var(--azul));
   font-family:var(--font);
-  color:var(--blanco);
-  text-align:center;
+  color:var(--text);
+  min-height:100svh;
   overflow:auto;
+  padding:clamp(20px,4vw,32px);
+  background:
+    radial-gradient(1400px 800px at 10% 20%, rgba(77,166,255,.35), transparent 60%),
+    radial-gradient(1200px 700px at 85% 85%, rgba(77,166,255,.25), transparent 60%),
+    linear-gradient(135deg,var(--bg-1),var(--bg-2));
 }
-body::before{
-  content:"";
-  position:fixed;inset:0;
-  background:inherit;
-  filter:blur(20px);
-  z-index:-1;
-}
+body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12px);z-index:-1}
 
-/* ---------- Card ---------- */
+/* ── CONTENEDOR ───────────────────────────────────────── */
 .container-proveedor{
-  width:100%;max-width:500px;
-  margin:20px;padding:40px;
-  background:rgba(255,255,255,.12);
-  border-radius:10px;
-  box-shadow:0 4px 12px rgba(0,0,0,.25);
-}
-.icon-proveedor{font-size:var(--icon-size);margin-bottom:15px}
+  width:min(95vw, 560px);
+  margin-inline:auto !important;
+  margin-top:clamp(8px,2.5vh,20px);
+  margin-bottom:clamp(18px,4vh,28px);
 
-/* ---------- Headings ---------- */
-h2{margin:10px 0;font-size:24px;font-weight:700}
-.obligatorio-texto{font-size:14px;font-style:italic;margin-bottom:10px}
-
-/* ---------- Form ---------- */
-.form-group-proveedor{margin-bottom:14px;text-align:left}
-.form-group-proveedor label{display:block;margin-bottom:5px;font-weight:700}
-.required{margin-left:3px;color:var(--blanco)}
-input[type=text],
-input[type=email],
-textarea{
-  width:100%;padding:10px;
-  border:1px solid var(--gris);
-  border-radius:5px;
-  background:var(--gris-lite);
-  font-size:15px;
-  transition:.25s;
+  background:var(--glass-bg);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--glass-brd);
+  border-radius:var(--radius);
+  box-shadow:var(--glass-sh);
+  padding:clamp(26px,4.2vw,40px);
+  position:relative;
+  float:none; clear:both;
 }
-input:hover,
-textarea:hover{
-  background:#e0e8ff;border-color:var(--gris-hover)
-}
-input:focus,
-textarea:focus{
-  outline:none;
-  border-color:var(--azul);
-  box-shadow:0 0 5px rgba(0,80,145,.5)
+@media (max-width: 900px){
+  .container-proveedor{
+    position:relative;
+    left:50%;
+    transform:translateX(-50%);
+  }
 }
 
-/* ---------- Button ---------- */
+/* ── Encabezado ───────────────────────────────────────── */
+.icon-proveedor{
+  display:block;
+  width:1em; height:1em;
+  margin:4px auto 10px;
+  font-size:var(--icon-size);
+  line-height:1;
+  color:var(--brand);
+  text-align:center;
+  filter:drop-shadow(0 6px 16px rgba(77,166,255,.35));
+}
+h2{
+  font-size:clamp(24px,3.6vw,32px);
+  font-weight:800; letter-spacing:.2px;
+  text-align:center;
+  margin-bottom:4px;
+  text-shadow:0 6px 16px rgba(0,0,0,.22);
+}
+.obligatorio-texto{
+  text-align:center;
+  font-size:14px;
+  color:var(--text-muted);
+  margin:8px 0 18px;
+  font-style:italic;
+}
+
+/* ── Formulario ───────────────────────────────────────── */
+.form-group-proveedor{ margin-bottom:16px; text-align:left; position:relative; }
+.form-group-proveedor label{ display:block; margin-bottom:6px; font-weight:700; color:var(--text); }
+.required{ color:var(--text-muted); }
+
+input[type=text], input[type=email], textarea{
+  width:100%;
+  min-height:44px;
+  padding:10px 12px;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--input-brd);
+  background:var(--input-bg);
+  color:var(--text);
+  font-size:15.5px; outline:none;
+  transition:.22s cubic-bezier(.2,.6,.2,1);
+}
+textarea{ min-height:110px; resize:vertical; }
+
+input::placeholder, textarea::placeholder{ color:var(--text-muted); }
+input:hover, textarea:hover{ background:var(--input-hov); transform:translateY(-1px); }
+input:focus, textarea:focus{
+  background:var(--input-hov); border-color:var(--ring);
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+/* Errores por campo */
+.input-error{
+  border-color:var(--err) !important;
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--err) 28%, transparent) !important;
+}
+.field-error{ font-size:13.5px; color:var(--err); margin-top:6px; display:none; }
+.field-error.visible{ display:block; }
+
+/* ── Alerts ───────────────────────────────────────────── */
+.alert{
+  display:none; padding:12px 14px; border-radius:var(--radius-sm);
+  font-size:14px; margin-bottom:14px; border:1px solid transparent; text-align:center;
+}
+.alert-success{ background:var(--ok-bg); color:#064e1a; border-color:var(--ok-brd); display:flex; align-items:center; justify-content:center; gap:10px; }
+.alert-error  { background:var(--err-bg); color:var(--err); border-color:var(--err-brd); }
+
+/* ── Botón ────────────────────────────────────────────── */
 .btn-agregar-proveedor{
-  width:100%;padding:12px;
-  border:none;border-radius:5px;
-  background:var(--btn);color:var(--blanco);
-  font-size:18px;font-weight:700;
-  cursor:pointer;
-  transition:background .25s,transform .2s,box-shadow .25s;
-  margin-top:20px;
+  width:100%; height:46px; border:none; border-radius:var(--radius-sm);
+  background:var(--btn-grad); color:#fff; font-weight:900; letter-spacing:.2px;
+  font-size:16.5px; cursor:pointer; box-shadow:var(--btn-shadow);
+  transition: transform .2s, filter .22s, box-shadow .22s, background .22s;
+  margin-top:12px;
 }
 .btn-agregar-proveedor:hover{
-  background:var(--btn-hover);
-  transform:translateY(-2px);
-  box-shadow:0 4px 12px rgba(0,0,0,.2)
+  background:var(--btn-grad-hov); transform:translateY(-1px);
+  filter:saturate(1.06);
+  box-shadow:0 14px 30px rgba(77,166,255,.45), inset 0 0 0 1px rgba(255,255,255,.26);
 }
-.btn-agregar-proveedor:active{transform:none}
+.btn-agregar-proveedor:active{ transform:none; }
 
-/* ---------- Alerts ---------- */
-.alert{
-  display:none;
-  padding:14px;
-  border-radius:4px;
-  font-size:16px;
-  margin-top:18px;
-  margin-bottom:18px;
-}
-
-/* éxito: centrado vertical y horizontal */
-.alert-success{
-  background:#dff0d8;
-  color:var(--verde);
-  display:flex;
-  align-items:center;           /* vertical */
-  justify-content:center;       /* horizontal */
-  gap:10px;
-  text-align:center;
-}
-
-/* error global */
-.alert-error{
-  background:#f2dede;
-  color:var(--rojo);
-}
-
-/* ---------- Errores de campo ---------- */
-.field-error{
-  display:none;
-  font-size:14px;
-  margin-top:4px;
-  color:var(--rojo) !important; /* fuerza rojo */
-}
-.field-error i{
-  color:var(--rojo) !important;
-  margin-right:5px;
-}
-.field-error.visible{display:block}
-
-/* input con error */
-.input-error{border-color:var(--rojo) !important}
-
-/* ---------- Responsive ---------- */
-@media(max-width:480px){
-  .container-proveedor{padding:28px 18px}
-  input[type=text],
-  input[type=email],
-  textarea{font-size:14px;padding:8px}
-  .btn-agregar-proveedor{font-size:16px;padding:10px}
+/* Reduce motion */
+@media (prefers-reduced-motion:reduce){
+  .btn-agregar-proveedor, input, textarea{ transition:none !important; }
 }
