@@ -1,11 +1,11 @@
 /*  editar_precios_proveedor.js
     ────────────────────────────────────────────────────────────────
-    • Mantiene selectedProvId para que el proveedor actual
-      siga apareciendo en el autocomplete, aunque el usuario
-      borre el texto del input.
-    • El formulario sólo borra el hidden cuando REALMENTE
-      se confirma otro proveedor.
-    • Por lo demás es idéntico a la versión anterior.
+    • Autocomplete instantáneo (SWR) + anti-stale (AbortController + reqId)
+    • Si el input está vacío y TIENE FOCO → muestra lista base (todas)
+    • Cierre robusto de cajas (blur, focus a otro control, clic fuera)
+    • Vaciar input + sin foco → limpiar/ocultar caja
+    • Mantiene selectedProvId visible; reset de productos al cambiar proveedor
+    • Enter: siguiente / toma 1ª opción / agregar si es precio
 */
 (() => {
   "use strict";
@@ -14,6 +14,7 @@
   const $id  = id  => document.getElementById(id);
   const $qs  = sel => document.querySelector(sel);
   const $qsa = sel => document.querySelectorAll(sel);
+  const isInside = (root, el) => root && el && (root === el || root.contains(el));
 
   /* Refs DOM */
   const dom = {
@@ -43,20 +44,12 @@
   });
 
   /* State */
-  const state = {
-    prov : { page:1, term:"", loading:false, more:true },
-    prod : { page:1, term:"", loading:false, more:true },
-    items: []                // [{productId, productName, price}]
-  };
-
-  /* ------- proveedor seleccionado actual ------- */
-  let selectedProvId = dom.provHid.value || "";   // se carga con el valor inicial
+  const state = { items: [] };
+  let selectedProvId = dom.provHid.value || "";
 
   /* UI helpers */
   const UI = {
-    clrAlerts(){
-      [dom.alertErr, dom.alertOk].forEach(el=>{ el.style.display="none"; el.innerHTML=""; });
-    },
+    clrAlerts(){ [dom.alertErr, dom.alertOk].forEach(el=>{ el.style.display="none"; el.innerHTML=""; }); },
     ok(msg){ dom.alertOk.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`; dom.alertOk.style.display="block"; },
     err(msg){ dom.alertErr.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`; dom.alertErr.style.display="block"; },
     clrFieldErr(){
@@ -74,109 +67,240 @@
     }
   };
 
-  /* --- cache util --- */
-  const caches = { prov:Object.create(null), prod:Object.create(null) };
-  const fetchC = async(url, type)=>{
-    if(caches[type][url]) return caches[type][url];
-    const r = await fetch(url); const j = await r.json();
-    caches[type][url]=j; return j;
-  };
-  const debounce = (fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);};};
-
-  /* ---------- autocomplete factory ---------- */
+  /* ===== factory de autocomplete (SWR + anti-stale) ===== */
   function makeAuto(kind){
-    const cfg = (kind==="prov") ? {
-      inp   : dom.provInp,
-      hid   : dom.provHid,
-      box   : dom.provBox,
-      st    : state.prov,
-      cache : "prov",
-      url   : p => {
+    const ac = {
+      page:1, term:"", loading:false, more:true,
+      aborter:null, reqId:0,
+      cache:Object.create(null),
+      basePage:[], baseHasMore:true,
+      box: kind==="prov" ? dom.provBox : dom.prodBox,
+      inp: kind==="prov" ? dom.provInp : dom.prodInp,
+      hid: kind==="prov" ? dom.provHid : dom.prodHid,
+      open(){ this.box.style.display="block"; },
+      close(){ this.box.style.display="none"; },
+      clearBox(){ this.box.innerHTML=""; },
+      showLoading(){
+        this.box.innerHTML = '<div class="autocomplete-no-result">Cargando…</div>';
+        this.open();
+      },
+      cancel(){ try{ this.aborter?.abort(); }catch(_){/*noop*/} this.aborter=null; }
+    };
+
+    const buildUrl = (p) => {
+      if (kind === "prov") {
         const cur = selectedProvId ? `&current=${selectedProvId}` : "";
         return `${proveedorAutocompleteUrl}?${p}${cur}`;
-      },
-      onPick: (id)=>{               // si elige otro proveedor…
-        selectedProvId = id;
-        dom.provHid.value = id;
-        /* si cambió, vaciamos caché de productos */
-        Object.keys(caches.prod).forEach(k=>delete caches.prod[k]);
       }
-    } : {
-      inp   : dom.prodInp,
-      hid   : dom.prodHid,
-      box   : dom.prodBox,
-      st    : state.prod,
-      cache : "prod",
-      url   : p =>{
-        const exc = state.items.map(i=>i.productId).join(",");
-        return `${productoPreciosAutocompleteUrl}?${p}&excluded=${exc}`;
-      },
-      onPick: ()=>{}
+      const exc = state.items.map(i=>i.productId).join(",");
+      const productoURL =
+        (typeof productoPreciosAutocompleteUrl !== "undefined" && productoPreciosAutocompleteUrl)
+          ? productoPreciosAutocompleteUrl
+          : (typeof productoAutocompleteUrl !== "undefined" ? productoAutocompleteUrl : "");
+      return `${productoURL}?${p}&excluded=${exc}`;
     };
 
-    /* render opciones */
-    const render = async()=>{
-      if(cfg.st.loading || !cfg.st.more) return;
-      cfg.st.loading=true;
-      const qs = new URLSearchParams({term:cfg.st.term,page:cfg.st.page});
-      const data = await fetchC(cfg.url(qs), cfg.cache);
-
-      if(cfg.st.page===1) cfg.box.innerHTML="";
-      if(data.results.length){
-        data.results.forEach(r=>{
+    function paint(list, replace=true){
+      requestAnimationFrame(()=>{
+        const frag = document.createDocumentFragment();
+        list.forEach(r=>{
           const d=document.createElement("div");
-          d.className="autocomplete-option"; d.dataset.id=r.id; d.textContent=r.text;
-          cfg.box.appendChild(d);
+          d.className="autocomplete-option";
+          d.dataset.id=r.id;
+          d.textContent=r.text;
+          frag.appendChild(d);
         });
-        cfg.st.more = data.has_more;
-      }else if(cfg.st.page===1){
-        cfg.box.innerHTML='<div class="autocomplete-no-result">No se encontraron resultados</div>';
-        cfg.st.more=false;
+        if(replace) ac.box.replaceChildren(frag);
+        else ac.box.appendChild(frag);
+        ac.open();
+      });
+    }
+
+    async function fetchPage(term, page){
+      const key = `${term}::${page}`;
+      if(ac.cache[key]) return ac.cache[key];
+      const qs  = new URLSearchParams({term, page});
+      const url = buildUrl(qs);
+      if(!url) return {results:[], has_more:false};
+      const r   = await fetch(url, { signal: ac.aborter?.signal });
+      const j   = await r.json();
+      ac.cache[key]=j;
+      return j;
+    }
+
+    async function serverSearch({reset=true}={}){
+      if(ac.loading || !ac.more) return;
+
+      // anti-stale
+      ac.cancel();
+      ac.aborter = new AbortController();
+      const myReq = ++ac.reqId;
+      const termAtReq = ac.term, pageAtReq = ac.page;
+
+      ac.loading = true;
+      try{
+        const data = await fetchPage(termAtReq, pageAtReq);
+        if(myReq !== ac.reqId || termAtReq !== ac.term || pageAtReq !== ac.page) return;
+
+        if(reset) ac.clearBox();
+        if(data.results?.length){
+          paint(data.results, reset);
+          ac.more = !!data.has_more;
+        }else{
+          ac.more = false;
+          if(reset){
+            ac.box.innerHTML = '<div class="autocomplete-no-result">No se encontraron resultados</div>';
+            ac.open();
+          }
+        }
+      }catch(_){/* abort/red */}
+      finally{ ac.loading=false; }
+    }
+
+    function instant(){
+      const key1 = `${ac.term}::1`;
+      let painted = false;
+
+      if(ac.cache[key1]?.results){
+        paint(ac.cache[key1].results, true);
+        painted = true;
+      }else if(ac.basePage.length){
+        const t = ac.term.toLowerCase();
+        const local = ac.basePage
+          .filter(r => r.text.toLowerCase().includes(t) || r.text.toLowerCase().startsWith(t))
+          .slice(0,50);
+        paint(local, true);
+        painted = true;
       }
-      cfg.box.style.display="block"; cfg.st.loading=false;
+
+      ac.page = 1; ac.more = true;
+      serverSearch({reset:true});
+      if(!painted) requestAnimationFrame(()=>ac.open());
+    }
+
+    /* ==== eventos ===== */
+    let blurTimer = null;
+
+    const onInput = ()=>{
+      ac.term = ac.inp.value.trim();
+
+      // Si está vacío:
+      if(ac.term === ""){
+        // Con FOCO → mostrar base (todas)
+        if (document.activeElement === ac.inp) {
+          ac.page = 1; ac.more = true;
+          if(ac.basePage.length){
+            paint(ac.basePage, true);
+            ac.box.scrollTop = 0;
+          }else{
+            ac.showLoading();
+          }
+          serverSearch({reset:true}); // revalida base
+        }else{
+          // Sin foco → limpiar y ocultar
+          if(kind==="prod") ac.hid.value = "";
+          ac.cancel();
+          ac.clearBox();
+          ac.close();
+          ac.page = 1; ac.more = true;
+        }
+        return;
+      }
+
+      // Hay término → respuesta instantánea + revalidación
+      if(kind==="prod") ac.hid.value = "";
+      instant();
     };
 
-    /* event bindings */
-    const deb = debounce(()=>{ cfg.st.page=1; cfg.st.more=true; render(); });
+    const onFocus = ()=>{
+      ac.term = ac.inp.value.trim();
+      ac.page = 1; ac.more = true;
 
-    cfg.inp.addEventListener("input",()=>{
-      cfg.st.term = cfg.inp.value.trim();
-      cfg.st.page = 1; cfg.st.more = true;
-      deb();
-    });
-
-    cfg.inp.addEventListener("focus",()=>{
-      cfg.st.term = cfg.inp.value.trim();
-      cfg.st.page = 1; cfg.st.more = true;
-      render();
-    });
-
-    cfg.box.addEventListener("scroll",()=>{
-      if(cfg.box.scrollTop+cfg.box.clientHeight>=cfg.box.scrollHeight-4 && cfg.st.more && !cfg.st.loading){
-        cfg.st.page++; render();
+      if(ac.term === ""){
+        // Mostrar base en foco vacío
+        if(ac.basePage.length){ paint(ac.basePage, true); }
+        else ac.showLoading();
+        serverSearch({reset:true});
+      }else{
+        instant();
       }
+    };
+
+    const onBlur = ()=>{
+      clearTimeout(blurTimer);
+      blurTimer = setTimeout(()=>{ ac.close(); }, 130);
+    };
+
+    const onScroll = ()=>{
+      if(ac.box.scrollTop + ac.box.clientHeight >= ac.box.scrollHeight - 4 && ac.more && !ac.loading){
+        ac.page++; serverSearch({reset:false});
+      }
+    };
+
+    const onClick = (e)=>{
+      const opt = e.target.closest(".autocomplete-option"); if(!opt) return;
+      ac.inp.value = opt.textContent;
+
+      if(kind==="prov"){
+        selectedProvId    = opt.dataset.id;
+        dom.provHid.value = selectedProvId;
+
+        // Cambió proveedor: reset total del autocomplete de productos
+        try{
+          acProd.cache       = Object.create(null);
+          acProd.basePage    = [];
+          acProd.baseHasMore = true;
+          acProd.term        = "";
+          acProd.page        = 1;
+          acProd.more        = true;
+          dom.prodInp.value  = "";
+          dom.prodHid.value  = "";
+          acProd.clearBox(); acProd.close();
+        }catch(_){}
+      }else{
+        ac.hid.value = opt.dataset.id;
+      }
+      ac.close();
+    };
+
+    // Cerrar si haces foco en otro control
+    document.addEventListener("focusin", (ev)=>{
+      const t = ev.target;
+      if(!isInside(ac.inp, t) && !isInside(ac.box, t)) ac.close();
     });
 
-    cfg.box.addEventListener("click",e=>{
-      const opt=e.target.closest(".autocomplete-option"); if(!opt) return;
-      cfg.inp.value = opt.textContent;
-      cfg.onPick(opt.dataset.id);
-      cfg.box.style.display="none";
-      if(kind==="prod"){ cfg.hid.value = opt.dataset.id; }
+    // Cerrar si clic fuera
+    document.addEventListener("click", (ev)=>{
+      const t = ev.target;
+      if(!isInside(ac.inp, t) && !isInside(ac.box, t)) ac.close();
     });
 
-    document.addEventListener("click",e=>{
-      if(!cfg.inp.contains(e.target) && !cfg.box.contains(e.target))
-        cfg.box.style.display="none";
-    });
+    ac.inp.addEventListener("input", onInput);
+    ac.inp.addEventListener("focus", onFocus);
+    ac.inp.addEventListener("blur", onBlur);
+    ac.box.addEventListener("scroll", onScroll);
+    ac.box.addEventListener("click", onClick);
+
+    // Prefetch base (no muestra; sólo cachea)
+    (async function prefetchBase(){
+      try{
+        const data = await fetchPage("", 1);
+        ac.basePage = data.results || [];
+        ac.baseHasMore = !!data.has_more;
+      }catch(_){}
+    })();
+
+    return ac;
   }
-  makeAuto("prov");
-  makeAuto("prod");
+
+  // Instancias
+  const acProv = makeAuto("prov");
+  const acProd = makeAuto("prod");
 
   /* ---------- precarga productos ---------- */
-  if(Array.isArray(existingProducts)){
+  if (Array.isArray(existingProducts)){
     existingProducts.forEach(p=>{
-      state.items.push({productId:String(p.productId),productName:p.productName,price:String(p.price)});
+      state.items.push({productId:String(p.productId), productName:p.productName, price:String(p.price)});
       dt.row.add([
         p.productName,
         `<input type="number" class="price-input" value="${p.price}" step="0.01" min="0.01" style="width:80px;">`,
@@ -233,11 +357,79 @@
     state.items = state.items.filter(i=>i.productId!==pid);
   });
 
-  /* submit */
+  /* ---------- ENTER → siguiente / seleccionar / agregar ---------- */
+  (function setupEnterNav(){
+    if(!dom.form) return;
+
+    const visible = el => !!(el && el.offsetParent !== null);
+    const getFocusables = () =>
+      Array.from(dom.form.querySelectorAll('input:not([type="hidden"]):not([disabled])'))
+           .filter(visible);
+
+    const pickFirstFrom = (box)=>{
+      if(!box || box.style.display==="none") return null;
+      return box.querySelector(".autocomplete-option");
+    };
+
+    dom.form.addEventListener("keydown", (e)=>{
+      if(e.key !== "Enter") return;
+
+      const t = e.target;
+      e.preventDefault();
+
+      if (t === dom.priceInp){ dom.btnAdd?.click(); return; }
+
+      if (t === dom.provInp || t === dom.prodInp){
+        const isProv = (t === dom.provInp);
+        const box    = isProv ? acProv.box : acProd.box;
+        const first  = pickFirstFrom(box);
+
+        if(first){
+          const text = first.textContent;
+          const id   = first.dataset.id || "";
+          t.value    = text;
+
+          if(isProv){
+            selectedProvId    = id;
+            dom.provHid.value = id;
+
+            // Al cambiar proveedor se limpia productos
+            try{
+              acProd.cache       = Object.create(null);
+              acProd.basePage    = [];
+              acProd.baseHasMore = true;
+              acProd.term        = "";
+              acProd.page        = 1;
+              acProd.more        = true;
+              dom.prodInp.value  = "";
+              dom.prodHid.value  = "";
+              acProd.clearBox(); acProd.close();
+            }catch(_){}
+          }else{
+            dom.prodHid.value = id;
+          }
+          box.style.display = "none";
+        }
+      }
+
+      const focusables = getFocusables();
+      const idx = focusables.indexOf(t);
+      const next = focusables[idx+1] || null;
+
+      if (next){
+        next.focus();
+        if (typeof next.select === "function"){ try{ next.select(); }catch(_){} }
+      }else{
+        dom.btnAdd?.click();
+      }
+    });
+  })();
+
+  /* ---------- submit ---------- */
   dom.form.addEventListener("submit",async ev=>{
     ev.preventDefault(); UI.clrAlerts(); UI.clrFieldErr();
 
-    /* sync precios editados */
+    // sync precios desde inputs
     dt.rows().every(function(){
       const pid=this.node().querySelector(".btn-eliminar")?.dataset.productId;
       if(!pid) return;
