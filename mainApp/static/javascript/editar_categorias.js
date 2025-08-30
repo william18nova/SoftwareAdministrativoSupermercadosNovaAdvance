@@ -1,11 +1,11 @@
 /* static/javascript/editar_categorias.js
-   ⇢ Versión alineada con “agregar” — muestra los mensajes correctamente      */
-
+   ⇢ Versión alineada con “agregar” + Enter navega/submit directo */
 (() => {
   "use strict";
 
   /* ----------- utilidades DOM ----------- */
-  const $ = s => document.querySelector(s);
+  const $  = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
 
   const form      = $("#categoriaEditForm");
   const errBox    = $("#error-message");
@@ -53,7 +53,68 @@
     }
   }
 
-  /* ----------- envío AJAX ----------- */
+  /* =================== Navegación con Enter =================== */
+  function getFormControls(){
+    // Solo campos de entrada reales (no botones)
+    return Array.from(
+      form.querySelectorAll("input, select, textarea")
+    ).filter(el=>{
+      if (el.disabled) return false;
+      const t = (el.type||"").toLowerCase();
+      return t !== "hidden";
+    });
+  }
+
+  function requestSafeSubmit() {
+    // Prefiere requestSubmit (respeta validaciones nativas y el botón submit si existe)
+    if (typeof form.requestSubmit === "function") {
+      const submitter = form.querySelector('button[type="submit"], input[type="submit"]');
+      try { form.requestSubmit(submitter || undefined); return; } catch(_){}
+    }
+    // Fallback viejo
+    const btn = form.querySelector(".btn-guardar, .btn-guardar-categoria, button[type='submit'], input[type='submit']");
+    if (btn && typeof btn.click === "function") { btn.click(); return; }
+    form.submit();
+  }
+
+  function focusNextOrSubmit(current){
+    const fields = getFormControls();
+    const idx = fields.indexOf(current);
+    if (idx === -1) return;
+
+    const next = fields[idx+1];
+    if (next){
+      next.focus();
+      if (typeof next.select === "function" && (next.tagName === "INPUT" || next.tagName === "TEXTAREA")) {
+        try { next.select(); } catch(_){}
+      }
+    } else {
+      // último campo → enviar
+      requestSafeSubmit();
+    }
+  }
+
+  form.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+
+    const el = e.target;
+    // Solo actuamos en inputs/selects/textarea. No tocamos botones.
+    if (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") {
+      // Si quisieras permitir saltos de línea en textarea, comenta las dos líneas siguientes:
+      e.preventDefault();
+      e.stopPropagation();
+
+      const fields = getFormControls();
+      const idx = fields.indexOf(el);
+      if (idx === fields.length - 1) {
+        requestSafeSubmit();    // último campo -> submit directo
+      } else {
+        focusNextOrSubmit(el);  // si no, pasa al siguiente
+      }
+    }
+  });
+
+  /* -------------------- envío AJAX -------------------- */
   form.addEventListener("submit", async ev => {
     ev.preventDefault();
     resetUI();
@@ -74,7 +135,7 @@
         /* flash-message para la tabla de categorías */
         sessionStorage.setItem(
           "flash-categoria",
-          `Categoría «${form.nombre.value}» actualizada correctamente.`
+          `Categoría «${form.nombre?.value || ""}» actualizada correctamente.`
         );
         /* redirección al listado */
         window.location.href = data.redirect_url;
@@ -90,4 +151,5 @@
       show(errBox, icon("Ocurrió un error inesperado."));
     }
   });
+
 })();
