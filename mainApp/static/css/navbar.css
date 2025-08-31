@@ -8,6 +8,16 @@ html, body { margin: 0; padding: 0; }
 :root {
   /* Altura base del nav en 1 línea */
   --nav-h: 56px;
+
+  /* Danger palette para Logout */
+  --danger-50:#ffe9ea;
+  --danger-100:#ffd3d5;
+  --danger-200:#ffb3b6;
+  --danger-400:#ff6b71;
+  --danger-500:#f05256;
+  --danger-600:#e5484d;
+  --danger-700:#c7393d;
+  --danger-ring: 0 0 0 3px rgba(229,72,77,.25);
 }
 
 /* ───────── Barra ───────── */
@@ -35,7 +45,7 @@ html, body { margin: 0; padding: 0; }
   box-shadow: var(--nv-shadow);
   z-index: 1000;
 
-  overflow: visible; /* ¡para que los dropdowns salgan! */
+  overflow: visible; /* dropdowns */
 }
 
 .nv__left { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
@@ -49,21 +59,19 @@ html, body { margin: 0; padding: 0; }
   border-radius: 10px;
   cursor: pointer;
 }
-.nv__burger span {
-  display:block; height:2px; margin:7px 8px; background:var(--nv-text); border-radius:2px;
-}
+.nv__burger span { display:block; height:2px; margin:7px 8px; background:var(--nv-text); border-radius:2px; }
 
 /* ── Marca ── */
 .nv__brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--nv-text); white-space:nowrap; }
 .nv__logo  { width:26px; height:26px; border-radius:6px; box-shadow:0 3px 10px rgba(0,0,0,.25); }
 .nv__title { font: 600 clamp(12px, 1.1vw, 14px)/1 "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
-/* ───────── Enlaces (1ª fila, con wrap si falta espacio) ───────── */
+/* ───────── Enlaces ───────── */
 .nv__links {
   list-style: none;
   display: flex;
   align-items: center;
-  justify-content: center; /* ✅ Centra las opciones */
+  justify-content: center;
   gap: clamp(6px, 1vw, 12px);
   row-gap: 6px;
   margin: 0;
@@ -71,7 +79,7 @@ html, body { margin: 0; padding: 0; }
   flex: 1 1 auto;
   min-width: 0;
   overflow: visible;
-  flex-wrap: wrap; /* Permite varias líneas si no cabe */
+  flex-wrap: wrap;
 }
 .nv__links > li { position: relative; flex: 0 0 auto; }
 
@@ -94,7 +102,7 @@ html, body { margin: 0; padding: 0; }
 
 .nv__dd {
   position: absolute;
-  top: 100%;     /* pegado al padre sin hueco */
+  top: 100%;
   left: 0;
   min-width: 220px;
   max-width: min(92vw, 360px);
@@ -122,40 +130,28 @@ html, body { margin: 0; padding: 0; }
 @media (hover: hover) and (pointer: fine) {
   .nv__item.has-dd:hover > .nv__dd,
   .nv__item.has-dd:focus-within > .nv__dd { display: block; }
-
-  /* “puente” invisible para que no se corte el hover al bajar */
-  .nv__item.has-dd::after {
-    content:""; position:absolute; left:0; right:0; top:100%; height:10px;
-  }
+  .nv__item.has-dd::after { content:""; position:absolute; left:0; right:0; top:100%; height:10px; }
 }
 
-/* Si el dropdown está cerca del borde derecho, que “flote” a la izquierda */
 .nv__links > li:nth-last-child(-n+4) > .nv__dd { right: 0; left: auto; }
 
-/* Padre activo si alguna subruta lo es */
 .is-parent-active > a { background: var(--nv-accent); color:#fff; box-shadow: 0 6px 14px rgba(31,105,210,.35) inset, 0 6px 14px rgba(0,0,0,.15); }
 
 /* ───────── Separación del contenido ───────── */
 .page-wrap {
-  /* Base: suficiente para 1 línea */
   padding-top: calc(var(--nav-h) + 10px);
   padding-left: clamp(10px, 2vw, 16px);
   padding-right: clamp(10px, 2vw, 16px);
 }
 
 /* ================================
-   Escritorio estrecho (se permiten 2 líneas)
+   Escritorio estrecho
    ================================ */
 @media (min-width: 901px) and (max-width: 1280px) {
-  /* Ajustes “compactos” para exprimir espacio antes de envolver */
   .nv__links { gap: 8px; }
   .nv__links a { padding: 6px 10px; font-size: 12px; }
-
-  /* Si envuelve en 2 filas, deja más aire arriba del contenido */
   .page-wrap { padding-top: calc(var(--nav-h) + 30px); }
 }
-
-/* Aún más estrecho en escritorio → casi tablet landscape */
 @media (min-width: 721px) and (max-width: 900px) {
   .nv__links { gap: 6px; }
   .nv__links a { padding: 6px 9px; font-size: 11.5px; }
@@ -184,11 +180,10 @@ html, body { margin: 0; padding: 0; }
     align-items: stretch;
     gap: 6px;
 
-    /* Scroll solamente en móvil */
     max-height: calc(100vh - var(--nav-h) - 16px);
     overflow-y: auto;
 
-    display: none; /* se abre con .is-open (JS) */
+    display: none;
   }
   .nv__links.is-open { display: flex; }
 
@@ -203,7 +198,92 @@ html, body { margin: 0; padding: 0; }
     display: none;
   }
   .nv__item.is-open > .nv__dd { display: block; }
-
-  /* margen superior estándar en móvil */
   .page-wrap { padding-top: calc(var(--nav-h) + 8px); }
+}
+
+/* ================================
+   Botón Cerrar sesión (mejora compacta + variante outline)
+   ================================ */
+
+/* Reset del form para no romper layout */
+.nv__links li form{ margin:0; padding:0; display:inline; }
+
+/* Botón principal (compacto) */
+.nv__logout-btn{
+  --btn-bg: linear-gradient(180deg, var(--danger-500), var(--danger-600));
+  --btn-shadow: 0 6px 14px rgba(229,72,77,.28), inset 0 1px 0 rgba(255,255,255,.12);
+  --btn-shadow-hover: 0 10px 22px rgba(229,72,77,.36), inset 0 1px 0 rgba(255,255,255,.14);
+  --btn-shadow-active: 0 4px 10px rgba(229,72,77,.32), inset 0 1px 0 rgba(255,255,255,.10);
+
+  appearance: none;
+  border: 0;
+  outline: 0;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  /* 👇 Mejora aplicada (más compacto) */
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: var(--btn-bg);
+  color: #fff;
+  font: 700 12px/1 "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  letter-spacing: .01em;
+  white-space: nowrap;
+
+  box-shadow: var(--btn-shadow);
+  transform: translateZ(0);
+  transition: background .18s ease, box-shadow .18s ease, transform .14s ease, filter .18s ease;
+}
+
+.nv__logout-btn i{ font-size: 0.95em; line-height: 0; }
+
+.nv__logout-btn:hover{
+  filter: saturate(1.02) brightness(1.02);
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
+}
+.nv__logout-btn:active{
+  background: linear-gradient(180deg, var(--danger-600), var(--danger-700));
+  box-shadow: var(--btn-shadow-active);
+  transform: translateY(0);
+}
+.nv__logout-btn:focus-visible{ box-shadow: var(--btn-shadow-hover), var(--danger-ring); }
+
+.nv__logout-btn:disabled,
+.nv__logout-btn[aria-disabled="true"]{
+  opacity: .55;
+  cursor: not-allowed;
+  filter: saturate(.8);
+}
+
+/* Variante OUTLINE (más discreta): añade la clase is-outline al botón si la quieres usar */
+.nv__logout-btn.is-outline{
+  background: transparent;
+  color: var(--danger-500);
+  border: 1px solid rgba(229,72,77,.6);
+  box-shadow: none;
+}
+.nv__logout-btn.is-outline:hover{
+  background: rgba(229,72,77,.15);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 14px rgba(229,72,77,.3);
+}
+
+/* Empujar a la derecha en desktop si el <li> usa esta clase */
+@media (min-width:721px){
+  .nv__logout-slot{ margin-left: auto; }
+}
+
+/* Modo compacto en móvil (igual que arriba) */
+@media (max-width:720px){
+  .nv__logout-btn{
+    padding: 7px 12px;
+    font-weight: 700;
+    font-size: 12px;
+    border-radius: 10px;
+  }
 }

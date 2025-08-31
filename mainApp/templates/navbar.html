@@ -14,51 +14,36 @@
 
   {# URLs base que usaremos abajo #}
   {% url 'home' as home_url %}
-
   {% url 'agregar_sucursal' as add_suc_url %}
   {% url 'visualizar_sucursales' as list_suc_url %}
-
   {% url 'agregar_categoria' as add_cat_url %}
   {% url 'visualizar_categorias' as list_cat_url %}
-
   {% url 'agregar_producto' as add_prod_url %}
   {% url 'visualizar_productos' as list_prod_url %}
-
   {% url 'agregar_inventario' as add_inv_url %}
   {% url 'visualizar_inventarios' as list_inv_url %}
-  {% url 'editar_inventario' 0 as edit_inv_example %} {# ejemplo, requiere sucursal_id en runtime #}
-
+  {% url 'editar_inventario' 0 as edit_inv_example %}
   {% url 'agregar_proveedor' as add_prov_url %}
   {% url 'visualizar_proveedores' as list_prov_url %}
-
   {% url 'agregar_productos_precios_proveedor' as add_pp_url %}
   {% url 'visualizar_productos_precios_proveedores' as list_pp_url %}
-
   {% url 'agregar_punto_pago' as add_ppago_url %}
   {% url 'visualizar_puntos_pago' as list_ppago_url %}
-
   {% url 'agregar_rol' as add_rol_url %}
   {% url 'visualizar_roles' as list_rol_url %}
-
   {% url 'agregar_usuario' as add_user_url %}
   {% url 'visualizar_usuarios' as list_user_url %}
-
   {% url 'agregar_empleado' as add_emp_url %}
   {% url 'visualizar_empleados' as list_emp_url %}
-
   {% url 'agregar_horario' as add_hor_url %}
   {% url 'visualizar_horarios' as list_hor_url %}
-
   {% url 'agregar_horario_caja' as add_horc_url %}
   {% url 'visualizar_horarios_cajas' as list_horc_url %}
-
   {% url 'agregar_cliente' as add_cli_url %}
   {% url 'visualizar_clientes' as list_cli_url %}
-
   {% url 'generar_venta' as gen_venta_url %}
   {% url 'visualizar_ventas' as list_venta_url %}
   {% url 'visualizar_cambios' as cambios_url %}
-
   {% url 'agregar_pedido' as add_pedido_url %}
   {% url 'visualizar_pedidos' as list_pedido_url %}
 
@@ -205,5 +190,17 @@
         <li><a href="{{ list_pedido_url }}">Visualizar pedidos</a></li>
       </ul>
     </li>
+
+    {# ============= Botón de Cerrar Sesión ============= #}
+    {% if user.is_authenticated %}
+    <li>
+      <form method="post" action="{% url 'logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="nv__logout-btn">
+          <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+        </button>
+      </form>
+    </li>
+    {% endif %}
   </ul>
 </nav>
