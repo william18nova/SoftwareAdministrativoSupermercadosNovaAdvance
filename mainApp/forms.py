@@ -1,7 +1,7 @@
 # mainApp/forms.py
 
 from django import forms
-from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol, Inventario, PreciosProveedor, PedidoProveedor, DetallePedidoProveedor
+from .models import Categoria, Cliente, Empleado, Usuario, Sucursal, HorarioCaja, PuntosPago, HorariosNegocio, Producto, Proveedor, Rol, Inventario, PreciosProveedor, PedidoProveedor, DetallePedidoProveedor, Permiso
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -1995,3 +1995,164 @@ class EditarPedidoForm(forms.Form):
                 )
 
         return cleaned
+    
+class PermisoForm(forms.ModelForm):
+    class Meta:
+        model = Permiso
+        fields = ['nombre', 'descripcion']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej. Agregar sucursal',
+                'maxlength': '50',
+                'autocomplete': 'off',
+            }),
+            'descripcion': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Descripción breve del permiso (opcional)',
+            }),
+        }
+        labels = {
+            'nombre': 'Nombre del permiso',
+            'descripcion': 'Descripción',
+        }
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data["nombre"].strip()
+        # Unicidad case-insensitive
+        if Permiso.objects.filter(nombre__iexact=nombre).exists():
+            raise forms.ValidationError("Ya existe un permiso con ese nombre.")
+        return nombre
+    
+class PermisoEditarForm(forms.ModelForm):
+    """
+    ▸ Form para editar un Permiso.
+    ▸ Acepta el mismo nombre si no cambió.
+    ▸ Si cambia, valida duplicados (case-insensitive) excluyendo el propio registro.
+    """
+
+    nombre = forms.CharField(
+        label="Nombre del permiso",
+        max_length=50,
+        validators=[
+            RegexValidator(
+                regex=r"^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s\-\_]+$",
+                message="El nombre solo debe contener letras, números, espacios y - _."
+            )
+        ],
+        widget=forms.TextInput(attrs={
+            "class"      : "form-control",
+            "placeholder": "Ej. Agregar sucursal",
+            "required"   : True,
+        }),
+        error_messages={
+            "required"   : "El nombre es obligatorio.",
+            "max_length" : "El nombre no puede superar 50 caracteres.",
+        },
+    )
+
+    descripcion = forms.CharField(
+        label="Descripción",
+        required=False,
+        widget=forms.Textarea(attrs={
+            "class"      : "form-control",
+            "placeholder": "Descripción breve del permiso (opcional)",
+            "rows"       : 5,
+        }),
+    )
+
+    class Meta:
+        model  = Permiso
+        fields = ("nombre", "descripcion")
+
+    def clean_nombre(self):
+        nombre = (self.cleaned_data.get("nombre") or "").strip()
+
+        # Si no cambió, permitir
+        if self.instance and nombre.lower() == (self.instance.nombre or "").lower():
+            return nombre
+
+        # Si cambió, validar duplicado
+        existe = Permiso.objects.filter(
+            nombre__iexact=nombre
+        ).exclude(pk=self.instance.pk).exists()
+
+        if existe:
+            raise forms.ValidationError("Ya existe un permiso con ese nombre.")
+        return nombre
+    
+class RolPermisoAssignForm(forms.Form):
+    """
+    Autocompletes visibles + campos ocultos.
+    La lista de permisos se manda como JSON en 'permisos_temp'.
+    """
+    # visibles
+    rol_autocomplete = forms.CharField(
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Escriba para buscar rol…",
+            "autocomplete": "off",
+        }), required=True
+    )
+    permiso_autocomplete = forms.CharField(
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Escriba para buscar permiso…",
+            "autocomplete": "off",
+        }), required=False
+    )
+
+    # ocultos
+    rol = forms.ModelChoiceField(
+        queryset=Rol.objects.all(),
+        widget=forms.HiddenInput(), required=True
+    )
+    permisoid = forms.ModelChoiceField(
+        queryset=Permiso.objects.all(),
+        widget=forms.HiddenInput(), required=False
+    )
+
+    class Meta:
+        fields = ("rol", "permisoid")
+
+    def clean(self):
+        cd = super().clean()
+        if not cd.get("rol"):
+            self.add_error("rol", "Seleccione un rol válido.")
+        return cd
+
+class RolPermisoEditForm(forms.Form):
+    """
+    En edición, el rol llega por la URL. Aquí lo mantenemos en hidden
+    por si validamos algo adicional. El permiso se selecciona por autocomplete.
+    """
+    permiso_autocomplete = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": "Escriba para buscar permiso…",
+            "autocomplete": "off",
+        })
+    )
+
+    rol = forms.ModelChoiceField(
+        queryset=Rol.objects.all(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+
+    permisoid = forms.ModelChoiceField(
+        queryset=Permiso.objects.all(),
+        widget=forms.HiddenInput(),
+        required=False,
+    )
+
+    class Meta:
+        fields = ("rol", "permisoid")
+
+    def clean(self):
+        cd = super().clean()
+        if not cd.get("rol"):
+            self.add_error("rol", "Rol inválido.")
+        return cd

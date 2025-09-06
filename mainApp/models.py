@@ -381,3 +381,49 @@ class CambioDevolucion(models.Model):
         if total_a_restar:
             venta.total -= total_a_restar
             venta.save(update_fields=["total"])
+            
+class Permiso(models.Model):
+    """
+    Mapea la tabla existente public.persmisos
+    Campos según dump: permisoid (PK), nombre, descripcion
+    """
+    permisoid = models.AutoField(primary_key=True)
+    nombre = models.CharField(max_length=50, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = "permisos"
+        verbose_name = "permiso"
+        verbose_name_plural = "permisos"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+class RolPermiso(models.Model):
+    id      = models.BigAutoField(primary_key=True, db_column="id")
+    rol     = models.ForeignKey(
+        Rol,
+        on_delete=models.CASCADE,
+        db_column="rolid",
+        related_name="rolespermisos",
+    )
+    permiso = models.ForeignKey(
+        Permiso,
+        on_delete=models.CASCADE,
+        db_column="permisoid",
+        related_name="rolespermisos",
+    )
+
+    class Meta:
+        db_table = "rolespermisos"     # nombre EXACTO de tu tabla
+        managed  = False               # la tabla ya existe (creada/alterada a mano)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rol", "permiso"],
+                name="ux_rolespermisos_rol_perm",  # coincide con tu índice único
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.rol} ↔ {self.permiso}"

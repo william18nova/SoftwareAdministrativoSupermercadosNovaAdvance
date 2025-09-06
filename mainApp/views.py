@@ -1,16 +1,16 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso
 from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.contrib.auth import authenticate, login as auth_login
 import json
 from datetime import date
 from django.utils import timezone
 from django.contrib.auth import authenticate
 import logging
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.views.generic import DetailView
 from .forms import (
     CategoriaForm,
@@ -44,6 +44,11 @@ from .forms import (
     PedidoProveedorForm,
     EditarPedidoForm,
     DevolucionForm,
+    PermisoForm,
+    PermisoEditarForm,
+    RolPermisoAssignForm,
+    RolPermisoEditForm
+    
 )
 from dal import autocomplete
 from decimal import Decimal, InvalidOperation
@@ -52,13 +57,15 @@ from itertools import zip_longest
 from django.forms import formset_factory 
 from django.views          import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, CreateView
 from django.views.generic.edit import FormView, UpdateView
 from django.views.generic import ListView
 from django.utils.decorators import method_decorator
 from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
+
+
 
 
 logger = logging.getLogger(__name__)
@@ -3417,3 +3424,415 @@ class PuntoPagoPorSucursalAutocomplete(PaginatedAutocompleteMixin):
         if sid:
             qs = qs.filter(sucursalid_id=sid)
         return qs.order_by(self.text_field)
+    
+class PermisoCreateView(LoginRequiredMixin, CreateView):
+    model = Permiso
+    form_class = PermisoForm
+    template_name = "permiso_form.html"
+    success_url = reverse_lazy("permiso_agregar")  # permanecer en la página para agregar varios
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, "Permiso creado correctamente.")
+        return response
+
+    def form_invalid(self, form):
+        messages.error(self.request, "Por favor corrige los errores.")
+        return super().form_invalid(form)
+    
+class PermisoListView(LoginRequiredMixin, ListView):
+    """
+    Muestra la tabla de permisos con DataTable.
+    """
+    template_name       = "visualizar_permisos.html"
+    model               = Permiso
+    context_object_name = "permisos"
+    
+class PermisoUpdateAJAXView(LoginRequiredMixin, UpdateView):
+    """
+    ▸ Edita un permiso vía AJAX, manteniendo misma UX que ‘Editar Rol’.
+    """
+    model         = Permiso
+    pk_url_kwarg  = "permiso_id"
+    form_class    = PermisoEditarForm
+    template_name = "editar_permiso.html"
+    success_url   = reverse_lazy("visualizar_permisos")
+
+    # -------- AJAX OK --------
+    def form_valid(self, form):
+        self.object = form.save()
+        msg = f'Permiso «{self.object.nombre}» actualizado correctamente.'
+        messages.success(self.request, msg)  # persiste tras redirect
+
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({
+                "success": True,
+                "message": msg,
+                "redirect_url": str(self.success_url),
+            })
+        return super().form_valid(form)
+
+    # -------- AJAX KO --------
+    def form_invalid(self, form):
+        if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse(
+                {"success": False, "errors": form.errors.get_json_data()},
+                status=400,
+            )
+        return super().form_invalid(form)
+
+def eliminar_permiso(request, pk):
+    """Elimina por POST y vuelve a la lista."""
+    if request.method == "POST":
+        obj = get_object_or_404(Permiso, pk=pk)
+        nombre = obj.nombre
+        obj.delete()
+        messages.success(request, f"Permiso «{nombre}» eliminado correctamente.")
+    return redirect("visualizar_permisos")
+
+class RolPermisoAssignView(LoginRequiredMixin, View):
+    """
+    Página + endpoint AJAX para asociar 1..n permisos a un rol.
+    Espera:
+      - form.rol (hidden) con el rol elegido.
+      - permisos_temp (hidden) con JSON: [{permisoId:<id>, permisoName:<txt>}, ...]
+    """
+    template_name = "roles_permisos.html"
+    form_class = RolPermisoAssignForm
+
+    def get(self, request):
+        return render(request, self.template_name, {"form": self.form_class()})
+
+    @transaction.atomic
+    def post(self, request):
+        form = self.form_class(request.POST)
+        if not form.is_valid():
+            # form.errors.get_json_data() ya viene estructurado; lo serializamos
+            return JsonResponse(
+                {"success": False, "errors": json.dumps(form.errors.get_json_data(escape_html=True))},
+                status=400,
+            )
+
+        # Rol
+        rol = form.cleaned_data["rol"]
+
+        # Lista de permisos venida del front
+        raw = request.POST.get("permisos_temp", "[]")
+        try:
+            items = json.loads(raw)
+        except json.JSONDecodeError:
+            return JsonResponse(
+                {"success": False, "errors": json.dumps({"__all__":[{"message":"JSON inválido"}]})},
+                status=400,
+            )
+
+        if not items:
+            return JsonResponse(
+                {"success": False, "errors": json.dumps({"__all__":[{"message":"Debe agregar al menos un permiso."}]})},
+                status=400,
+            )
+
+        creados = 0
+        for it in items:
+            pid = it.get("permisoId")
+            if not pid:
+                continue
+            permiso = get_object_or_404(Permiso, pk=pid)
+
+            # Gracias al unique(rol, permiso) esto es seguro y atómico
+            _, was_created = RolPermiso.objects.get_or_create(rol=rol, permiso=permiso)
+            if was_created:
+                creados += 1
+
+        if not creados:
+            return JsonResponse(
+                {"success": False, "errors": json.dumps({"__all__":[{"message":"Nada que guardar."}]})},
+                status=400,
+            )
+
+        messages.success(request, f"Se asociaron {creados} permisos al rol «{rol.nombre}».")
+        return JsonResponse({"success": True, "created": creados})
+
+
+# ---------- Autocompletes ----------
+class RolAutocomplete(LoginRequiredMixin, View):
+    """
+    Devuelve {results: [{id, text}, ...], has_more: bool}
+    • Solo roles SIN permisos asociados en rolespermisos
+    • Filtro por 'term' y paginación por 'page'
+    """
+    PAGE_SIZE = 20
+
+    def get(self, request):
+        term = (request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
+
+        # Subquery: ¿existe algún rol-permiso para este rol?
+        has_perms = Exists(
+            RolPermiso.objects.filter(rol=OuterRef("pk"))
+        )
+
+        qs = (
+            Rol.objects
+               .annotate(_has_perms=has_perms)
+               .filter(_has_perms=False)          # <-- solo SIN permisos
+               .order_by("nombre")
+        )
+
+        if term:
+            qs = qs.filter(Q(nombre__icontains=term))
+
+        start = (page - 1) * self.PAGE_SIZE
+        end   = start + self.PAGE_SIZE
+        total = qs.count()
+        rows  = qs[start:end]
+
+        results = [{"id": r.pk, "text": r.nombre} for r in rows]
+        has_more = end < total
+        return JsonResponse({"results": results, "has_more": has_more})
+
+
+class PermisoAutocomplete(LoginRequiredMixin, View):
+    """
+    Devuelve permisos excluyendo IDs ya listados (?excluded=1,2,3).
+    Respuesta {results:[{id,text}], has_more}
+    """
+    PAGE_SIZE = 30
+
+    def get(self, request):
+        term = (request.GET.get("term") or "").strip()
+        page = max(int(request.GET.get("page") or 1), 1)
+
+        excluded = request.GET.get("excluded", "")
+        ids = [int(x) for x in excluded.split(",") if x.isdigit()]
+
+        qs = Permiso.objects.exclude(pk__in=ids).order_by("nombre")
+        if term:
+            qs = qs.filter(Q(nombre__icontains=term) | Q(descripcion__icontains=term))
+
+        start, end = (page - 1) * self.PAGE_SIZE, page * self.PAGE_SIZE
+        total = qs.count()
+        rows = qs[start:end]
+
+        results = [{"id": p.pk, "text": p.nombre} for p in rows]
+        return JsonResponse({"results": results, "has_more": end < total})
+    
+class VisualizarRolesPermisosView(LoginRequiredMixin, View):
+    """
+    GET  -> página base sin tabla (hasta que el usuario elija un rol)
+    POST -> recibe rol (id) y muestra sus permisos en tabla
+    """
+    template_name = "visualizar_roles_permisos.html"
+
+    def get(self, request):
+        return render(request, self.template_name, self._ctx())
+
+    def post(self, request):
+        ctx = self._ctx()
+        rid = (request.POST.get("rol") or "").strip()  # <input name="rol" ...>
+        if rid.isdigit():
+            rol = get_object_or_404(Rol, pk=int(rid))
+            permisos_rel = (
+                RolPermiso.objects
+                .select_related("permiso")
+                .filter(rol=rol)
+                .order_by("permiso__nombre")
+            )
+            ctx["rol_seleccionado"] = rol
+            ctx["permisos_rel"] = permisos_rel
+        # si no hay id válido, vuelve con página base
+        return render(request, self.template_name, ctx)
+
+    def _ctx(self):
+        # contexto mínimo; la búsqueda se hace con un endpoint de autocomplete
+        return {"rol_seleccionado": None, "permisos_rel": None}
+
+
+@login_required
+def eliminar_rol_permiso_view(request, rp_id):
+    """
+    Elimina una relación RolPermiso por PK (botón papelera) y devuelve JSON.
+    Maneja grácilmente el caso 'no encontrado' para clientes AJAX.
+    """
+    try:
+        rel = RolPermiso.objects.select_related("permiso").get(pk=rp_id)
+    except RolPermiso.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "message": "Relación no encontrada."},
+            status=404
+        )
+
+    nombre_perm = rel.permiso.nombre
+    rel.delete()
+    return JsonResponse(
+        {"success": True, "message": f'Permiso "{nombre_perm}" desvinculado correctamente.'}
+    )
+
+
+class RolConPermisosAutocomplete(LoginRequiredMixin, View):
+    """
+    Respuesta: {results:[{id,text}], has_more:bool}
+    GET: term, page
+    """
+    PAGE = 20
+
+    def get(self, request):
+        term = (request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
+
+        sub = RolPermiso.objects.filter(rol_id=OuterRef("pk"))
+        qs = (Rol.objects
+              .annotate(has_perms=Exists(sub))
+              .filter(has_perms=True)
+              .order_by("nombre"))
+        if term:
+            qs = qs.filter(nombre__icontains=term)
+
+        total = qs.count()
+        start = (page - 1) * self.PAGE
+        end   = start + self.PAGE
+        rows  = qs[start:end]
+
+        results = [{"id": r.pk, "text": r.nombre} for r in rows]
+        return JsonResponse({"results": results, "has_more": end < total})
+    
+class RolesPermisosEditView(LoginRequiredMixin, View):
+    """
+    Editar permisos de un rol con 'buffer':
+      • GET  -> muestra permisos actuales
+      • POST -> aplica altas (permisos_temp) y bajas (permisos_borrar) en batch
+    """
+    template_name = "editar_roles_permisos.html"
+    form_class    = RolPermisoEditForm
+    success_url   = reverse_lazy("visualizar_roles_permisos")
+
+    def get(self, request, rol_id):
+        rol = get_object_or_404(Rol, pk=rol_id)
+
+        rels = (RolPermiso.objects
+                .select_related("permiso")
+                .filter(rol=rol)
+                .order_by("permiso__nombre"))
+
+        form = self.form_class(initial={"rol": rol})
+        ctx = {"rol": rol, "form": form, "permisos_rel": rels}
+        return render(request, self.template_name, ctx)
+
+    @transaction.atomic
+    def post(self, request, rol_id):
+        """
+        Espera:
+          - 'permisos_temp'   => JSON con altas [{permisoId, permisoName}]
+          - 'permisos_borrar' => JSON con bajas  [permisoId, ...]
+        """
+        rol  = get_object_or_404(Rol, pk=rol_id)
+        form = self.form_class(request.POST, initial={"rol": rol})
+
+        if not form.is_valid():
+            return JsonResponse({
+                "success": False,
+                "errors": form.errors.get_json_data(escape_html=True),
+            }, status=400)
+
+        import json
+
+        # ALTAS
+        raw_add = request.POST.get("permisos_temp", "[]")
+        try:
+            items_add = json.loads(raw_add)
+        except json.JSONDecodeError:
+            items_add = []
+
+        # BAJAS
+        raw_del = request.POST.get("permisos_borrar", "[]")
+        try:
+            items_del = json.loads(raw_del)
+        except json.JSONDecodeError:
+            items_del = []
+
+        # Nada que hacer
+        if not items_add and not items_del:
+            return JsonResponse({
+                "success": False,
+                "errors": {"__all__": [{"message": "No hay cambios para guardar."}]}
+            }, status=400)
+
+        creados = 0
+        eliminados = 0
+
+        # Procesar ALTAS (evitar duplicados)
+        for it in items_add:
+            pid = it.get("permisoId")
+            if not pid:
+                continue
+            permiso = get_object_or_404(Permiso, pk=pid)
+            _, was_created = RolPermiso.objects.get_or_create(rol=rol, permiso=permiso)
+            if was_created:
+                creados += 1
+
+        # Procesar BAJAS (por permiso_id)
+        if items_del:
+            ids = [int(x) for x in items_del if str(x).isdigit()]
+            if ids:
+                qs = RolPermiso.objects.filter(rol=rol, permiso_id__in=ids)
+                eliminados = qs.count()
+                qs.delete()
+
+        messages.success(
+            request,
+            f"Cambios guardados para «{rol.nombre}». (+{creados} altas, −{eliminados} bajas)"
+        )
+        return JsonResponse({
+            "success": True,
+            "created": creados,
+            "deleted": eliminados,
+            "redirect_url": str(self.success_url)
+        })
+
+
+class PermisoParaRolAutocomplete(LoginRequiredMixin, View):
+    """
+    Autocomplete de permisos EXCLUYENDO:
+      • los que ya tiene el rol en BD (salvo los marcados en 'pending_remove')
+      • los listados en 'excluded' (agregados en el front)
+    GET:
+      term, page, rol_id, excluded, pending_remove
+    Resp: {results:[{id,text}], has_more:bool}
+    """
+    PAGE = 30
+
+    def get(self, request):
+        term = (request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
+
+        # agregados en el front (no deben aparecer)
+        excluded = request.GET.get("excluded", "")
+        excluded_ids = [int(x) for x in excluded.split(",") if x.isdigit()]
+
+        # ids marcados PARA BORRAR (en borrador) -> deben volver a aparecer
+        pend = request.GET.get("pending_remove", "")
+        pending_remove_ids = [int(x) for x in pend.split(",") if x.isdigit()]
+
+        # rol actual (para excluir los que tiene en BD, menos los pending_remove)
+        rid = request.GET.get("rol_id")
+        already_ids = []
+        if rid and rid.isdigit():
+            already_ids = list(
+                RolPermiso.objects.filter(rol_id=int(rid))
+                                   .values_list("permiso_id", flat=True)
+            )
+            if pending_remove_ids:
+                # quita de "ya vinculados" los que están marcados para borrar en borrador
+                already_ids = [pid for pid in already_ids if pid not in set(pending_remove_ids)]
+
+        # construir queryset final
+        qs = Permiso.objects.exclude(pk__in=already_ids + excluded_ids).order_by("nombre")
+        if term:
+            qs = qs.filter(Q(nombre__icontains=term) | Q(descripcion__icontains=term))
+
+        total = qs.count()
+        start = (page - 1) * self.PAGE
+        rows  = qs[start:start + self.PAGE]
+
+        data = [{"id": p.pk, "text": p.nombre} for p in rows]
+        return JsonResponse({"results": data, "has_more": start + self.PAGE < total})
