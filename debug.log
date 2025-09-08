@@ -1963,3 +1963,1044 @@ Watching for file changes with StatReloader
 "POST /roles_permisos/editar/1/ HTTP/1.1" 200 92
 "GET /roles_permisos/visualizar/ HTTP/1.1" 200 7824
 "GET /autocomplete/rol_con_permisos/?term=&page=1 HTTP/1.1" 200 60
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 1391
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6346
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/modal_venta.css HTTP/1.1" 200 2107
+"GET /static/css/generar_venta.css HTTP/1.1" 200 12865
+"GET /static/javascript/generar_venta.js HTTP/1.1" 200 25810
+Internal Server Error: /autocomplete/producto-codigo/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2916, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+Internal Server Error: /autocomplete/producto-barras/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2937, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+"GET /autocomplete/producto-codigo/?term=&sucursal_id= HTTP/1.1" 500 145
+"GET /autocomplete/producto-barras/?term=&sucursal_id= HTTP/1.1" 500 145
+"GET /autocomplete/producto/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/puntopago/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+Internal Server Error: /autocomplete/producto-codigo/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2916, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+"GET /autocomplete/producto-codigo/?term=&sucursal_id= HTTP/1.1" 500 145
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+Internal Server Error: /autocomplete/producto-barras/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2937, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+"GET /autocomplete/producto-barras/?term=&sucursal_id= HTTP/1.1" 500 145
+"GET /autocomplete/puntopago/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/producto/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /visualizar_inventarios/ HTTP/1.1" 200 7688
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/visualizar_inventarios.css HTTP/1.1" 200 12761
+"GET /static/javascript/visualizar_inventarios.js HTTP/1.1" 200 6962
+"GET /autocomplete/sucursal_con_inventario/?term=&page=1 HTTP/1.1" 200 402
+"GET /autocomplete/sucursal_con_inventario/?term=&page=2 HTTP/1.1" 200 201
+"GET /autocomplete/sucursal_con_inventario/?term=&page=1 HTTP/1.1" 200 402
+"POST /visualizar_inventarios/ HTTP/1.1" 200 10812
+- Broken pipe from ('127.0.0.1', 51334)
+- Broken pipe from ('127.0.0.1', 51335)
+"GET /autocomplete/sucursal/?term=p HTTP/1.1" 200 277
+"GET /agregar_punto_pago/ HTTP/1.1" 200 9474
+"GET /static/css/agregar_punto_pago.css HTTP/1.1" 200 9967
+"GET /static/javascript/agregar_punto_pago.js HTTP/1.1" 200 17070
+"GET /autocomplete/sucursal_punto_pago/?term=&page=1 HTTP/1.1" 200 234
+"POST /agregar_punto_pago/ HTTP/1.1" 200 17
+"GET /autocomplete/sucursal_punto_pago/?term=&page=1 HTTP/1.1" 200 190
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+Internal Server Error: /autocomplete/producto-codigo/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2916, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+"GET /autocomplete/producto-codigo/?term=&sucursal_id= HTTP/1.1" 500 145
+Internal Server Error: /autocomplete/producto-barras/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2937, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+"GET /autocomplete/producto-barras/?term=&sucursal_id= HTTP/1.1" 500 145
+"GET /autocomplete/puntopago/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/producto/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /agregar_inventario/ HTTP/1.1" 200 9428
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/agregar_inventario.css HTTP/1.1" 200 8548
+"GET /static/javascript/agregar_inventario.js HTTP/1.1" 200 15970
+"GET /autocomplete/sucursal_inventario/?term=&page=1 HTTP/1.1" 200 94
+"GET /visualizar_inventarios/ HTTP/1.1" 200 7688
+"GET /static/css/visualizar_inventarios.css HTTP/1.1" 304 0
+"GET /static/javascript/visualizar_inventarios.js HTTP/1.1" 304 0
+"GET /autocomplete/sucursal_con_inventario/?term=&page=1 HTTP/1.1" 200 402
+"POST /visualizar_inventarios/ HTTP/1.1" 200 9908
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"POST /verificar_producto/ HTTP/1.1" 200 205
+"POST /generar_venta/ HTTP/1.1" 200 17
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+Internal Server Error: /ventas_resumen_puntopago/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 3846, in get
+    ctx = {"hoy": timezone.localdate()}
+                  ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\timezone.py", line 197, in localdate
+    return localtime(value, timezone).date()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\utils\timezone.py", line 183, in localtime
+    raise ValueError("localtime() cannot be applied to a naive datetime")
+ValueError: localtime() cannot be applied to a naive datetime
+"GET /ventas_resumen_puntopago/ HTTP/1.1" 500 145
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 5154
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\NovaSoft\settings.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /ventas_resumen_puntopago/ HTTP/1.1" 200 7612
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+Not Found: /static/javascript/ventas_resumen_puntopago.js
+"GET /static/javascript/ventas_resumen_puntopago.js HTTP/1.1" 404 5154
+Not Found: /static/css/ventas_resumen_puntopago.css
+"GET /static/css/ventas_resumen_puntopago.css HTTP/1.1" 404 5154
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+- Broken pipe from ('127.0.0.1', 51778)
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 17
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+Watching for file changes with StatReloader
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 17
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+Watching for file changes with StatReloader
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 17
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 17
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 55
+Watching for file changes with StatReloader
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 55
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 55
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"POST /verificar_producto/ HTTP/1.1" 200 204
+"POST /generar_venta/ HTTP/1.1" 200 17
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /ventas_diarias HTTP/1.1" 301 0
+"GET /ventas_diarias/ HTTP/1.1" 200 7819
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+Not Found: /static/css/ventas_diarias.css
+"GET /static/css/ventas_diarias.css HTTP/1.1" 404 5154
+Not Found: /static/javascript/ventas_diarias.js
+"GET /static/javascript/ventas_diarias.js HTTP/1.1" 404 5154
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /ventas_diarias/ HTTP/1.1" 200 8026
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+Not Found: /static/css/ventas_diarias.css
+"GET /static/css/ventas_diarias.css HTTP/1.1" 404 5154
+Not Found: /static/javascript/ventas_diarias.js
+"GET /static/javascript/ventas_diarias.js HTTP/1.1" 404 5154
+Watching for file changes with StatReloader
+"GET /ventas_diarias/ HTTP/1.1" 200 8026
+"GET /static/css/ventas_diarias.css HTTP/1.1" 200 3471
+"GET /static/javascript/ventas_diarias.js HTTP/1.1" 200 4146
+"GET /autocomplete/sucursal_ventas/?term=&page=1 HTTP/1.1" 200 429
+"GET /generar_venta/ HTTP/1.1" 200 11561
+"GET /static/css/generar_venta.css HTTP/1.1" 304 0
+"GET /static/css/modal_venta.css HTTP/1.1" 304 0
+"GET /static/javascript/generar_venta.js HTTP/1.1" 304 0
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/producto-codigo/?term=&sucursal_id=14 HTTP/1.1" 200 62
+"GET /autocomplete/producto-barras/?term=&sucursal_id=14 HTTP/1.1" 200 89
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+- Broken pipe from ('127.0.0.1', 54343)
+"GET /autocomplete/sucursal_ventas/?term=&page=1 HTTP/1.1" 200 429
+"GET /autocomplete/puntopago_ventas/?term=&page=1&sucursal_id=14 HTTP/1.1" 200 107
+"GET /ventas_diarias/stats/?sucursal_id=14&puntopago_id=22&fecha=2025-09-07 HTTP/1.1" 200 57
+"GET /ventas_diarias/stats/?sucursal_id=14&puntopago_id=22&fecha=2025-09-06 HTTP/1.1" 200 56
+"GET /ventas_diarias/stats/?sucursal_id=14&puntopago_id=22&fecha=2025-09-07 HTTP/1.1" 200 57
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 200 7834
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/ventas_diarias.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/pedidos_pagados.js HTTP/1.1" 200 4850
+"GET /autocomplete/sucursal/?term=&page=1 HTTP/1.1" 200 355
+"GET /autocomplete/sucursal/?term=&page=1 HTTP/1.1" 200 355
+Watching for file changes with StatReloader
+"GET /autocomplete/sucursal/?term=&page=1 HTTP/1.1" 200 355
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 200 7834
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/ventas_diarias.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/pedidos_pagados.js HTTP/1.1" 200 8789
+"GET / HTTP/1.1" 200 1391
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6346
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 200 7834
+"GET /static/css/ventas_diarias.css HTTP/1.1" 200 3471
+"GET /static/javascript/pedidos_pagados.js HTTP/1.1" 200 8789
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+"GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 5154
+Watching for file changes with StatReloader
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 302 0
+"GET /?next=/reportes/pedidos_pagados/ HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6346
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+Internal Server Error: /reportes/pedidos_pagados/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 3930, in get
+    return render(request, self.template_name, {
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 171, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 1008, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 969, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\loader_tags.py", line 159, in render
+    return compiled_parent._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 163, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 1008, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 969, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\loader_tags.py", line 65, in render
+    result = block.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 1008, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\base.py", line 969, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\urls\base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'pedidos_pagados_stats_api' not found. 'pedidos_pagados_stats_api' is not a valid view function or pattern name.
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 500 145
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+Internal Server Error: /reportes/pedidos_pagados/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 4005, in get
+    return render(request, self.template_name, {})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: reportes/pedidos_pagados.html
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 500 145
+Watching for file changes with StatReloader
+Internal Server Error: /reportes/pedidos_pagados/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 4005, in get
+    return render(request, self.template_name, {})
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: reportes/pedidos_pagados.html
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 500 145
+C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 200 8539
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/css/reportes_pedidos_pagados.css HTTP/1.1" 200 4541
+"GET /static/javascript/reportes_pedidos_pagados.js HTTP/1.1" 200 5341
+"GET /autocomplete/sucursal_con_pedidos_pagados/?term=&page=1&fecha= HTTP/1.1" 200 98
+"POST /reportes/pedidos_pagados/ HTTP/1.1" 200 52
+"POST /reportes/pedidos_pagados/ HTTP/1.1" 200 49
+"GET /autocomplete/puntopago_con_pedidos_pagados/?term=&page=1&sucursal_id=14&fecha=2025-09-07 HTTP/1.1" 200 34
+"GET /autocomplete/puntopago_con_pedidos_pagados/?term=&page=1&sucursal_id=14&fecha=2025-09-07 HTTP/1.1" 200 34
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+"GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 5154
+"GET /autocomplete/puntopago_con_pedidos_pagados/?term=&page=1&sucursal_id=4&fecha=2025-09-07 HTTP/1.1" 200 34
+"POST /reportes/pedidos_pagados/ HTTP/1.1" 200 49
+- Broken pipe from ('127.0.0.1', 58382)
+"GET /agregar_pedido/ HTTP/1.1" 200 10622
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/agregar_pedido.css HTTP/1.1" 200 12882
+"GET /static/javascript/agregar_pedido.js HTTP/1.1" 200 21294
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/sucursal/?page=1&page_size=25&term= HTTP/1.1" 200 355
+"GET /autocomplete/proveedor_con_productos/?page=2&page_size=25&term= HTTP/1.1" 200 34
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=2&term= HTTP/1.1" 200 80
+"GET /autocomplete/sucursal/?page=2&page_size=25&term= HTTP/1.1" 200 263
+"GET /autocomplete/producto_pedido/?excluded=&page=2&page_size=25&proveedor_id=2&term= HTTP/1.1" 200 34
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=2&term= HTTP/1.1" 200 80
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=2&term=Calipso HTTP/1.1" 200 80
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term=01 HTTP/1.1" 200 57
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term=0 HTTP/1.1" 200 57
+"GET /agregar_pedido/ HTTP/1.1" 200 10622
+"GET /autocomplete/sucursal/?page=1&page_size=25&term= HTTP/1.1" 200 355
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/proveedor_con_productos/?page=2&page_size=25&term= HTTP/1.1" 200 34
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/sucursal/?page=2&page_size=25&term= HTTP/1.1" 200 263
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 329
+"GET /autocomplete/producto_pedido/?excluded=&page=2&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 34
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 329
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=17&term=c HTTP/1.1" 200 97
+"GET /autocomplete/producto_pedido/?excluded=&page=2&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 34
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=17&term=Chocolatina%20Jet%20100%20gr HTTP/1.1" 200 97
+"GET /autocomplete/producto_pedido/?excluded=5&page=1&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 264
+"GET /autocomplete/producto_pedido/?excluded=5%2C8&page=1&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 208
+"GET /autocomplete/producto_pedido/?excluded=5%2C8%2C6&page=1&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 145
+"POST /agregar_pedido/ HTTP/1.1" 200 61
+"GET /visualizar_pedidos/ HTTP/1.1" 200 15747
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/visualizar_pedidos.css HTTP/1.1" 200 10500
+"GET /static/javascript/visualizar_pedidos.js HTTP/1.1" 200 2407
+"GET /ver_pedido/24/ HTTP/1.1" 200 9725
+"GET /static/css/agregar_pedido.css HTTP/1.1" 304 0
+"GET /static/javascript/ver_pedido.js HTTP/1.1" 200 400
+"GET /editar_pedido/24/ HTTP/1.1" 200 15269
+"GET /static/javascript/editar_pedido.js HTTP/1.1" 200 22799
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/sucursal/?page=1&page_size=25&term= HTTP/1.1" 200 355
+"GET /autocomplete/proveedor_con_productos/?page=2&page_size=25&term= HTTP/1.1" 200 34
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+"GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 5154
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 329
+"GET /autocomplete/caja/puntopago/?page=1&page_size=25&sucursal_id=14&term= HTTP/1.1" 200 107
+"GET /autocomplete/producto_pedido/?excluded=&page=2&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 34
+"GET /autocomplete/producto_pedido/?excluded=5&page=1&page_size=25&proveedor_id=17&term= HTTP/1.1" 200 264
+"POST /editar_pedido/24/ HTTP/1.1" 200 108
+"GET /visualizar_pedidos/?updated=1 HTTP/1.1" 200 15910
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/visualizar_pedidos.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/visualizar_pedidos.js HTTP/1.1" 304 0
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+"GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 5154
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 200 8539
+"GET /autocomplete/sucursal_con_pedidos_pagados/?term=&page=1&fecha=2025-09-07 HTTP/1.1" 200 68
+"POST /reportes/pedidos_pagados/ HTTP/1.1" 200 53
+"GET /autocomplete/puntopago_con_pedidos_pagados/?term=&page=1&sucursal_id=14&fecha=2025-09-07 HTTP/1.1" 200 57
+"POST /reportes/pedidos_pagados/ HTTP/1.1" 200 53
+Watching for file changes with StatReloader

@@ -223,14 +223,35 @@ urlpatterns = [
     path("roles_permisos/eliminar/<int:rp_id>/",
      views.eliminar_rol_permiso_view, name="eliminar_rol_permiso"),
     # Editar roles ↔ permisos
-    path("roles_permisos/editar/<int:rol_id>/", views.RolesPermisosEditView.as_view(),
+     path("roles_permisos/editar/<int:rol_id>/", views.RolesPermisosEditView.as_view(),
          name="editar_roles_permisos"),
 
-    path("autocomplete/permiso_para_rol/", views.PermisoParaRolAutocomplete.as_view(),
+     path("autocomplete/permiso_para_rol/", views.PermisoParaRolAutocomplete.as_view(),
          name="permiso_para_rol_autocomplete"),
-    # eliminar relación ya existente en visualizar:
-    path("roles_permisos/eliminar/<int:rp_id>/", views.eliminar_rol_permiso_view,
+     # eliminar relación ya existente en visualizar:
+     path("roles_permisos/eliminar/<int:rp_id>/", views.eliminar_rol_permiso_view,
          name="eliminar_rol_permiso"),
 
-    
+     path("ventas_diarias/", views.VentasDiariasView.as_view(), name="ventas_diarias"),
+     path("autocomplete/sucursal_ventas/", views.SucursalParaVentasAutocomplete.as_view(),
+     name="sucursal_ventas_autocomplete"),
+     path("autocomplete/puntopago_ventas/", views.PuntoPagoParaVentasAutocomplete.as_view(),
+     name="puntopago_ventas_autocomplete"),
+     path("ventas_diarias/stats/", views.VentasDiariasStatsView.as_view(),
+     name="ventas_diarias_stats"),
+     
+     
+     # --- Reporte: pedidos pagados ---
+     path("reportes/pedidos_pagados/", views.PedidosPagadosView.as_view(),
+          name="pedidos_pagados"),
+
+     # Autocomplete (solo sucursales con pedidos recibidos/pagados)
+     path("autocomplete/sucursal_con_pedidos_pagados/",
+          views.SucursalConPedidosPagadosAutocomplete.as_view(),
+          name="sucursal_con_pedidos_pagados_autocomplete"),
+
+     # Autocomplete de puntos de pago, filtrado por sucursal
+     path("autocomplete/puntopago_con_pedidos_pagados/",
+          views.PuntosPagoConPedidosPagadosAutocomplete.as_view(),
+          name="puntopago_con_pedidos_pagados_autocomplete"),
 ]

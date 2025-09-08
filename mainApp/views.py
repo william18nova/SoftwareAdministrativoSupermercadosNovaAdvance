@@ -10,7 +10,9 @@ from datetime import date
 from django.utils import timezone
 from django.contrib.auth import authenticate
 import logging
-from django.db import transaction, IntegrityError
+from django.utils.dateparse import parse_date
+from django.db import transaction
+from django.core.exceptions import FieldDoesNotExist
 from django.views.generic import DetailView
 from .forms import (
     CategoriaForm,
@@ -64,7 +66,7 @@ from django.utils.decorators import method_decorator
 from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
-
+from django.db.models.functions import Coalesce
 
 
 
@@ -2658,12 +2660,14 @@ class GenerarVentaView(LoginRequiredMixin, View):
 
         try:
             productos_obj = Producto.objects.filter(productoid__in=productos)
-            inventarios   = Inventario.objects.filter(productoid__in=productos_obj,
-                                                      sucursalid=data['sucursal'].pk)
+            inventarios   = Inventario.objects.filter(
+                productoid__in=productos_obj,
+                sucursalid=data['sucursal'].pk
+            )
 
             for i, prod in enumerate(productos_obj):
-                inv   = inventarios.get(productoid=prod)
-                qty   = int(cantidades[i])
+                inv = inventarios.get(productoid=prod)
+                qty = int(cantidades[i])
                 if qty > inv.cantidad:
                     return JsonResponse({
                         'success': False,
@@ -2695,16 +2699,13 @@ class GenerarVentaView(LoginRequiredMixin, View):
     # ----------------------------------------------------------------------
     def _base_context(self, form, detalles=None, total=0):
         return {
-            'form'            : form,
-            'detalles'        : detalles or [],
-            'total'           : total,
+            'form'     : form,
+            'detalles' : detalles or [],
+            'total'    : total,
         }
 
     def _esperar_confirmacion_nequi(self):
-        """
-        Lanza el script websocket y espera confirmación.
-        """
-        import os, subprocess, sys, pathlib, json, shlex, time
+        import os, subprocess, sys, pathlib
         script_path = pathlib.Path(__file__).with_name("nequi_websocket.py")
         try:
             result = subprocess.run(
@@ -2725,6 +2726,9 @@ class GenerarVentaView(LoginRequiredMixin, View):
         Crea la venta y actualiza inventario / caja.
         """
         try:
+            # ✅ Fecha/hora locales según TIME_ZONE (p.ej. America/Bogota)
+            ahora = timezone.localtime()   # <-- sin coma
+
             with transaction.atomic():
                 empleado = getattr(user, "empleado", None)
                 if empleado is None:
@@ -2734,8 +2738,8 @@ class GenerarVentaView(LoginRequiredMixin, View):
                     })
 
                 venta = Venta.objects.create(
-                    fecha       = timezone.now().date(),
-                    hora        = timezone.now().time(),
+                    fecha       = ahora.date(),
+                    hora        = ahora.time(),
                     clienteid   = Cliente.objects.filter(pk=data['cliente_id']).first(),
                     empleadoid  = empleado,
                     sucursalid  = data['sucursal'],
@@ -2746,14 +2750,14 @@ class GenerarVentaView(LoginRequiredMixin, View):
 
                 for d in detalles:
                     DetalleVenta.objects.create(
-                        ventaid       = venta,
-                        productoid_id = d['productoid'],
-                        cantidad      = d['cantidad'],
-                        preciounitario= d['precio_unitario']
+                        ventaid        = venta,
+                        productoid_id  = d['productoid'],
+                        cantidad       = d['cantidad'],
+                        preciounitario = d['precio_unitario']
                     )
                     inv = Inventario.objects.get(
-                        productoid_id=d['productoid'],
-                        sucursalid   =data['sucursal'].pk
+                        productoid_id = d['productoid'],
+                        sucursalid    = data['sucursal'].pk
                     )
                     inv.cantidad -= d['cantidad']
                     inv.save(update_fields=["cantidad"])
@@ -3836,3 +3840,200 @@ class PermisoParaRolAutocomplete(LoginRequiredMixin, View):
 
         data = [{"id": p.pk, "text": p.nombre} for p in rows]
         return JsonResponse({"results": data, "has_more": start + self.PAGE < total})
+
+PAGE_SIZE = 20
+
+class VentasDiariasView(LoginRequiredMixin, View):
+    template_name = "ventas_diarias.html"
+
+    def get(self, request):
+        # fecha por defecto (local)
+        hoy = timezone.localdate()
+        return render(request, self.template_name, {"fecha_hoy": hoy.isoformat()})
+
+
+class SucursalParaVentasAutocomplete(LoginRequiredMixin, View):
+    """Autocomplete de sucursales que tienen al menos un Punto de Pago."""
+    PAGE = PAGE_SIZE
+
+    def get(self, request):
+        term = (request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
+
+        sub = PuntosPago.objects.filter(sucursalid=OuterRef("pk"))
+        qs = (Sucursal.objects
+              .annotate(has_pp=Exists(sub))
+              .filter(has_pp=True)
+              .order_by("nombre"))
+
+        if term:
+            qs = qs.filter(nombre__icontains=term)
+
+        total = qs.count()
+        start, end = (page - 1) * self.PAGE, page * self.PAGE
+        data = [{"id": s.pk, "text": s.nombre} for s in qs[start:end]]
+        return JsonResponse({"results": data, "has_more": end < total})
+
+
+class PuntoPagoParaVentasAutocomplete(LoginRequiredMixin, View):
+    """Autocomplete de puntos de pago filtrados por sucursal."""
+    PAGE = PAGE_SIZE
+
+    def get(self, request):
+        term = (request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
+        sid  = request.GET.get("sucursal_id")
+
+        qs = PuntosPago.objects.all().order_by("nombre")
+        if sid and sid.isdigit():
+            qs = qs.filter(sucursalid_id=int(sid))
+        if term:
+            qs = qs.filter(nombre__icontains=term)
+
+        total = qs.count()
+        start, end = (page - 1) * self.PAGE, page * self.PAGE
+        data = [{"id": p.pk, "text": p.nombre} for p in qs[start:end]]
+        return JsonResponse({"results": data, "has_more": end < total})
+
+
+class VentasDiariasStatsView(LoginRequiredMixin, View):
+    """Devuelve {count, total} para (sucursal, puntopago, fecha)"""
+    def get(self, request):
+        sid = request.GET.get("sucursal_id")
+        pid = request.GET.get("puntopago_id")
+        f   = request.GET.get("fecha")
+
+        if not (sid and pid and f):
+            return JsonResponse({"success": False, "error": "Parámetros incompletos."}, status=400)
+
+        suc = get_object_or_404(Sucursal, pk=sid)
+        pp  = get_object_or_404(PuntosPago, pk=pid, sucursalid=suc)
+
+        # fecha viene yyyy-mm-dd
+        try:
+            fecha = timezone.datetime.fromisoformat(f).date()
+        except Exception:
+            return JsonResponse({"success": False, "error": "Fecha inválida."}, status=400)
+
+        qs = Venta.objects.filter(puntopagoid=pp, fecha=fecha)
+        agg = qs.aggregate(num=Count("ventaid"), total=Sum("total"))
+        return JsonResponse({
+            "success": True,
+            "num_ventas": agg["num"] or 0,
+            "total_vendido": float(agg["total"] or 0),
+        })
+        
+class SucursalConPedidosPagadosAutocomplete(LoginRequiredMixin, View):
+    """
+    Sucursales que tengan al menos un pedido 'Recibido' con monto_pagado > 0.
+    GET: term, page, [fecha]
+    """
+    PAGE = 25
+    def get(self, request):
+        term  = (request.GET.get("term") or "").strip()
+        page  = int(request.GET.get("page") or 1)
+        fecha = request.GET.get("fecha")
+        fecha = parse_date(fecha) if fecha else None
+
+        subq = PedidoProveedor.objects.filter(
+            sucursalid_id=OuterRef("pk"),
+            estado="Recibido",
+        ).exclude(monto_pagado__isnull=True).exclude(monto_pagado=0)
+
+        if fecha:
+            subq = subq.filter(fecha_recibido=fecha)
+
+        qs = (Sucursal.objects
+              .annotate(tiene=Exists(subq))
+              .filter(tiene=True)
+              .order_by("nombre"))
+        if term:
+            qs = qs.filter(nombre__icontains=term)
+
+        total = qs.count()
+        start = (page-1)*self.PAGE
+        end   = start + self.PAGE
+        rows  = qs[start:end]
+        data  = [{"id": s.pk, "text": s.nombre} for s in rows]
+        return JsonResponse({"results": data, "has_more": end < total})
+
+class PuntosPagoConPedidosPagadosAutocomplete(LoginRequiredMixin, View):
+    """
+    Puntos de pago con pedidos 'Recibido' y monto_pagado > 0.
+    GET: term, page, sucursal_id, [fecha]
+    """
+    PAGE = 25
+    def get(self, request):
+        term   = (request.GET.get("term") or "").strip()
+        page   = int(request.GET.get("page") or 1)
+        suc_id = request.GET.get("sucursal_id")
+        fecha  = request.GET.get("fecha")
+        fecha  = parse_date(fecha) if fecha else None
+
+        qs = PuntosPago.objects.all()
+        if suc_id and str(suc_id).isdigit():
+            qs = qs.filter(sucursalid_id=int(suc_id))
+
+        subq = PedidoProveedor.objects.filter(
+            caja_pago_id=OuterRef("pk"),
+            estado="Recibido",
+        ).exclude(monto_pagado__isnull=True).exclude(monto_pagado=0)
+
+        if fecha:
+            subq = subq.filter(fecha_recibido=fecha)
+
+        qs = qs.annotate(tiene=Exists(subq)).filter(tiene=True).order_by("nombre")
+        if term:
+            qs = qs.filter(nombre__icontains=term)
+
+        total = qs.count()
+        start = (page-1)*self.PAGE
+        end   = start + self.PAGE
+        rows  = qs[start:end]
+        data  = [{"id": p.pk, "text": p.nombre} for p in rows]
+        return JsonResponse({"results": data, "has_more": end < total})
+
+class PedidosPagadosView(LoginRequiredMixin, View):
+    """
+    Página y endpoint para resumir pedidos pagados.
+    GET  -> render
+    POST -> JSON con 'cantidad' y 'total'
+    """
+    template_name = "pedidos_pagados.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {})
+
+    def post(self, request):
+        suc_id  = request.POST.get("sucursal_id")
+        pp_id   = request.POST.get("puntopago_id")
+        fecha_s = request.POST.get("fecha")  # opcional
+        fecha   = parse_date(fecha_s) if fecha_s else None
+
+        if not (suc_id and str(suc_id).isdigit()):
+            return JsonResponse({"success": False,
+                                 "message": "Selecciona una sucursal."}, status=400)
+
+        qs = PedidoProveedor.objects.filter(
+            sucursalid_id=int(suc_id),
+            estado="Recibido",
+        ).exclude(monto_pagado__isnull=True).exclude(monto_pagado=0)
+
+        if fecha:
+            qs = qs.filter(fecha_recibido=fecha)
+
+        if pp_id and str(pp_id).isdigit():
+            qs = qs.filter(caja_pago_id=int(pp_id))
+
+        agg = qs.aggregate(
+            cantidad=Count("pedidoid"),
+            total=Sum("monto_pagado")
+        )
+        cantidad = agg["cantidad"] or 0
+        total    = agg["total"] or 0
+
+        return JsonResponse({
+            "success": True,
+            "cantidad": int(cantidad),
+            "total": f"{total:.2f}"
+        })
