@@ -3004,3 +3004,646 @@ Not Found: /.well-known/appspecific/com.chrome.devtools.json
 "GET /autocomplete/puntopago_con_pedidos_pagados/?term=&page=1&sucursal_id=14&fecha=2025-09-07 HTTP/1.1" 200 57
 "POST /reportes/pedidos_pagados/ HTTP/1.1" 200 53
 Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 1391
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 11298
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 256
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 256
+"GET /autocomplete/rol/?term=C&page=1 HTTP/1.1" 200 127
+"GET /autocomplete/rol/?term=Cajero&page=1 HTTP/1.1" 200 61
+"GET /autocomplete/permiso/?term=e&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=a&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"POST /roles_permisos/ HTTP/1.1" 200 31
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=Cajer&page=1 HTTP/1.1" 200 34
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 227
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1 HTTP/1.1" 200 196
+"POST /roles_permisos/ HTTP/1.1" 200 31
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/roles_permisos.css HTTP/1.1" 304 0
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+"GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 5154
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 12230
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 197
+"GET /autocomplete/rol/?term=d&page=1 HTTP/1.1" 200 135
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5%2C1 HTTP/1.1" 200 196
+"POST /roles_permisos/ HTTP/1.1" 200 31
+"GET /autocomplete/rol/?term=Desarrollador&page=1 HTTP/1.1" 200 34
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 302 0
+"GET /?next=/roles_permisos/ HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 12175
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 161
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 161
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5%2C1 HTTP/1.1" 200 196
+"GET /autocomplete/permiso/?term=Agregar%20Categoria&page=1&excluded=5%2C1 HTTP/1.1" 200 34
+"GET /autocomplete/permiso/?term=%3D&page=1&excluded=5%2C1 HTTP/1.1" 200 34
+"POST /roles_permisos/ HTTP/1.1" 200 31
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 302 0
+"GET /?next=/roles_permisos/ HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 13135
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 302 0
+"GET /?next=/roles_permisos/ HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 14407
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=Agregar%20sucursal&page=1&excluded=5 HTTP/1.1" 200 71
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1 HTTP/1.1" 200 196
+"GET /autocomplete/permiso/?term=Editar%20Categoria&page=1&excluded=5,1 HTTP/1.1" 200 71
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,4 HTTP/1.1" 200 158
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 302 0
+"GET /?next=/roles_permisos/ HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 14072
+- Broken pipe from ('127.0.0.1', 62255)
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/rol/?term=p&page=1 HTTP/1.1" 200 94
+"GET /autocomplete/rol/?term=prue&page=1 HTTP/1.1" 200 64
+"GET /autocomplete/rol/?term=pru&page=1 HTTP/1.1" 200 64
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+- Broken pipe from ('127.0.0.1', 62254)
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 302 0
+"GET /?next=/roles_permisos/ HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 14632
+- Broken pipe from ('127.0.0.1', 62354)
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/roles_permisos.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 14407
+- Broken pipe from ('127.0.0.1', 62409)
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1 HTTP/1.1" 200 196
+"GET /autocomplete/permiso/?term=Editar%20Categoria&page=1&excluded=5,1 HTTP/1.1" 200 71
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7 HTTP/1.1" 200 157
+"GET /autocomplete/permiso/?term=Editar%20Sucursal&page=1&excluded=5,1,7 HTTP/1.1" 200 70
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7,4 HTTP/1.1" 200 119
+"GET /autocomplete/permiso/?term=&page=1&excluded=1,7,4 HTTP/1.1" 200 159
+"GET /autocomplete/permiso/?term=Visualizar%20Sucursales&page=1&excluded= HTTP/1.1" 200 76
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=Agregar%20sucursal&page=1&excluded=5 HTTP/1.1" 200 71
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1 HTTP/1.1" 200 196
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 14093
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+- Broken pipe from ('127.0.0.1', 62535)
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7 HTTP/1.1" 200 157
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7,4 HTTP/1.1" 200 119
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7,4,3 HTTP/1.1" 200 75
+"GET /autocomplete/rol/?term=Pasant&page=1 HTTP/1.1" 200 62
+"GET /autocomplete/rol/?term=s&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/rol/?term=su&page=1 HTTP/1.1" 200 63
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+- Broken pipe from ('127.0.0.1', 62536)
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1 HTTP/1.1" 200 196
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7 HTTP/1.1" 200 157
+"GET /autocomplete/rol/?term=Pasant&page=1 HTTP/1.1" 200 62
+"GET /autocomplete/rol/?term=s&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/rol/?term=su&page=1 HTTP/1.1" 200 63
+"GET /autocomplete/rol/?term=p&page=1 HTTP/1.1" 200 94
+"GET /autocomplete/rol/?term=o&page=1 HTTP/1.1" 200 63
+"GET /autocomplete/rol/?term=pr&page=1 HTTP/1.1" 200 64
+"GET /autocomplete/permiso/?term=v&page=1&excluded=5,1,7 HTTP/1.1" 200 119
+"GET /autocomplete/permiso/?term=vis&page=1&excluded=5,1,7 HTTP/1.1" 200 119
+"GET /autocomplete/permiso/?term=vi&page=1&excluded=5,1,7 HTTP/1.1" 200 119
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/css/roles_permisos.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 304 0
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+- Broken pipe from ('127.0.0.1', 62808)
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1 HTTP/1.1" 200 196
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7 HTTP/1.1" 200 157
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7,4 HTTP/1.1" 200 119
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,7,4 HTTP/1.1" 200 119
+"GET /autocomplete/rol/?term=Pasant&page=1 HTTP/1.1" 200 62
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/roles_permisos.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 304 0
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 302 0
+"GET /?next=/roles_permisos/ HTTP/1.1" 200 1391
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 16170
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=pa&page=1 HTTP/1.1" 200 62
+"GET /autocomplete/rol/?term=p&page=1 HTTP/1.1" 200 94
+"GET /autocomplete/permiso/?term=a&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=e&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,4 HTTP/1.1" 200 158
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1,4,7,3 HTTP/1.1" 200 75
+"GET /autocomplete/permiso/?term=&page=1&excluded=1,4,7,3,6 HTTP/1.1" 200 72
+Watching for file changes with StatReloader
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/roles_permisos.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 16482
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/rol/?term=pa&page=1 HTTP/1.1" 200 62
+"GET /autocomplete/permiso/?term=a&page=1&excluded= HTTP/1.1" 200 275
+"GET /autocomplete/permiso/?term=a&page=1&excluded=5 HTTP/1.1" 200 235
+Watching for file changes with StatReloader
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/roles_permisos.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 16794
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+- Broken pipe from ('127.0.0.1', 64312)
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/rol/?term=pa&page=1 HTTP/1.1" 200 62
+"GET /autocomplete/permiso/?term=&page=1&excluded=5 HTTP/1.1" 200 235
+"GET /autocomplete/permiso/?term=a&page=1&excluded=5,1 HTTP/1.1" 200 196
+"GET /autocomplete/permiso/?term=&page=1&excluded=5,1 HTTP/1.1" 200 196
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /visualizar_pedidos/ HTTP/1.1" 200 16328
+"GET /static/css/visualizar_pedidos.css HTTP/1.1" 200 10500
+"GET /static/javascript/visualizar_pedidos.js HTTP/1.1" 200 2407
+"GET /agregar_pedido/ HTTP/1.1" 200 11204
+"GET /static/javascript/agregar_pedido.js HTTP/1.1" 200 21294
+"GET /static/css/agregar_pedido.css HTTP/1.1" 200 12882
+"GET /autocomplete/sucursal/?page=1&page_size=25&term= HTTP/1.1" 200 355
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/proveedor_con_productos/?page=2&page_size=25&term= HTTP/1.1" 200 34
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /agregar_pedido/ HTTP/1.1" 200 11204
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/agregar_pedido.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/agregar_pedido.js HTTP/1.1" 304 0
+- Broken pipe from ('127.0.0.1', 65075)
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/sucursal/?page=1&page_size=25&term= HTTP/1.1" 200 355
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/proveedor_con_productos/?page=2&page_size=25&term= HTTP/1.1" 200 34
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term=l HTTP/1.1" 200 154
+"GET /autocomplete/sucursal/?page=2&page_size=25&term= HTTP/1.1" 200 263
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=18&term= HTTP/1.1" 200 256
+"GET /autocomplete/producto_pedido/?excluded=&page=2&page_size=25&proveedor_id=18&term= HTTP/1.1" 200 34
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=18&term= HTTP/1.1" 200 256
+"GET /autocomplete/producto_pedido/?excluded=&page=2&page_size=25&proveedor_id=18&term= HTTP/1.1" 200 34
+"GET /autocomplete/sucursal/?page=1&page_size=25&term=Campina%202 HTTP/1.1" 200 65
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=18&term=c HTTP/1.1" 200 150
+"GET /autocomplete/producto_pedido/?excluded=2&page=1&page_size=25&proveedor_id=18&term= HTTP/1.1" 200 205
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 304 0
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 304 0
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+"GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 5154
+"GET /agregar_pedido/ HTTP/1.1" 200 11204
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/agregar_pedido.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/javascript/agregar_pedido.js HTTP/1.1" 304 0
+"GET /autocomplete/sucursal/?page=1&page_size=25&term= HTTP/1.1" 200 355
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/proveedor_con_productos/?page=2&page_size=25&term= HTTP/1.1" 200 34
+"GET /visualizar_pedidos/ HTTP/1.1" 200 16328
+"GET /static/css/visualizar_pedidos.css HTTP/1.1" 304 0
+"GET /static/javascript/visualizar_pedidos.js HTTP/1.1" 304 0
+"GET /reportes/pedidos_pagados/ HTTP/1.1" 200 9121
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/reportes_pedidos_pagados.css HTTP/1.1" 200 4541
+"GET /static/javascript/reportes_pedidos_pagados.js HTTP/1.1" 200 5341
+"GET /autocomplete/sucursal_con_pedidos_pagados/?term=&page=1&fecha= HTTP/1.1" 200 98
+"GET /autocomplete/puntopago_con_pedidos_pagados/?term=&page=1&sucursal_id=14&fecha= HTTP/1.1" 200 82
+"POST /reportes/pedidos_pagados/ HTTP/1.1" 200 53
+"GET /visualizar_pedidos/ HTTP/1.1" 200 16328
+"GET /static/javascript/visualizar_pedidos.js HTTP/1.1" 304 0
+"GET /static/css/visualizar_pedidos.css HTTP/1.1" 304 0
+"GET /editar_pedido/23/ HTTP/1.1" 200 14209
+"GET /static/css/agregar_pedido.css HTTP/1.1" 304 0
+"GET /static/javascript/editar_pedido.js HTTP/1.1" 200 22799
+"GET /autocomplete/sucursal/?page=1&page_size=25&term= HTTP/1.1" 200 355
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term= HTTP/1.1" 200 264
+"GET /autocomplete/proveedor_con_productos/?page=2&page_size=25&term= HTTP/1.1" 200 34
+"GET /autocomplete/proveedor_con_productos/?page=1&page_size=25&term=lucho2 HTTP/1.1" 200 61
+"GET /autocomplete/sucursal/?page=1&page_size=25&term=Palmira HTTP/1.1" 200 62
+"GET /autocomplete/sucursal/?page=2&page_size=25&term= HTTP/1.1" 200 263
+"GET /autocomplete/producto_pedido/?excluded=&page=1&page_size=25&proveedor_id=1&term= HTTP/1.1" 200 81
+"GET /generar_venta/ HTTP/1.1" 200 12143
+"GET /static/css/modal_venta.css HTTP/1.1" 200 2107
+"GET /static/css/generar_venta.css HTTP/1.1" 200 12865
+"GET /static/javascript/generar_venta.js HTTP/1.1" 200 25810
+Internal Server Error: /autocomplete/producto-codigo/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2920, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+Internal Server Error: /autocomplete/producto-barras/
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2123, in get_prep_value
+    return int(value)
+           ^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: ''
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\contrib\auth\mixins.py", line 73, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\views\generic\base.py", line 143, in dispatch
+    return handler(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\OneDrive\Escritorio\Nova\SoftwareAdministrativoSupermercadosNovaAdvance\mainApp\views.py", line 2941, in get
+    qs = Producto.objects.filter(
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1476, in filter
+    return self._filter_or_exclude(False, args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1494, in _filter_or_exclude
+    clone._filter_or_exclude_inplace(negate, args, kwargs)
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\query.py", line 1501, in _filter_or_exclude_inplace
+    self._query.add_q(Q(*args, **kwargs))
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1609, in add_q
+    clause, _ = self._add_q(q_object, self.used_aliases)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1641, in _add_q
+    child_clause, needed_inner = self.build_filter(
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1555, in build_filter
+    condition = self.build_lookup(lookups, col, value)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\sql\query.py", line 1385, in build_lookup
+    lookup = lookup_class(lhs, rhs)
+             ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\lookups.py", line 30, in __init__
+    self.rhs = self.get_prep_lookup()
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\related_lookups.py", line 156, in get_prep_lookup
+    self.rhs = target_field.get_prep_value(self.rhs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\willi\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\db\models\fields\__init__.py", line 2125, in get_prep_value
+    raise e.__class__(
+ValueError: Field 'sucursalid' expected a number but got ''.
+"GET /autocomplete/producto-codigo/?term=&sucursal_id= HTTP/1.1" 500 145
+"GET /autocomplete/producto-barras/?term=&sucursal_id= HTTP/1.1" 500 145
+"GET /autocomplete/sucursal/?term= HTTP/1.1" 200 355
+"GET /autocomplete/producto/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/puntopago/?term=&sucursal_id= HTTP/1.1" 200 34
+"GET /autocomplete/cliente/?term= HTTP/1.1" 200 376
+"GET /autocomplete/puntopago/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"GET /autocomplete/cliente/?term=ali+ali+%2867945876496%29 HTTP/1.1" 200 34
+"GET /autocomplete/producto/?term=&sucursal_id=14 HTTP/1.1" 200 107
+"POST /verificar_producto/ HTTP/1.1" 200 228
+"GET /visualizar_sucursales/ HTTP/1.1" 200 26449
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/visualizar_sucursales.css HTTP/1.1" 200 12358
+"GET /static/javascript/visualizar_sucursales.js HTTP/1.1" 200 1649
+"GET /agregar_sucursal/ HTTP/1.1" 200 8283
+"GET /static/css/agregar_sucursal.css HTTP/1.1" 200 5597
+"GET /static/javascript/agregar_sucursal.js HTTP/1.1" 200 4672
+"GET /agregar_categoria/ HTTP/1.1" 200 8507
+"GET /static/css/agregar_categoria.css HTTP/1.1" 200 5427
+"GET /static/javascript/agregar_categorias.js HTTP/1.1" 200 4986
+"GET /agregar_producto/ HTTP/1.1" 200 10089
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/css/agregar_producto.css HTTP/1.1" 200 6360
+"GET /static/javascript/agregar_producto.js HTTP/1.1" 200 11590
+Watching for file changes with StatReloader
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 5154
+"GET / HTTP/1.1" 200 1391
+"GET /static/css/navbar.css HTTP/1.1" 200 8798
+"GET /static/css/login.css HTTP/1.1" 200 11695
+"GET /static/javascript/navbar.js HTTP/1.1" 200 1576
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 200 3509194
+"POST / HTTP/1.1" 200 1516
+"POST / HTTP/1.1" 302 0
+"GET /home/ HTTP/1.1" 200 6928
+"GET /static/css/homePage.css HTTP/1.1" 200 7291
+"GET /static/images/logoNovaAdvancetransparente.png HTTP/1.1" 200 3433207
+"GET /roles_permisos/ HTTP/1.1" 200 9436
+"GET /static/css/roles_permisos.css HTTP/1.1" 200 7027
+"GET /static/javascript/roles_permisos.js HTTP/1.1" 200 16794
+"GET /autocomplete/rol/?term=&page=1 HTTP/1.1" 200 125
+"GET /autocomplete/permiso/?term=&page=1&excluded= HTTP/1.1" 200 275
+"GET /visualizar_pedidos/ HTTP/1.1" 200 16328
+"GET /static/css/visualizar_pedidos.css HTTP/1.1" 200 10500
+"GET /static/javascript/visualizar_pedidos.js HTTP/1.1" 200 2407
+"POST /eliminar_pedido/16/ HTTP/1.1" 200 17
+Not Found: /ver_pedido/16/
+"GET /ver_pedido/16/ HTTP/1.1" 404 5154
+"POST /eliminar_pedido/19/ HTTP/1.1" 200 17
+"POST /eliminar_pedido/19/ HTTP/1.1" 200 61
+"POST /eliminar_pedido/20/ HTTP/1.1" 200 17
+"POST /eliminar_pedido/20/ HTTP/1.1" 200 61
+"GET /ver_pedido/21/ HTTP/1.1" 200 9678
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/css/agregar_pedido.css HTTP/1.1" 200 12882
+"GET /static/javascript/ver_pedido.js HTTP/1.1" 200 400
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"POST /eliminar_pedido/21/ HTTP/1.1" 200 17
+"POST /eliminar_pedido/22/ HTTP/1.1" 200 17
+"POST /eliminar_pedido/23/ HTTP/1.1" 200 17
+"POST /eliminar_pedido/24/ HTTP/1.1" 200 17
+"GET /visualizar_ventas/ HTTP/1.1" 200 20117
+"GET /static/css/visualizar_pedidos.css HTTP/1.1" 304 0
+"GET /static/css/visualizar_ventas.css HTTP/1.1" 200 10000
+"GET /static/javascript/visualizar_ventas.js HTTP/1.1" 200 1011
+"GET /visualizar_clientes/ HTTP/1.1" 200 16481
+"GET /static/css/visualizar_clientes.css HTTP/1.1" 200 10739
+"GET /static/javascript/visualizar_clientes.js HTTP/1.1" 200 1394
+"POST /eliminar_cliente/3/ HTTP/1.1" 302 0
+"GET /visualizar_clientes/ HTTP/1.1" 200 15376
+"POST /eliminar_cliente/7/ HTTP/1.1" 302 0
+"GET /visualizar_clientes/ HTTP/1.1" 200 14082
+"POST /eliminar_cliente/10/ HTTP/1.1" 302 0
+"GET /visualizar_clientes/ HTTP/1.1" 200 12774
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"POST /eliminar_cliente/2/ HTTP/1.1" 302 0
+"GET /visualizar_clientes/ HTTP/1.1" 200 11484
+"POST /eliminar_cliente/4/ HTTP/1.1" 302 0
+"GET /visualizar_clientes/ HTTP/1.1" 200 10201
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/css/visualizar_clientes.css HTTP/1.1" 304 0
+"GET /static/javascript/visualizar_clientes.js HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"POST /eliminar_cliente/1/ HTTP/1.1" 302 0
+"GET /visualizar_clientes/ HTTP/1.1" 200 8910
+"POST /eliminar_cliente/6/ HTTP/1.1" 302 0
+"GET /visualizar_clientes/ HTTP/1.1" 200 7622
+"GET /visualizar_horarios_cajas/ HTTP/1.1" 200 8674
+"GET /static/css/visualizar_horarios_caja.css HTTP/1.1" 200 10571
+"GET /static/javascript/visualizar_horarios_cajas.js HTTP/1.1" 200 8521
+"GET /autocomplete/sucursal_horarios_cajas/?term=&page=1 HTTP/1.1" 200 129
+"GET /autocomplete/puntopago_horarios_cajas/?term=&page=1&sucursal_id=3 HTTP/1.1" 200 62
+"POST /visualizar_horarios_cajas/ HTTP/1.1" 200 15179
+"POST /eliminar_horario_caja/175/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/181/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/172/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/178/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/178/ HTTP/1.1" 200 78
+"POST /eliminar_horario_caja/173/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/179/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/180/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/174/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/183/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/182/ HTTP/1.1" 200 63
+"POST /visualizar_horarios_cajas/ HTTP/1.1" 200 10169
+"GET /static/css/navbar.css HTTP/1.1" 304 0
+"GET /static/javascript/visualizar_horarios_cajas.js HTTP/1.1" 304 0
+"GET /static/css/visualizar_horarios_caja.css HTTP/1.1" 304 0
+"GET /static/javascript/navbar.js HTTP/1.1" 304 0
+"GET /static/images/logoNovaAdvance.png HTTP/1.1" 304 0
+"POST /eliminar_horario_caja/177/ HTTP/1.1" 200 63
+"POST /eliminar_horario_caja/176/ HTTP/1.1" 200 63
+"POST /visualizar_horarios_cajas/ HTTP/1.1" 200 9167
+- Broken pipe from ('127.0.0.1', 56066)
+- Broken pipe from ('127.0.0.1', 55973)
+- Broken pipe from ('127.0.0.1', 55960)
+- Broken pipe from ('127.0.0.1', 56068)
+- Broken pipe from ('127.0.0.1', 56059)
+- Broken pipe from ('127.0.0.1', 55834)
+- Broken pipe from ('127.0.0.1', 55964)
+- Broken pipe from ('127.0.0.1', 55975)
+- Broken pipe from ('127.0.0.1', 55797)
+- Broken pipe from ('127.0.0.1', 55907)
+- Broken pipe from ('127.0.0.1', 55802)
+- Broken pipe from ('127.0.0.1', 55971)
+- Broken pipe from ('127.0.0.1', 56064)
+- Broken pipe from ('127.0.0.1', 55791)
+- Broken pipe from ('127.0.0.1', 56040)
+- Broken pipe from ('127.0.0.1', 55800)
+- Broken pipe from ('127.0.0.1', 55804)
+- Broken pipe from ('127.0.0.1', 55807)
+- Broken pipe from ('127.0.0.1', 55869)
+- Broken pipe from ('127.0.0.1', 55819)
+- Broken pipe from ('127.0.0.1', 55849)
+- Broken pipe from ('127.0.0.1', 55967)
+- Broken pipe from ('127.0.0.1', 56004)
+- Broken pipe from ('127.0.0.1', 55969)
+- Broken pipe from ('127.0.0.1', 56002)
