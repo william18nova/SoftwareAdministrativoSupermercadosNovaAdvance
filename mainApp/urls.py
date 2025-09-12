@@ -124,7 +124,7 @@ urlpatterns = [
 
 
     path("agregar_usuario/",      UsuarioCreateAJAXView.as_view(), name="agregar_usuario"),
-    path("rol_autocomplete/",     RolAutocompleteView.as_view(),   name="rol_autocomplete"),
+    path("rol_autocomplete/",     RolAutocompleteView.as_view(),   name="rol_autocomplete_usuarios"),
     path("visualizar_usuarios/", UsuarioListView.as_view(), name="visualizar_usuarios"),
     path('eliminar_usuario/<int:usuarioid>/', views.eliminar_usuario_view, name='eliminar_usuario'),
     path("usuarios/editar/<int:usuario_id>/", UsuarioUpdateAJAXView.as_view(), name="editar_usuario"),

@@ -1692,7 +1692,7 @@ def eliminar_rol_view(request, rol_id):
     return JsonResponse({'success': False, 'message': 'Error al eliminar el rol.'})
 
 
-class UsuarioCreateAJAXView(FormView):
+class UsuarioCreateAJAXView(LoginRequiredMixin, FormView):
     template_name = "agregar_usuario.html"
     form_class    = UsuarioForm
     success_url   = reverse_lazy("visualizar_usuarios")   # ajusta la URL si existe
