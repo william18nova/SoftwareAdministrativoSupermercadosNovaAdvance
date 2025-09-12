@@ -1,44 +1,18 @@
-"""
-Django settings for NovaSoft project (producción local sin dominio).
-"""
-
+# settings.py – perfil simple para runserver local
 from pathlib import Path
 import os
-import socket
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ──────────────────────────────
-# Modo
-# ──────────────────────────────
-DEBUG = False
+DEBUG = True  # ← para desarrollo local
 
-# ⚠️ Mueve esto a variables de entorno cuanto antes
 SECRET_KEY = "django-insecure-k!0q10!2q+_i^ni9rz#a+8p!%n+um*7k&3+$=in3dom^6uy5as"
 
-# ──────────────────────────────
-# Hosts / CSRF para local y LAN
-# ──────────────────────────────
-HOSTNAME = socket.gethostname()
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "[::1]"]  # ← simple en dev
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "[::1]",
-    HOSTNAME,  # nombre de tu máquina
-    # agrega tu IP LAN si accedes desde otro equipo, por ej. "192.168.1.50"
-]
+# En dev no necesitas esto; si lo dejas, tampoco pasa nada
+CSRF_TRUSTED_ORIGINS = []
 
-# Con DEBUG=False, Django exige esquema + puerto
-CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    # "http://192.168.1.50:8000",  # tu IP LAN si pruebas desde otro equipo
-]
-
-# ──────────────────────────────
-# Apps
-# ──────────────────────────────
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -46,18 +20,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     "mainApp",
     "dal",
     "dal_select2",
 ]
 
-# ──────────────────────────────
-# Middleware (WhiteNoise debajo de Security)
-# ──────────────────────────────
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # ← importante con DEBUG=False
+    # Puedes dejar WhiteNoise o quitarlo en dev; no es obligatorio
+    # "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -71,10 +42,7 @@ ROOT_URLCONF = "NovaSoft.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            BASE_DIR / "templates",
-            BASE_DIR / "mainApp" / "templates",
-        ],
+        "DIRS": [BASE_DIR / "templates", BASE_DIR / "mainApp" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -89,9 +57,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "NovaSoft.wsgi.application"
 
-# ──────────────────────────────
-# Base de datos (Aiven)
-# ──────────────────────────────
+# En dev puedes usar sqlite para aislarte de la nube si quieres:
+# DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+# O si quieres Aiven en dev, deja tu config actual:
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -104,74 +72,37 @@ DATABASES = {
     }
 }
 
-# ──────────────────────────────
-# Password validators
-# ──────────────────────────────
-AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
-
-# ──────────────────────────────
-# i18n / zona horaria
-# ──────────────────────────────
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "America/Bogota"
 USE_I18N = True
 USE_TZ = True
 
-# ──────────────────────────────
-# Archivos estáticos (WhiteNoise)
-# ──────────────────────────────
 STATIC_URL = "/static/"
-# Aquí editas tus assets en desarrollo:
 STATICFILES_DIRS = [BASE_DIR / "mainApp" / "static"]
-# Aquí se copiarán para producción:
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Almacén de archivos estáticos con hash + compresión (WhiteNoise)
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# En dev NO uses ManifestStaticFilesStorage (evita errores si no corres collectstatic)
+# STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# ──────────────────────────────
-# Auth / sesiones
-# ──────────────────────────────
 AUTH_USER_MODEL = "mainApp.Usuario"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"
 
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-]
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_NAME = "sessionid"
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 14  # 2 semanas
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
 SESSION_SAVE_EVERY_REQUEST = True
 
-# ──────────────────────────────
-# Otras utilidades
-# ──────────────────────────────
-APPEND_SLASH = True  # corrige rutas sin "/" al final
+APPEND_SLASH = True
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {
-        "file": {
-            "level": "DEBUG",
-            "class": "logging.FileHandler",
-            "filename": BASE_DIR / "debug.log",
-        },
         "console": {"class": "logging.StreamHandler"},
     },
-    "loggers": {
-        "django": {
-            "handlers": ["file", "console"],
-            "level": "INFO",
-            "propagate": True,
-        },
-    },
+    "loggers": {"django": {"handlers": ["console"], "level": "INFO", "propagate": True}},
 }
