@@ -1,6 +1,6 @@
 /* ========================================================================
    Visualizar Categorías / Sucursales / Ventas — Nova Advance Design
-   (contenedor centrado verticalmente)
+   (contenedor centrado vertical + horizontal y paginación tipo “Productos”)
 ======================================================================== */
 
 /* Fuente */
@@ -31,15 +31,15 @@
   --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23d8e8ff'%3E%3Cpath d='M5.23 7.21a.75.75 0 011.06.02L10 10.17l3.71-2.94a.75.75 0 111.06 1.06l-4.24 3.36a.75.75 0 01-.94 0L5.21 8.29a.75.75 0 01.02-1.08z'/%3E%3C/svg%3E");
 }
 
-/* Fondo */
+/* Fondo + centrado del contenedor */
 *{ box-sizing:border-box; margin:0; padding:0 }
 html, body{ height:100% }
 body{
   margin:0; font-family:var(--font); color:var(--text);
-  /* Centrado vertical del container */
   min-height:100svh;
-  display:flex;
+  display:flex;                /* centra vertical y horizontal */
   flex-direction:column;
+  align-items:center;          /* ← centrado horizontal */
   overflow:auto;
   padding: clamp(18px, 3.8vw, 36px);
   background:
@@ -54,12 +54,11 @@ body::before, body::after{ content:""; display:none !important; }
   background:transparent !important; box-shadow:none !important; border:none !important;
 }
 
-/* Contenedor */
+/* Contenedor principal */
 .container{
   width:min(94vw, 1200px);
-  margin-inline:auto;
-  /* centra verticalmente dentro del body flex */
-  margin-block:auto;
+  margin-inline:auto;          /* por si el padre no es flex */
+  margin-block:auto;           /* centrado vertical con body flex */
   background:var(--glass-bg);
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   border:1px solid var(--glass-brd);
@@ -68,17 +67,15 @@ body::before, body::after{ content:""; display:none !important; }
   padding: clamp(22px, 4.2vw, 36px);
 }
 
-/* Centrado también cuando hay envoltorios (.page-wrap, etc.) */
+/* Centrado también cuando hay .page-wrap envolviendo */
 @supports selector(:has(*)){
   .page-wrap:has(.container){
     min-height:100svh;
     display:grid;
-    place-items:center;            /* centra en ambos ejes */
+    place-items:center;        /* centra en ambos ejes */
     padding-block: clamp(18px, 4vh, 36px);
   }
-  .page-wrap:has(.container) .container{
-    margin-block:0;                /* evita doble margen dentro del grid */
-  }
+  .page-wrap:has(.container) .container{ margin-block:0; }
 }
 
 /* Título */
@@ -91,7 +88,7 @@ h2{
 }
 h2 i{ color:var(--brand); font-size:1.15em; }
 
-/* Buscador externo (opcional, si lo usas además del nativo de DT) */
+/* Buscador externo (si lo usas además del nativo de DT) */
 .search-wrapper{ position:relative; width:100%; margin:0 auto 14px; }
 .search-wrapper i{
   position:absolute; left:12px; top:50%; transform:translateY(-50%);
@@ -131,7 +128,7 @@ table.dataTable tbody td{
 table.dataTable tbody tr:nth-child(even){ background:#f7fbff; }
 table.dataTable tbody tr:hover{ background:#eef5ff; }
 
-/* Orden (sin FontAwesome para evitar conflictos) */
+/* Orden (sin FontAwesome) */
 table.dataTable thead th.sorting,
 table.dataTable thead th.sorting_asc,
 table.dataTable thead th.sorting_desc{
@@ -148,7 +145,7 @@ table.dataTable thead th.sorting_desc::after{
 }
 table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(180deg); }
 
-/* Controles DT (select y buscador nativo con estilo Nova) */
+/* Controles DT */
 .dataTables_wrapper .dataTables_length label,
 .dataTables_wrapper .dataTables_filter label,
 .dataTables_wrapper .dataTables_info,
@@ -167,7 +164,7 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
   background:transparent !important; box-shadow:none !important; border:none !important;
 }
 
-/* Select de “Show entries” → píldora */
+/* Select “Show entries” → píldora */
 .dataTables_wrapper .dataTables_length{
   display:flex; align-items:center; gap:10px; margin-bottom:8px;
 }
@@ -191,7 +188,7 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
 }
 .dataTables_wrapper .dataTables_length select option{ background:#fff; color:#0b1220; }
 
-/* Buscador nativo (derecha) */
+/* Buscador nativo (derecha) con ícono */
 .dataTables_wrapper .dataTables_filter{ position:relative; }
 .dataTables_wrapper .dataTables_filter:before{
   content:"";
@@ -214,8 +211,11 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
   box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent) !important;
 }
 
-/* Paginación (chip para página actual) */
-.dataTables_wrapper .dataTables_paginate{ text-align:center; margin-top:12px; }
+/* ========= Paginación (idéntica a “Productos”) ========= */
+.dataTables_wrapper .dataTables_paginate{
+  text-align:center;
+  margin-top:12px;
+}
 .dataTables_wrapper .dataTables_paginate .paginate_button{
   background:transparent !important; border:none !important; box-shadow:none !important;
   color:var(--text) !important; font-weight:700 !important;
@@ -265,7 +265,7 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
     width: calc(100vw - 24px);
     max-width: 1200px;
     margin-inline:auto;
-    margin-block:auto;             /* mantiene centrado en mobile */
+    margin-block:auto;
     padding:20px;
   }
   html, body{ overflow-x:hidden; }
@@ -287,24 +287,6 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
     content:attr(data-label); font-weight:800; color:#2a4f9a; margin-right:10px;
   }
   .actions-cell{ justify-content:flex-start; }
-}
-
-/* Centrado limpio si existe :has() (mejora layout en responsive) */
-@supports selector(:has(*)){
-  @media (max-width:768px){
-    .page-wrap:has(.container){
-      min-height:100svh;
-      display:grid;
-      place-items:center;
-      padding-block: clamp(18px, 4vh, 36px);
-    }
-    .page-wrap:has(.container) .container{
-      position:static; transform:none; left:auto;
-      width:min(100%,1200px);
-      margin-inline:auto !important;
-      margin-block:0;
-    }
-  }
 }
 
 /* Reduce motion */

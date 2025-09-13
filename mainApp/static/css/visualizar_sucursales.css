@@ -1,5 +1,6 @@
 /* ========================================================================
-   Visualizar Categorías / Sucursales / Ventas — Nova Advance Design
+   Visualizar Sucursales — Nova Advance Design
+   (container centrado H/V + paginación como “Productos”)
 ======================================================================== */
 
 /* Fuente */
@@ -26,19 +27,18 @@
   --transition:.22s cubic-bezier(.2,.6,.2,1);
   --font:"Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 
-  /* Flecha clara para <select> */
   --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23d8e8ff'%3E%3Cpath d='M5.23 7.21a.75.75 0 011.06.02L10 10.17l3.71-2.94a.75.75 0 111.06 1.06l-4.24 3.36a.75.75 0 01-.94 0L5.21 8.29a.75.75 0 01.02-1.08z'/%3E%3C/svg%3E");
 }
 
-/* Fondo */
+/* Fondo + centrado del container */
 *{ box-sizing:border-box; margin:0; padding:0 }
 html, body{ height:100% }
 body{
   margin:0; font-family:var(--font); color:var(--text);
-  /* ⬇⬇⬇  Centrado vertical del .container  ⬇⬇⬇ */
   min-height:100svh;
-  display:flex;                 /* columna para respetar navbar arriba */
+  display:flex;                 /* columna para respetar navbar */
   flex-direction:column;
+  align-items:center;           /* ← centra horizontalmente el .container */
   overflow:auto;
   padding: clamp(18px, 3.8vw, 36px);
   background:
@@ -56,9 +56,8 @@ body::before, body::after{ content:""; display:none !important; }
 /* Contenedor */
 .container{
   width:min(94vw, 1200px);
-  margin-inline:auto;
-  /* ⬇⬇⬇ centrado vertical con flex del body ⬇⬇⬇ */
-  margin-block:auto;
+  margin-inline:auto;          /* fallback por si no hay flex en el padre */
+  margin-block:auto;           /* ← centra verticalmente dentro del body */
   background:var(--glass-bg);
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   border:1px solid var(--glass-brd);
@@ -75,7 +74,6 @@ body::before, body::after{ content:""; display:none !important; }
     place-items:center;       /* centra en ambos ejes */
     padding-block: clamp(18px, 4vh, 36px);
   }
-  /* Al centrar con grid, evitamos márgenes extra del container */
   .page-wrap:has(.container) .container{ margin-block:0; }
 }
 
@@ -146,7 +144,7 @@ table.dataTable thead th.sorting_desc::after{
 }
 table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(180deg); }
 
-/* Controles DT */
+/* Controles DT (select y buscador nativo) */
 .dataTables_wrapper .dataTables_length label,
 .dataTables_wrapper .dataTables_filter label,
 .dataTables_wrapper .dataTables_info,
@@ -155,7 +153,7 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
 }
 .dataTables_wrapper .dataTables_info{ font-weight:700; margin-top:10px; }
 
-/* Quitar barra inferior opaca */
+/* Barra inferior transparente */
 .dataTables_wrapper .dataTables_info,
 .dataTables_wrapper .dataTables_paginate,
 .dataTables_wrapper .dataTables_length,
@@ -192,7 +190,7 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
 .dataTables_wrapper .dataTables_filter{ position:relative; }
 .dataTables_wrapper .dataTables_filter:before{
   content:""; position:absolute; left:12px; top:50%; transform:translateY(-50%);
-  width:14px; height:14px; opacity:.9; pointer-events:none;
+  width:14px; height:14px; pointer-events:none; opacity:.9;
   background-repeat:no-repeat; background-size:14px 14px;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d8e8ff'%3E%3Cpath d='M11 4a7 7 0 105.196 12.196l4.651 4.651 1.414-1.414-4.651-4.651A7 7 0 0011 4zm0 2a5 5 0 110 10 5 5 0 010-10z'/%3E%3C/svg%3E");
 }
@@ -208,13 +206,23 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
   box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent) !important;
 }
 
-/* Paginación (chip) */
-.dataTables_wrapper .dataTables_paginate{ text-align:center; margin-top:12px; }
+/* ========= Paginación (mismo layout que “Productos”) ========= */
+.dataTables_wrapper .dataTables_paginate{
+  margin-top:12px;
+  display:grid;                           /* ← tres columnas: prev | pages | next */
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:8px;
+}
 .dataTables_wrapper .dataTables_paginate .paginate_button{
   background:transparent !important; border:none !important; box-shadow:none !important;
   color:var(--text) !important; font-weight:700 !important;
-  padding:6px 12px !important; margin:0 10px !important; border-radius:0 !important;
+  padding:6px 12px !important; border-radius:0 !important;
 }
+.dataTables_wrapper .dataTables_paginate .paginate_button.previous{ justify-self:start; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.next{ justify-self:end; }
+.dataTables_wrapper .dataTables_paginate > span{ justify-self:center; } /* números */
+
 .dataTables_wrapper .dataTables_paginate .paginate_button:not(.current):hover{
   text-decoration:underline; background:transparent !important;
 }
@@ -259,7 +267,6 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
     width: calc(100vw - 24px);
     max-width: 1200px;
     margin-inline:auto;
-    /* mantenemos centrado vertical en mobile */
     margin-block:auto;
     padding:20px;
   }
@@ -282,24 +289,6 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
     content:attr(data-label); font-weight:800; color:#2a4f9a; margin-right:10px;
   }
   .actions-cell{ justify-content:flex-start; }
-}
-
-/* Centrado limpio si existe :has() (mejora layout en responsive) */
-@supports selector(:has(*)){
-  @media (max-width:768px){
-    .page-wrap:has(.container){
-      min-height:100svh;
-      display:grid;
-      place-items:center;
-      padding-block: clamp(18px, 4vh, 36px);
-    }
-    .page-wrap:has(.container) .container{
-      position:static; transform:none; left:auto;
-      width:min(100%,1200px);
-      margin-inline:auto !important;
-      margin-block:0;
-    }
-  }
 }
 
 /* Reduce motion */
