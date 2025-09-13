@@ -35,7 +35,11 @@
 html, body{ height:100% }
 body{
   margin:0; font-family:var(--font); color:var(--text);
-  min-height:100svh; overflow:auto;
+  /* ⬇⬇⬇  Centrado vertical del .container  ⬇⬇⬇ */
+  min-height:100svh;
+  display:flex;                 /* columna para respetar navbar arriba */
+  flex-direction:column;
+  overflow:auto;
   padding: clamp(18px, 3.8vw, 36px);
   background:
     radial-gradient(1400px 800px at 10% 20%, rgba(77,166,255,.35), transparent 60%),
@@ -53,7 +57,8 @@ body::before, body::after{ content:""; display:none !important; }
 .container{
   width:min(94vw, 1200px);
   margin-inline:auto;
-  margin-block: clamp(18px, 7vh, 56px);
+  /* ⬇⬇⬇ centrado vertical con flex del body ⬇⬇⬇ */
+  margin-block:auto;
   background:var(--glass-bg);
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   border:1px solid var(--glass-brd);
@@ -61,8 +66,17 @@ body::before, body::after{ content:""; display:none !important; }
   border-radius:var(--radius);
   padding: clamp(22px, 4.2vw, 36px);
 }
+
+/* Mejora si existe :has() (centra incluso con wrappers) */
 @supports selector(:has(*)){
-  .page-wrap:has(.container){ display:grid; justify-items:center; }
+  .page-wrap:has(.container){
+    min-height:100svh;
+    display:grid;
+    place-items:center;       /* centra en ambos ejes */
+    padding-block: clamp(18px, 4vh, 36px);
+  }
+  /* Al centrar con grid, evitamos márgenes extra del container */
+  .page-wrap:has(.container) .container{ margin-block:0; }
 }
 
 /* Título */
@@ -244,8 +258,9 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
   .container{
     width: calc(100vw - 24px);
     max-width: 1200px;
-    margin:0 auto !important;
-    position:relative; left:50%; transform:translateX(-50%);
+    margin-inline:auto;
+    /* mantenemos centrado vertical en mobile */
+    margin-block:auto;
     padding:20px;
   }
   html, body{ overflow-x:hidden; }
@@ -273,12 +288,16 @@ table.dataTable thead th.sorting_asc::after{ transform:translateY(-50%) rotate(1
 @supports selector(:has(*)){
   @media (max-width:768px){
     .page-wrap:has(.container){
-      min-height:100svh; display:grid; justify-items:center; align-content:start;
+      min-height:100svh;
+      display:grid;
+      place-items:center;
       padding-block: clamp(18px, 4vh, 36px);
     }
     .page-wrap:has(.container) .container{
       position:static; transform:none; left:auto;
-      width:min(100%,1200px); margin-inline:auto !important;
+      width:min(100%,1200px);
+      margin-inline:auto !important;
+      margin-block:0;
     }
   }
 }
