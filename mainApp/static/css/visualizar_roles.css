@@ -192,6 +192,38 @@ table.dataTable thead th.sorting_desc::after{ opacity:1; }
   box-shadow:0 0 0 4px rgba(77,166,255,.36), 0 6px 16px rgba(0,0,0,.15) !important;
 }
 
+/* ——— FIX: “Anterior / Siguiente” en móvil (layout y estilo) ——— */
+@media (max-width:768px){
+  /* Disposición en 3 columnas: Anterior | página actual | Siguiente */
+  .dataTables_wrapper .dataTables_paginate{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:center;
+    gap:10px;
+  }
+  /* Solo mostramos el chip actual; ocultamos otros números para no romper el layout */
+  .dataTables_wrapper .dataTables_paginate .paginate_button:not(.previous):not(.next):not(.current){
+    display:none;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button.previous{
+    justify-self:start;
+    color:color-mix(in srgb, var(--text) 72%, transparent) !important;
+    text-decoration:none !important;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button.next{
+    justify-self:end;
+    color:color-mix(in srgb, var(--text) 72%, transparent) !important;
+    text-decoration:none !important;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button.previous:hover,
+  .dataTables_wrapper .dataTables_paginate .paginate_button.next:hover{
+    color:var(--text) !important; text-decoration:none !important;
+  }
+  .dataTables_wrapper .dataTables_paginate .paginate_button.current{
+    justify-self:center;
+  }
+}
+
 /* Botones de acción */
 .actions-cell{ display:flex; gap:10px; justify-content:center; align-items:center; }
 .btn-container{ display:flex; gap:10px; }
@@ -212,7 +244,7 @@ table.dataTable thead th.sorting_desc::after{ opacity:1; }
   padding:12px 14px; border-radius:var(--radius-sm); font-size:14px;
   border:1px solid transparent; text-align:center;
 }
-.alert-success{ background:color-mix(in srgb,#16a34a 18%, #ffffff); color:#064e1a; border-color:color-mix(in srgb,#16a34a 40%, #ffffff);}
+.alert-success{ background:color-mix(in srgb,#16a34a 18%, #ffffff); color:#064e1a; border-color:color-mix(in srgb,#16a34a 40%, #ffffff); }
 .alert-error  { background:rgba(255,77,95,.14); color:#ff4d5f; border-color:rgba(255,140,150,.55); }
 
 /* Responsive: tarjetas */

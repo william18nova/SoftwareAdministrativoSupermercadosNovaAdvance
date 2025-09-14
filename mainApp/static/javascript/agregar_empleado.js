@@ -1,20 +1,20 @@
-/*  static/javascript/agregar_empleado.js — instantáneo + vacío = sugerencias iniciales + anti-cruce + Enter-nav + errores en español
+/*  static/javascript/agregar_empleado.js — instantáneo + vacío = sugerencias iniciales + anti-cruce + Enter/Click-nav + errores en español
 ------------------------------------------------------------------------ */
 (() => {
   "use strict";
 
   /* ───────── helpers ───────── */
-  const $  = function(q){ return document.querySelector(q); };
-  const $$ = function(q){ return document.querySelectorAll(q); };
+  const $  = (q) => document.querySelector(q);
+  const $$ = (q) => document.querySelectorAll(q);
 
   const csrftoken =
-    (document.cookie.split(";").map(function(c){ return c.trim(); })
-      .find(function(c){ return c.indexOf("csrftoken=") === 0; }) || "")
+    (document.cookie.split(";").map((c) => c.trim())
+      .find((c) => c.indexOf("csrftoken=") === 0) || "")
       .split("=")[1] || "";
 
-  const iconErr = function(txt){ return '<i class="fas fa-exclamation-circle"></i> ' + txt; };
-  const show    = function(el, html){ el.innerHTML = html; el.style.display = "block"; };
-  const hide    = function(el){ el.style.display = "none"; el.innerHTML = ""; };
+  const iconErr = (txt) => '<i class="fas fa-exclamation-circle"></i> ' + txt;
+  const show    = (el, html) => { el.innerHTML = html; el.style.display = "block"; };
+  const hide    = (el) => { el.style.display = "none"; el.innerHTML = ""; };
 
   /* ───────── refs DOM ───────── */
   const form   = $("#empleadoForm");
@@ -34,12 +34,12 @@
   /* ───────── UI reset ───────── */
   function resetUI () {
     hide(errBox); hide(okBox);
-    $$(".field-error").forEach(function(d){
+    $$(".field-error").forEach((d) => {
       d.classList.remove("visible");
       d.innerHTML = "";
       d.style.display = "none";
     });
-    $$(".input-error").forEach(function(i){ i.classList.remove("input-error"); });
+    $$(".input-error").forEach((i) => i.classList.remove("input-error"));
   }
 
   function fieldErr(name, msg){
@@ -57,7 +57,7 @@
   function isVisible(el){
     if (!el) return false;
     if (el.offsetParent === null) return false;
-    var cs = window.getComputedStyle(el);
+    const cs = window.getComputedStyle(el);
     return cs.visibility !== "hidden" && cs.display !== "none";
   }
   function isFocusable(el){
@@ -66,16 +66,16 @@
     return isVisible(el);
   }
   function focusablesInForm(){
-    var nodes = form.querySelectorAll("input, select, textarea");
-    var arr = [];
-    for (var i=0; i<nodes.length; i++){
+    const nodes = form.querySelectorAll("input, select, textarea");
+    const arr = [];
+    for (let i=0; i<nodes.length; i++){
       if (isFocusable(nodes[i])) arr.push(nodes[i]);
     }
     return arr;
   }
   function focusNext(fromEl){
-    var f = focusablesInForm();
-    var idx = f.indexOf(fromEl);
+    const f = focusablesInForm();
+    const idx = f.indexOf(fromEl);
     if (idx === -1) return;
     if (idx < f.length - 1){
       f[idx+1].focus();
@@ -111,7 +111,7 @@
     if (!term) return [];
     const prefix = term + "__";
     const out = [];
-    this.map.forEach(function(v, k){
+    this.map.forEach((v, k) => {
       if (String(k).indexOf(prefix) === 0) out.push(v);
     });
     return out;
@@ -124,10 +124,10 @@
   function renderList(box, items, clear){
     if (clear) box.innerHTML = "";
     if (!items || !items.length) return;
-    var html = "";
-    for (var i=0; i<items.length; i++){
-      var r = items[i];
-      var id = String(r.id).replace(/"/g, "&quot;");
+    let html = "";
+    for (let i=0; i<items.length; i++){
+      const r = items[i];
+      const id = String(r.id).replace(/"/g, "&quot;");
       html += '<div class="autocomplete-option" data-id="' + id + '">' + r.text + '</div>';
     }
     box.insertAdjacentHTML("beforeend", html);
@@ -136,22 +136,22 @@
   }
 
   function localFilter(cache, term){
-    var t = (term || "").toLowerCase();
+    const t = (term || "").toLowerCase();
     if (!t){
-      var emptyPageOnly = cache.get("__empty__1");
+      const emptyPageOnly = cache.get("__empty__1");
       return emptyPageOnly && emptyPageOnly.results ? emptyPageOnly.results.slice(0, 20) : [];
     }
-    var exactPages = cache.pagesForTerm(term);
-    var emptyPage  = cache.get("__empty__1");
-    var pool = [];
-    for (var i=0; i<exactPages.length; i++){
-      var p = exactPages[i];
+    const exactPages = cache.pagesForTerm(term);
+    const emptyPage  = cache.get("__empty__1");
+    let pool = [];
+    for (let i=0; i<exactPages.length; i++){
+      const p = exactPages[i];
       if (p && p.results) pool = pool.concat(p.results);
     }
     if (emptyPage && emptyPage.results) pool = pool.concat(emptyPage.results);
-    var uniq = new Map();
-    for (var j=0; j<pool.length; j++){
-      var r = pool[j];
+    const uniq = new Map();
+    for (let j=0; j<pool.length; j++){
+      const r = pool[j];
       if (!r || !r.text) continue;
       if (r.text.toLowerCase().indexOf(t) !== -1 && !uniq.has(r.id)){
         uniq.set(r.id, r);
@@ -161,10 +161,10 @@
     return Array.from(uniq.values());
   }
 
-  var AUTOS = [];
+  let AUTOS = [];
   function closeAllExcept(current){
-    for (var i=0; i<AUTOS.length; i++){
-      var inst = AUTOS[i];
+    for (let i=0; i<AUTOS.length; i++){
+      const inst = AUTOS[i];
       if (inst !== current){
         inst.st.active = false;
         inst.box.classList.remove("visible");
@@ -189,7 +189,7 @@
     };
 
     function showInitialSuggestions(){
-      var initial = cache.get("__empty__1");
+      const initial = cache.get("__empty__1");
       if (initial && initial.results && initial.results.length){
         if (!st.active) return;
         renderList(box, initial.results, true);
@@ -204,7 +204,7 @@
         showInitialSuggestions();
         return;
       }
-      var items = localFilter(cache, st.term);
+      const items = localFilter(cache, st.term);
       if (items.length){
         renderList(box, items, true);
       } else {
@@ -216,14 +216,14 @@
     function fetchData(q, p, opts){
       if (typeof p === "undefined") p = 1;
       opts = opts || {};
-      var force = !!opts.force;
-      var ifActiveOnly = (opts.ifActiveOnly !== false);
+      const force = !!opts.force;
+      const ifActiveOnly = (opts.ifActiveOnly !== false);
 
       if (!force && (st.busy || (!st.more && p > 1))) return;
       st.busy = true;
 
-      var key = q + "__" + p;
-      var cached = cache.get(key);
+      const key = q + "__" + p;
+      const cached = cache.get(key);
       if (cached && !force){
         if (ifActiveOnly && st.active && p === 1) renderList(box, cached.results || [], true);
         st.more = !!(cached && cached.has_more);
@@ -235,22 +235,22 @@
       st.ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
       st.lastReqKey = key;
 
-      var fetchOpts = {
+      const fetchOpts = {
         headers: { "Accept": "application/json" },
         cache: "no-store"
       };
       if (st.ctrl) fetchOpts.signal = st.ctrl.signal;
 
       return fetch(url + "?term=" + encodeURIComponent(q) + "&page=" + p, fetchOpts)
-        .then(function(r){
+        .then((r) => {
           if (!r.ok) throw new Error("Error de red (" + r.status + ")");
           return r.json();
         })
-        .then(function(j){
+        .then((j) => {
           cache.set(key, j);
           if (!q && p === 1) cache.set("__empty__1", j);
           if (st.lastReqKey === key && st.active){
-            var results = j && j.results ? j.results : [];
+            const results = j && j.results ? j.results : [];
             if (p === 1 && (!results || !results.length)){
               if (q){
                 box.innerHTML = '<div class="autocomplete-no-result">Sin resultados</div>';
@@ -266,25 +266,45 @@
             st.more = !!(j && j.has_more);
           }
         })
-        .catch(function(e){
+        .catch((e) => {
           if (e && e.name !== "AbortError"){
             console.error(e);
             show(errBox, iconErr("Error al cargar las opciones. Intente de nuevo."));
           }
         })
-        .finally(function(){ st.busy = false; });
+        .finally(() => { st.busy = false; });
     }
 
     function debouncedSearch(){
       if (st.tmr) clearTimeout(st.tmr);
-      st.tmr = setTimeout(function(){
+      st.tmr = setTimeout(() => {
         st.page = 1; st.more = true;
         instantPaint();
         fetchData(st.term, 1, { ifActiveOnly: true });
       }, st.debounceMs);
     }
 
-    inp.addEventListener("focus", function(){
+    // Selección común (usada por Enter y por click)
+    function selectOption(opt){
+      if (!opt) return;
+      inp.value = opt.textContent;
+      hid.value = opt.getAttribute("data-id") || "";
+      box.classList.remove("visible");
+      box.style.display = "none";
+      // limpiar posible error visual del campo
+      const errId = (hid === usrHid) ? "usuarioid" : (hid === sucHid ? "sucursalid" : "");
+      if (errId){
+        const div = $("#error-id_" + errId);
+        if (div){ div.classList.remove("visible"); div.style.display = "none"; div.innerHTML = ""; }
+        inp.classList.remove("input-error");
+      }
+      if (hid === usrHid) cacheUsr.clear();   // tras elegir usuario, refrescar cache de usuarios
+      // avanzar al próximo campo (un tick para no interferir con el pointerup)
+      setTimeout(() => focusNext(inp), 0);
+    }
+
+    /* ── Eventos de entrada ── */
+    inp.addEventListener("focus", () => {
       st.active = true;
       closeAllExcept(instanceAPI);
       st.term = (inp.value || "").trim();
@@ -298,9 +318,9 @@
       }
     });
 
-    inp.addEventListener("blur", function(){ st.active = false; });
+    inp.addEventListener("blur", () => { st.active = false; });
 
-    inp.addEventListener("input", function(){
+    inp.addEventListener("input", () => {
       hid.value  = "";
       st.term    = (inp.value || "").trim();
       if (!st.term){
@@ -313,21 +333,35 @@
     }, { passive: true });
 
     // Enter: selecciona primera opción y sigue
-    inp.addEventListener("keydown", function(e){
+    inp.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" || e.isComposing) return;
       e.preventDefault();
-      var firstOpt = box.querySelector(".autocomplete-option");
+      const firstOpt = box.querySelector(".autocomplete-option");
       if (isVisible(box) && firstOpt){
-        inp.value = firstOpt.textContent;
-        hid.value = firstOpt.getAttribute("data-id") || "";
-        box.classList.remove("visible");
-        box.style.display = "none";
-        if (hid === usrHid) cacheUsr.clear();
+        selectOption(firstOpt);
+        return;
       }
       focusNext(inp);
     });
 
-    var instanceAPI = { st: st, box: box };
+    // CLICK/TOUCH en opciones (soporta mouse, touch y stylus)
+    const pickWithPointer = (e) => {
+      const opt = e.target.closest(".autocomplete-option");
+      if (!opt) return;
+      // impedir que el mousedown provoque blur antes de tiempo
+      e.preventDefault();
+      selectOption(opt);
+    };
+    // pointerdown cubre mouse+touch; mousedown es fallback para navegadores viejos
+    box.addEventListener("pointerdown", pickWithPointer);
+    box.addEventListener("mousedown",  pickWithPointer);
+    // como refuerzo, también en click por compatibilidad (no pasa nada si ya se seleccionó)
+    box.addEventListener("click", (e) => {
+      const opt = e.target.closest(".autocomplete-option");
+      if (opt) selectOption(opt);
+    });
+
+    const instanceAPI = { st: st, box: box };
     AUTOS.push(instanceAPI);
 
     if (warmup){ fetchData("", 1, { force: true, ifActiveOnly: false }); }
@@ -339,7 +373,7 @@
   /* ───────── Enter en inputs normales ───────── */
   form.addEventListener("keydown", function(e){
     if (e.key !== "Enter" || e.isComposing) return;
-    var t = e.target;
+    const t = e.target;
     if (t && t.tagName === "TEXTAREA") return;
     if (t === usrInp || t === sucInp) return;
     e.preventDefault();
@@ -351,7 +385,7 @@
     ev.preventDefault();
     resetUI();
 
-    var bad = false;
+    let bad = false;
     if (!usrHid.value){ fieldErr("usuarioid",  "Debe seleccionar un usuario.");  bad = true; }
     if (!sucHid.value){ fieldErr("sucursalid", "Debe seleccionar una sucursal."); bad = true; }
     if (bad) return;
@@ -365,21 +399,21 @@
       },
       body : new FormData(form)
     })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
+    .then((r) => r.json())
+    .then((data) => {
       if (data.success){
         show(okBox, '<i class="fas fa-check-circle"></i> Empleado agregado correctamente.');
         form.reset();
         usrHid.value = ""; sucHid.value = "";
         cacheUsr.clear();
       } else {
-        var errs = (typeof data.errors === "string") ? JSON.parse(data.errors) : data.errors;
-        Object.keys(errs).forEach(function(f){
-          errs[f].forEach(function(e){ fieldErr(f, e.message || "Error en el campo."); });
+        const errs = (typeof data.errors === "string") ? JSON.parse(data.errors) : data.errors;
+        Object.keys(errs).forEach((f) => {
+          errs[f].forEach((e) => fieldErr(f, e.message || "Error en el campo."));
         });
       }
     })
-    .catch(function(err){
+    .catch((err) => {
       console.error(err);
       show(errBox, iconErr("Ocurrió un error inesperado al guardar. Inténtelo de nuevo."));
     });

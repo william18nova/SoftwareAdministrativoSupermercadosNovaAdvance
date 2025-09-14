@@ -52,10 +52,8 @@ body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12
 /* Contenedor (glass card centrado) */
 .container{
   width:min(95vw, 560px);
-  margin-inline:auto !important;
-  margin-top:clamp(8px,2.5vh,20px);
-  margin-bottom:clamp(18px,4vh,28px);
-
+  margin-inline:auto;          /* centra horizontal */
+  margin-block:auto;           /* centra vertical */
   background:var(--glass-bg);
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   border:1px solid var(--glass-brd);
@@ -65,8 +63,20 @@ body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12
   position:relative;
   float:none; clear:both;
 }
-@media (max-width: 900px){
-  .container{ position:relative; left:50%; transform:translateX(-50%); }
+
+/* Si tu plantilla envuelve el contenido en .page-wrap/.content, centra con grid */
+@supports selector(:has(*)){
+  .page-wrap:has(.container),
+  .content:has(.container){
+    min-height:100svh;
+    display:grid;
+    place-items:center;                 /* centro real en ambos ejes */
+    padding-block:clamp(20px,4vh,32px);
+  }
+  .page-wrap:has(.container) .container,
+  .content:has(.container) .container{
+    margin:0;                           /* evita márgenes dobles dentro del grid */
+  }
 }
 
 /* Encabezado */

@@ -1,5 +1,5 @@
 /* ========================================================================
-   Visualizar Usuarios – Nova Advance Design (match Visualizar Empleados)
+   Visualizar Usuarios — Nova Advance Design (centrado desktop + paginación)
 ======================================================================== */
 
 /* Fuente */
@@ -50,7 +50,7 @@ body::before, body::after{ content:""; display:none !important; }
 /* Contenedor */
 .container{
   width:min(94vw, 1200px);
-  margin-inline:auto;
+  margin-inline:auto;                /* centro horizontal */
   margin-block: clamp(18px, 7vh, 56px);
   background:var(--glass-bg);
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
@@ -59,8 +59,30 @@ body::before, body::after{ content:""; display:none !important; }
   border-radius:var(--radius);
   padding: clamp(22px, 4.2vw, 36px);
 }
+
+/* Centrado PERFECTO en escritorio (con y sin wrappers) */
+@media (min-width:1024px){
+  .container{
+    margin-left:auto !important;
+    margin-right:auto !important;
+    float:none !important;
+    position:relative !important;
+    left:auto !important;
+    transform:none !important;
+  }
+}
 @supports selector(:has(*)){
-  .page-wrap:has(.container){ display:grid; justify-items:center; }
+  @media (min-width:1024px){
+    .page-wrap:has(.container){
+      min-height:100svh;
+      display:grid;
+      place-items:center;               /* centro vertical y horizontal */
+      padding-block: clamp(18px, 6vh, 56px);
+    }
+    .page-wrap:has(.container) .container{
+      margin:0 !important;              /* evita doble margen dentro del grid */
+    }
+  }
 }
 
 /* Título */
@@ -198,22 +220,41 @@ table.dataTable thead th.sorting_desc::after{ opacity:1; }
   box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent) !important;
 }
 
-/* Paginación (chip para página actual) */
+/* ===================== Paginación ===================== */
 .dataTables_wrapper .dataTables_paginate{
   text-align:center; margin-top:12px;
+  display:flex; align-items:center; justify-content:center; gap:16px;
 }
-.dataTables_wrapper .dataTables_paginate .paginate_button{
-  background:transparent !important; border:none !important; box-shadow:none !important;
-  color:var(--text) !important; font-weight:700 !important;
-  padding:6px 12px !important; margin:0 10px !important; border-radius:0 !important;
+
+/* Botones "Anterior" y "Siguiente" */
+.dataTables_wrapper .dataTables_paginate .paginate_button.previous,
+.dataTables_wrapper .dataTables_paginate .paginate_button.next{
+  position:relative;
+  padding:6px 12px !important;
+  font-weight:800 !important;
+  color:var(--text-muted) !important;
+  background:transparent !important;
+  border:none !important; box-shadow:none !important;
+  text-transform:none !important;
 }
-.dataTables_wrapper .dataTables_paginate .paginate_button:not(.current):hover{
-  text-decoration:underline; background:transparent !important; box-shadow:none !important;
+.dataTables_wrapper .dataTables_paginate .paginate_button.previous::before{
+  content:"\2190"; /* ← */
+  margin-right:8px; opacity:.9;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.next::after{
+  content:"\2192"; /* → */
+  margin-left:8px; opacity:.9;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.previous:not(.disabled):hover,
+.dataTables_wrapper .dataTables_paginate .paginate_button.next:not(.disabled):hover{
+  color:#ffffff !important; text-decoration:underline;
 }
 .dataTables_wrapper .dataTables_paginate .paginate_button.disabled{
   opacity:.55 !important; filter:grayscale(.12);
   cursor:default !important; text-decoration:none !important;
 }
+
+/* Página actual → chip */
 .dataTables_wrapper .dataTables_paginate .paginate_button.current,
 .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover{
   display:inline-flex; align-items:center; justify-content:center;
@@ -237,7 +278,7 @@ table.dataTable thead th.sorting_desc::after{ opacity:1; }
 .btn.borrar{ background:#e74c3c; }
 .btn.borrar:hover{ background:#c0392b; }
 
-/* Responsive (tarjetas) */
+/* ===================== Responsive (tarjetas) ===================== */
 @media (max-width:768px){
   .container{
     width: calc(100vw - 24px); max-width: 780px;
@@ -267,7 +308,7 @@ table.dataTable thead th.sorting_desc::after{ opacity:1; }
   .actions-cell{ justify-content:flex-start; }
 }
 
-/* Centrado limpio con :has() */
+/* Centrado limpio con :has() en responsive */
 @supports selector(:has(*)){
   @media (max-width:768px){
     .page-wrap:has(.container){
