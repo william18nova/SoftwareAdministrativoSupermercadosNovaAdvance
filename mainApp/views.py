@@ -378,22 +378,21 @@ class CategoriaAutocompleteView(PaginatedAutocompleteMixin):
 
 class ProductoListView(LoginRequiredMixin, ListView):
     """
-    Lista de productos optimizada y paginada.
-
-    • select_related('categoria') evita el problema N+1.
-    • Se ordena alfabéticamente por nombre.
-    • context_object_name = 'productos' mantiene la variable usada en la plantilla.
+    Lista completa de productos sin paginación en Django.
+    La paginación se hace en el cliente con DataTables.
     """
-    model               = Producto
-    template_name       = "visualizar_productos.html"
+    model = Producto
+    template_name = "visualizar_productos.html"
     context_object_name = "productos"
-    paginate_by         = 50                      # ajusta si necesitas menos/más filas
+    ordering = "nombre"         # se ordena alfabéticamente en el servidor
+    paginate_by = None          # 🔴 sin paginación del lado servidor
 
     def get_queryset(self):
+        # Evita N+1 y ordena
         return (
             Producto.objects
             .select_related("categoria")
-            .order_by("nombre")
+            .order_by(self.ordering or "nombre")
         )
 
 @login_required

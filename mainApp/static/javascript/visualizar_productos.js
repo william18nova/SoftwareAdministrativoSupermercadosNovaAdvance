@@ -4,13 +4,19 @@ $(function () {
 
   /* ───────── DataTable + buscador externo ───────── */
   const table = $("#productosTable").DataTable({
-    paging     : true,
-    searching  : true,
-    info       : true,
-    responsive : true,
-    columnDefs : [{ targets: "no-sort", orderable: false }],
-    language   : {
-      search      : "",                      // ocultamos la barra nativa
+    // Paginación 100% en el cliente
+    paging      : true,
+    pageLength  : 25,                               // tamaño inicial de página
+    lengthMenu  : [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
+    deferRender : true,                             // acelera con muchas filas
+    searching   : true,
+    info        : true,
+    responsive  : true,
+    columnDefs  : [{ targets: "no-sort", orderable: false }],
+    language    : {
+      // ocultamos la caja nativa de búsqueda
+      search      : "",
+      lengthMenu  : "Mostrar _MENU_ productos",
       zeroRecords : "No se encontraron productos",
       info        : "Mostrando _START_ a _END_ de _TOTAL_ productos",
       infoEmpty   : "Mostrando 0 a 0 de 0 productos",
@@ -20,25 +26,31 @@ $(function () {
         next    : "Siguiente",
         previous: "Anterior"
       }
-    }
+    },
+    // Opcional: guarda estado (página, orden, etc.) entre recargas
+    stateSave: true
   });
 
-  $("#buscador-productos").on("keyup", function () {
+  // Buscador externo
+  $("#buscador-productos").on("input", function () {
     table.search(this.value).draw();
   });
 
-  /* ───────── eliminar producto ───────── */
+  // Por si DataTables llegó a pintar la barra nativa, la escondemos
+  $("#productosTable_filter").hide();
+
+  /* ───────── eliminar producto (delegado) ───────── */
   $("#productosTable").on("click", ".btn.borrar", function () {
     const $btn   = $(this);
     const nombre = $btn.data("nombre");
     const $form  = $btn.closest("td").find(".delete-form");
 
     if (confirm(`¿Desea eliminar el producto «${nombre}»?`)) {
-      $form.submit();
+      $form.trigger("submit");
     }
   });
 
-  /* ───────── flash-message tras ADD/EDIT ───────── */
+  /* ───────── flash-message tras ADD/EDIT (opcional) ───────── */
   const flash = sessionStorage.getItem("flash-producto");
   if (flash) {
     $(".container h2").after(`
@@ -49,11 +61,14 @@ $(function () {
     sessionStorage.removeItem("flash-producto");
   }
 
-  /* ───────── detector de pistola de código de barras ───────── */
+  /* ───────── detector de pistola de código de barras ─────────
+     - Escribe el código en #buscador-productos
+     - Dispara el filtrado de DataTables
+  ---------------------------------------------------------------- */
   (function barcodeScannerDetector(){
     const CFG = {
-      minChars: 8,
-      gapMs: 60,
+      minChars: 8,         // mínimo de dígitos para considerar un código
+      gapMs: 60,           // intervalo máximo entre teclas para considerarlo “rápido”
       finishKeys: ['Enter','Tab'],
       debug: false
     };
@@ -61,7 +76,8 @@ $(function () {
 
     function setBarcodeValue(code){
       $input.val(code);
-      $input.trigger("input").trigger("change").trigger("keyup");
+      // dispara búsqueda
+      $input.trigger("input");
       table.search(code).draw();
       if (CFG.debug) console.log("[scanner] code:", code);
     }
@@ -95,7 +111,7 @@ $(function () {
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(()=>{ handleFinish(); }, CFG.gapMs*5);
 
-        // evitar que se escriba en otro campo
+        // Evita escribir caracteres en otros inputs si no estamos en el buscador
         if (document.activeElement !== $input[0]) {
           e.preventDefault();
           e.stopImmediatePropagation();
