@@ -2,18 +2,33 @@
     • Autocomplete instantáneo + scroll infinito + caché
     • Muestra opciones SOLO si el input está enfocado
     • Enter: avanza, elige 1ª opción en autocomplete, y al final agrega
+    • MEJORA: filtro local “parecido” sobre todas las páginas cacheadas
+              + prefetch automático de páginas adicionales
 ------------------------------------------------------------------*/
 (() => {
   "use strict";
 
-  /* ───────── helpers ───────── */
+  /* ======== helpers generales ======== */
   const $id  = id => document.getElementById(id);
   const $qs  = s  => document.querySelector(s);
   const $qsa = s  => document.querySelectorAll(s);
 
   const hasAbort = typeof window.AbortController === "function";
 
-  /* ───────── DataTable ───────── */
+  // Normaliza: quita acentos y pasa a minúscula
+  const norm = (s) => (s || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const uniqById = (arr) => {
+    const m = new Map();
+    for (const r of arr) if (r && r.id != null && !m.has(r.id)) m.set(r.id, r);
+    return Array.from(m.values());
+  };
+
+  /* ======== DataTable de la lista ======== */
   const dataTable = $('#productos-list').DataTable({
     paging    : false,
     searching : true,
@@ -34,7 +49,7 @@
     $('#productos-list tbody tr').each(function(){ setDataLabels($(this)); });
   });
 
-  /* ───────── refs ───────── */
+  /* ======== refs DOM ======== */
   const dom = {
     form      : $id('inventarioForm'),
     sucInp    : $id('id_sucursal_autocomplete'),
@@ -59,7 +74,7 @@
     items : [] // [{ productId, productName, cantidad }]
   };
 
-  /* ───────── UI helpers ───────── */
+  /* ======== UI helpers ======== */
   const UI = {
     clearAlerts(){
       [dom.alertOk, dom.alertErr].forEach(a=>{ if (!a) return; a.style.display='none'; a.innerHTML=''; });
@@ -79,13 +94,28 @@
     }
   };
 
-  /* ───────── caché ───────── */
+  /* ======== caché en memoria ======== */
   const cacheSucursal = Object.create(null);
   const cacheProducto = Object.create(null);
   const cacheKey = (term, page, extra="") => `${(term||"").trim().toLowerCase()}|${page}|${extra}`;
 
-  /* ───────── tools ───────── */
-  const debounce = (fn, ms=80) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; };
+  // Devuelve TODAS las páginas cacheadas para (term, extra), en orden de página
+  function allCachedPages(cache, term, extra=""){
+    const t = (term||"").trim().toLowerCase();
+    const out = [];
+    Object.keys(cache).forEach(k=>{
+      const [kt, kp, ke] = k.split("|");
+      if (kt === t && ke === (extra||"")){
+        const pg = parseInt(kp,10) || 1;
+        out.push({ page: pg, data: cache[k] });
+      }
+    });
+    out.sort((a,b)=>a.page-b.page);
+    return out;
+  }
+
+  /* ======== tools ======== */
+  const debounce = (fn, ms=90) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; };
   const hideBox = el => { el.style.display = 'none'; };
   const showBox = el => { el.style.display = 'block'; };
   const abortCtrl = c => { try{ c?.abort(); }catch(_){} };
@@ -103,7 +133,7 @@
   }
 
   /* ======== ENTER NAV ======== */
-  const NAV_ORDER = [/* 0 */ 'suc', /* 1 */ 'prd', /* 2 */ 'qty'];
+  const NAV_ORDER = ['suc','prd','qty'];
   const getByKey = key => key==='suc' ? dom.sucInp : key==='prd' ? dom.prdInp : dom.qtyInp;
 
   function focusNext(fromKey){
@@ -112,7 +142,7 @@
     if (idx < NAV_ORDER.length - 1){
       getByKey(NAV_ORDER[idx + 1]).focus();
     } else {
-      dom.btnAdd.click(); // último → agregar
+      dom.btnAdd.click();
     }
   }
 
@@ -136,8 +166,12 @@
     }
   }
 
-  /* ───────── Autocomplete ───────── */
+  /* ======== Autocomplete mejorado ======== */
   function Autocomplete(kind){
+    // Parámetros de “prefetch” para que aparezcan similares aunque no estén en la 1ª página
+    const TARGET_SUGGESTIONS = 12;   // cuántas sugerencias intentamos mostrar
+    const MAX_AUTO_PAGES     = 6;    // páginas extra a descargar automáticamente (además de la 1ª)
+
     const cfg = (kind === 'suc') ? {
       inp : dom.sucInp, hid : dom.sucHid, box : dom.sucBox,
       state : state.suc,  cache : cacheSucursal,
@@ -156,6 +190,7 @@
     cfg.box.style.zIndex = "9999";
     const canShow = () => cfg.state.focused && document.activeElement === cfg.inp;
 
+    // Pinta opciones en la caja
     const drawItems = (items, replace=true) => {
       if (!canShow()) return;
       if (replace) cfg.box.innerHTML = "";
@@ -175,37 +210,80 @@
       if (canShow()) showBox(cfg.box);
     };
 
-    const immediateFilter = () => {
-      if (!canShow()){ hideBox(cfg.box); return; }
-      const term = cfg.state.term.trim().toLowerCase();
-      if (!term){
-        if (cfg.state.list.length){ drawItems(cfg.state.list, true); }
-        else hideBox(cfg.box);
+    // Devuelve las mejores sugerencias usando todas las páginas cacheadas del término
+    function buildSuggestions(){
+      const t  = cfg.state.term;
+      const nt = norm(t);
+      const extra = cfg.extraKey();
+
+      // ① Todas las páginas cacheadas del término actual
+      let pool = [];
+      for (const p of allCachedPages(cfg.cache, t, extra)){
+        if (p.data && Array.isArray(p.data.results)) pool = pool.concat(p.data.results);
+      }
+      // ② También la página vacía (populares) como “semilla”
+      const emptyKey = cacheKey("", 1, cfg.extraKey());
+      if (cfg.cache[emptyKey]?.results) pool = pool.concat(cfg.cache[emptyKey].results);
+
+      // Únicos y filtrados por “parecido”
+      pool = uniqById(pool);
+      if (!nt) return pool.slice(0, TARGET_SUGGESTIONS);
+
+      const filtered = pool.filter(r => norm(r.text).includes(nt));
+      return filtered.slice(0, TARGET_SUGGESTIONS);
+    }
+
+    // Descarga páginas extra hasta alcanzar TARGET_SUGGESTIONS o agotar páginas
+    async function autoFetchMoreIfNeeded(){
+      if (!canShow()) return;
+      let suggestions = buildSuggestions();
+      if (suggestions.length >= TARGET_SUGGESTIONS || !cfg.state.more) {
+        drawItems(suggestions, true);
         return;
       }
-      if (!cfg.state.list.length){ return; }
-      const filtered = cfg.state.list.filter(r => r.text.toLowerCase().includes(term));
-      drawItems(filtered, true);
+      // Trae más páginas automáticamente (sin scroll)
+      let fetched = 0;
+      while (suggestions.length < TARGET_SUGGESTIONS && cfg.state.more && fetched < MAX_AUTO_PAGES){
+        cfg.state.page += 1;
+        await fetchPage(cfg.state.page, {silentReplace:true});
+        fetched += 1;
+        if (!canShow()) return;
+        suggestions = buildSuggestions();
+      }
+      drawItems(suggestions, true);
+    }
+
+    // Filtro instantáneo con lo ya cacheado (y luego auto-prefetch si hace falta)
+    const immediateFilter = () => {
+      if (!canShow()){ hideBox(cfg.box); return; }
+      const suggestions = buildSuggestions();
+      if (suggestions.length){
+        drawItems(suggestions, true);
+      } else {
+        // Si no hay nada aún, asegura que haya al menos la página 1 del término
+        if (cfg.state.list.length) drawItems([], true);
+        else hideBox(cfg.box);
+      }
+      // Y si no alcanzamos el objetivo, intenta traer más
+      autoFetchMoreIfNeeded(); // se ejecuta en segundo plano
     };
 
-    const fetchPage = async (page=1) => {
-      const term = cfg.state.term;
+    // Descarga página concreta (queda cacheada)
+    async function fetchPage(page=1, opts={}){
+      const { silentReplace=false } = opts;
+      const term  = cfg.state.term;
       const extra = cfg.extraKey();
-      const key  = cacheKey(term, page, extra);
+      const key   = cacheKey(term, page, extra);
 
+      // Si estaba en caché, pinta al instante y sal (igualmente recargamos en segundo plano)
       if (cfg.cache[key] && canShow()){
         const data = cfg.cache[key];
         if (page === 1) cfg.state.list = data.results.slice(0);
-        drawItems(data.results, page === 1);
-        cfg.state.more = !!data.has_more;
+        if (!silentReplace) drawItems(buildSuggestions(), true);
       }
 
-      if (hasAbort){
-        abortCtrl(cfg.state.ctrl);
-        cfg.state.ctrl = new AbortController();
-      } else {
-        cfg.state.ctrl = null;
-      }
+      if (hasAbort){ abortCtrl(cfg.state.ctrl); cfg.state.ctrl = new AbortController(); }
+      else { cfg.state.ctrl = null; }
 
       try{
         cfg.state.loading = true;
@@ -214,29 +292,26 @@
         const data = await resp.json();
         cfg.cache[key] = data;
 
+        // Si cambió el término mientras pedíamos, no pintes nada
         if (term !== cfg.state.term) return;
         if (!canShow()) return;
 
-        if (page === 1) cfg.state.list = data.results.slice(0);
-        if (page === 1) cfg.box.innerHTML = "";
-        if (data.results.length){
-          drawItems(data.results, page === 1);
-          cfg.state.more = !!data.has_more;
-        }else{
-          cfg.state.more = false;
-          if (page === 1) drawItems([], true);
-        }
+        if (page === 1) cfg.state.list = (data.results || []).slice(0);
+        cfg.state.more = !!(data && data.has_more);
+
+        // Pinta con las “mejores” sugerencias tras actualizar caché
+        if (!silentReplace) drawItems(buildSuggestions(), true);
       }catch(e){
         if (e.name !== 'AbortError') console.error(e);
       }finally{
         cfg.state.loading = false;
       }
-    };
+    }
 
-    const kickFetch = debounce(()=>{ cfg.state.page=1; cfg.state.more=true; fetchPage(1); }, 80);
+    const kickFetch = debounce(()=>{ cfg.state.page=1; cfg.state.more=true; fetchPage(1); }, 90);
 
     // input
-    cfg.inp.addEventListener('input', (ev)=>{
+    cfg.inp.addEventListener('input', ()=>{
       cfg.hid.value = '';
       cfg.state.term = cfg.inp.value;
       immediateFilter();
@@ -248,12 +323,24 @@
       hideAllExcept(kind);
       cfg.state.focused = true;
       cfg.state.term = cfg.inp.value;
+
+      // Asegura tener semilla vacía (populares)
+      if (!cfg.cache[cacheKey("",1,cfg.extraKey())]) {
+        const prevTerm = cfg.state.term;
+        cfg.state.term = "";
+        cfg.state.page = 1; cfg.state.more = true;
+        fetchPage(1, {silentReplace:true}).finally(()=>{
+          cfg.state.term = prevTerm; // restaura
+        });
+      }
+
+      // Pinta con lo que haya y trae la 1ª del término
       immediateFilter();
-      cfg.state.page=1; cfg.state.more=true;
-      fetchPage(1);
+      cfg.state.page = 1; cfg.state.more = true;
+      fetchPage(1).then(()=> autoFetchMoreIfNeeded());
     });
 
-    // blur (small delay → allow click)
+    // blur (pequeño delay para permitir click)
     cfg.inp.addEventListener('blur', ()=>{
       cfg.state.focused = false;
       setTimeout(()=> hideBox(cfg.box), 120);
@@ -272,7 +359,7 @@
       else selectFirstAndAdvance('prd');
     });
 
-    // infinite scroll
+    // infinite scroll (sigue funcionando)
     cfg.box.addEventListener('scroll', ()=>{
       if (!canShow()) return;
       if (cfg.box.scrollTop + cfg.box.clientHeight >= cfg.box.scrollHeight - 4){
@@ -285,14 +372,13 @@
     // evitar que el blur cierre antes del click
     cfg.box.addEventListener('mousedown', e=> e.preventDefault());
 
-    // selección por click
+    // selección por click (ratón / táctil)
     cfg.box.addEventListener('click', e=>{
       const opt = e.target.closest('.autocomplete-option');
       if (!opt) return;
       cfg.inp.value = opt.textContent;
       cfg.hid.value = opt.dataset.id;
       hideBox(cfg.box);
-      // avanzar al siguiente input
       if (kind === 'suc') focusNext('suc'); else focusNext('prd');
     });
 
@@ -308,22 +394,21 @@
   Autocomplete('suc');
   Autocomplete('prd');
 
-  /* ───────── Enter en inputs normales ───────── */
+  /* ======== Enter en inputs normales ======== */
   dom.qtyInp.addEventListener('keydown', (e)=>{
     if (e.key === 'Enter'){ e.preventDefault(); dom.btnAdd.click(); }
   });
 
-  // Por si el formulario capta Enter: bloquear submit por Enter accidental
+  // Evita submits por Enter fuera del flujo
   dom.form.addEventListener('keydown', (e)=>{
     if (e.key === 'Enter' && e.target !== dom.qtyInp && e.target !== dom.sucInp && e.target !== dom.prdInp){
       e.preventDefault();
-      // intenta avanzar si está en orden NAV
       const key = e.target === dom.sucInp ? 'suc' : e.target === dom.prdInp ? 'prd' : e.target === dom.qtyInp ? 'qty' : null;
       if (key) focusNext(key);
     }
   });
 
-  /* ───────── Agregar a tabla ───────── */
+  /* ======== Agregar a la tabla ======== */
   dom.btnAdd.addEventListener('click', ()=>{
     UI.clearAlerts(); UI.clearFieldErrors();
 
@@ -360,7 +445,7 @@
     dom.prdInp.focus();
   });
 
-  /* ───────── Eliminar fila ───────── */
+  /* ======== Eliminar fila ======== */
   dom.rowsWrap.addEventListener('click', e=>{
     const btn = e.target.closest('.btn-eliminar');
     if (!btn) return;
@@ -369,7 +454,7 @@
     dataTable.row(btn.closest('tr')).remove().draw(false);
   });
 
-  /* ───────── Submit ───────── */
+  /* ======== Submit ======== */
   dom.form.addEventListener('submit', async ev=>{
     ev.preventDefault();
     UI.clearAlerts(); UI.clearFieldErrors();
@@ -402,6 +487,7 @@
         state.items = [];
         dataTable.clear().draw();
 
+        // limpia caché
         Object.keys(cacheSucursal).forEach(k=>delete cacheSucursal[k]);
         Object.keys(cacheProducto).forEach(k=>delete cacheProducto[k]);
 
