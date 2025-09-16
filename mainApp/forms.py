@@ -826,14 +826,9 @@ class EditarHorarioCajaForm(forms.Form):
 
     
 class ProductoForm(forms.ModelForm):
-    _ean_validator = RegexValidator(
-        regex=r"^\d{13}$",
-        message="El código de barras debe contener exactamente 12 dígitos."
-    )
 
     codigo_de_barras = forms.CharField(
         required=False,
-        validators=[_ean_validator],
         widget=forms.TextInput(attrs={
             "class": "form-control",
             "placeholder": "Ingresa el código de barras"
