@@ -905,9 +905,13 @@ class ProductoForm(forms.ModelForm):
         return ean
 
 
+def _s(v):
+    """strip seguro: siempre devuelve string."""
+    return (v or "").strip()
+
 class ProductoEditarForm(forms.ModelForm):
     """
-    Formulario **único** para crear / editar productos.
+    Formulario único para crear / editar productos.
     El autocompletado de categoría se maneja con:
       • id_categoria_autocomplete  → solo texto visible
       • categoria (HiddenInput)    → PK real que se envía
@@ -972,7 +976,6 @@ class ProductoEditarForm(forms.ModelForm):
     # ---------------------- init ----------------------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         # queryset completo (o filtra a gusto)
         self.fields["categoria"].queryset = Categoria.objects.all()
 
@@ -987,7 +990,9 @@ class ProductoEditarForm(forms.ModelForm):
 
     # ------------------ validaciones ------------------
     def clean_nombre(self):
-        nombre = self.cleaned_data["nombre"].strip()
+        nombre = _s(self.cleaned_data.get("nombre"))
+        if not nombre:
+            raise ValidationError("Este campo es obligatorio.")
         qs = Producto.objects.filter(nombre__iexact=nombre)
         if self._pk:
             qs = qs.exclude(pk=self._pk)
@@ -996,7 +1001,7 @@ class ProductoEditarForm(forms.ModelForm):
         return nombre
 
     def clean_codigo_de_barras(self):
-        ean = self.cleaned_data.get("codigo_de_barras", "").strip()
+        ean = _s(self.cleaned_data.get("codigo_de_barras"))
         if not ean:
             return ean
         qs = Producto.objects.filter(codigo_de_barras=ean)

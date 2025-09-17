@@ -442,7 +442,7 @@ class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
     def form_invalid(self, form):
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse(
-                {"success": False, "errors": form.errors.get_json_data()},
+                {"success": False, "errors": form.errors.get_json_data(escape_html=True)},
                 status=400,
             )
         return super().form_invalid(form)

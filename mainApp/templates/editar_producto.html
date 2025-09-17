@@ -18,6 +18,17 @@
       Los campos con <span class="required">*</span> son obligatorios.
     </p>
 
+    {# Fallback por si llegas aquí sin AJAX (messages framework) #}
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     <div id="error-message"   class="alert alert-error"   style="display:none;"></div>
     <div id="success-message" class="alert alert-success" style="display:none;"></div>
 
@@ -54,7 +65,7 @@
           autocomplete="off"
           value="{{ form.initial.id_categoria_autocomplete_initial|default:'' }}">
 
-        {{ form.categoria }}   {#  hidden input con la PK  #}
+        {{ form.categoria }}   {# hidden con la PK real (obligatorio para el POST) #}
 
         <div class="autocomplete-results" id="categoria-autocomplete-results"></div>
         <div class="field-error" id="error-id_categoria"></div>

@@ -54,6 +54,29 @@
     }
   }
 
+  /* ───────── util robusto: parsear JSON o mostrar texto de error ───────── */
+  async function readJSONorThrow(resp){
+    const ct   = resp.headers.get("content-type") || "";
+    const body = await resp.text(); // leemos una sola vez
+    const isJSON = /\bapplication\/json\b/i.test(ct);
+    if (!isJSON){
+      const snippet = body.slice(0, 280);
+      throw new Error(`Servidor devolvió contenido no-JSON (${resp.status}). ${snippet}`);
+    }
+    try{
+      const data = JSON.parse(body);
+      if (!resp.ok){
+        // Devolver el JSON pero señalando que el status no es OK
+        const msg = (data && (data.detail || data.message)) ? ` ${data.detail || data.message}` : "";
+        throw new Error(`Error ${resp.status}.${msg}`);
+      }
+      return data;
+    }catch(e){
+      // Cuando el cuerpo es HTML de error pero con content-type JSON mal seteado, o JSON corrupto
+      throw new Error(`Respuesta JSON inválida del servidor (${resp.status}).`);
+    }
+  }
+
   /* ───────── Autocomplete «Categoría» (instantáneo + remoto abortable + caché) ───────── */
   const cache = Object.create(null);        // key = term|page -> {results, has_more}
   let page = 1, term = "", hasMore = true, loading = false;
@@ -95,13 +118,22 @@
     loading = true;
     try {
       const url = `${categoriaAutocompleteUrl}?term=${encodeURIComponent(q || "")}&page=${p}`;
-      const res = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
-      const data = await res.json();
+      const res = await fetch(url, {
+        signal : ctrl?.signal,
+        headers: { "Accept":"application/json", "X-Requested-With":"XMLHttpRequest" }
+      });
+      const data = await readJSONorThrow(res);
       cache[key] = data;
       if (q !== term) return; // el término cambió mientras esperábamos
       drawCats(data, p === 1);
     } catch (e) {
-      if (e.name !== "AbortError") console.error(e);
+      // Evitamos romper el flujo del usuario si el servidor retornó HTML/500
+      console.error("[autocomplete categoria] ", e);
+      if (p === 1){
+        catBox.innerHTML = '<div class="autocomplete-no-result">No se pudieron cargar opciones</div>';
+        catBox.classList.add("visible");
+      }
+      hasMore = false;
     } finally {
       loading = false;
     }
@@ -122,7 +154,7 @@
   function kickFetch(force=false){
     clearTimeout(debounceTimer);
     if (force){ page = 1; hasMore = true; fetchCats(term, 1); }
-    else debounceTimer = setTimeout(()=>{ page = 1; hasMore = true; fetchCats(term, 1); }, 100);
+    else debounceTimer = setTimeout(()=>{ page = 1; hasMore = true; fetchCats(term, 1); }, 120);
   }
 
   catInput?.addEventListener("input", () => {
@@ -226,7 +258,7 @@
     }
   });
 
-  /* ───────── envío del formulario ───────── */
+  /* ───────── envío del formulario (robusto ante 500/HTML) ───────── */
   form?.addEventListener("submit", async ev => {
     ev.preventDefault();
     resetUI();
@@ -250,16 +282,25 @@
         },
         body : new FormData(form),
       });
-      const data = await resp.json();
+
+      let data;
+      try{
+        data = await readJSONorThrow(resp);
+      }catch(parseErr){
+        console.error(parseErr);
+        show(errBox, iconErr("Error del servidor. Intenta nuevamente. Si persiste, contacta al administrador."));
+        return;
+      }
 
       if (data.success) {
         sessionStorage.setItem(
           "flash-producto",
           `<i class="fas fa-check-circle"></i> Producto «${data.nombre}» actualizado correctamente.`
         );
-        window.location.href = data.redirect_url;
+        window.location.href = data.redirect_url || window.location.href;
         return;
       }
+
       renderErrors(typeof data.errors === "string" ? JSON.parse(data.errors) : data.errors);
     } catch (err) {
       console.error(err);
@@ -343,7 +384,6 @@
 
       if (CFG.finishKeys.includes(e.key)){
         if (tryFinish('finishKey')){
-          // solo aquí bloqueamos el Enter/Tab del escáner
           e.preventDefault();
           e.stopImmediatePropagation();
         } else if (CFG.acceptCRLF && (e.key === 'Enter' || e.key === 'NumpadEnter')) {
@@ -365,8 +405,6 @@
 
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(()=>{ tryFinish('idle'); }, CFG.gapMs*5);
-
-        // ⛔️ IMPORTANTE: no prevenimos teclas normales. Solo al confirmar lectura.
       } else {
         if (e.key !== 'Shift') reset();
       }
