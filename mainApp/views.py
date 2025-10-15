@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso
 from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField
-from django.http import JsonResponse, Http404
+from django.http import JsonResponse, HttpRequest
 from django.contrib.auth import authenticate, login as auth_login
 import json
 import subprocess, shutil
@@ -68,6 +68,8 @@ from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
 from django.db.models.functions import Coalesce
+import os, subprocess, shlex
+from django.views.decorators.http import require_POST
 
 
 
