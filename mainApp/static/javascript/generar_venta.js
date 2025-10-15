@@ -3,9 +3,9 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — fast autocompletes + enter picks top + focus chain + scanner");
+  console.log("⚡ generar_venta.js — fast autocompletes + enter picks top + focus chain + scanner + print/drawer gateway");
 
-  /* URLs */
+  /* URLs inyectadas desde el template */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
   const PUNTOPAGO_URL  = window.puntopagoAutocompleteUrl;
   const CLIENTE_URL    = window.clienteAutocompleteUrl;
@@ -78,7 +78,7 @@ $(function () {
     $agregar.prop("disabled", !enable);
   }
   function maybeFocusQty() {
-    if ($pid.val() && $nombre.val() && $codigo.val() && $barras.val()) {
+    if ($pid.val() && ($nombre.val() || $codigo.val() || $barras.val())) {
       enableQtyAndAdd(true);
       setTimeout(() => { $cantidad.focus().select(); }, 0);
     }
@@ -196,13 +196,6 @@ $(function () {
   }
   const fetcher = makeFetcher();
 
-  /**
-   * createFastAC
-   * · respuesta local inmediata con rank
-   * · remoto en paralelo (abort)
-   * · ENTER siempre elige la opción superior y salta al siguiente input
-   * · si input vacío => muestra todo (prefetch)
-   */
   function createFastAC({ $inp, url, mapItem, extra=()=>({}), onSelect, nextFocus=null, allowEmpty=true, uniqueBy="id" }){
     let index=[]; const seen=new Set(); let ctxKey="";
 
@@ -436,7 +429,6 @@ $(function () {
         if (!val) return;
         if (instant) instant(val);
         handler(val);
-        // foco a cantidad si corresponde
         setTimeout(()=> $("#cantidad").focus().select(), 0);
       }
     });
@@ -635,17 +627,51 @@ $(function () {
     $("#venta-form").submit();
   });
 
-  /* submit AJAX */
+  /* submit AJAX con prompt imprimir / abrir gaveta */
   $("#venta-form").submit(function (e) {
     e.preventDefault();
     $.post($(this).attr("action"), $(this).serialize())
-      .done((r) => {
-        if (r.success) {
-          alert("✅ ¡Venta generada correctamente!");
-          location.reload();
-        } else {
-          alert(r.error || "Error");
+      .done(async (r) => {
+        if (!r || !r.success) {
+          alert(r?.error || "Error");
+          return;
         }
+
+        // Preguntar si imprimir
+        const quiereImprimir = confirm("✅ Venta realizada.\n\n¿Desea imprimir la factura en 58 mm?");
+        try {
+          // Gateway local corriendo en el PC de caja
+          const GATEWAY = "http://127.0.0.1:18080";
+
+          if (quiereImprimir) {
+            // Enviar ticket al gateway para imprimir y luego abrir gaveta
+            await fetch(GATEWAY + "/print", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ticket: r.ticket,
+                hint: r.print_hint,           // usb|cups|net + params
+                cut: "partial",               // o "full"
+                drawer_after: true,           // abre gaveta al final
+                drawer_pin: (r.print_hint?.drawer_pin ?? 0)
+              })
+            });
+          } else {
+            // Solo abrir gaveta
+            await fetch(GATEWAY + "/drawer", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hint: r.print_hint, pin: (r.print_hint?.drawer_pin ?? 0) })
+            });
+          }
+        } catch (err) {
+          console.warn("No se pudo contactar el gateway local:", err);
+          alert("Venta creada. Para imprimir/abrir gaveta, inicia el servicio local de impresión.");
+        }
+
+        // Limpieza / refresco
+        alert("✅ ¡Venta generada correctamente!");
+        location.reload();
       })
       .fail(() => alert("Error de red"));
   });

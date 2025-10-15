@@ -2723,10 +2723,10 @@ class GenerarVentaView(LoginRequiredMixin, View):
     def _crear_venta(user, data, detalles, total):
         """
         Crea la venta y actualiza inventario / caja.
+        Devuelve JSON con 'ticket' para que el frontend decida imprimir o solo abrir gaveta.
         """
         try:
-            # ✅ Fecha/hora locales según TIME_ZONE (p.ej. America/Bogota)
-            ahora = timezone.localtime()   # <-- sin coma
+            ahora = timezone.localtime()
 
             with transaction.atomic():
                 empleado = getattr(user, "empleado", None)
@@ -2766,7 +2766,53 @@ class GenerarVentaView(LoginRequiredMixin, View):
                     pp.dinerocaja = (pp.dinerocaja or 0) + total
                     pp.save(update_fields=["dinerocaja"])
 
-            return JsonResponse({'success': True})
+            # ---------- construir payload del ticket 58mm ----------
+            suc = data['sucursal']
+            pp  = data['puntopago']
+            cajero = empleado.personaid.nombres if hasattr(empleado, 'personaid') else user.get_username()
+            cliente = None
+            if data.get('cliente_id'):
+                cliente = Cliente.objects.filter(pk=data['cliente_id']).values('nombres', 'apellidos', 'documento').first()
+
+            ticket = {
+                "empresa": {
+                    "nombre" : "NOVA ADVANCE",
+                    "nit"    : "900.123.456-7",       # <-- pon tu NIT real
+                    "dir"    : "Calle 123 #45-67, Ibagué",
+                    "tel"    : "(608) 123 4567"
+                },
+                "venta": {
+                    "numero"   : f"FA-{venta.ventaid:06d}" if hasattr(venta, 'ventaid') else f"FA-{venta.pk:06d}",
+                    "fecha_hora": ahora.strftime("%Y-%m-%d %H:%M:%S"),
+                    "cajero"   : cajero,
+                    "sucursal" : getattr(suc, "nombre", str(suc)),
+                    "punto"    : getattr(pp, "nombre", str(pp)),
+                    "medio"    : data['medio_pago'],
+                },
+                "cliente": cliente or None,   # {"nombres":...,"apellidos":...,"documento":...} o None
+                "items": [
+                    {
+                        "nombre" : d["producto"],
+                        "cantidad": d["cantidad"],
+                        "precio" : float(d["precio_unitario"]),
+                        "subtotal": float(d["subtotal"])
+                    } for d in detalles
+                ],
+                "totales": {
+                    "subtotal": float(total),      # ajusta si separas IVA
+                    "iva"     : 0.0,               # si calculas IVA separado, colócalo aquí
+                    "descuento": 0.0,
+                    "total"   : float(total)
+                }
+            }
+
+            # Pista de impresión para el gateway (elige UNO según tu caso)
+            # 1) USB directo (Linux) por /dev/usb/lp0:
+            print_hint = {"mode": "usb", "device": "/dev/usb/lp0", "drawer_pin": 0}
+            # 2) CUPS (cola RAW): print_hint = {"mode":"cups", "queue":"POS58", "drawer_pin": 0}
+            # 3) Red RAW 9100:    print_hint = {"mode":"net",  "host":"192.168.1.50", "port": 9100, "drawer_pin": 0}
+
+            return JsonResponse({'success': True, 'ticket': ticket, 'print_hint': print_hint})
         except Exception:
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
 
