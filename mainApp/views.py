@@ -2813,6 +2813,107 @@ class POSAbrirGavetaView(LoginRequiredMixin, View):
         return JsonResponse({"success": True})
 
 
+# Ruta al script que ya tienes (ajústala si está en otro sitio)
+POS_SCRIPT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "print_pos_test.sh"
+)
+
+def _is_pythonanywhere(request: HttpRequest) -> bool:
+    host = (request.get_host() or "").lower()
+    return "pythonanywhere.com" in host
+
+def _run_pos_command(args, env_extra=None):
+    env = os.environ.copy()
+    if env_extra:
+        env.update(env_extra)
+    # Ejecuta y devuelve (ok, stdout)
+    proc = subprocess.run(args, capture_output=True, text=True, env=env, timeout=20)
+    return (proc.returncode == 0, (proc.stdout or "") + (proc.stderr or ""))
+
+@require_POST
+@login_required
+def pos_print(request: HttpRequest):
+    """
+    Imprime el ticket en POS-58 (o no-op en PythonAnywhere).
+    POST opcional:
+      - mode: device|cups|net  (default device)
+      - target: /dev/usb/lp0 | IP  (según mode)
+      - port: 9100 (net)
+      - queue: POS58 (cups)
+      - when: before|after (cuándo abrir la gaveta)
+      - drawer: 0|1
+      - ticket: (JSON o texto si en el futuro quieres pasarlo al script)
+    """
+    # En PA no hay acceso al dispositivo: retornamos éxito sin hacer nada
+    if _is_pythonanywhere(request):
+        return JsonResponse({"ok": True, "noop": True})
+
+    mode   = request.POST.get("mode",   os.environ.get("POS_MODE", "device"))
+    target = request.POST.get("target", os.environ.get("POS_TARGET", "/dev/usb/lp0"))
+    port   = request.POST.get("port",   os.environ.get("POS_PORT", "9100"))
+    queue  = request.POST.get("queue",  os.environ.get("POS_QUEUE", "POS58"))
+    when   = request.POST.get("when",   os.environ.get("POS_WHEN", "after"))
+    drawer = request.POST.get("drawer", os.environ.get("POS_DRAWER", "0"))
+
+    if not os.path.exists(POS_SCRIPT):
+        return JsonResponse({"ok": False, "error": f"No se encuentra el script: {POS_SCRIPT}"}, status=500)
+
+    # Construimos comando
+    cmd = ["bash", POS_SCRIPT, mode]
+    if mode == "device":
+        cmd.append(target)             # /dev/usb/lp0
+    elif mode == "net":
+        cmd.extend([target, str(port)])  # IP y puerto
+    elif mode == "cups":
+        # nada, se usa QUEUE desde el entorno
+        pass
+    else:
+        return JsonResponse({"ok": False, "error": f"Modo inválido: {mode}"}, status=400)
+
+    ok, out = _run_pos_command(cmd, {
+        "QUEUE": queue,
+        "WHEN" : when,
+        "DRAWER": drawer,
+    })
+    if not ok:
+        return JsonResponse({"ok": False, "error": out.strip() or "Fallo al imprimir"}, status=500)
+    return JsonResponse({"ok": True, "stdout": out})
+
+@require_POST
+@login_required
+def pos_open(request: HttpRequest):
+    """
+    Solo abre la gaveta (sin imprimir). Usa el mismo script.
+    """
+    if _is_pythonanywhere(request):
+        return JsonResponse({"ok": True, "noop": True})
+
+    mode   = request.POST.get("mode",   os.environ.get("POS_MODE", "device"))
+    target = request.POST.get("target", os.environ.get("POS_TARGET", "/dev/usb/lp0"))
+    port   = request.POST.get("port",   os.environ.get("POS_PORT", "9100"))
+    queue  = request.POST.get("queue",  os.environ.get("POS_QUEUE", "POS58"))
+    drawer = request.POST.get("drawer", os.environ.get("POS_DRAWER", "0"))
+
+    if not os.path.exists(POS_SCRIPT):
+        return JsonResponse({"ok": False, "error": f"No se encuentra el script: {POS_SCRIPT}"}, status=500)
+
+    # Para abrir sin imprimir: usamos WHEN=before y un ticket mínimo
+    cmd = ["bash", POS_SCRIPT, mode]
+    if mode == "device":
+        cmd.append(target)
+    elif mode == "net":
+        cmd.extend([target, str(port)])
+    # cups no requiere parámetro extra
+
+    ok, out = _run_pos_command(cmd, {
+        "QUEUE": queue,
+        "WHEN" : "before",
+        "DRAWER": drawer,
+    })
+    if not ok:
+        return JsonResponse({"ok": False, "error": out.strip() or "Fallo al abrir gaveta"}, status=500)
+    return JsonResponse({"ok": True, "stdout": out})
 
 # =========================
 #  Tu vista de Generar Venta (AJAX)
