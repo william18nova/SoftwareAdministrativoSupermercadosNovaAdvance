@@ -659,16 +659,22 @@ $(function () {
   /* init */
   enableQtyAndAdd(false);
 
-  /* Detector global de pistola */
+  /* Detector global de pistola — FIX: `&&` y chequeos bien */
   (function globalScannerDetector() {
     const MIN_CHARS = 8, GAP_MS = 35;
-    let buf="", first=0, last=0, idleTimer=null;
-    function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
+    let buf = "", first = 0, last = 0, idleTimer = null;
+
+    function reset(){
+      buf = ""; first = 0; last = 0;
+      if (idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
+    }
+
     document.addEventListener("keydown", function (e) {
       if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
       const t = Date.now();
+
       if (e.key === "Enter" || e.key === "Tab") {
-        const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
+        const fastEnough = buf && (t - first) < buf.length * (GAP_MS + 5) && (t - last) < GAP_MS * 3;
         if (fastEnough && buf.length >= MIN_CHARS) {
           e.preventDefault(); e.stopImmediatePropagation();
           const code = buf; reset();
@@ -680,12 +686,14 @@ $(function () {
         }
         reset(); return;
       }
+
       if (e.key && e.key.length === 1) {
-        if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
+        if (buf && (t - last) > GAP_MS) { buf = ""; first = t; }
         if (!buf) first = t;
         buf += e.key; last = t;
+
         if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(reset, GAP_MS*5);
+        idleTimer = setTimeout(reset, GAP_MS * 5);
       } else {
         if (e.key !== "Shift") reset();
       }

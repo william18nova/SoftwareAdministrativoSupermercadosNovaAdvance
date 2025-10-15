@@ -3,9 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso
 from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField
-from django.http import JsonResponse, HttpRequest, HttpResponse
+from django.http import JsonResponse, Http404
 from django.contrib.auth import authenticate, login as auth_login
 import json
+import subprocess, shutil
 from datetime import date
 from django.utils import timezone
 from django.contrib.auth import authenticate
@@ -2632,6 +2633,190 @@ class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
 
+# =========================
+#  ESC/POS helpers (58mm)
+# =========================
+ESC = b'\x1b'
+GS  = b'\x1d'
+
+def _esc_init():        return ESC + b'@'              # ESC @
+def _esc_align(n):      return ESC + b'a' + bytes([n]) # 0=left 1=center 2=right
+def _esc_bold(on):      return ESC + b'E' + (b'\x01' if on else b'\x00')
+def _esc_dw(on):        return GS  + b'!' + (b'\x11' if on else b'\x00') # double h+w
+def _esc_cut():         return GS  + b'V' + b'\x42' + b'\x03'            # partial cut
+def _esc_kick(pin=0):   # 0 → pin2 (gaveta 1), 1 → pin5 (gaveta 2)
+    return ESC + b'p' + (b'\x01' if pin else b'\x00') + b'\x19' + b'\xFA'
+
+def _line(txt=""):
+    return (txt or "").encode("latin1", "ignore") + b"\n"
+
+def _fmt_item(name, qty, price, total, width=32):
+    """
+    58mm (font A) ~ 32 columnas. Usamos 16-5-5-6 como en tu script.
+    """
+    name = (name or "")[:16]
+    q    = f"{qty}".rjust(5)
+    p    = f"{price:.2f}".rjust(5)
+    t    = f"{total:.2f}".rjust(6)
+    return f"{name:<16}{q}{p}{t}\n".encode("latin1","ignore")
+
+def _money(n):
+    return f"$ {n:,.2f}".replace(",", "X").replace(".", ",").replace("X",".")
+
+def _build_ticket_bytes(venta, detalles, efectivo=None, cambio=None, kick_after=True, drawer_pin=0):
+    """
+    Ticket ESC/POS 58mm con datos reales de la venta.
+    """
+    sep = "-" * 32
+    buf = bytearray()
+    buf += _esc_init()
+    buf += _esc_align(1) + _esc_dw(True) + _esc_bold(True)
+    buf += _line("NOVA ADVANCE")
+    buf += _esc_dw(False) + _esc_bold(False)
+    buf += _line("NIT 900.123.456-7")
+    buf += _line("Calle 123 #45-67, Ibagué")
+    buf += _line("Tel: (608) 123 4567")
+    buf += _line() + _line(sep)
+    buf += _esc_align(0)
+
+    # Encabezado
+    num = getattr(venta, "pk", 0)
+    cajero  = getattr(getattr(venta, "empleadoid", None), "nombre", "—") or "—"
+    cliente = getattr(getattr(venta, "clienteid", None), "nombre", "Público general") or "Público general"
+    ahora   = timezone.localtime()
+    buf += _line(f"Factura: FA-{num:06d}")
+    buf += _line(f"Fecha: {ahora:%Y-%m-%d %H:%M:%S}")
+    buf += _line(f"Cajero: {cajero}")
+    buf += _line(f"Cliente: {cliente}")
+    buf += _line(sep)
+    buf += _line(f"{'ITEM':<16}{'CANT':>5}{'$':>5}{'TOTAL':>6}")
+    buf += _line(sep)
+
+    subtotal = 0
+    for d in detalles:
+        nombre = getattr(getattr(d, "productoid", None), "nombre", "—")
+        cant   = d.cantidad
+        precio = float(d.preciounitario or 0)
+        tot    = precio * cant
+        subtotal += tot
+        buf += _fmt_item(nombre, cant, precio, tot)
+
+    buf += _line(sep)
+
+    total = float(getattr(venta, "total", subtotal) or subtotal)
+    iva   = 0.0  # si necesitas desglosarlo, ajusta aquí
+    desc  = 0.0
+
+    def _kv(k, v): return _line(f"{k:<20}{v:>12}")
+
+    buf += _kv("Subtotal:",  _money(subtotal))
+    buf += _kv("IVA:",       _money(iva))
+    if desc: buf += _kv("Descuento:", f"-{_money(desc)}")
+    buf += _kv("TOTAL:",     _money(total))
+
+    if efectivo is not None:
+        buf += _kv("Efectivo:",  _money(efectivo))
+        buf += _kv("Cambio:",    _money(cambio or 0.0))
+
+    buf += _esc_align(1) + _esc_bold(True)
+    buf += _line("¡Gracias por tu compra!")
+    buf += _esc_bold(False)
+    buf += _line("Síguenos: @NovaAdvance")
+    buf += _line("www.novaadvance.co")
+    buf += b"\n\n\n"
+    buf += _esc_cut()
+    buf += _esc_init()
+    if kick_after:
+        buf += _esc_kick(drawer_pin)
+    return bytes(buf)
+
+def _send_raw_to_printer(mode="device", target="/dev/usb/lp0", data=b"", port="9100", queue="POS58"):
+    """
+    Envía bytes ESC/POS a la impresora.
+    - device: escribe a /dev/usb/lp0 (requiere permisos/sudo)
+    - cups  : lp -d QUEUE -o raw
+    - net   : netcat IP puerto
+    """
+    try:
+        if mode == "device":
+            try:
+                with open(target, "wb") as f:
+                    f.write(data)
+            except PermissionError:
+                # fallback: usa tee por shell (puede requerir sudoers)
+                cmd = ["bash", "-lc", f"cat > {shutil.quote(target)}"]
+                subprocess.run(cmd, input=data, check=True)
+        elif mode == "cups":
+            cmd = ["lp", "-d", queue, "-o", "raw"]
+            subprocess.run(cmd, input=data, check=True)
+        elif mode == "net":
+            cmd = ["bash", "-lc", f"nc -w1 {shutil.quote(target)} {int(port)}"]
+            subprocess.run(cmd, input=data, check=True)
+        else:
+            return False, "Modo inválido"
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+# =========================
+#  Vistas POS (imprimir / abrir)
+# =========================
+class POSImprimirFacturaView(LoginRequiredMixin, View):
+    def post(self, request):
+        venta_id = request.POST.get("venta_id")
+        if not venta_id:
+            return JsonResponse({"success": False, "error": "venta_id requerido"}, status=400)
+        try:
+            venta = (Venta.objects
+                     .select_related("empleadoid","sucursalid","puntopagoid","clienteid")
+                     .get(pk=venta_id))
+        except Venta.DoesNotExist:
+            raise Http404("Venta no existe")
+
+        detalles = (DetalleVenta.objects
+                    .filter(ventaid=venta)
+                    .select_related("productoid"))
+
+        mode   = request.POST.get("mode", "device")
+        target = request.POST.get("target", "/dev/usb/lp0")
+        port   = request.POST.get("port", "9100")
+        queue  = request.POST.get("queue", "POS58")
+        drawer = 1 if request.POST.get("drawer") in ("1","true","True") else 0
+
+        efectivo = request.POST.get("efectivo")
+        cambio   = request.POST.get("cambio")
+        efectivo = float(efectivo) if efectivo not in (None, "",) else None
+        cambio   = float(cambio)   if cambio   not in (None, "",) else None
+
+        data = _build_ticket_bytes(
+            venta=venta, detalles=list(detalles),
+            efectivo=efectivo, cambio=cambio,
+            kick_after=True, drawer_pin=drawer
+        )
+        ok, err = _send_raw_to_printer(mode=mode, target=target, data=data, port=port, queue=queue)
+        if not ok:
+            return JsonResponse({"success": False, "error": f"Error al imprimir: {err}"}, status=500)
+        return JsonResponse({"success": True})
+
+class POSAbrirGavetaView(LoginRequiredMixin, View):
+    def post(self, request):
+        mode   = request.POST.get("mode", "device")
+        target = request.POST.get("target", "/dev/usb/lp0")
+        port   = request.POST.get("port", "9100")
+        queue  = request.POST.get("queue", "POS58")
+        drawer = 1 if request.POST.get("drawer") in ("1","true","True") else 0
+
+        data = _esc_init() + _esc_kick(drawer) + _esc_init()
+        ok, err = _send_raw_to_printer(mode=mode, target=target, data=data, port=port, queue=queue)
+        if not ok:
+            return JsonResponse({"success": False, "error": f"Error al abrir gaveta: {err}"}, status=500)
+        return JsonResponse({"success": True})
+
+
+
+# =========================
+#  Tu vista de Generar Venta (AJAX)
+# =========================
 class GenerarVentaView(LoginRequiredMixin, View):
     """
     GET  → muestra formulario
@@ -2725,8 +2910,8 @@ class GenerarVentaView(LoginRequiredMixin, View):
         Crea la venta y actualiza inventario / caja.
         """
         try:
-            # ✅ Fecha/hora locales según TIME_ZONE (p.ej. America/Bogota)
-            ahora = timezone.localtime()   # <-- sin coma
+            # ✅ Fecha/hora locales según TIME_ZONE
+            ahora = timezone.localtime()
 
             with transaction.atomic():
                 empleado = getattr(user, "empleado", None)
@@ -2766,7 +2951,8 @@ class GenerarVentaView(LoginRequiredMixin, View):
                     pp.dinerocaja = (pp.dinerocaja or 0) + total
                     pp.save(update_fields=["dinerocaja"])
 
-            return JsonResponse({'success': True})
+            # IMPORTANTE: devolvemos venta_id para imprimir/abrir gaveta
+            return JsonResponse({'success': True, 'venta_id': venta.pk})
         except Exception:
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
 
