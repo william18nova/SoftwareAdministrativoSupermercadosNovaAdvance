@@ -653,13 +653,23 @@ $(function () {
           alert((r && r.error) || "Error");
           return;
         }
+
         const quiereImprimir = confirm("✅ Venta generada.\n\n¿Desea imprimir la factura?");
         try {
           if (quiereImprimir) {
+            // 1) Imprime
             await agentPrint(r.receipt_text || "Factura\n\n");
-            alert("Factura enviada a la impresora.");
-          } else {
+
+            // 2) (Opcional pero recomendado) Forzar apertura de la gaveta también aquí.
+            //    Si tu agente ya abre con /print, este pulso extra no hace daño.
+            await new Promise(res => setTimeout(res, 200)); // pequeña pausa
             await agentKick();
+
+            alert("Factura enviada a la impresora y gaveta abierta.");
+          } else {
+            // Solo abrir caja
+            await agentKick();
+            alert("Gaveta abierta.");
           }
         } catch (err) {
           console.error(err);
@@ -669,6 +679,8 @@ $(function () {
             "Detalle: " + err.message
           );
         }
+
+        // Refresca la pantalla al final
         location.reload();
       })
       .fail(() => alert("Error de red"));
