@@ -104,20 +104,11 @@ LOGGING = {
 # Quita cualquier CSP_* viejo. Usa este diccionario.
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
-        # Básico
         "default-src": ("'self'",),
-
-        # Si cargas JS desde CDNs (jquery, quagga), deja https:
-        # Si necesitas inline scripts en dev, añade "'unsafe-inline'" aquí también.
-        "script-src": ("'self'", "https:"),
-
-        # CSS desde CDNs + permitir estilos inline (útil en dev/plantillas)
-        "style-src": ("'self'", "https:", "'unsafe-inline'"),
-
-        "img-src": ("'self'", "https:", "data:"),
-        "font-src": ("'self'", "https:", "data:"),
-
-        # Muy importante: permitir fetch a tu agente local
+        "script-src": ("'self'", "https:", "'unsafe-inline'"),   
+        "style-src":  ("'self'", "https:", "'unsafe-inline'"),
+        "img-src":    ("'self'", "https:", "data:"),
+        "font-src":   ("'self'", "https:", "data:"),
         "connect-src": (
             "'self'",
             "https:",
