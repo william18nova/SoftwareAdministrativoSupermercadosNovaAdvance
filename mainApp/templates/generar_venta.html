@@ -122,7 +122,7 @@
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
-<!-- 2) Endpoints AJAX publicados en window.* -->
+<!-- 2) Endpoints AJAX → a window.* -->
 <script>
   window.sucursalAutocompleteUrl        = "{% url 'sucursal_autocomplete' %}";
   window.puntopagoAutocompleteUrl       = "{% url 'puntopago_autocomplete' %}";
@@ -136,6 +136,20 @@
   window.abrirCajaUrl                   = "{% url 'abrir_caja' %}";
 </script>
 
-<!-- 3) Lógica -->
+<!-- 3) Inyecta POS_AGENT_* ANTES del JS principal -->
+<script>
+  // Estas vienen del context_processor mainApp.context_processors.pos_agent
+  window.POS_AGENT_URL   = "{{ POS_AGENT_URL|default:'http://127.0.0.1:8787'|escapejs }}".trim();
+  window.POS_AGENT_TOKEN = "{{ POS_AGENT_TOKEN|default:''|escapejs }}".trim();
+
+  // Fallbacks por seguridad en dev
+  if (!/^https?:\/\//.test(window.POS_AGENT_URL)) {
+    window.POS_AGENT_URL = "http://127.0.0.1:8787";
+  }
+  console.log("[POS_AGENT_URL]", window.POS_AGENT_URL);
+  console.log("[POS_AGENT_TOKEN]", window.POS_AGENT_TOKEN ? (window.POS_AGENT_TOKEN.slice(0,8)+"…") : "(vacío)");
+</script>
+
+<!-- 4) Lógica -->
 <script src="{% static 'javascript/generar_venta.js' %}"></script>
 {% endblock %}

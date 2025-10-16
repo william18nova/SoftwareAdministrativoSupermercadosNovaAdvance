@@ -16,8 +16,11 @@ $(function () {
   const POR_COD_URL    = window.buscarProductoPorCodigoUrl;
 
   // Agente local
-  const POS_AGENT_URL   = window.POS_AGENT_URL   || "http://127.0.0.1:8787";
-  const POS_AGENT_TOKEN = window.POS_AGENT_TOKEN || "";
+  const POS_AGENT_URL   = (window.POS_AGENT_URL || "http://127.0.0.1:8787").replace(/\/+$/,'');
+  const POS_AGENT_TOKEN = (window.POS_AGENT_TOKEN || "").trim();
+  if (!POS_AGENT_TOKEN) {
+    console.warn("[POS_AGENT] Token vacío: el agente rechazará la petición (401). Verifica el context_processor y settings.");
+  }
 
   /* Selectores */
   const $nombre   = $("#producto_busqueda_nombre");
@@ -619,7 +622,7 @@ $(function () {
 
   // ========= helpers: agente local =========
   async function agentPrint(text) {
-    const url = POS_AGENT_URL.replace(/\/+$/,'') + "/print";
+    const url = POS_AGENT_URL + "/print";
     const resp = await fetch(url, {
       method: "POST",
       headers: {
@@ -632,7 +635,7 @@ $(function () {
     return resp.json().catch(()=>({}));
   }
   async function agentKick() {
-    const url = POS_AGENT_URL.replace(/\/+$/,'') + "/kick";
+    const url = POS_AGENT_URL + "/kick";
     const resp = await fetch(url, {
       method: "POST",
       headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN }

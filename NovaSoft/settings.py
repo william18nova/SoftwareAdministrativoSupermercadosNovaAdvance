@@ -10,7 +10,10 @@ SECRET_KEY = "django-insecure-k!0q10!2q+_i^ni9rz#a+8p!%n+um*7k&3+$=in3dom^6uy5as
 
 ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "[::1]"]
 
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS = [
+    "https://williamnova18.pythonanywhere.com",
+    "https://www.williamnova18.pythonanywhere.com",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -50,7 +53,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "mainApp.context_processors.pos_agent",  # ✅
+                "mainApp.context_processors.pos_agent",  
             ],
         },
     },
