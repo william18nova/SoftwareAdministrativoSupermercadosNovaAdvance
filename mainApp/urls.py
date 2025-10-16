@@ -163,6 +163,8 @@ urlpatterns = [
 
 
     path("generar_venta/", views.GenerarVentaView.as_view(), name="generar_venta"),
+    path("ventas/imprimir/", views.ImprimirFacturaView.as_view(), name="imprimir_factura"),
+    path("ventas/abrir-caja/", views.AbrirCajaView.as_view(),      name="abrir_caja"),
 
     # Autocompletes
     path('autocomplete/sucursal/',   views.SucursalAutocompleteView.as_view(),

@@ -3,9 +3,9 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — fast autocompletes + enter picks top + focus chain + scanner");
+  console.log("⚡ generar_venta.js — autocompletes + scanner + imprimir/abrir-caja (navegador → agente local)");
 
-  /* URLs */
+  /* URLs (inyectadas en el HTML) */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
   const PUNTOPAGO_URL  = window.puntopagoAutocompleteUrl;
   const CLIENTE_URL    = window.clienteAutocompleteUrl;
@@ -14,6 +14,10 @@ $(function () {
   const AC_BARRAS_URL  = window.productoAutocompleteBarrasUrl || PRODUCTO_URL;
   const VERIFICAR_URL  = window.verificarProductoUrl;
   const POR_COD_URL    = window.buscarProductoPorCodigoUrl;
+
+  // Agente local
+  const POS_AGENT_URL   = window.POS_AGENT_URL   || "http://127.0.0.1:8787";
+  const POS_AGENT_TOKEN = window.POS_AGENT_TOKEN || "";
 
   /* Selectores */
   const $nombre   = $("#producto_busqueda_nombre");
@@ -29,7 +33,7 @@ $(function () {
   const money = (n) =>
     new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(Number(n) || 0);
 
-  /* CSRF */
+  /* CSRF para AJAX jquery */
   $.ajaxSetup({
     beforeSend: (xhr, settings) => {
       if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)) {
@@ -39,6 +43,8 @@ $(function () {
     },
     cache: true,
   });
+
+  const getCSRF = () => (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] || "";
 
   /* Estado persistido */
   let sucursalID = localStorage.getItem("sucursalID") || "";
@@ -55,9 +61,9 @@ $(function () {
 
   /* Cache producto + índices */
   const FRESH_MS = 30000;
-  const productCache = new Map();  // pid -> {nombre, barcode, price, stock, ts}
-  const barcodeIndex = new Map();  // barcode -> pid
-  const nameIndex = new Map();     // nombreLower -> pid
+  const productCache = new Map();
+  const barcodeIndex = new Map();
+  const nameIndex = new Map();
   const now = () => Date.now();
   const isFresh = (ts) => ts && now() - ts < FRESH_MS;
 
@@ -78,7 +84,7 @@ $(function () {
     $agregar.prop("disabled", !enable);
   }
   function maybeFocusQty() {
-    if ($pid.val() && $nombre.val() && $codigo.val() && $barras.val()) {
+    if ($pid.val()) {
       enableQtyAndAdd(true);
       setTimeout(() => { $cantidad.focus().select(); }, 0);
     }
@@ -152,10 +158,8 @@ $(function () {
     } catch (e) { console.error(e); }
   }
 
-  /* ============== FAST AUTOCOMPLETE (filtro local + remoto + ENTER top + focus chain) ============== */
-
-  // Normalización + ranking
-  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  // ======== FAST AUTOCOMPLETE (igual que tu versión) ========
+  const norm   = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
   const tokens = q => norm(q).split(/\s+/).filter(Boolean);
   const matchesAll = (text, q) => { const t=norm(text), toks=tokens(q); for(const k of toks) if(!t.includes(k)) return false; return true; };
   const score = (text, q) => {
@@ -172,7 +176,6 @@ $(function () {
        .sort((a,b)=>b.sc-a.sc || String(a.r.label||a.r.text).localeCompare(String(b.r.label||b.r.text)))
        .slice(0,max).map(x=>x.r);
 
-  // Fetcher abortable + cache
   function makeFetcher(){
     let inflight=null;
     const cache=new Map();
@@ -196,16 +199,8 @@ $(function () {
   }
   const fetcher = makeFetcher();
 
-  /**
-   * createFastAC
-   * · respuesta local inmediata con rank
-   * · remoto en paralelo (abort)
-   * · ENTER siempre elige la opción superior y salta al siguiente input
-   * · si input vacío => muestra todo (prefetch)
-   */
   function createFastAC({ $inp, url, mapItem, extra=()=>({}), onSelect, nextFocus=null, allowEmpty=true, uniqueBy="id" }){
     let index=[]; const seen=new Set(); let ctxKey="";
-
     const contextKey=()=>{const e=extra()||{}; return Object.keys(e).sort().map(k=>`${k}:${e[k]}`).join("|");};
 
     $inp.autocomplete({
@@ -240,13 +235,10 @@ $(function () {
       }
     });
 
-    // Mostrar todo al enfocar y al quedar vacío
     $inp.on("focus", function(){ $(this).autocomplete("search", this.value || ""); });
     if(allowEmpty){
       $inp.on("input", function(){ if(!this.value) $(this).autocomplete("search",""); });
     }
-
-    // ENTER = elegir siempre la PRIMERA opción y avanzar
     $inp.on("keydown", function(e){
       if(e.key!=="Enter") return;
       const term=this.value||"";
@@ -259,7 +251,6 @@ $(function () {
         if($first.length){ $first.trigger("mouseenter").trigger("click"); return; }
       }
 
-      // Sin menú visible: usa índice local
       const localTop = rankFilter(index, term, 1)[0];
       if(localTop){
         onSelect?.(localTop);
@@ -270,7 +261,6 @@ $(function () {
         return;
       }
 
-      // Fallback remoto
       fetcher.get(url, {term, ...extra()}).then(data=>{
         const items=(data.results||[]).map(mapItem).filter(Boolean);
         if(!items.length) return;
@@ -282,12 +272,10 @@ $(function () {
       });
     });
 
-    // Warm prefetch
     if(allowEmpty){ fetcher.warm(url, {term:"", ...extra()}); }
   }
 
-  /* Autocompletes */
-
+  /* Prefill */
   if (sucursalID) {
     $("#sucursal_autocomplete").val(localStorage.getItem("sucursalName") || "");
     $("#sucursal_id").val(sucursalID);
@@ -297,7 +285,7 @@ $(function () {
     $("#puntopago_id").val(savedPunto.id);
   }
 
-  // Sucursal
+  /* Autocompletes */
   createFastAC({
     $inp: $("#sucursal_autocomplete"),
     url: SUCURSAL_URL,
@@ -322,7 +310,6 @@ $(function () {
     allowEmpty: true
   });
 
-  // Punto de pago
   createFastAC({
     $inp: $("#puntopago_autocomplete"),
     url: PUNTOPAGO_URL,
@@ -339,7 +326,6 @@ $(function () {
     allowEmpty: true
   });
 
-  // Cliente
   createFastAC({
     $inp: $("#cliente_busqueda"),
     url: CLIENTE_URL,
@@ -352,7 +338,6 @@ $(function () {
     allowEmpty: true
   });
 
-  // Producto por Nombre
   createFastAC({
     $inp: $nombre,
     url: PRODUCTO_URL,
@@ -368,7 +353,6 @@ $(function () {
     allowEmpty: true
   });
 
-  // Producto por Código (ID)
   createFastAC({
     $inp: $codigo,
     url: AC_CODIGO_URL,
@@ -383,7 +367,6 @@ $(function () {
     allowEmpty: true
   });
 
-  // Producto por Código de Barras
   createFastAC({
     $inp: $barras,
     url: AC_BARRAS_URL,
@@ -424,7 +407,7 @@ $(function () {
   $barras.on("input", function () { const bc=$.trim(this.value); if (bc) instantFromBarcode(bc); });
   $nombre.on("input", function () { const nm=$.trim(this.value); if (nm) instantFromName(nm); });
 
-  // Confirmación con Enter cuando no hay menú visible (nombre/código/código barras)
+  // Confirmación con Enter cuando no hay menú visible
   function bindEnterConfirm(selector, handler, instant) {
     $(selector).on("keydown", function (e) {
       if (e.key !== "Enter") return;
@@ -436,7 +419,6 @@ $(function () {
         if (!val) return;
         if (instant) instant(val);
         handler(val);
-        // foco a cantidad si corresponde
         setTimeout(()=> $("#cantidad").focus().select(), 0);
       }
     });
@@ -456,7 +438,7 @@ $(function () {
 
   $nombre.add($codigo).add($barras).on("change input", maybeFocusQty);
 
-  /* Quagga */
+  /* Quagga (escáner) */
   $("#btnEscanear").click(() => {
     $("#interactive").show();
     Quagga.init(
@@ -635,17 +617,56 @@ $(function () {
     $("#venta-form").submit();
   });
 
-  /* submit AJAX */
+  // ========= helpers: agente local =========
+  async function agentPrint(text) {
+    const url = POS_AGENT_URL.replace(/\/+$/,'') + "/print";
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Pos-Agent-Token": POS_AGENT_TOKEN
+      },
+      body: JSON.stringify({ text })
+    });
+    if (!resp.ok) throw new Error("Agente /print devolvió " + resp.status);
+    return resp.json().catch(()=>({}));
+  }
+  async function agentKick() {
+    const url = POS_AGENT_URL.replace(/\/+$/,'') + "/kick";
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN }
+    });
+    if (!resp.ok) throw new Error("Agente /kick devolvió " + resp.status);
+    return resp.json().catch(()=>({}));
+  }
+
+  /* submit AJAX —> pregunta imprimir y llama al agente local */
   $("#venta-form").submit(function (e) {
     e.preventDefault();
     $.post($(this).attr("action"), $(this).serialize())
-      .done((r) => {
-        if (r.success) {
-          alert("✅ ¡Venta generada correctamente!");
-          location.reload();
-        } else {
-          alert(r.error || "Error");
+      .done(async (r) => {
+        if (!r || !r.success) {
+          alert((r && r.error) || "Error");
+          return;
         }
+        const quiereImprimir = confirm("✅ Venta generada.\n\n¿Desea imprimir la factura?");
+        try {
+          if (quiereImprimir) {
+            await agentPrint(r.receipt_text || "Factura\n\n");
+            alert("Factura enviada a la impresora.");
+          } else {
+            await agentKick();
+          }
+        } catch (err) {
+          console.error(err);
+          alert(
+            "La venta fue creada, pero no se pudo comunicar con el agente local.\n" +
+            "¿Está abierto el agente en este equipo? (127.0.0.1:8787)\n" +
+            "Detalle: " + err.message
+          );
+        }
+        location.reload();
       })
       .fail(() => alert("Error de red"));
   });

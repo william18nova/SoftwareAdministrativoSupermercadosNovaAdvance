@@ -67,6 +67,8 @@ from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
 from django.db.models.functions import Coalesce
+import os, io, textwrap, subprocess
+from django.views.decorators.http import require_POST
 
 
 
@@ -2635,7 +2637,7 @@ class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
 class GenerarVentaView(LoginRequiredMixin, View):
     """
     GET  → muestra formulario
-    POST → procesa la venta (ajax)
+    POST → procesa la venta (ajax) y devuelve texto listo para imprimir
     """
     template_name = "generar_venta.html"
     success_url   = reverse_lazy("generar_venta")
@@ -2645,7 +2647,6 @@ class GenerarVentaView(LoginRequiredMixin, View):
         context = self._base_context(form)
         return render(request, self.template_name, context)
 
-    # POST AJAX --------------------------------------------------
     def post(self, request, *args, **kwargs):
         form = GenerarVentaForm(request.POST)
         if not form.is_valid():
@@ -2664,6 +2665,7 @@ class GenerarVentaView(LoginRequiredMixin, View):
                 sucursalid=data['sucursal'].pk
             )
 
+            # nota: productos_obj y cantidades deben estar alineados por índice
             for i, prod in enumerate(productos_obj):
                 inv = inventarios.get(productoid=prod)
                 qty = int(cantidades[i])
@@ -2682,8 +2684,7 @@ class GenerarVentaView(LoginRequiredMixin, View):
                     'subtotal'       : subtotal
                 })
         except Exception:
-            return JsonResponse({'success': False,
-                                 'error': 'Error al procesar los productos.'})
+            return JsonResponse({'success': False, 'error': 'Error al procesar los productos.'})
 
         # Si es Nequi y no viene confirmado
         if data['medio_pago'] == 'nequi' and not request.POST.get('confirmar_nequi'):
@@ -2693,8 +2694,6 @@ class GenerarVentaView(LoginRequiredMixin, View):
 
         return self._crear_venta(request.user, data, detalles, total)
 
-    # ----------------------------------------------------------------------
-    #  helpers internos
     # ----------------------------------------------------------------------
     def _base_context(self, form, detalles=None, total=0):
         return {
@@ -2720,21 +2719,64 @@ class GenerarVentaView(LoginRequiredMixin, View):
             return False, f"Error conexión WebSocket: {e}"
 
     @staticmethod
-    def _crear_venta(user, data, detalles, total):
+    def _build_receipt_text(venta_data, detalles, total):
         """
-        Crea la venta y actualiza inventario / caja.
+        Construye el texto de factura 58mm (≈32 caracteres por línea).
+        venta_data: dict con sucursal_nombre (y lo que quieras mostrar)
+        detalles:   [{producto, cantidad, precio_unitario, subtotal}, ...]
         """
-        try:
-            # ✅ Fecha/hora locales según TIME_ZONE (p.ej. America/Bogota)
-            ahora = timezone.localtime()   # <-- sin coma
+        def money(n):
+            try:
+                n = float(n)
+            except Exception:
+                n = 0.0
+            return f"${int(n):,}".replace(",", ".")
 
+        WIDTH = 32
+        def line(txt=""):
+            t = str(txt or "")
+            return t[:WIDTH]
+        def lr(left, right):
+            left = str(left or "")
+            right= str(right or "")
+            space = max(1, WIDTH - len(left) - len(right))
+            return left + (" " * space) + right
+
+        ahora = timezone.localtime()
+        head = [
+            line("NOVA"),
+            line("FACTURA"),
+            lr("Fecha:", ahora.strftime("%Y-%m-%d %H:%M")),
+            lr("Sucursal:", venta_data.get("sucursal_nombre","")),
+            "-" * WIDTH,
+        ]
+
+        body = []
+        for d in detalles:
+            nom = str(d.get("producto",""))[:WIDTH]
+            qty = d.get("cantidad", 1)
+            pu  = d.get("precio_unitario", 0)
+            sub = d.get("subtotal", 0)
+            body.append(line(nom))
+            body.append(lr(f" x{qty}  @ {money(pu)}", money(sub)))
+
+        foot = [
+            "-" * WIDTH,
+            lr("TOTAL:", money(total)),
+            "",
+            line("¡Gracias por su compra!"),
+            ""
+        ]
+        return "\n".join(head + body + foot) + "\n\n\n"  # 3 saltos extra
+
+    @staticmethod
+    def _crear_venta(user, data, detalles, total):
+        try:
+            ahora = timezone.localtime()
             with transaction.atomic():
                 empleado = getattr(user, "empleado", None)
                 if empleado is None:
-                    return JsonResponse({
-                        'success': False,
-                        'error'  : 'El usuario no tiene un empleado asociado.'
-                    })
+                    return JsonResponse({'success': False,'error':'El usuario no tiene un empleado asociado.'})
 
                 venta = Venta.objects.create(
                     fecha       = ahora.date(),
@@ -2766,9 +2808,150 @@ class GenerarVentaView(LoginRequiredMixin, View):
                     pp.dinerocaja = (pp.dinerocaja or 0) + total
                     pp.save(update_fields=["dinerocaja"])
 
-            return JsonResponse({'success': True})
+            # Texto de recibo listo para el agente local
+            venta_data = {
+                "sucursal_nombre": getattr(data['sucursal'], 'nombre', str(data['sucursal'])),
+            }
+            receipt_text = GenerarVentaView._build_receipt_text(venta_data, detalles, total)
+
+            return JsonResponse({
+                'success': True,
+                'venta_id': venta.pk,
+                'receipt_text': receipt_text
+            })
         except Exception:
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
+        
+TICKET_WIDTH = 32  # caracteres aprox. para 58mm
+
+def _fmt_money(v):
+    return f"${v:,.0f}".replace(",", ".")
+
+def _wrap(text, width=TICKET_WIDTH):
+    return textwrap.wrap(str(text or ""), width=width, break_long_words=True, break_on_hyphens=False)
+
+def _line():
+    return "-" * TICKET_WIDTH
+
+def _build_ticket(venta: Venta) -> bytes:
+    """
+    Construye el ticket en texto plano (ASCII) + 3 saltos + pulso abre-caja.
+    """
+    tz_now = timezone.localtime()
+    out = []
+
+    # Encabezado (ajusta a tu negocio)
+    out += _wrap("NOVA ADVANCE")
+    out += _wrap("NIT: 900.000.000-1")
+    out.append(_line())
+    out += _wrap(f"Factura #{venta.pk}")
+    out += _wrap(f"Fecha: {venta.fecha}  {venta.hora.strftime('%H:%M')}")
+    out += _wrap(f"Sucursal: {venta.sucursalid.nombre}")
+    if getattr(venta, "clienteid", None):
+        out += _wrap(f"Cliente: {venta.clienteid.nombre}")
+    out.append(_line())
+
+    # Detalle
+    detalles = (DetalleVenta.objects
+                .filter(ventaid=venta)
+                .select_related("productoid"))
+    for det in detalles:
+        nombre = (det.productoid.nombre or "").strip()
+        pu     = det.preciounitario or 0
+        qty    = det.cantidad or 0
+        subtotal = pu * qty
+
+        # Primera línea: nombre (envuelto)
+        lines = _wrap(nombre)
+        if not lines:
+            lines = ["(Producto)"]
+        out.append(lines[0])
+        # Segunda línea: cant x precio  => subtotal alineado a la derecha
+        left = f"{qty} x {_fmt_money(pu)}"
+        right = _fmt_money(subtotal)
+        out.append(f"{left:<{TICKET_WIDTH-len(right)}}{right}")
+        # Resto de renglones del nombre, si quedaron
+        for extra in lines[1:]:
+            out.append(extra)
+
+    out.append(_line())
+    out.append(f"{'TOTAL':<{TICKET_WIDTH-10}}{_fmt_money(venta.total):>10}")
+    out.append(_line())
+    out += _wrap(f"Medio de pago: {venta.mediopago.upper()}")
+    out.append("")
+    out += _wrap("¡Gracias por su compra!")
+    out.append("")
+
+    # 3 saltos de línea
+    body = "\n".join(out) + "\n\n\n"
+    data = body.encode("cp437", errors="ignore")
+
+    # Pulso para abrir gaveta (ESC p m t1 t2) — mismo que tu ejemplo
+    drawer_pulse = b"\x1B\x70\x00\x32\x32"
+
+    return data + drawer_pulse
+
+def _just_open_drawer() -> bytes:
+    # Solo pulso + un salto
+    return b"\n" + b"\x1B\x70\x00\x32\x32"
+
+def _send_to_printer(payload: bytes) -> tuple[bool, str]:
+    """
+    Intenta enviar a /dev/usb/lp0; si no existe, intenta CUPS (lp raw).
+    Devuelve (ok, error_message).
+    """
+    device = os.environ.get("PRINTER_DEVICE", "/dev/usb/lp0")
+    # 1) /dev/usb/lp0
+    try:
+        if os.path.exists(device):
+            with open(device, "wb") as f:
+                f.write(payload)
+            return True, ""
+    except Exception as e:
+        # sigue a fallback
+        last_err = f"lp0 error: {e}"
+    else:
+        last_err = "lp0 no encontrado"
+
+    # 2) CUPS (requiere 'lp' y una impresora configurada RAW)
+    try:
+        printer = os.environ.get("PRINTER", "")  # nombre de impresora en el sistema
+        cmd = ["lp", "-o", "media=Custom.58x3276mm", "-o", "raw"]
+        if printer:
+            cmd.extend(["-d", printer])
+        proc = subprocess.run(cmd, input=payload, check=True)
+        return True, ""
+    except Exception as e:
+        return False, f"{last_err} ; CUPS error: {e}"
+
+@method_decorator(require_POST, name="dispatch")
+class ImprimirFacturaView(LoginRequiredMixin, View):
+    """
+    POST: {venta_id} → imprime ticket 58mm y abre la caja.
+    """
+    def post(self, request, *args, **kwargs):
+        venta_id = request.POST.get("venta_id")
+        if not venta_id or not str(venta_id).isdigit():
+            return HttpResponseBadRequest("venta_id inválido")
+
+        venta = get_object_or_404(Venta, pk=int(venta_id))
+        payload = _build_ticket(venta)
+        ok, err = _send_to_printer(payload)
+        if ok:
+            return JsonResponse({"success": True})
+        return JsonResponse({"success": False, "error": err}, status=500)
+
+@method_decorator(require_POST, name="dispatch")
+class AbrirCajaView(LoginRequiredMixin, View):
+    """
+    POST: abre la caja sin imprimir ticket.
+    """
+    def post(self, request, *args, **kwargs):
+        payload = _just_open_drawer()
+        ok, err = _send_to_printer(payload)
+        if ok:
+            return JsonResponse({"success": True})
+        return JsonResponse({"success": False, "error": err}, status=500)
 
 class SucursalAutocompleteView(PaginatedAutocompleteMixin):
     model      = Sucursal

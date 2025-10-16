@@ -4,13 +4,12 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = True  # ← para desarrollo local
+DEBUG = True
 
 SECRET_KEY = "django-insecure-k!0q10!2q+_i^ni9rz#a+8p!%n+um*7k&3+$=in3dom^6uy5as"
 
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "[::1]"]  # ← simple en dev
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "[::1]"]
 
-# En dev no necesitas esto; si lo dejas, tampoco pasa nada
 CSRF_TRUSTED_ORIGINS = []
 
 INSTALLED_APPS = [
@@ -23,11 +22,11 @@ INSTALLED_APPS = [
     "mainApp",
     "dal",
     "dal_select2",
+    "csp",  # ✅
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # Puedes dejar WhiteNoise o quitarlo en dev; no es obligatorio
     # "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -35,6 +34,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "csp.middleware.CSPMiddleware",  # ✅
 ]
 
 ROOT_URLCONF = "NovaSoft.urls"
@@ -50,6 +50,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "mainApp.context_processors.pos_agent",  # ✅
             ],
         },
     },
@@ -57,9 +58,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "NovaSoft.wsgi.application"
 
-# En dev puedes usar sqlite para aislarte de la nube si quieres:
-# DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
-# O si quieres Aiven en dev, deja tu config actual:
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -81,9 +79,6 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "mainApp" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# En dev NO uses ManifestStaticFilesStorage (evita errores si no corres collectstatic)
-# STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
 AUTH_USER_MODEL = "mainApp.Usuario"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
@@ -101,8 +96,42 @@ APPEND_SLASH = True
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {
-        "console": {"class": "logging.StreamHandler"},
-    },
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
     "loggers": {"django": {"handlers": ["console"], "level": "INFO", "propagate": True}},
 }
+
+# ========= ✅ NUEVO FORMATO CSP (django-csp >= 4.0) =========
+# Quita cualquier CSP_* viejo. Usa este diccionario.
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        # Básico
+        "default-src": ("'self'",),
+
+        # Si cargas JS desde CDNs (jquery, quagga), deja https:
+        # Si necesitas inline scripts en dev, añade "'unsafe-inline'" aquí también.
+        "script-src": ("'self'", "https:"),
+
+        # CSS desde CDNs + permitir estilos inline (útil en dev/plantillas)
+        "style-src": ("'self'", "https:", "'unsafe-inline'"),
+
+        "img-src": ("'self'", "https:", "data:"),
+        "font-src": ("'self'", "https:", "data:"),
+
+        # Muy importante: permitir fetch a tu agente local
+        "connect-src": (
+            "'self'",
+            "https:",
+            "http://127.0.0.1:8787",
+            "http://localhost:8787",
+        ),
+    }
+}
+# Si prefieres solo ver violaciones sin bloquear, usa “REPORT ONLY”:
+# CONTENT_SECURITY_POLICY_REPORT_ONLY = CONTENT_SECURITY_POLICY
+
+# ========= Variables del agente POS (inyectadas al front) =========
+POS_AGENT_URL = os.getenv("POS_AGENT_URL", "http://127.0.0.1:8787")
+POS_AGENT_TOKEN = os.getenv(
+    "POS_AGENT_TOKEN",
+    "7f3d9a8c2e1b4d6f9a0c3e5f7b1d2c4e6a8f0b2d4c6e8a0f1b3d5f7a9c1e3d5"
+)
