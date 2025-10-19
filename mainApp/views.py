@@ -2634,10 +2634,14 @@ class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
 
+# views.py
 class GenerarVentaView(LoginRequiredMixin, View):
     """
     GET  → muestra formulario
     POST → procesa la venta (ajax) y devuelve texto listo para imprimir
+
+    NOTA: Esta versión permite vender por encima del stock; el inventario
+    puede quedar en negativo (p.ej., -1, -3, etc.).
     """
     template_name = "generar_venta.html"
     success_url   = reverse_lazy("generar_venta")
@@ -2653,45 +2657,41 @@ class GenerarVentaView(LoginRequiredMixin, View):
             return JsonResponse({'success': False, 'error': 'Formulario inválido.'})
 
         data = form.cleaned_data
-        productos  = data['productos']
-        cantidades = data['cantidades']
+        productos  = data['productos']    # lista de ids (str/int)
+        cantidades = data['cantidades']   # lista de cantidades (int)
         detalles   = []
         total      = 0
 
         try:
+            # Traemos productos involucrados
             productos_obj = Producto.objects.filter(productoid__in=productos)
             inventarios   = Inventario.objects.filter(
                 productoid__in=productos_obj,
                 sucursalid=data['sucursal'].pk
             )
 
-            # nota: productos_obj y cantidades deben estar alineados por índice
+            # Importante: asumimos que 'productos' y 'cantidades' están alineados por índice
+            # y que existen registros de inventario por cada producto en la sucursal.
             for i, prod in enumerate(productos_obj):
                 inv = inventarios.get(productoid=prod)
                 qty = int(cantidades[i])
-                if qty > inv.cantidad:
-                    return JsonResponse({
-                        'success': False,
-                        'error': f"No hay suficiente stock de {prod.nombre}."
-                    })
-                subtotal = prod.precio * qty
+
+                # ⚠️ Ya NO bloqueamos si qty > inv.cantidad.
+                # Solo calculamos subtotales y guardamos detalle.
+                subtotal = (prod.precio or 0) * qty
                 total   += subtotal
                 detalles.append({
                     'productoid'     : prod.productoid,
                     'producto'       : prod.nombre,
                     'cantidad'       : qty,
-                    'precio_unitario': prod.precio,
+                    'precio_unitario': prod.precio or 0,
                     'subtotal'       : subtotal
                 })
+
         except Exception:
             return JsonResponse({'success': False, 'error': 'Error al procesar los productos.'})
 
-        # Si es Nequi y no viene confirmado
-        if data['medio_pago'] == 'nequi' and not request.POST.get('confirmar_nequi'):
-            ok, err = self._esperar_confirmacion_nequi()
-            if not ok:
-                return JsonResponse({'success': False, 'error': err})
-
+        # No esperamos confirmación de medios de pago electrónicos.
         return self._crear_venta(request.user, data, detalles, total)
 
     # ----------------------------------------------------------------------
@@ -2701,22 +2701,6 @@ class GenerarVentaView(LoginRequiredMixin, View):
             'detalles' : detalles or [],
             'total'    : total,
         }
-
-    def _esperar_confirmacion_nequi(self):
-        import os, subprocess, sys, pathlib
-        script_path = pathlib.Path(__file__).with_name("nequi_websocket.py")
-        try:
-            result = subprocess.run(
-                [sys.executable, str(script_path)],
-                capture_output=True, text=True, timeout=60
-            )
-            if "se pago" in result.stdout:
-                return True, ""
-            return False, "El pago no fue confirmado."
-        except subprocess.TimeoutExpired:
-            return False, "Tiempo de espera agotado para confirmar pago."
-        except Exception as e:
-            return False, f"Error conexión WebSocket: {e}"
 
     @staticmethod
     def _build_receipt_text(venta_data, detalles, total):
@@ -2786,9 +2770,10 @@ class GenerarVentaView(LoginRequiredMixin, View):
                     sucursalid  = data['sucursal'],
                     puntopagoid = data['puntopago'],
                     total       = total,
-                    mediopago   = data['medio_pago']
+                    mediopago   = data['medio_pago']  # se guarda tal cual
                 )
 
+                # Guardar detalles y ACTUALIZAR inventario (puede quedar negativo)
                 for d in detalles:
                     DetalleVenta.objects.create(
                         ventaid        = venta,
@@ -2800,15 +2785,17 @@ class GenerarVentaView(LoginRequiredMixin, View):
                         productoid_id = d['productoid'],
                         sucursalid    = data['sucursal'].pk
                     )
-                    inv.cantidad -= d['cantidad']
+                    # ✅ Permitimos inventario negativo
+                    inv.cantidad = (inv.cantidad or 0) - int(d['cantidad'])
                     inv.save(update_fields=["cantidad"])
 
-                if data['medio_pago'].lower() == "efectivo":
+                # Sumar a caja solo si es efectivo
+                if (data['medio_pago'] or "").lower() == "efectivo":
                     pp = data['puntopago']
                     pp.dinerocaja = (pp.dinerocaja or 0) + total
                     pp.save(update_fields=["dinerocaja"])
 
-            # Texto de recibo listo para el agente local
+            # Texto de recibo listo para impresión
             venta_data = {
                 "sucursal_nombre": getattr(data['sucursal'], 'nombre', str(data['sucursal'])),
             }
@@ -2990,9 +2977,6 @@ class PuntoPagoAutocompleteView(PaginatedAutocompleteMixin):
         return qs.none()  # si no hay sucursal, no listar
 
 class ProductoAutocompleteView(PaginatedAutocompleteMixin):
-    """
-    Productos con stock > 0 en la sucursal seleccionada.
-    """
     model      = Producto
     text_field = "nombre"
     id_field   = "productoid"
@@ -3007,6 +2991,39 @@ class ProductoAutocompleteView(PaginatedAutocompleteMixin):
                 inventario__cantidad__gt=0
             ).distinct()
         return qs.none()
+
+    # override get() para incluir precio/stock
+    def get(self, request, *args, **kwargs):
+        term = (request.GET.get("term","") or "").strip()
+        sid  = (request.GET.get("sucursal_id") or "").strip()
+        if not sid.isdigit():
+            return JsonResponse({"results": [], "has_more": False})
+
+        qs = self.model.objects.filter(
+            inventario__sucursalid=sid,
+            inventario__cantidad__gt=0
+        ).distinct()
+
+        if term:
+            qs = qs.filter(nombre__icontains=term)
+
+        total = qs.count()
+        qs = qs.select_related().order_by("nombre")[:self.per_page]
+
+        # Trae precio y stock (join a inventario de esa sucursal)
+        inv_map = {inv.productoid_id: inv.cantidad
+                   for inv in Inventario.objects.filter(
+                        productoid__in=qs, sucursalid=int(sid)
+                   )}
+
+        results = [{
+            "id": p.productoid,
+            "text": p.nombre,
+            "precio": float(p.precio or 0),
+            "stock": int(inv_map.get(p.productoid, 0)),
+        } for p in qs]
+
+        return JsonResponse({"results": results, "has_more": total > self.per_page})
 
 class ClienteAutocompleteView(PaginatedAutocompleteMixin):
     """
@@ -3048,22 +3065,25 @@ class VerificarProductoView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         producto_id = request.POST.get("producto_id")
         sucursal_id = request.POST.get("sucursal_id")
-        cantidad    = int(request.POST.get("cantidad", 0))
+        try:
+            cantidad = int(request.POST.get("cantidad") or 0)
+        except ValueError:
+            cantidad = 0
+
+        if not (producto_id and sucursal_id and str(sucursal_id).isdigit()):
+            return JsonResponse({'exists': False})
 
         try:
             producto   = Producto.objects.get(productoid=producto_id)
-            inventario = Inventario.objects.get(productoid=producto, sucursalid=sucursal_id)
+            inventario = Inventario.objects.get(productoid=producto, sucursalid=int(sucursal_id))
         except (Producto.DoesNotExist, Inventario.DoesNotExist):
             return JsonResponse({'exists': False})
 
         if inventario.cantidad < cantidad:
-            return JsonResponse({
-                'exists': True,
-                'cantidad_disponible': inventario.cantidad
-            })
+            return JsonResponse({'exists': True, 'cantidad_disponible': inventario.cantidad})
 
-        precio     = producto.precio
-        subtotal   = precio * cantidad
+        precio   = producto.precio
+        subtotal = precio * cantidad
         return JsonResponse({
             'exists': True,
             'precio_unitario':      precio,
@@ -3085,12 +3105,19 @@ class BuscarProductoPorCodigoView(LoginRequiredMixin, View):
         ).first()
         if not producto:
             return JsonResponse({'exists': False})
+
+        stock = Inventario.objects.filter(
+            productoid=producto, sucursalid=sucursal_id
+        ).values_list("cantidad", flat=True).first() or 0
+
         return JsonResponse({
             'exists': True,
             'producto': {
                 'id':              producto.productoid,
                 'nombre':          producto.nombre,
-                'codigo_de_barras':producto.codigo_de_barras
+                'codigo_de_barras':producto.codigo_de_barras,
+                'precio':          float(producto.precio or 0),
+                'stock':           int(stock),
             }
         })
         
@@ -3098,7 +3125,10 @@ class ProductoCodigoAutocompleteView(LoginRequiredMixin, View):
     per_page = 15
     def get(self, request, *args, **kwargs):
         term = (request.GET.get("term","") or "").strip()
-        sid  = request.GET.get("sucursal_id")
+        sid  = (request.GET.get("sucursal_id") or "").strip()
+        if not sid.isdigit():
+            return JsonResponse({"results": [], "has_more": False})
+
         qs = Producto.objects.filter(
             inventario__sucursalid=sid, inventario__cantidad__gt=0
         ).distinct()
@@ -3110,24 +3140,54 @@ class ProductoCodigoAutocompleteView(LoginRequiredMixin, View):
                 except ValueError:
                     pass
             qs = qs.filter(filt)
+
         total = qs.count()
         qs = qs.order_by("nombre")[:self.per_page]
-        results = [{"id": p.productoid, "text": p.nombre} for p in qs]
+
+        inv_map = {inv.productoid_id: inv.cantidad
+                   for inv in Inventario.objects.filter(
+                        productoid__in=qs, sucursalid=int(sid)
+                   )}
+
+        results = [{
+            "id": p.productoid,
+            "text": p.nombre,
+            "precio": float(p.precio or 0),
+            "stock": int(inv_map.get(p.productoid, 0)),
+        } for p in qs]
+
         return JsonResponse({"results": results, "has_more": total > self.per_page})
 
 class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
     per_page = 15
     def get(self, request, *args, **kwargs):
         term = (request.GET.get("term","") or "").strip()
-        sid  = request.GET.get("sucursal_id")
+        sid  = (request.GET.get("sucursal_id") or "").strip()
+        if not sid.isdigit():
+            return JsonResponse({"results": [], "has_more": False})
+
         qs = Producto.objects.filter(
             inventario__sucursalid=sid, inventario__cantidad__gt=0
         ).distinct()
         if term:
             qs = qs.filter(Q(codigo_de_barras__icontains=term) | Q(nombre__icontains=term))
+
         total = qs.count()
         qs = qs.order_by("nombre")[:self.per_page]
-        results = [{"id": p.productoid, "text": p.nombre, "barcode": p.codigo_de_barras or ""} for p in qs]
+
+        inv_map = {inv.productoid_id: inv.cantidad
+                   for inv in Inventario.objects.filter(
+                        productoid__in=qs, sucursalid=int(sid)
+                   )}
+
+        results = [{
+            "id": p.productoid,
+            "text": p.nombre,
+            "barcode": p.codigo_de_barras or "",
+            "precio": float(p.precio or 0),
+            "stock": int(inv_map.get(p.productoid, 0)),
+        } for p in qs]
+
         return JsonResponse({"results": results, "has_more": total > self.per_page})
 
 

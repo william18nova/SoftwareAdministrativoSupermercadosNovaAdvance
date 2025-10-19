@@ -1,4 +1,3 @@
-{# templates/generar_venta.html #}
 {% extends "base.html" %}
 {% load static %}
 
@@ -12,117 +11,92 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
-  <h1>Generar Venta</h1>
+<div class="page-grid">
 
-  <form id="venta-form" action="{% url 'generar_venta' %}" method="post">
-    {% csrf_token %}
+  <!-- IZQUIERDA -->
+  <section class="panel panel-left">
+    <h1>Generar Venta</h1>
 
-    <!-- Cliente (opcional) -->
-    <div class="form-group">
-      <label for="cliente_busqueda">Cliente</label>
-      <input type="text" id="cliente_busqueda" placeholder="Buscar por nombre o cédula">
-      <input type="hidden" id="cliente_id" name="cliente_id">
-    </div>
+    <form id="venta-form" action="{% url 'generar_venta' %}" method="post">
+      {% csrf_token %}
 
-    <!-- Sucursal (obligatorio) -->
-    <div class="form-group">
-      <label for="sucursal_autocomplete">Sucursal <span class="req">*</span></label>
-      <input type="text" id="sucursal_autocomplete" placeholder="Buscar…" required aria-required="true">
-      <input type="hidden" id="sucursal_id" name="sucursal">
-    </div>
+      <div class="form-group">
+        <label for="cliente_busqueda">Cliente</label>
+        <input type="text" id="cliente_busqueda" placeholder="Buscar por nombre o cédula">
+        <input type="hidden" id="cliente_id" name="cliente_id">
+      </div>
 
-    <!-- Punto de Pago (obligatorio) -->
-    <div class="form-group">
-      <label for="puntopago_autocomplete">Punto de Pago <span class="req">*</span></label>
-      <input type="text" id="puntopago_autocomplete" placeholder="Buscar…" required aria-required="true">
-      <input type="hidden" id="puntopago_id" name="puntopago">
-    </div>
+      <div class="form-group">
+        <label for="sucursal_autocomplete">Sucursal <span class="req">*</span></label>
+        <input type="text" id="sucursal_autocomplete" placeholder="Buscar…" required aria-required="true">
+        <input type="hidden" id="sucursal_id" name="sucursal">
+      </div>
 
-    <!-- Producto: nombre -->
-    <div class="form-group">
-      <label for="producto_busqueda_nombre">Producto</label>
-      <input type="text" id="producto_busqueda_nombre" placeholder="Buscar por nombre">
-    </div>
+      <div class="form-group">
+        <label for="puntopago_autocomplete">Punto de Pago <span class="req">*</span></label>
+        <input type="text" id="puntopago_autocomplete" placeholder="Buscar…" required aria-required="true">
+        <input type="hidden" id="puntopago_id" name="puntopago">
+      </div>
 
-    <!-- Producto: código -->
-    <div class="form-group">
-      <label for="producto_busqueda_codigo">Código</label>
-      <input type="text" id="producto_busqueda_codigo" placeholder="Buscar por código">
-    </div>
+      <div class="form-group">
+        <label for="producto_busqueda_nombre">Producto</label>
+        <input type="text" id="producto_busqueda_nombre" placeholder="Buscar por nombre">
+      </div>
 
-    <!-- Producto: código de barras -->
-    <div class="form-group">
-      <label for="producto_busqueda_codigo_barras">Código de Barras</label>
-      <input type="text" id="producto_busqueda_codigo_barras" placeholder="Buscar por barras">
-      <button type="button" id="btnEscanear" class="btn-escanear">Escanear</button>
-    </div>
-    <div id="interactive" class="viewport"></div>
+      <div class="form-group">
+        <label for="codigo_o_barras">Código / Barras</label>
+        <input type="text" id="codigo_o_barras" placeholder="Escribe o escanea…">
+        <button type="button" id="btnEscanear" class="btn-escanear">Escanear</button>
+      </div>
+      <div id="interactive" class="viewport"></div>
 
-    <!-- Campos ocultos (gestionados por JS) -->
-    <input type="hidden" id="producto_id">
-    <input type="hidden" id="productos"   name="productos">
-    <input type="hidden" id="cantidades"  name="cantidades">
-    <input type="hidden" id="medio_pago"  name="medio_pago">
+      <!-- ocultos -->
+      <input type="hidden" id="producto_id">
+      <input type="hidden" id="productos"  name="productos">
+      <input type="hidden" id="cantidades" name="cantidades">
+      <input type="hidden" id="medio_pago" name="medio_pago">
+    </form>
+  </section>
 
-    <!-- Cantidad (obligatorio para agregar) -->
-    <div class="form-group">
-      <label for="cantidad">Cantidad <span class="req">*</span></label>
-      <input type="number" id="cantidad" min="1" value="1" required aria-required="true" disabled>
-    </div>
+  <!-- DERECHA -->
+  <section class="panel panel-right">
+    <header class="right-header">
+      <div class="right-title">
+        <h2>Detalles de la Venta</h2>
+        <h3 class="total-line">Total: <span id="total" class="total-color">{{ total|default:"$ 0,00" }}</span></h3>
+      </div>
 
-    <button type="button" id="agregar-producto" class="btn btn-success" disabled>
-      Agregar Producto
-    </button>
-  </form>
+      <div class="right-actions">
+        <button type="button" class="btn btn-primary" id="generar-venta">Generar Venta</button>
+        <input type="text" id="buscar-detalles" placeholder="Buscar en el carrito…">
+        <button type="button" class="btn btn-vaciar" id="vaciar-carrito">
+          <i class="fas fa-trash-can"></i> Vaciar carrito
+        </button>
+      </div>
+    </header>
 
-  <!-- Detalles y Total -->
-  <h2>Detalles de la Venta</h2>
-  <h3>Total: <span id="total" class="total-color">{{ total|default:"$ 0,00" }}</span></h3>
-
-  <button type="button" class="btn btn-primary" id="generar-venta">
-    Generar Venta
-  </button>
-
-  <input type="text" id="buscar-detalles" placeholder="Buscar en el carrito…">
-
-  <table id="detalle-productos" class="table">
-    <thead>
-      <tr>
-        <th>Producto</th>
-        <th>Cant.</th>
-        <th>Precio U.</th>
-        <th>Subtotal</th>
-        <th>Acc.</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for d in detalles %}
+    <div class="table-wrap">
+      <table id="detalle-productos" class="table">
+        <thead>
         <tr>
-          <td data-id="{{ d.productoid }}">{{ d.producto }}</td>
-          <td>{{ d.cantidad }}</td>
-          <td>{{ d.precio_unitario|floatformat:2 }}</td>
-          <td>{{ d.subtotal|floatformat:2 }}</td>
-          <td class="text-center">
-            <button class="btn btn-danger btn-sm eliminar-producto" title="Eliminar">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </td>
+          <th>Producto</th><th>Cant.</th><th>Precio U.</th><th>Subtotal</th><th>Acc.</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
 </div>
 
-{# Modal de pago #}
 {% include "modal_venta.html" %}
 
-<!-- 1) Librerías -->
+<!-- libs -->
 <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
-<!-- 2) Endpoints AJAX → a window.* -->
+<!-- endpoints -->
 <script>
   window.sucursalAutocompleteUrl        = "{% url 'sucursal_autocomplete' %}";
   window.puntopagoAutocompleteUrl       = "{% url 'puntopago_autocomplete' %}";
@@ -136,20 +110,13 @@
   window.abrirCajaUrl                   = "{% url 'abrir_caja' %}";
 </script>
 
-<!-- 3) Inyecta POS_AGENT_* ANTES del JS principal -->
+<!-- POS Agent -->
 <script>
-  // Estas vienen del context_processor mainApp.context_processors.pos_agent
   window.POS_AGENT_URL   = "{{ POS_AGENT_URL|default:'http://127.0.0.1:8787'|escapejs }}".trim();
   window.POS_AGENT_TOKEN = "{{ POS_AGENT_TOKEN|default:''|escapejs }}".trim();
-
-  // Fallbacks por seguridad en dev
-  if (!/^https?:\/\//.test(window.POS_AGENT_URL)) {
-    window.POS_AGENT_URL = "http://127.0.0.1:8787";
-  }
-  console.log("[POS_AGENT_URL]", window.POS_AGENT_URL);
-  console.log("[POS_AGENT_TOKEN]", window.POS_AGENT_TOKEN ? (window.POS_AGENT_TOKEN.slice(0,8)+"…") : "(vacío)");
+  if (!/^https?:\/\//.test(window.POS_AGENT_URL)) window.POS_AGENT_URL = "http://127.0.0.1:8787";
 </script>
 
-<!-- 4) Lógica -->
+<!-- lógica -->
 <script src="{% static 'javascript/generar_venta.js' %}"></script>
 {% endblock %}

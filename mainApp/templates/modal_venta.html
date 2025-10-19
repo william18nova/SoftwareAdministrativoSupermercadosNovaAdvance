@@ -1,9 +1,18 @@
 {# templates/modal_venta.html #}
 <div id="myModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="mpago-title">
   <div class="modal-content">
-    <span class="close" aria-label="Cerrar">&times;</span>
+    <button type="button" class="close" aria-label="Cerrar">&times;</button>
+
     <h2 id="mpago-title">Seleccione el medio de pago</h2>
 
+    <!-- Total destacado -->
+    <div class="total-banner" aria-live="polite">
+      <span class="total-icon" aria-hidden="true">💵</span>
+      <span class="total-label">Total a pagar:</span>
+      <strong id="modal-total" class="total-amount">$ 0,00</strong>
+    </div>
+
+    <!-- Opciones de medio de pago -->
     <label class="radio-wrap">
       <input type="radio" id="nequi" name="payment_method" value="nequi">
       <span>Nequi</span>
@@ -17,14 +26,15 @@
       <span>Efectivo</span>
     </label>
 
+    <!-- Campos adicionales cuando es efectivo -->
     <div id="efectivo-options" style="display:none; margin-top:1em;">
       <label for="monto-recibido">Monto recibido</label>
       <input type="number" id="monto-recibido" min="0" step="100" placeholder="0">
-      <p id="cambio" style="font-weight:bold; margin-top:0.5em;"></p>
+      <p id="cambio" class="cambio-text"></p>
     </div>
 
-    <button id="confirmar-pago" class="btn btn-success" style="margin-top:1em;">
-      Confirmar Pago
+    <button id="confirmar-pago" class="btn-confirmar">
+      CONFIRMAR PAGO
     </button>
   </div>
 </div>
