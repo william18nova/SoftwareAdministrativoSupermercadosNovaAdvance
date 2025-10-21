@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — AC instantáneos + agregado inmediato + atajos + cambio en efectivo");
+  console.log("⚡ generar_venta.js — AC instantáneos + carrito sin límite de stock + atajos + cambio en efectivo");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -22,7 +22,7 @@ $(function () {
   /* ================== Selectores ================== */
   const $inpCliente   = $("#cliente_busqueda");
   const $inpNombre    = $("#producto_busqueda_nombre");
-  const $inpCodeOrBar = $("#codigo_o_barras"); // input unificado (código o barras)
+  const $inpCodeOrBar = $("#codigo_o_barras");
   const $pid          = $("#producto_id");
   const $cantidad     = $("#cantidad");
   const $agregar      = $("#agregar-producto");
@@ -59,7 +59,7 @@ $(function () {
   const cantidades = [];    // [  2 ,  1 , ...]
   let runningTotal = 0;
   let lastAddedPid = null;
-  window.runningTotal = runningTotal; // para acceso en otros scopes si hiciera falta
+  window.runningTotal = runningTotal;
 
   /* ================== Cache producto ================== */
   const FRESH_MS = 120000; // 2 minutos
@@ -136,7 +136,7 @@ $(function () {
     return ok;
   }
 
-  /* ================== Agregar al carrito ================== */
+  /* ================== Agregar al carrito (SIN tope por stock) ================== */
   function setTotal(v) {
     runningTotal = v;
     window.runningTotal = v;
@@ -193,29 +193,28 @@ $(function () {
       enableQtyAndAdd(false);
     };
 
-    // Si cache tiene price fresco → agrego instantáneo
+    // 1) Si cache tiene precio fresco → agregar sin revisar stock
     if (cached && isFresh(cached.ts) && (cached.price != null)) {
-      if (cached.stock != null && qty > cached.stock) return alert(`Solo ${cached.stock} disponibles.`);
       const price = Number(cached.price) || 0;
       doAppend(cached.nombre, price, qty);
-      // refresh silencioso
+      // refresh silencioso opcional
       try {
         $.post(VERIFICAR_URL, { producto_id: pid, cantidad: 1, sucursal_id: sucursalID })
-          .done(r => { if (r && r.exists) updateCache(pid, r); });
+          .done(r => { if (r) updateCache(pid, r); });
       } catch(_){}
       return;
     }
 
-    // Verificar backend para precio/stock
+    // 2) Verificar datos en backend, PERO no bloquear por stock
     try {
       const r = await $.post(VERIFICAR_URL, { producto_id: pid, cantidad: qty, sucursal_id: sucursalID });
-      if (!r.exists) return alert("Sin stock/sucursal.");
-      if (r.cantidad_disponible < qty) return alert(`Solo ${r.cantidad_disponible} disponibles.`);
-      const rec = updateCache(pid, r);
-      doAppend(onlyName(rec.nombre), Number(rec.precio_unitario) || 0, qty);
+      const rec = updateCache(pid, r || {});
+      const price = Number(rec.price) || Number(r?.precio_unitario) || 0;
+      doAppend(onlyName(rec.nombre), price, qty);
     } catch (e) {
       console.error(e);
-      alert("No se pudo verificar el producto.");
+      const price = Number(cached?.price) || 0;
+      doAppend(onlyName(cached?.nombre), price, qty);
     }
   }
 
@@ -224,7 +223,7 @@ $(function () {
     if (!pid) return null;
     try {
       const r = await $.post(VERIFICAR_URL, { producto_id: pid, cantidad: 1, sucursal_id: sucursalID });
-      if (!r || !r.exists) return null;
+      if (!r) return null;
       const rec = updateCache(pid, r);
       setProductFields({ nombre: rec.nombre, pid, barcode: rec.barcode });
       return pid;
@@ -235,9 +234,8 @@ $(function () {
     if (!code) return null;
     try {
       const r = await $.getJSON(POR_COD_URL, { codigo_de_barras: code, sucursal_id: sucursalID });
-      if (!r || !r.exists) return null;
+      if (!r) return null;
       const p = r.producto || {};
-      // Si tu endpoint devuelve precio/stock, pásalos aquí:
       updateCache(p.id, {
         nombre: p.nombre,
         barcode: p.codigo_de_barras,
@@ -290,16 +288,13 @@ $(function () {
       }
     });
 
-    // Abrir menú si está vacío y recibe foco
     if (openIfEmpty) {
       $inp.on("focus", function(){
-        // Evitar abrir si falta sucursal y el campo es de producto
         if (($inp.is($inpNombre) || $inp.is($inpCodeOrBar)) && !hasSucursal()) return;
         $inp.autocomplete("search", this.value || "");
       });
     }
 
-    // Actualización instantánea mientras escribe o borra
     if (enableInstantSearch) {
       $inp.on("input", function(){
         if (($inp.is($inpNombre) || $inp.is($inpCodeOrBar)) && !hasSucursal()) return;
@@ -307,7 +302,6 @@ $(function () {
       });
     }
 
-    // Enter = seleccionar (si hay menú) o resolver y agregar
     $inp.on("keydown", async function(e){
       if (e.key !== "Enter") return;
       const ac = $inp.data("ui-autocomplete");
@@ -319,7 +313,6 @@ $(function () {
         if ($first.length) { $first.trigger("mouseenter").trigger("click"); return; }
       }
 
-      // Si no está visible, resolvemos por texto actual
       const val = $.trim($inp.val());
       if (!val) return;
       if (!hasSucursal() && ($inp.is($inpNombre) || $inp.is($inpCodeOrBar))) {
@@ -329,13 +322,11 @@ $(function () {
 
       let pid = null;
       if ($inp.is($inpNombre)) {
-        // Buscar por nombre rápido
         pid = await (async function quickByName(term){
           try{
             const url = PRODUCTO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID });
             const d = await fetch(url).then(r=> r.ok ? r.json() : {results:[]});
             const items = (d.results||[]).map(p=>({ id:p.id, name:p.text, label:p.text, value:p.text, price:p.precio, stock:p.stock }));
-            // rank & pick
             const best = rankFilter(items, term, 1)[0];
             if (!best) return null;
             updateCache(best.id, { nombre:best.name, precio_unitario:best.price, cantidad_disponible:best.stock });
@@ -344,12 +335,10 @@ $(function () {
           }catch{ return null; }
         })(val);
       } else if ($inp.is($inpCodeOrBar)) {
-        // Si parece barcode largo → barras, si no, intento como ID
         if (/^\d{6,}$/.test(val)) {
           pid = await resolveByBarcode(val);
-          if (!pid) pid = await resolveByProductId(val); // fallback
+          if (!pid) pid = await resolveByProductId(val);
         } else {
-          // código corto o mixto → probar ambos
           pid = await resolveByProductId(val);
           if (!pid) pid = await resolveByBarcode(val);
         }
@@ -379,15 +368,13 @@ $(function () {
     }
   });
 
-  // Unificado código o barras: consulta AMBOS endpoints y fusiona resultados
+  // Unificado código o barras
   createAC({
     $inp: $inpCodeOrBar,
     sourceFn: async (term) => {
       if (!hasSucursal()) return [];
-      // pequeñas heurísticas: si es muy largo y numérico, prioriza barras
       const wantBarras = /^\d{6,}$/.test(term);
 
-      // disparamos en paralelo
       const [dCod, dBar] = await Promise.all([
         fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID })).then(r=> r.ok ? r.json() : {results:[]}),
         fetch(AC_BARRAS_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID })).then(r=> r.ok ? r.json() : {results:[]}),
@@ -409,7 +396,6 @@ $(function () {
         push({ id:p.id, name:p.text||"", label:(p.text||String(p.id)), value:(p.text||String(p.id)), barcode:p.barcode||p.codigo_de_barras||"", price:p.precio, stock:p.stock });
       });
 
-      // prioriza barras si parece barcode
       const ranked = wantBarras
         ? arr.sort((a,b)=> (b.barcode?1:0) - (a.barcode?1:0))
         : rankFilter(arr, term, 40);
@@ -492,7 +478,7 @@ $(function () {
   $inpNombre.on("input", function(){ const nm=$.trim(this.value); if (nm) instantFromName(nm); });
   $inpCodeOrBar.on("input", function(){ const v=$.trim(this.value); if (v) { if (/^\d{6,}$/.test(v)) instantFromBarcode(v); else instantFromPid(v); } });
 
-  // Botón agregar manual (sigue siendo útil)
+  // Botón agregar
   $agregar.on("click", async () => {
     const pid = $pid.val();
     const qty = parseInt($cantidad.val(), 10);
@@ -508,7 +494,7 @@ $(function () {
     }
   });
 
-  // Editar cantidad inline
+  // Editar cantidad inline (SIN cap por stock)
   $tbody.on("input change", ".qty-input", function () {
     const $row  = $(this).closest("tr");
     const pid   = $row.data("pid").toString();
@@ -516,13 +502,6 @@ $(function () {
 
     let newQty  = parseInt(this.value, 10);
     if (!newQty || newQty < 1) newQty = 1;
-
-    const cached = productCache.get(pid);
-    if (cached && cached.stock != null && newQty > cached.stock) {
-      newQty = cached.stock;
-      this.value = newQty;
-      alert(`Solo ${cached.stock} disponibles.`);
-    }
 
     const oldQty = Number($row.attr("data-qty")) || 0;
     if (newQty === oldQty) return;
@@ -578,9 +557,7 @@ $(function () {
     $amountIn.val("");
     $changeOut.text("");
 
-    // 👉 Mostrar total de la venta en el modal
     $("#modal-total").text(money(runningTotal));
-
     $modal.show();
   });
   $(".close").click(() => $modal.hide());
@@ -683,11 +660,8 @@ $(function () {
   });
 
   /* ================== Atajos de teclado ================== */
-  // Ctrl+0 → cliente, Ctrl+1 → nombre producto, Ctrl+2 → código/barras,
-  // Ctrl+3 → buscar carrito, Ctrl+4 → cantidad (del último agregado si existe)
   $(document).on("keydown", function (e) {
     if (!e.ctrlKey || e.altKey || e.metaKey) return;
-
     const focusAndSelect = ($el) => { $el.focus(); $el[0]?.select?.(); };
 
     switch (e.key) {
@@ -730,7 +704,6 @@ $(function () {
           e.preventDefault(); e.stopImmediatePropagation();
           const code = buf; reset();
 
-          // Forzamos foco en el input unificado, lo llenamos y resolvemos
           $inpCodeOrBar.val(code);
           try { $inpCodeOrBar.autocomplete("close"); } catch (_){}
           if (!hasSucursal()) { alert("Seleccione primero la sucursal."); return; }

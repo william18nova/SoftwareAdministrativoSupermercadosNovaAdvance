@@ -2634,95 +2634,104 @@ class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
         return super().form_invalid(form)
 
 
-# views.py
 class GenerarVentaView(LoginRequiredMixin, View):
     """
     GET  → muestra formulario
     POST → procesa la venta (ajax) y devuelve texto listo para imprimir
 
-    NOTA: Esta versión permite vender por encima del stock; el inventario
-    puede quedar en negativo (p.ej., -1, -3, etc.).
+    Política: permite vender por encima de stock; el inventario puede quedar negativo.
     """
     template_name = "generar_venta.html"
     success_url   = reverse_lazy("generar_venta")
 
+    # ---------- GET ----------
     def get(self, request, *args, **kwargs):
         form = GenerarVentaForm(request.GET or None)
-        context = self._base_context(form)
-        return render(request, self.template_name, context)
+        return render(request, self.template_name, self._base_context(form))
 
+    # ---------- POST ----------
     def post(self, request, *args, **kwargs):
         form = GenerarVentaForm(request.POST)
         if not form.is_valid():
             return JsonResponse({'success': False, 'error': 'Formulario inválido.'})
 
         data = form.cleaned_data
+        suc_inst = data['sucursal']     # instancia (ModelChoiceField)
+        pp_inst  = data['puntopago']    # instancia (ModelChoiceField)
+
         productos  = data['productos']    # lista de ids (str/int)
-        cantidades = data['cantidades']   # lista de cantidades (int)
-        detalles   = []
-        total      = 0
+        cantidades = data['cantidades']   # lista de cantidades (int/str)
+        if not productos:
+            return JsonResponse({'success': False, 'error': 'Carrito vacío.'})
 
+        # Normalizar y alinear productos-cantidades
         try:
-            # Traemos productos involucrados
-            productos_obj = Producto.objects.filter(productoid__in=productos)
-            inventarios   = Inventario.objects.filter(
-                productoid__in=productos_obj,
-                sucursalid=data['sucursal'].pk
-            )
+            prod_ids = [int(p) for p in productos]
+        except (ValueError, TypeError):
+            return JsonResponse({'success': False, 'error': 'IDs de productos inválidos.'})
 
-            # Importante: asumimos que 'productos' y 'cantidades' están alineados por índice
-            # y que existen registros de inventario por cada producto en la sucursal.
-            for i, prod in enumerate(productos_obj):
-                inv = inventarios.get(productoid=prod)
-                qty = int(cantidades[i])
+        if len(cantidades) < len(prod_ids):
+            return JsonResponse({'success': False, 'error': 'Faltan cantidades para algunos productos.'})
 
-                # ⚠️ Ya NO bloqueamos si qty > inv.cantidad.
-                # Solo calculamos subtotales y guardamos detalle.
-                subtotal = (prod.precio or 0) * qty
-                total   += subtotal
-                detalles.append({
-                    'productoid'     : prod.productoid,
-                    'producto'       : prod.nombre,
-                    'cantidad'       : qty,
-                    'precio_unitario': prod.precio or 0,
-                    'subtotal'       : subtotal
-                })
+        # Traer productos existentes
+        prods_qs = Producto.objects.filter(productoid__in=prod_ids)
+        prods_map = {p.productoid: p for p in prods_qs}
 
-        except Exception:
-            return JsonResponse({'success': False, 'error': 'Error al procesar los productos.'})
+        detalles = []
+        total = Decimal('0')
 
-        # No esperamos confirmación de medios de pago electrónicos.
-        return self._crear_venta(request.user, data, detalles, total)
+        for idx, pid in enumerate(prod_ids):
+            prod = prods_map.get(pid)
+            if not prod:
+                # Si algún producto del arreglo no existe, lo ignoramos (o podrías abortar)
+                continue
+            try:
+                qty = int(cantidades[idx])
+            except (ValueError, TypeError):
+                return JsonResponse({'success': False, 'error': f'Cantidad inválida para producto {pid}.'})
+            if qty <= 0:
+                return JsonResponse({'success': False, 'error': f'Cantidad debe ser mayor a 0 para producto {pid}.'})
+
+            # Precio como Decimal seguro
+            try:
+                precio_unit = Decimal(str(prod.precio or 0))
+            except (InvalidOperation, TypeError):
+                precio_unit = Decimal('0')
+
+            subtotal = precio_unit * Decimal(qty)
+            total += subtotal
+
+            detalles.append({
+                'productoid'     : prod.productoid,
+                'producto'       : prod.nombre,
+                'cantidad'       : qty,
+                'precio_unitario': precio_unit,
+                'subtotal'       : subtotal
+            })
+
+        if not detalles:
+            return JsonResponse({'success': False, 'error': 'No hay ítems válidos para vender.'})
+
+        # Crear venta y mover inventario
+        return self._crear_venta(request.user, suc_inst, pp_inst, data.get('cliente_id'), data['medio_pago'], detalles, total)
 
     # ----------------------------------------------------------------------
-    def _base_context(self, form, detalles=None, total=0):
-        return {
-            'form'     : form,
-            'detalles' : detalles or [],
-            'total'    : total,
-        }
+    def _base_context(self, form, detalles=None, total=Decimal('0')):
+        return {'form': form, 'detalles': detalles or [], 'total': total}
 
     @staticmethod
     def _build_receipt_text(venta_data, detalles, total):
-        """
-        Construye el texto de factura 58mm (≈32 caracteres por línea).
-        venta_data: dict con sucursal_nombre (y lo que quieras mostrar)
-        detalles:   [{producto, cantidad, precio_unitario, subtotal}, ...]
-        """
         def money(n):
             try:
-                n = float(n)
+                q = Decimal(n)
             except Exception:
-                n = 0.0
-            return f"${int(n):,}".replace(",", ".")
-
+                q = Decimal('0')
+            # formato $1.234.567
+            return f"${int(q):,}".replace(",", ".")
         WIDTH = 32
-        def line(txt=""):
-            t = str(txt or "")
-            return t[:WIDTH]
+        def line(txt=""): t = str(txt or ""); return t[:WIDTH]
         def lr(left, right):
-            left = str(left or "")
-            right= str(right or "")
+            left = str(left or ""); right = str(right or "")
             space = max(1, WIDTH - len(left) - len(right))
             return left + (" " * space) + right
 
@@ -2734,16 +2743,14 @@ class GenerarVentaView(LoginRequiredMixin, View):
             lr("Sucursal:", venta_data.get("sucursal_nombre","")),
             "-" * WIDTH,
         ]
-
         body = []
         for d in detalles:
             nom = str(d.get("producto",""))[:WIDTH]
             qty = d.get("cantidad", 1)
-            pu  = d.get("precio_unitario", 0)
-            sub = d.get("subtotal", 0)
+            pu  = d.get("precio_unitario", Decimal('0'))
+            sub = d.get("subtotal", Decimal('0'))
             body.append(line(nom))
             body.append(lr(f" x{qty}  @ {money(pu)}", money(sub)))
-
         foot = [
             "-" * WIDTH,
             lr("TOTAL:", money(total)),
@@ -2751,62 +2758,61 @@ class GenerarVentaView(LoginRequiredMixin, View):
             line("¡Gracias por su compra!"),
             ""
         ]
-        return "\n".join(head + body + foot) + "\n\n\n"  # 3 saltos extra
+        return "\n".join(head + body + foot) + "\n\n\n"
 
     @staticmethod
-    def _crear_venta(user, data, detalles, total):
+    def _crear_venta(user, suc_inst, pp_inst, cliente_id, medio_pago, detalles, total):
         try:
             ahora = timezone.localtime()
             with transaction.atomic():
                 empleado = getattr(user, "empleado", None)
                 if empleado is None:
-                    return JsonResponse({'success': False,'error':'El usuario no tiene un empleado asociado.'})
+                    return JsonResponse({'success': False, 'error': 'El usuario no tiene un empleado asociado.'})
+
+                cliente_inst = Cliente.objects.filter(pk=cliente_id).first() if cliente_id else None
 
                 venta = Venta.objects.create(
                     fecha       = ahora.date(),
                     hora        = ahora.time(),
-                    clienteid   = Cliente.objects.filter(pk=data['cliente_id']).first(),
+                    clienteid   = cliente_inst,
                     empleadoid  = empleado,
-                    sucursalid  = data['sucursal'],
-                    puntopagoid = data['puntopago'],
-                    total       = total,
-                    mediopago   = data['medio_pago']  # se guarda tal cual
+                    sucursalid  = suc_inst,   # pasar instancia, no ID
+                    puntopagoid = pp_inst,    # pasar instancia, no ID
+                    total       = total,      # Decimal
+                    mediopago   = medio_pago
                 )
 
-                # Guardar detalles y ACTUALIZAR inventario (puede quedar negativo)
+                # Detalles + Inventario (permitiendo negativo)
                 for d in detalles:
                     DetalleVenta.objects.create(
                         ventaid        = venta,
                         productoid_id  = d['productoid'],
                         cantidad       = d['cantidad'],
-                        preciounitario = d['precio_unitario']
+                        preciounitario = d['precio_unitario']  # Decimal
                     )
-                    inv = Inventario.objects.get(
+                    inv, _ = Inventario.objects.select_for_update().get_or_create(
                         productoid_id = d['productoid'],
-                        sucursalid    = data['sucursal'].pk
+                        sucursalid    = suc_inst,   # instancia consistente
+                        defaults      = {"cantidad": 0}
                     )
-                    # ✅ Permitimos inventario negativo
                     inv.cantidad = (inv.cantidad or 0) - int(d['cantidad'])
                     inv.save(update_fields=["cantidad"])
 
-                # Sumar a caja solo si es efectivo
-                if (data['medio_pago'] or "").lower() == "efectivo":
-                    pp = data['puntopago']
-                    pp.dinerocaja = (pp.dinerocaja or 0) + total
-                    pp.save(update_fields=["dinerocaja"])
+                # Caja solo si es efectivo
+                if (medio_pago or "").lower() == "efectivo":
+                    pp_inst.dinerocaja = (pp_inst.dinerocaja or Decimal('0')) + total
+                    pp_inst.save(update_fields=["dinerocaja"])
 
-            # Texto de recibo listo para impresión
-            venta_data = {
-                "sucursal_nombre": getattr(data['sucursal'], 'nombre', str(data['sucursal'])),
-            }
-            receipt_text = GenerarVentaView._build_receipt_text(venta_data, detalles, total)
+            receipt_text = GenerarVentaView._build_receipt_text(
+                {"sucursal_nombre": getattr(suc_inst, 'nombre', str(suc_inst))},
+                detalles, total
+            )
+            return JsonResponse({'success': True, 'venta_id': venta.pk, 'receipt_text': receipt_text})
 
-            return JsonResponse({
-                'success': True,
-                'venta_id': venta.pk,
-                'receipt_text': receipt_text
-            })
-        except Exception:
+        except Exception as e:
+            # En desarrollo, devuelve el detalle del error para depurar más rápido
+            if getattr(settings, "DEBUG", False):
+                return JsonResponse({'success': False, 'error': f'Error al crear la venta: {e!s}'})
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
         
 TICKET_WIDTH = 32  # caracteres aprox. para 58mm
