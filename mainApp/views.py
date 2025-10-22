@@ -25,7 +25,7 @@ from .forms import (
     ProductoEditarForm,
     ProveedorForm,
     RolForm,
-    InventarioForm, 
+    InventarioForm,
     InventarioFiltroForm,
     PreciosProveedorForm,
     PuntosPagoForm,
@@ -50,13 +50,13 @@ from .forms import (
     PermisoEditarForm,
     RolPermisoAssignForm,
     RolPermisoEditForm
-    
+
 )
 from dal import autocomplete
 from decimal import Decimal, InvalidOperation
 from django.urls import reverse, reverse_lazy
 from itertools import zip_longest
-from django.forms import formset_factory 
+from django.forms import formset_factory
 from django.views          import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView, CreateView
@@ -214,7 +214,7 @@ def puntopago_autocomplete_venta(request):
     term = request.GET.get('term', '').strip()
     page_str = request.GET.get('page', '1').strip()
     per_page_str = request.GET.get('per_page', '50').strip()
-    
+
     try:
         page = int(page_str)
     except ValueError:
@@ -234,7 +234,7 @@ def puntopago_autocomplete_venta(request):
         qs = qs.filter(sucursalid__sucursalid=sucursal_id)
     if term:
         qs = qs.filter(nombre__icontains=term)
-    
+
     total_results = qs.count()
     qs = qs[start:end]
     results = [{'id': pp.puntopagoid, 'text': pp.nombre} for pp in qs]
@@ -652,105 +652,142 @@ class SucursalInventarioAutocompleteView(PaginatedAutocompleteMixin):
 # ─────────────────────────────────────────────────────────────────────────────
 # Editar Inventario  (CBV)
 # ─────────────────────────────────────────────────────────────────────────────
+
+
 class EditarInventarioView(LoginRequiredMixin, View):
     """
     GET  → muestra formulario precargado.
-    POST → procesa JSON de inventarios y redirige.
+    POST →
+      - action=add_item (AJAX): upsert solo del producto enviado (recarga misma página).
+      - submit principal: upsert SOLO de los productos enviados SIN borrar los demás.
     """
-
     template_name = "editar_inventario.html"
 
     # ---------- GET ----------
     def get(self, request, sucursal_id):
-        sucursal_original = get_object_or_404(Sucursal, pk=sucursal_id)
+        sucursal = get_object_or_404(Sucursal, pk=sucursal_id)
         inventarios_existentes = (
             Inventario.objects
-            .filter(sucursalid=sucursal_original)
+            .filter(sucursalid=sucursal)
             .select_related("productoid")
             .order_by("productoid__nombre")
         )
 
         form = EditarInventarioForm(initial={
-            "sucursal": sucursal_original.pk,
-            "sucursal_autocomplete": sucursal_original.nombre,
+            "sucursal": sucursal.pk,
+            "sucursal_autocomplete": sucursal.nombre,
         })
 
         return render(request, self.template_name, {
             "form": form,
-            "sucursal": sucursal_original,
+            "sucursal": sucursal,
             "inventarios": inventarios_existentes,
         })
 
     # ---------- POST ----------
     @transaction.atomic
     def post(self, request, sucursal_id):
+        # ───── AJAX: agregar/actualizar un item y recargar misma página ─────
+        if request.POST.get("action") == "add_item":
+            sucursal = get_object_or_404(Sucursal, pk=sucursal_id)  # tomamos la del URL
+
+            productoid = (request.POST.get("productoid") or "").strip()
+            cantidad   = (request.POST.get("cantidad") or "").strip()
+
+            errors = {}
+            if not productoid:
+                errors.setdefault("productoid", []).append({"message": "Debe seleccionar un producto."})
+            try:
+                cantidad_int = int(cantidad)
+                if cantidad_int <= 0:
+                    errors.setdefault("cantidad", []).append({"message": "Cantidad debe ser mayor que 0."})
+            except ValueError:
+                errors.setdefault("cantidad", []).append({"message": "Cantidad debe ser un número entero."})
+
+            if errors:
+                return JsonResponse({"success": False, "errors": json.dumps(errors)}, status=400)
+
+            pid = int(productoid)
+            inv, created = Inventario.objects.select_for_update().get_or_create(
+                sucursalid=sucursal,
+                productoid_id=pid,
+                defaults={"cantidad": cantidad_int},
+            )
+            if not created:
+                inv.cantidad = cantidad_int
+                inv.save(update_fields=["cantidad"])
+
+            messages.success(request, f"Producto actualizado en «{sucursal.nombre}».")
+            return JsonResponse({"success": True})
+
+        # ───── Submit principal: MERGE (no eliminar faltantes) ─────
         form = EditarInventarioForm(request.POST)
         if not form.is_valid():
             errors = {
                 fld: [{"message": e["message"]} for e in ferr]
                 for fld, ferr in form.errors.get_json_data().items()
             }
-            return JsonResponse({"success": False,
-                                 "errors": json.dumps(errors)})
+            return JsonResponse({"success": False, "errors": json.dumps(errors)})
 
-        nueva_sucursal = form.cleaned_data["sucursal"]
-        raw_json       = form.cleaned_data["inventarios_temp"]
+        sucursal_destino = form.cleaned_data["sucursal"]
+        raw_json         = form.cleaned_data["inventarios_temp"]
 
         try:
-            data = json.loads(raw_json or "[]")
+            payload = json.loads(raw_json or "[]")
         except json.JSONDecodeError:
             return JsonResponse({
                 "success": False,
                 "errors": json.dumps({
-                    "inventarios_temp": [{
-                        "message": "Formato JSON inválido."
-                    }]
+                    "inventarios_temp": [{"message": "Formato JSON inválido."}]
                 })
             })
 
-        # ----- Diccionario {id: cantidad} -----
-        nuevo_dic = {
-            str(item["productId"]): int(item["cantidad"])
-            for item in data
-            if item.get("productId") and item.get("cantidad") is not None
-        }
+        # Normaliza y valida el payload de la tabla visible del usuario
+        upserts = {}
+        for item in payload:
+            pid = item.get("productId")
+            cant = item.get("cantidad")
+            if pid is None or cant is None:
+                continue
+            try:
+                pid_int = int(pid)
+                cant_int = int(cant)
+                if cant_int <= 0:
+                    continue
+            except (ValueError, TypeError):
+                continue
+            upserts[str(pid_int)] = cant_int
 
-        # Si cambió la sucursal, limpiamos inventario anterior
-        sucursal_original = get_object_or_404(Sucursal, pk=sucursal_id)
-        if sucursal_original != nueva_sucursal:
-            Inventario.objects.filter(sucursalid=sucursal_original).delete()
-
-        # ----- Inventario existente en la nueva sucursal -----
+        # Cargamos existentes solo para hacer upsert de los enviados (no borraremos faltantes)
         existentes = {
             str(obj.productoid_id): obj
-            for obj in Inventario.objects.filter(sucursalid=nueva_sucursal)
+            for obj in (Inventario.objects
+                        .select_for_update()
+                        .filter(sucursalid=sucursal_destino))
         }
 
-        # Actualizar/eliminar los existentes
-        for pid, inv in existentes.items():
-            if pid in nuevo_dic:
-                inv.cantidad = nuevo_dic.pop(pid)
+        # Upsert SOLO de lo que envía el usuario en su lista
+        for pid_str, cant_int in upserts.items():
+            if pid_str in existentes:
+                inv = existentes[pid_str]
+                inv.cantidad = cant_int
                 inv.save(update_fields=["cantidad"])
             else:
-                inv.delete()
+                Inventario.objects.create(
+                    productoid_id=int(pid_str),
+                    sucursalid=sucursal_destino,
+                    cantidad=cant_int
+                )
 
-        # Crear los nuevos restantes
-        nuevos = [
-            Inventario(productoid_id=int(pid),
-                       sucursalid=nueva_sucursal,
-                       cantidad=cant)
-            for pid, cant in nuevo_dic.items()
-        ]
-        if nuevos:
-            Inventario.objects.bulk_create(nuevos)
-
+        # Importante: NO eliminamos lo que no vino en el payload
         messages.success(
             request,
-            f'Inventario de la sucursal «{nueva_sucursal.nombre}» '
-            f'actualizado correctamente.'
+            f'Inventario de «{sucursal_destino.nombre}» actualizado (merge: sin eliminar productos no listados).'
         )
         return JsonResponse({
             "success": True,
+            # Puedes quedarte en la misma página de edición si prefieres:
+            # "redirect_url": reverse("editar_inventario", args=[sucursal_destino.pk]),
             "redirect_url": reverse("visualizar_inventarios"),
         })
 
@@ -1920,8 +1957,8 @@ class EmpleadoListView(LoginRequiredMixin, ListView):
 class EmpleadoUpdateAJAXView(LoginRequiredMixin, UpdateView):
     """
     • GET  → renderiza “editar_empleado.html”.
-    • POST →  
-        – Fetch/AJAX ⇒ JSON (success / errors)  
+    • POST →
+        – Fetch/AJAX ⇒ JSON (success / errors)
         – Navegación  ⇒ redirect + messages
     """
     model         = Empleado
@@ -2170,7 +2207,7 @@ class HorarioUpdateAJAXView(LoginRequiredMixin, View):
         # 4) Mensaje de éxito
         messages.success(request, self.success_msg)
         return JsonResponse({"success": True})
-    
+
 
 
 @login_required
@@ -2814,7 +2851,7 @@ class GenerarVentaView(LoginRequiredMixin, View):
             if getattr(settings, "DEBUG", False):
                 return JsonResponse({'success': False, 'error': f'Error al crear la venta: {e!s}'})
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
-        
+
 TICKET_WIDTH = 32  # caracteres aprox. para 58mm
 
 def _fmt_money(v):
@@ -3126,7 +3163,7 @@ class BuscarProductoPorCodigoView(LoginRequiredMixin, View):
                 'stock':           int(stock),
             }
         })
-        
+
 class ProductoCodigoAutocompleteView(LoginRequiredMixin, View):
     per_page = 15
     def get(self, request, *args, **kwargs):
@@ -3391,8 +3428,8 @@ class PedidoProveedorCreateAJAXView(LoginRequiredMixin, View):
 
 class ProductoPedidoAutocomplete(PaginatedAutocompleteMixin):
     """
-    • Filtra por proveedor (GET ?proveedor_id=)  
-    • Excluye los IDs ya listados (?excluded=1,2,3)  
+    • Filtra por proveedor (GET ?proveedor_id=)
+    • Excluye los IDs ya listados (?excluded=1,2,3)
     • Devuelve   id, text, precio   por página
     """
     model      = Producto
@@ -3462,8 +3499,8 @@ class PedidoListView(LoginRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx["just_updated"] = self.request.GET.get("updated") == "1"
         return ctx
-    
-    
+
+
 @login_required
 def eliminar_pedido(request, pedido_id):
     if request.method == 'POST':
@@ -3492,7 +3529,7 @@ class PedidoDetailView(LoginRequiredMixin, DetailView):
             det.subtotal = det.preciounitario * det.cantidad
         ctx["detalles"] = detalles
         return ctx
-    
+
 @method_decorator(login_required, name="dispatch")
 class EditarPedidoView(View):
     template_name = "editar_pedido.html"
@@ -3664,7 +3701,7 @@ class EditarPedidoView(View):
             "success": True,
             "redirect_url": reverse("visualizar_pedidos") + "?updated=1&msg=Pedido%20actualizado%20correctamente",
         })
-        
+
 class PuntoPagoPorSucursalAutocomplete(PaginatedAutocompleteMixin):
     model      = PuntosPago
     text_field = "nombre"
@@ -3676,7 +3713,7 @@ class PuntoPagoPorSucursalAutocomplete(PaginatedAutocompleteMixin):
         if sid:
             qs = qs.filter(sucursalid_id=sid)
         return qs.order_by(self.text_field)
-    
+
 class PermisoCreateView(LoginRequiredMixin, CreateView):
     model = Permiso
     form_class = PermisoForm
@@ -3691,7 +3728,7 @@ class PermisoCreateView(LoginRequiredMixin, CreateView):
     def form_invalid(self, form):
         messages.error(self.request, "Por favor corrige los errores.")
         return super().form_invalid(form)
-    
+
 class PermisoListView(LoginRequiredMixin, ListView):
     """
     Muestra la tabla de permisos con DataTable.
@@ -3699,7 +3736,7 @@ class PermisoListView(LoginRequiredMixin, ListView):
     template_name       = "visualizar_permisos.html"
     model               = Permiso
     context_object_name = "permisos"
-    
+
 class PermisoUpdateAJAXView(LoginRequiredMixin, UpdateView):
     """
     ▸ Edita un permiso vía AJAX, manteniendo misma UX que ‘Editar Rol’.
@@ -3868,7 +3905,7 @@ class PermisoAutocomplete(LoginRequiredMixin, View):
 
         results = [{"id": p.pk, "text": p.nombre} for p in rows]
         return JsonResponse({"results": results, "has_more": end < total})
-    
+
 class VisualizarRolesPermisosView(LoginRequiredMixin, View):
     """
     GET  -> página base sin tabla (hasta que el usuario elija un rol)
@@ -3947,7 +3984,7 @@ class RolConPermisosAutocomplete(LoginRequiredMixin, View):
 
         results = [{"id": r.pk, "text": r.nombre} for r in rows]
         return JsonResponse({"results": results, "has_more": end < total})
-    
+
 class RolesPermisosEditView(LoginRequiredMixin, View):
     """
     Editar permisos de un rol con 'buffer':
@@ -4170,7 +4207,7 @@ class VentasDiariasStatsView(LoginRequiredMixin, View):
             "num_ventas": agg["num"] or 0,
             "total_vendido": float(agg["total"] or 0),
         })
-        
+
 class SucursalConPedidosPagadosAutocomplete(LoginRequiredMixin, View):
     """
     Sucursales que tengan al menos un pedido 'Recibido' con monto_pagado > 0.

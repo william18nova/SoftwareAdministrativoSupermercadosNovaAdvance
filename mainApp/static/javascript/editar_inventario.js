@@ -6,6 +6,7 @@
     • 12 sugerencias máx. (mezcla de «término actual» + «semilla vacía»)
     • ENTER navega entre campos; click selecciona opción
     • Mantiene precarga de filas, agregar/eliminar y submit con redirect
+    • NUEVO: Al “Agregar producto”, guarda en servidor y recarga la página
 ------------------------------------------------------------------*/
 (() => {
   "use strict";
@@ -15,6 +16,8 @@
   const $qs  = s  => document.querySelector(s);
   const $qsa = s  => document.querySelectorAll(s);
   const hasAbort = typeof window.AbortController === "function";
+  const getCsrf = () =>
+    document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
 
   /* ───────── refs y estado base ───────── */
   const dom = {
@@ -32,6 +35,7 @@
     rowsWrap  : $id('productos-body'),
 
     alertErr  : $id('error-message'),
+    hiddenTemp: $id('id_inventarios_temp'),
   };
 
   const state = {
@@ -81,7 +85,9 @@
       const map = { sucursal: dom.sucInp, productoid: dom.prdInp, cantidad: dom.qtyInp };
       const input = map[field] || $qs(`#id_${field}`);
       if (input) input.classList.add('input-error');
-    }
+    },
+    disable(el){ if (el){ el.disabled = true; el.dataset._txt = el.textContent; el.textContent = 'Guardando…'; } },
+    enable(el){ if (el){ el.disabled = false; if (el.dataset._txt){ el.textContent = el.dataset._txt; delete el.dataset._txt; } } }
   };
 
   /* ───────── Caché de autocompletes ───────── */
@@ -299,40 +305,73 @@
     inp?.addEventListener('keydown', e => handleEnterFor(inp, e));
   });
 
-  /* ───────── Agregar fila ───────── */
-  dom.btnAdd.addEventListener('click', ()=>{
+  /* ───────── Agregar fila (GUARDAR EN SERVIDOR + RECARGAR) ───────── */
+  dom.btnAdd.addEventListener('click', async ()=>{
     UI.clearAlerts();
 
     const sid=dom.sucHid.value.trim();
     const pid=dom.prdHid.value.trim();
-    const qty=dom.qtyInp.value.trim();
+    const qty=(dom.qtyInp.value||'').trim();
     const pname=dom.prdInp.value.trim();
 
     let bad=false;
     if (!sid){ UI.fieldError('sucursal','Debe seleccionar una sucursal.'); bad=true; }
     if (!pid){ UI.fieldError('productoid','Debe seleccionar un producto.'); bad=true; }
-    if (!qty || qty<=0){ UI.fieldError('cantidad','Cantidad debe ser mayor que 0.'); bad=true; }
+    if (!qty || Number(qty)<=0){ UI.fieldError('cantidad','Cantidad debe ser mayor que 0.'); bad=true; }
     if (bad) return;
 
+    // Evita duplicados en esta pantalla (el servidor igualmente puede validar)
     if (state.items.some(i=>i.productId===pid)){
       UI.fieldError('productoid','Este producto ya está en la lista.'); return;
     }
 
-    state.items.push({ productId:pid, productName:pname, cantidad:qty });
+    // Construir payload mínimo para agregar el item en servidor
+    const url = (window.agregarItemUrl || dom.form.action);
+    const fd  = new FormData();
+    fd.append('sucursal', sid);
+    fd.append('productoid', pid);
+    fd.append('cantidad', qty);
+    fd.append('action', 'add_item'); // <- tu vista puede usar este flag
+    fd.append('ajax', '1');
 
-    dataTable.row.add([
-      pname,
-      `<input type="number" class="qty-input" min="1" value="${qty}">`,
-      `<button type="button" class="btn-eliminar" data-product-id="${pid}">
-         <i class="fas fa-trash-alt"></i>
-       </button>`
-    ]).draw(false);
+    UI.disable(dom.btnAdd);
 
-    dom.prdInp.value=''; dom.prdHid.value=''; dom.qtyInp.value='';
-    dom.prdInp.focus();
+    try{
+      const resp = await fetch(url, {
+        method:'POST',
+        headers:{
+          'X-CSRFToken': getCsrf(),
+          'Accept':'application/json'
+        },
+        body: fd
+      });
+
+      // Si tu vista devuelve HTML (no JSON), igual recargamos ante 2xx
+      if (resp.ok){
+        // Intentar leer JSON, si falla, igual recargamos
+        let data = null;
+        try { data = await resp.json(); } catch {}
+        if (!data || data.success){
+          window.location.reload(); // ✅ recarga y muestra el item recién agregado
+          return;
+        }
+        // Si viene errors en JSON
+        const errs = JSON.parse(data.errors || '{}');
+        Object.entries(errs).forEach(([field, arr])=>{
+          arr.forEach(e=>UI.fieldError(field, e.message));
+        });
+      }else{
+        UI.err(`No se pudo guardar (HTTP ${resp.status}).`);
+      }
+    }catch(err){
+      console.error(err);
+      UI.err('Ocurrió un error inesperado al guardar.');
+    }finally{
+      UI.enable(dom.btnAdd);
+    }
   });
 
-  /* ───────── Eliminar fila ───────── */
+  /* ───────── Eliminar fila (local; si quieres server-side, cambia a fetch + reload) ───────── */
   dom.rowsWrap.addEventListener('click',e=>{
     const btn=e.target.closest('.btn-eliminar'); if (!btn) return;
     const pid=btn.dataset.productId;
@@ -340,7 +379,7 @@
     dataTable.row(btn.closest('tr')).remove().draw(false);
   });
 
-  /* ───────── Submit ───────── */
+  /* ───────── Submit (flujo completo opcional) ───────── */
   dom.form.addEventListener('submit',async ev=>{
     ev.preventDefault();
     UI.clearAlerts();
@@ -357,13 +396,15 @@
       if (item && inp) item.cantidad = inp.value.trim();
     });
 
-    $id('id_inventarios_temp').value = JSON.stringify(state.items);
+    if (dom.hiddenTemp){
+      dom.hiddenTemp.value = JSON.stringify(state.items);
+    }
 
     try{
       const resp = await fetch(dom.form.action,{
         method:'POST',
         headers:{
-          'X-CSRFToken': document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1] || '',
+          'X-CSRFToken': getCsrf(),
           'Accept':'application/json'
         },
         body:new FormData(dom.form)
