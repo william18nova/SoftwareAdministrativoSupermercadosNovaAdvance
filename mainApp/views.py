@@ -2852,6 +2852,7 @@ class GenerarVentaView(LoginRequiredMixin, View):
                 return JsonResponse({'success': False, 'error': f'Error al crear la venta: {e!s}'})
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
 
+
 TICKET_WIDTH = 32  # caracteres aprox. para 58mm
 
 def _fmt_money(v):
