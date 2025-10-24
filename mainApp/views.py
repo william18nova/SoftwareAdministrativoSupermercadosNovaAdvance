@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso
-from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField
+from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField, Value, IntegerField, Case, When
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.contrib.auth import authenticate, login as auth_login
 import json
@@ -66,7 +66,7 @@ from django.utils.decorators import method_decorator
 from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, Lower, StrIndex
 import os, io, textwrap, subprocess
 from django.views.decorators.http import require_POST
 
@@ -2851,6 +2851,44 @@ class GenerarVentaView(LoginRequiredMixin, View):
             if getattr(settings, "DEBUG", False):
                 return JsonResponse({'success': False, 'error': f'Error al crear la venta: {e!s}'})
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
+    
+class ProductoSnapshotView(View):
+    """
+    Devuelve un snapshot compacto {id, name, price, stock, barcode} de TODOS
+    los productos con stock>0 en la sucursal dada. Pensado para cachear en el
+    browser y responder AC al instante.
+    """
+    per_hard_limit = 8000  # defensa: tope superior para cargas muy grandes
+
+    def get(self, request, *args, **kwargs):
+      sid = (request.GET.get("sucursal_id") or "").strip()
+      if not sid.isdigit():
+          return JsonResponse({"results": []})
+
+      sid = int(sid)
+      qs = (Producto.objects
+            .filter(inventario__sucursalid=sid, inventario__cantidad__gt=0)  # <-- cambia a >=0 si aceptas ver productos sin stock
+            .values(
+                "productoid",
+                "nombre",
+                "precio",
+                "codigo_de_barras",
+            )
+            .order_by(Lower("nombre"))[:self.per_hard_limit])
+
+      # Mapa de stock por productoid en esa sucursal
+      inv = Inventario.objects.filter(sucursalid=sid, productoid__in=[r["productoid"] for r in qs]).values("productoid", "cantidad")
+      stock_map = { row["productoid"]: int(row["cantidad"]) for row in inv }
+
+      results = [{
+          "id": row["productoid"],
+          "name": row["nombre"],
+          "price": float(row["precio"] or 0),
+          "stock": stock_map.get(row["productoid"], 0),
+          "barcode": row["codigo_de_barras"] or ""
+      } for row in qs]
+
+      return JsonResponse({"results": results})
 
 
 TICKET_WIDTH = 32  # caracteres aprox. para 58mm
@@ -3032,42 +3070,73 @@ class ProductoAutocompleteView(PaginatedAutocompleteMixin):
         if sid:
             return qs.filter(
                 inventario__sucursalid=sid,
-                inventario__cantidad__gt=0
+                inventario__cantidad__gt=0   # cambia a __gte=0 si quieres listar sin stock
             ).distinct()
         return qs.none()
 
-    # override get() para incluir precio/stock
     def get(self, request, *args, **kwargs):
         term = (request.GET.get("term","") or "").strip()
         sid  = (request.GET.get("sucursal_id") or "").strip()
+        limit = int(request.GET.get("limit") or self.per_page)
+
         if not sid.isdigit():
             return JsonResponse({"results": [], "has_more": False})
 
-        qs = self.model.objects.filter(
-            inventario__sucursalid=sid,
-            inventario__cantidad__gt=0
-        ).distinct()
+        sid = int(sid)
+
+        qs = (self.model.objects
+              .filter(inventario__sucursalid=sid,
+                      inventario__cantidad__gt=0)     # política stock
+              .distinct()
+              .annotate(lname=Lower("nombre")))
 
         if term:
-            qs = qs.filter(nombre__icontains=term)
+            lt = term.lower()
+            qs = (
+                qs.filter(lname__contains=lt)
+                  .annotate(
+                      # 0 si empieza por el término, 1 en caso contrario
+                      starts=Case(
+                          When(Q(lname__startswith=lt), then=Value(0)),
+                          default=Value(1),
+                          output_field=IntegerField(),
+                      ),
+                      # posición del término (0 si es match exacto para priorizar)
+                      pos=Case(
+                          When(Q(lname=lt), then=Value(0)),
+                          default=StrIndex(F("lname"), Value(lt)),
+                          output_field=IntegerField(),
+                      ),
+                  )
+                  .order_by("starts", "pos", "lname")
+            )
+        else:
+            qs = qs.order_by("lname")
 
         total = qs.count()
-        qs = qs.select_related().order_by("nombre")[:self.per_page]
 
-        # Trae precio y stock (join a inventario de esa sucursal)
-        inv_map = {inv.productoid_id: inv.cantidad
-                   for inv in Inventario.objects.filter(
-                        productoid__in=qs, sucursalid=int(sid)
-                   )}
+        # payload mínimo y límite razonable
+        qs_vals = list(
+            qs.values("productoid", "nombre", "precio")[:max(5, min(50, limit))]
+        )
+
+        # stock por producto en esa sucursal
+        prod_ids = [r["productoid"] for r in qs_vals]
+        inv_map = {
+            inv["productoid"]: inv["cantidad"]
+            for inv in Inventario.objects.filter(
+                productoid__in=prod_ids, sucursalid=sid
+            ).values("productoid", "cantidad")
+        }
 
         results = [{
-            "id": p.productoid,
-            "text": p.nombre,
-            "precio": float(p.precio or 0),
-            "stock": int(inv_map.get(p.productoid, 0)),
-        } for p in qs]
+            "id": r["productoid"],
+            "text": r["nombre"],
+            "precio": float(r["precio"] or 0),
+            "stock": int(inv_map.get(r["productoid"], 0)),
+        } for r in qs_vals]
 
-        return JsonResponse({"results": results, "has_more": total > self.per_page})
+        return JsonResponse({"results": results, "has_more": total > limit})
 
 class ClienteAutocompleteView(PaginatedAutocompleteMixin):
     """

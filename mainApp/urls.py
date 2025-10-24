@@ -163,6 +163,7 @@ urlpatterns = [
 
 
     path("generar_venta/", views.GenerarVentaView.as_view(), name="generar_venta"),
+    path("api/productos/snapshot/", views.ProductoSnapshotView.as_view(), name="producto_snapshot"),
     path("ventas/imprimir/", views.ImprimirFacturaView.as_view(), name="imprimir_factura"),
     path("ventas/abrir-caja/", views.AbrirCajaView.as_view(),      name="abrir_caja"),
 
