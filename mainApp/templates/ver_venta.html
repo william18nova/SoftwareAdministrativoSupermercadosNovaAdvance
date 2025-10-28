@@ -94,8 +94,24 @@
         <a href="{% url 'visualizar_ventas' %}" class="btn-primary">
           <i class="fas fa-list me-1"></i> Volver a la lista
         </a>
+
+        <!-- NUEVO: Botón imprimir -->
+        <button type="button"
+                id="btn-imprimir-factura"
+                class="btn-primary"
+                data-venta-id="{{ venta.pk }}">
+          <i class="fas fa-print me-1"></i> Imprimir factura
+        </button>
+        <!-- /NUEVO -->
       </div>
     </div>
   </form>
 </div>
+
+<!-- NUEVO: Cargar JS -->
+<script>
+  window.imprimirFacturaUrl = "{% url 'imprimir_factura' %}";
+</script>
+<script src="{% static 'js/ver_venta.js' %}"></script>
+<!-- /NUEVO -->
 {% endblock %}

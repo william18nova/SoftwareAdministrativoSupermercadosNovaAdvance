@@ -190,6 +190,7 @@ urlpatterns = [
     #  … otras urls …
     path('ver_venta/<int:venta_id>/', views.VentaDetailView.as_view(), name='ver_venta'),
     path("cambios/", views.CambiosListView.as_view(), name="visualizar_cambios"),
+    path("ventas/imprimir/", views.ImprimirFacturaView.as_view(), name="imprimir_factura"),
 
     
     
