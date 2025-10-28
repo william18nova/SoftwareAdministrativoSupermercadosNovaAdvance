@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — AC instantáneos + agregado inmediato + atajos (Ctrl & Alt) + modal pagos + SNAPSHOT L1 cache + 🔒 anti-precio-cero");
+  console.log("⚡ generar_venta.js — AC ultra-rápidos + precio en opciones + agregado inmediato + atajos + modal pagos + SNAPSHOT L1 + 🔒 anti-precio-cero + 🤖 autopick código + 🧹 single-alert + ✅ AC Sucursal/Punto con fallback + 🚀 submit rápido + 🔎 búsqueda por ID en Producto");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -14,8 +14,6 @@ $(function () {
   const AC_BARRAS_URL  = window.productoAutocompleteBarrasUrl || PRODUCTO_URL;
   const VERIFICAR_URL  = window.verificarProductoUrl;
   const POR_COD_URL    = window.buscarProductoPorCodigoUrl;
-
-  // 🔥 endpoint súper rápido con catálogo de la sucursal
   const SNAPSHOT_URL   = (window.productoSnapshotUrl || "/api/productos/snapshot/");
 
   /* ================== Agente local ================== */
@@ -37,6 +35,22 @@ $(function () {
   /* ================== Util ================== */
   const money = (n) =>
     new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(Number(n) || 0);
+
+  const fetchJSON = async (url) => {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    try { return await r.json(); } catch { return null; }
+  };
+
+  async function fetchAny(baseUrl, paramsList) {
+    for (const p of paramsList) {
+      const qs = new URLSearchParams(p);
+      const data = await fetchJSON(baseUrl + "?" + qs.toString());
+      const arr = (data && data.results) || [];
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+    return [];
+  }
 
   $.ajaxSetup({
     beforeSend: (xhr, settings) => {
@@ -70,7 +84,6 @@ $(function () {
   const barcodeIndex = new Map();
   const nameIndex    = new Map();
 
-  // 🔥 catálogo local (snapshot) por sucursal
   const catalogBySucursal = new Map();
   const catalogTS         = new Map();
   const CATALOG_TTL_MS    = 5 * 60 * 1000;
@@ -78,11 +91,35 @@ $(function () {
   let inflightNameAC = null;
   let inflightCodeAC = null;
 
-  // foco post-agregado
-  let nextFocusTarget = "code"; // 'code' | 'product'
+  let nextFocusTarget = "code";
 
   const now = () => Date.now();
   const isFresh = (ts) => ts && now() - ts < FRESH_MS;
+
+  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  const onlyDigits = s => String(s||"").replace(/\D+/g,"");
+
+  class LRU {
+    constructor(max=200){ this.max=max; this.map=new Map(); }
+    get(k){ if(!this.map.has(k)) return null; const v=this.map.get(k); this.map.delete(k); this.map.set(k,v); return v; }
+    set(k,v){ if(this.map.has(k)) this.map.delete(k); this.map.set(k,v); if(this.map.size>this.max){ const f=this.map.keys().next().value; this.map.delete(f);} }
+  }
+  const termCacheName  = new LRU(200);
+  const termCacheCode  = new LRU(200);
+
+  const preIndex = new Map(); // sid -> { names:[...], codes:[...], map: Map(id->ref) }
+  function buildPreIndexFor(sid, items){
+    const idx = { names: [], codes: [], map:new Map() };
+    for (const p of items) {
+      const id = p.id;
+      const nname = norm(p.name || "");
+      const nbarcode = p.barcode ? onlyDigits(p.barcode) : "";
+      idx.names.push({ id, nname, label:p.name||"", price:p.price, stock:p.stock, barcode:p.barcode||"" });
+      idx.codes.push({ id, nbarcode, label: p.barcode || p.name || "", price:p.price, stock:p.stock });
+      idx.map.set(String(id), p);
+    }
+    preIndex.set(sid, idx);
+  }
 
   const onlyName = (s) => {
     s = String(s || "").trim();
@@ -148,15 +185,12 @@ $(function () {
     return rec;
   }
 
-  /* ── 🔒 Precio válido siempre ───────────────────────────────────────────── */
   async function ensureValidPrice(pid) {
     const key = String(pid);
     const cached = productCache.get(key);
-    // Si cache reciente y con price válido >0, úsalo
     if (cached && isFresh(cached.ts) && Number.isFinite(cached.price) && cached.price > 0) {
       return cached.price;
     }
-    // Consultar al servidor (fuente de verdad)
     try {
       const r = await $.post(VERIFICAR_URL, { producto_id: pid, cantidad: 1, sucursal_id: sucursalID });
       if (!r || !r.exists) return null;
@@ -186,7 +220,6 @@ $(function () {
     }
     return true;
   }
-  /* ──────────────────────────────────────────────────────────────────────── */
 
   function instantFromPid(pid) {
     const rec = productCache.get(String(pid));
@@ -211,24 +244,7 @@ $(function () {
     return ok;
   }
 
-  /* ============ SNAPSHOT L1 ============ */
-  const norm   = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
-  const tokens = q => norm(q).split(/\s+/).filter(Boolean);
-  const matchesAll = (text, q) => { const t=norm(text), toks=tokens(q); for(const k of toks) if(!t.includes(k)) return false; return true; };
-  const score = (text, q) => {
-    const t=norm(text), s=norm(q); if(!s) return 1;
-    if(t===s) return 1e6; let sc=0;
-    if(t.startsWith(s)) sc+=800;
-    const idx=t.indexOf(s); if(idx>=0) sc += Math.max(0, 500-idx*4);
-    sc += Math.max(0, 150 - Math.abs(t.length-s.length)*6);
-    return sc;
-  };
-  const rankFilter = (arr, q, max=40) =>
-    arr.filter(r=>matchesAll(r.label||r.text||r.name||"",q))
-       .map(r=>({r,sc:score(r.label||r.text||r.name||"",q)}))
-       .sort((a,b)=>b.sc-a.sc || String(a.r.label||a.r.text).localeCompare(String(b.r.label||b.r.text)))
-       .slice(0,max).map(x=>x.r);
-
+  /* ================== SNAPSHOT L1 ================== */
   function hydrateIndicesFromCatalog(sid, items) {
     for (const p of items) {
       updateCache(p.id, {
@@ -250,6 +266,7 @@ $(function () {
       catalogBySucursal.set(sid, arr);
       catalogTS.set(sid, ts);
       hydrateIndicesFromCatalog(sid, arr);
+      buildPreIndexFor(sid, arr);
       return true;
     } catch { return false; }
   }
@@ -266,6 +283,7 @@ $(function () {
       localStorage.setItem(`catalog_${sid}_ts`, String(now()));
     } catch {}
     hydrateIndicesFromCatalog(sid, items);
+    buildPreIndexFor(sid, items);
     return items;
   }
   async function ensureCatalog(sid, {force=false}={}) {
@@ -276,7 +294,7 @@ $(function () {
     catch { return catalogBySucursal.get(sid) || []; }
   }
 
-  /* ================== Agregar al carrito ================== */
+  /* ================== Totales ================== */
   function setTotal(v) {
     runningTotal = v;
     window.runningTotal = v;
@@ -286,12 +304,12 @@ $(function () {
   }
   function addToTotal(delta) { setTotal(runningTotal + (Number(delta) || 0)); }
 
-  // 🔒 Anti-doble agregado (dedupe 350ms por pid)
+  /* ================== Agregar al carrito (dedupe) ================== */
   const lastAddGuard = { pid: null, ts: 0 };
   async function addToCartGuarded(pid, qty = 1) {
     const nowTs = now();
     if (String(lastAddGuard.pid) === String(pid) && (nowTs - lastAddGuard.ts) < 350) {
-      return; // ignorar duplicado instantáneo
+      return;
     }
     lastAddGuard.pid = String(pid);
     lastAddGuard.ts  = nowTs;
@@ -302,7 +320,6 @@ $(function () {
     if (!pid || !qty || qty < 1) return;
     const key = String(pid);
 
-    // 🔒 Asegurar precio válido antes de agregar
     const price = await ensureValidPrice(pid);
     if (!Number.isFinite(price) || price <= 0) {
       alert("No se pudo obtener un precio válido para este producto. Verifique el catálogo/precio.");
@@ -348,7 +365,6 @@ $(function () {
         addToTotal(subtotal);
       }
 
-      // limpiar entradas
       $inpNombre.val("");
       $inpCodeOrBar.val("");
       $pid.val("");
@@ -357,7 +373,6 @@ $(function () {
       focusAfterAdd();
     };
 
-    // Garantizar nombre en cache (para la fila)
     if (!cached || !cached.nombre) {
       try {
         const r = await $.post(VERIFICAR_URL, { producto_id: pid, cantidad: qty, sucursal_id: sucursalID });
@@ -398,9 +413,7 @@ $(function () {
     } catch { return null; }
   }
 
-  /* ==========================================================
-     Autocomplete infra (Bloqueo Alt+Enter + minChars)
-     ========================================================== */
+  /* ================== Infra de Autocomplete ================== */
   function attachAltEnterBypass(inputEl) {
     if (!inputEl) return;
     inputEl.addEventListener("keydown", function(e){
@@ -409,27 +422,42 @@ $(function () {
         $(inputEl).data("skipAcSelectOnce", true);
         try { $(inputEl).autocomplete("close"); } catch (_){}
       }
-    }, true /* useCapture */);
+    }, true);
+  }
+  function blockNavOpenWhenEmpty($inp, minChars) {
+    $inp.on("keydown", function(e){
+      const navKeys = ["ArrowDown","ArrowUp","PageDown","PageUp","Home","End"];
+      if (!navKeys.includes(e.key)) return;
+      const v = this.value || "";
+      if (v.length < minChars) {
+        try { $inp.autocomplete("close"); } catch {}
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      }
+    });
+  }
+  function throttle(fn, ms=120){
+    let t=0, lastArgs=null, lastThis=null, timer=null;
+    return function(...args){
+      const nowTs=Date.now(); lastArgs=args; lastThis=this;
+      const run=()=>{ timer=null; t=nowTs; fn.apply(lastThis,lastArgs); };
+      if (!t || nowTs-t>=ms){ run(); }
+      else { if (!timer) timer=setTimeout(run, ms-(nowTs-t)); }
+    };
   }
 
-  function createAC({ $inp, sourceFn, onSelect, openIfEmpty=true, enableInstantSearch=true, minChars=0 }) {
-    // Adjuntar bypass Alt+Enter ANTES de inicializar el autocomplete
+  function createAC({ $inp, sourceFn, onSelect, openIfEmpty=false, enableInstantSearch=true, minChars=1 }) {
     attachAltEnterBypass($inp[0]);
 
     $inp.autocomplete({
-      minLength: minChars,   // 👈 evita apertura con 0 chars
+      minLength: minChars,
       delay: 0,
       autoFocus: true,
       appendTo: "body",
       position:{ my:"left top+6", at:"left bottom", collision:"flipfit" },
-      source: async (req, resp) => {
-        try {
-          const term = req.term || "";
-          if (term.length < minChars) { resp([]); return; }
-          resp(await sourceFn(term));
-        } catch { resp([]); }
+      source: sourceFn,
+      open(){
+        $inp.autocomplete("widget").css("z-index", 3000);
       },
-      open(){ $inp.autocomplete("widget").css("z-index", 3000); },
       select(_e, ui){
         if ($inp.data("skipAcSelectOnce")) { $inp.data("skipAcSelectOnce", false); return false; }
         if (!ui || !ui.item) return false;
@@ -438,197 +466,283 @@ $(function () {
       }
     });
 
-    // No abrir en focus si no hay suficientes caracteres
-    if (openIfEmpty) {
-      $inp.on("focus", function(){
-        const v = this.value || "";
-        if (v.length < minChars) { try { $inp.autocomplete("close"); } catch {} return; }
-        if (($inp.is($inpNombre) || $inp.is($inpCodeOrBar)) && !hasSucursal()) return;
-        $inp.autocomplete("search", v);
-      });
-    } else {
-      // Aun si openIfEmpty=false, al enfocar cerramos si está corto
-      $inp.on("focus", function(){
-        const v = this.value || "";
-        if (v.length < minChars) { try { $inp.autocomplete("close"); } catch {} }
-      });
-    }
+    $inp.on("focus", function(){
+      const v = this.value || "";
+      if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
+      $inp.autocomplete("search", v);
+    });
 
     if (enableInstantSearch) {
       let raf = null;
       $inp.on("input", function(){
         const v = this.value || "";
-        if (v.length < minChars) { try { $inp.autocomplete("close"); } catch {} return; } // ⛔ cerrar si quedó corto
-        if (($inp.is($inpNombre) || $inp.is($inpCodeOrBar)) && !hasSucursal()) return;
+        if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
         if (raf) cancelAnimationFrame(raf);
         raf = requestAnimationFrame(()=> $inp.autocomplete("search", v));
       });
     }
 
-    // Enter normal: auto-selección (si hay menú). Con modificadores, no.
-    $inp.on("keydown", async function(e){
-      if (e.key !== "Enter") return;
-      if (e.altKey || e.ctrlKey || e.metaKey) return; // no auto-seleccionar si vienen modificadores
-
-      const val = $.trim($inp.val());
-      if (val.length < minChars) return;   // 👈 ignorar Enter si no hay minChars
-
-      const ac = $inp.data("ui-autocomplete");
-      const menuVisible = ac && ac.menu && ac.menu.element.is(":visible");
-      e.preventDefault();
-
-      if (menuVisible) {
-        const $first = ac.menu.element.find("li:visible .ui-menu-item-wrapper").first();
-        if ($first.length) { $first.trigger("mouseenter").trigger("click"); return; }
-      }
-
-      if (!hasSucursal() && ($inp.is($inpNombre) || $inp.is($inpCodeOrBar))) {
-        alert("Seleccione primero la sucursal.");
-        return;
-      }
-
-      let pid = null;
-      if ($inp.is($inpNombre)) {
-        const cat = await ensureCatalog(sucursalID);
-        const items = cat.map(p=>({ id:p.id, name:p.name, label:p.name, value:p.name, price:p.price, stock:p.stock }));
-        const best = rankFilter(items, val, 1)[0];
-        if (best) {
-          updateCache(best.id, { nombre:best.name, precio_unitario:best.price, cantidad_disponible:best.stock });
-          instantFromPid(best.id);
-          pid = best.id;
-        } else {
-          pid = await (async function quickByName(term){
-            try{
-              inflightNameAC?.abort?.();
-              inflightNameAC = new AbortController();
-              const url = PRODUCTO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 15 });
-              const d = await fetch(url, { signal: inflightNameAC.signal }).then(r=> r.ok ? r.json() : {results:[]});
-              const items = (d.results||[]).map(p=>({ id:p.id, name:p.text, label:p.text, value:p.text, price:p.precio, stock:p.stock }));
-              const best = rankFilter(items, term, 1)[0];
-              if (!best) return null;
-              updateCache(best.id, { nombre:best.name, precio_unitario:best.price, cantidad_disponible:best.stock });
-              instantFromPid(best.id);
-              return best.id;
-            }catch{ return null; }
-          })(val);
-        }
-      } else if ($inp.is($inpCodeOrBar)) {
-        if (/^\d{6,}$/.test(val)) {
-          pid = await resolveByBarcode(val);
-          if (!pid) pid = await resolveByProductId(val);
-        } else {
-          const cat = await ensureCatalog(sucursalID);
-          const items = cat.map(p=>({ id:p.id, name:p.name, label:p.name, value:p.name, price:p.price, stock:p.stock }));
-          const best = rankFilter(items, val, 1)[0];
-          if (best) {
-            updateCache(best.id, { nombre:best.name, precio_unitario:best.price, cantidad_disponible:best.stock });
-            instantFromPid(best.id);
-            pid = best.id;
-          } else {
-            pid = await resolveByProductId(val) || await resolveByBarcode(val);
-          }
-        }
-      }
-      if (pid) await addToCartGuarded(pid, 1);
-    });
+    blockNavOpenWhenEmpty($inp, openIfEmpty ? 0 : minChars);
   }
 
-  /* ================== AC por nombre (min 1 char, no abrir en focus) ================== */
-  createAC({
-    $inp: $inpNombre,
-    minChars: 1,
-    openIfEmpty: false,
-    sourceFn: async (term) => {
-      if (!hasSucursal()) return [];
-      const cat = await ensureCatalog(sucursalID);
-      const itemsLocal = cat.map(p => ({
-        id:p.id, name:p.name, label:p.name, value:p.name, price:p.price, stock:p.stock
-      }));
-      const locals = rankFilter(itemsLocal, term, 40);
+  /* === Renderer para mostrar precio en opciones === */
+  function applyPriceTemplate($inp, {mode="name"} = {}) {
+    const inst = $inp.autocomplete("instance");
+    if (!inst) return;
 
+    inst._renderItem = function(ul, item) {
+      const name   = (item.name || item.label || item.value || "").toString();
+      const left = (mode === "code" && item.barcode)
+        ? `<span class="ac-code">${item.label}</span><span class="ac-sep"> — </span><span class="ac-name">${name}</span>`
+        : `<span class="ac-name">${name}</span>`;
+
+      const priceNum = Number(item.price);
+      const right = (Number.isFinite(priceNum) && priceNum > 0)
+        ? `<span class="ac-price">${money(priceNum)}</span>`
+        : "";
+
+      const $li = $("<li>");
+      const $content = $(
+        `<div class="ac-row">
+           <div class="ac-left">${left}</div>
+           <div class="ac-right">${right}</div>
+         </div>`
+      );
+      return $li.append($content).appendTo(ul);
+    };
+  }
+
+  (function injectACStyles(){
+    const css = `
+    .ui-autocomplete .ac-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;max-width:72ch}
+    .ui-autocomplete .ac-left{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ui-autocomplete .ac-code{opacity:.8}
+    .ui-autocomplete .ac-name{font-weight:500}
+    .ui-autocomplete .ac-price{opacity:.85}
+    `;
+    const id = "ac-price-style";
+    if (!document.getElementById(id)) {
+      const tag = document.createElement("style");
+      tag.id = id; tag.textContent = css;
+      document.head.appendChild(tag);
+    }
+  })();
+
+  /* ============ Búsquedas ultra-rápidas ============ */
+  const netSearchName = throttle(async (term, signal) => {
+    const url = PRODUCTO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 40 });
+    const r = await fetch(url, { signal }); if (!r.ok) return [];
+    const d = await r.json().catch(()=>({results:[]}));
+    return (d.results||[]).map(p => ({ id:p.id, name:p.text, label:p.text, value:p.text, price:p.precio, stock:p.stock }));
+  }, 120);
+
+  const netSearchCode = throttle(async (term, signal) => {
+    const [dCod, dBar] = await Promise.all([
+      fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal }).then(r=> r.ok ? r.json() : {results:[]}),
+      fetch(AC_BARRAS_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal }).then(r=> r.ok ? r.json() : {results:[]}),
+    ]);
+    const net = [];
+    const seen = new Set();
+    const push = (p, preferBarcode=false) => {
+      const lbl = preferBarcode ? (p.barcode||p.codigo_de_barras||p.text||String(p.id)) : (p.text||String(p.id));
+      const k = String(p.id)+"::"+(p.barcode||p.codigo_de_barras||"");
+      if (seen.has(k)) return; seen.add(k);
+      net.push({ id:p.id, name:p.text||"", label:lbl, value:lbl, barcode:(p.barcode||p.codigo_de_barras||""), price:p.precio, stock:p.stock });
+    };
+    (dBar.results||[]).forEach(p=> push(p, true));
+    (dCod.results||[]).forEach(p=> push(p, false));
+    return net;
+  }, 120);
+
+  let autoPickGuardTS = 0;
+  function maybeAutoPickBarcode(term, items){
+    const qdigits = onlyDigits(term);
+    const isBarcodeQuery = /^\d{6,}$/.test(qdigits);
+    if (!isBarcodeQuery) return;
+    if (!hasSucursal()) return;
+    if (!Array.isArray(items) || items.length !== 1) return;
+    const nowTs = Date.now();
+    if (nowTs - autoPickGuardTS < 250) return;
+    autoPickGuardTS = nowTs;
+    const item = items[0];
+    updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
+    instantFromPid(item.id);
+    try { $inpCodeOrBar.autocomplete("close"); } catch {}
+    addToCartGuarded(item.id, 1);
+  }
+
+  /* ================== FUENTES de AC ================== */
+  function sourceUltraFastName(req, resp){
+    (async ()=>{
+      const term = (req.term||"").trim();
+      const q = norm(term);
+      if (q.length < 1 || !hasSucursal()) { resp([]); return; }
+
+      const cacheKey = `${sucursalID}|name|${q}`;
+      const cached = termCacheName.get(cacheKey);
+      if (cached) { resp(cached); return; }
+
+      const idx = preIndex.get(sucursalID);
+      let locals = [];
+
+      // 🔎 Búsqueda por ID (si el término son solo dígitos)
+      if (/^\d+$/.test(term)) {
+        let idItem = null;
+        if (idx) {
+          const ref = idx.map.get(String(term));
+          if (ref) {
+            idItem = {
+              id: ref.id,
+              name: ref.name,
+              label: `[ID ${ref.id}] ${ref.name}`,
+              value: ref.name,
+              price: ref.price,
+              stock: ref.stock
+            };
+          }
+        }
+        if (!idItem) {
+          try {
+            const r = await $.post(VERIFICAR_URL, { producto_id: term, cantidad: 1, sucursal_id: sucursalID });
+            if (r && r.exists) {
+              updateCache(r.id, r);
+              idItem = {
+                id: r.id,
+                name: r.nombre,
+                label: `[ID ${r.id}] ${r.nombre}`,
+                value: r.nombre,
+                price: r.precio_unitario ?? r.precio,
+                stock: r.cantidad_disponible ?? r.stock
+              };
+            }
+          } catch {}
+        }
+        if (idItem) {
+          locals.push(idItem); // aparece primero
+          updateCache(idItem.id, { nombre:idItem.name, precio_unitario:idItem.price, cantidad_disponible:idItem.stock });
+        }
+      }
+
+      // Local snapshot por nombre
+      if (idx) {
+        const pref = idx.names.filter(x=> x.nname.startsWith(q)).slice(0, 40);
+        const sub  = idx.names.filter(x=> !x.nname.startsWith(q) && x.nname.includes(q)).slice(0, 40);
+        const mapped = pref.concat(sub)
+          .map(x=>({ id:x.id, name:x.label, label:x.label, value:x.label, price:x.price, stock:x.stock }))
+          .slice(0, 40);
+        // evitar duplicar el que vino por ID
+        const seen = new Set(locals.map(x=>String(x.id)));
+        for (const it of mapped) { if (!seen.has(String(it.id))) locals.push(it); if (locals.length>=40) break; }
+      }
+
+      resp(locals);
+      termCacheName.set(cacheKey, locals);
+
+      // Red: merge (para afinar)
       try {
         inflightNameAC?.abort?.();
         inflightNameAC = new AbortController();
-        const url = PRODUCTO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 40 });
-        const d = await fetch(url, { signal: inflightNameAC.signal }).then(r=> r.ok ? r.json() : {results:[]});
-        const fromNet = (d.results||[]).map(p => ({
-          id:p.id, name:p.text, label:p.text, value:p.text, price:p.precio, stock:p.stock
-        }));
-        fromNet.forEach(p => updateCache(p.id, { nombre:p.name, precio_unitario:p.price, cantidad_disponible:p.stock }));
-        const seen = new Set(locals.map(x=>String(x.id)));
-        for (const r of fromNet) { if (!seen.has(String(r.id))) locals.push(r); if (locals.length>=40) break; }
-      } catch {}
-      return locals.slice(0,40);
-    },
-    onSelect: (item) => {
-      updateCache(item.id, { nombre:item.name, precio_unitario:item.price, cantidad_disponible:item.stock });
-      instantFromPid(item.id);
-      addToCartGuarded(item.id, 1); // dedupe
-    }
-  });
+        const net = await netSearchName(term, inflightNameAC.signal);
+        if (!Array.isArray(net) || !net.length) return;
 
-  /* ================== AC código/barras (min 1 char, no abrir en focus) ================== */
-  createAC({
-    $inp: $inpCodeOrBar,
-    minChars: 1,
-    openIfEmpty: false,
-    sourceFn: async (term) => {
-      if (!hasSucursal()) return [];
-      const wantBarras = /^\d{6,}$/.test(term);
-      const cat = await ensureCatalog(sucursalID);
-      const base = [];
-      const push = (o) => { if (!o) return; base.push(o); };
-      for (const p of cat) {
-        const bLabel = p.barcode || "";
-        if (wantBarras && bLabel) {
-          push({ id:p.id, name:p.name, label:bLabel, value:bLabel, barcode:bLabel, price:p.price, stock:p.stock });
+        net.forEach(p => updateCache(p.id, { nombre:p.name, precio_unitario:p.price, cantidad_disponible:p.stock }));
+        const seen = new Set(locals.map(x=>String(x.id)));
+        const merged = locals.slice();
+        for (const r of net) { if (!seen.has(String(r.id))) merged.push(r); if (merged.length>=40) break; }
+        termCacheName.set(cacheKey, merged);
+        if (norm(String($("#producto_busqueda_nombre").val()||"")) === q) resp(merged);
+      } catch {}
+    })();
+  }
+
+  function sourceUltraFastCode(req, resp){
+    (async ()=>{
+      const term = (req.term||"").trim();
+      const qname = norm(term);
+      const qdigits = onlyDigits(term);
+      if (qname.length < 1 || !hasSucursal()) { resp([]); return; }
+
+      const cacheKey = `${sucursalID}|code|${qname}|${qdigits}`;
+      const cached = termCacheCode.get(cacheKey);
+      if (cached) {
+        resp(cached);
+        maybeAutoPickBarcode(term, cached);
+        return;
+      }
+
+      const idx = preIndex.get(sucursalID);
+      let locals = [];
+      if (idx) {
+        if (/^\d{1,}$/.test(qdigits)) {
+          const pref = idx.codes.filter(x=> x.nbarcode && x.nbarcode.startsWith(qdigits)).slice(0, 40);
+          const sub  = idx.codes.filter(x=> x.nbarcode && !x.nbarcode.startsWith(qdigits) && x.nbarcode.includes(qdigits)).slice(0, 40);
+          locals = pref.concat(sub)
+                    .map(x=>({ id:x.id, name: idx.map.get(String(x.id))?.name || "", label:(idx.map.get(String(x.id))?.barcode || x.label || String(x.id)), value:(idx.map.get(String(x.id))?.barcode || x.label || String(x.id)), barcode:(idx.map.get(String(x.id))?.barcode || ""), price:x.price, stock:x.stock }))
+                    .slice(0, 40);
         } else {
-          push({ id:p.id, name:p.name, label:p.name, value:p.name, barcode:p.barcode||"", price:p.price, stock:p.stock });
+          const pref = idx.names.filter(x=> x.nname.startsWith(qname)).slice(0, 40);
+          const sub  = idx.names.filter(x=> !x.nname.startsWith(qname) && x.nname.includes(qname)).slice(0, 40);
+          locals = pref.concat(sub)
+            .map(x=>({ id:x.id, name:x.label, label:x.label, value:x.label, price:x.price, stock:x.stock }))
+            .slice(0, 40);
         }
       }
-      let locals = wantBarras
-        ? base.filter(x => (x.label||"").includes(term)).slice(0, 40)
-        : rankFilter(base, term, 40);
+      resp(locals);
+      termCacheCode.set(cacheKey, locals);
+      maybeAutoPickBarcode(term, locals);
 
       try {
         inflightCodeAC?.abort?.();
         inflightCodeAC = new AbortController();
-        const [dCod, dBar] = await Promise.all([
-          fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal: inflightCodeAC.signal }).then(r=> r.ok ? r.json() : {results:[]}),
-          fetch(AC_BARRAS_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal: inflightCodeAC.signal }).then(r=> r.ok ? r.json() : {results:[]}),
-        ]);
-        const net = [];
-        const seenKV = new Set();
-        const add = (p, preferBarcode=false) => {
-          const lbl = preferBarcode ? (p.barcode||p.codigo_de_barras||p.text||String(p.id)) : (p.text||String(p.id));
-          const key = String(p.id) + "::" + (p.barcode||p.codigo_de_barras||"");
-          if (seenKV.has(key)) return;
-          seenKV.add(key);
-          net.push({ id:p.id, name:p.text||"", label:lbl, value:lbl, barcode:(p.barcode||p.codigo_de_barras||""), price:p.precio, stock:p.stock });
-        };
-        (dBar.results||[]).forEach(p=> add(p, true));
-        (dCod.results||[]).forEach(p=> add(p, false));
+        const net = await Promise.resolve(netSearchCode(term, inflightCodeAC.signal));
+        if (!Array.isArray(net) || !net.length) return;
 
         net.forEach(p => updateCache(p.id, { nombre:p.name||p.value, barcode:p.barcode, precio_unitario:p.price, cantidad_disponible:p.stock }));
-        const already = new Set(locals.map(x=>String(x.id)+"::"+(x.barcode||"")));
+        const seenKV = new Set(locals.map(x=> String(x.id)+"::"+(x.barcode||"")));
+        const merged = locals.slice();
         for (const r of net) {
-          const k=String(r.id)+"::"+(r.barcode||"");
-          if (!already.has(k)) locals.push(r);
-          if (locals.length>=40) break;
+          const k = String(r.id)+"::"+(r.barcode||"");
+          if (!seenKV.has(k)) merged.push(r);
+          if (merged.length>=40) break;
+        }
+        termCacheCode.set(cacheKey, merged);
+
+        if (norm(String($("#codigo_o_barras").val()||"")) === qname) {
+          resp(merged);
+          maybeAutoPickBarcode(term, merged);
         }
       } catch {}
+    })();
+  }
 
-      if (wantBarras) locals.sort((a,b)=> (b.barcode?1:0) - (a.barcode?1:0));
-      return locals.slice(0, 40);
-    },
+  /* ================== Crear AC (Productos) ================== */
+  createAC({
+    $inp: $inpNombre,
+    minChars: 1,
+    openIfEmpty: false,
+    sourceFn: sourceUltraFastName,
+    onSelect: (item) => {
+      updateCache(item.id, { nombre:item.name, precio_unitario:item.price, cantidad_disponible:item.stock });
+      instantFromPid(item.id);
+      addToCartGuarded(item.id, 1);
+    }
+  });
+  applyPriceTemplate($inpNombre, { mode: "name" });
+
+  createAC({
+    $inp: $inpCodeOrBar,
+    minChars: 1,
+    openIfEmpty: false,
+    sourceFn: sourceUltraFastCode,
     onSelect: (item) => {
       updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
       instantFromPid(item.id);
-      addToCartGuarded(item.id, 1); // dedupe
+      addToCartGuarded(item.id, 1);
     }
   });
+  applyPriceTemplate($inpCodeOrBar, { mode: "code" });
 
-  /* ================== Prefill & precarga ================== */
+  /* ================== Prefill ================== */
   if (sucursalID) {
     $("#sucursal_autocomplete").val(localStorage.getItem("sucursalName") || "");
     $("#sucursal_id").val(sucursalID);
@@ -639,12 +753,29 @@ $(function () {
     $("#puntopago_id").val(savedPunto.id);
   }
 
-  // Sucursal
+  /* ================== Sucursal / Punto de pago (con Fallback robusto) ================== */
+  const LS_SUC = "ac_sucursales_cache";
+  const LS_PP  = (sid)=>`ac_puntos_cache_${sid||"none"}`;
+
   createAC({
     $inp: $("#sucursal_autocomplete"),
-    sourceFn: async (term) => {
-      const d = await fetch(SUCURSAL_URL + "?" + new URLSearchParams({ term })).then(r=> r.ok ? r.json() : {results:[]});
-      return (d.results||[]).map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
+    minChars: 0,
+    openIfEmpty: true,
+    sourceFn: async (term, resp) => {
+      const results = await fetchAny(SUCURSAL_URL, [
+        { term: term || "", limit: 50 },
+        { limit: 50 },
+        { term: " ", limit: 50 }
+      ]);
+      let items = results.map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
+
+      if (!items.length) {
+        try { items = JSON.parse(localStorage.getItem(LS_SUC) || "[]"); } catch { items = []; }
+      } else {
+        try { localStorage.setItem(LS_SUC, JSON.stringify(items)); } catch {}
+      }
+
+      resp(items);
     },
     onSelect: async ({ id, label }) => {
       sucursalID = String(id).match(/\d+/)?.[0] || "";
@@ -663,16 +794,32 @@ $(function () {
       }
       enableQtyAndAdd(false);
       await ensureCatalog(sucursalID, { force:true });
+      termCacheName.set(`${sucursalID}|name|__warm__`, []);
+      termCacheCode.set(`${sucursalID}|code|__warm__`, []);
     }
   });
 
-  // Punto de pago
   createAC({
     $inp: $("#puntopago_autocomplete"),
-    sourceFn: async (term) => {
-      if (!hasSucursal()) return [];
-      const d = await fetch(PUNTOPAGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID })).then(r=> r.ok ? r.json() : {results:[]});
-      return (d.results||[]).map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
+    minChars: 0,
+    openIfEmpty: true,
+    sourceFn: async (term, resp) => {
+      if (!hasSucursal()) { resp([]); return; }
+      const results = await fetchAny(PUNTOPAGO_URL, [
+        { term: term || "", sucursal_id: sucursalID, limit: 50 },
+        { sucursal_id: sucursalID, limit: 50 },
+        { term: " ", sucursal_id: sucursalID, limit: 50 }
+      ]);
+      let items = results.map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
+
+      const key = LS_PP(sucursalID);
+      if (!items.length) {
+        try { items = JSON.parse(localStorage.getItem(key) || "[]"); } catch { items = []; }
+      } else {
+        try { localStorage.setItem(key, JSON.stringify(items)); } catch {}
+      }
+
+      resp(items);
     },
     onSelect: ({ id, label }) => {
       $("#puntopago_autocomplete").val(label);
@@ -683,11 +830,12 @@ $(function () {
     }
   });
 
-  // Cliente
+  /* ================== Cliente ================== */
   createAC({
     $inp: $inpCliente,
     sourceFn: async (term) => {
-      const d = await fetch(CLIENTE_URL + "?" + new URLSearchParams({ term })).then(r=> r.ok ? r.json() : {results:[]});
+      const d = await fetch(CLIENTE_URL + "?" + new URLSearchParams({ term }))
+        .then(r=> r.ok ? r.json() : {results:[]});
       return (d.results||[]).map(c=>({ id:c.id, label:c.text, value:c.text, name:c.text }));
     },
     onSelect: ({ id, label }) => {
@@ -697,18 +845,17 @@ $(function () {
   });
 
   /* ================== UX inputs ================== */
-  $inpNombre.on("input", function(){ const nm=$.trim(this.value); if (nm) instantFromName(nm); });
-  $inpCodeOrBar.on("input", function(){ const v=$.trim(this.value); if (v) { if (/^\d{6,}$/.test(v)) instantFromBarcode(v); else instantFromPid(v); } });
+  $inpNombre.on("input", function(){ const nm=$.trim(this.value); if (nm) { if(/^\d+$/.test(nm)) { /* búsqueda por ID: nada extra, el AC ya lo maneja */ } instantFromName(nm); } else { try { $inpNombre.autocomplete("close"); } catch {} } });
+  $inpCodeOrBar.on("input", function(){ const v=$.trim(this.value); if (v) { if (/^\d{6,}$/.test(v)) instantFromBarcode(v); else instantFromPid(v); } else { try { $inpCodeOrBar.autocomplete("close"); } catch {} } });
 
   $agregar.off("click").on("click", async () => {
     const pid = $pid.val();
     const qty = parseInt($cantidad.val(), 10);
     if (!pid || !qty || qty < 1) { alert("Datos inválidos."); return; }
     nextFocusTarget = "code";
-    await addToCartGuarded(pid, qty); // dedupe
+    await addToCartGuarded(pid, qty);
   });
 
-  // Enter en cantidad global: agregar → volver a PRODUCTO
   $cantidad.off("keydown").on("keydown", async function (e) {
     if (e.key === "Enter" && !$agregar.prop("disabled")) {
       e.preventDefault();
@@ -716,7 +863,7 @@ $(function () {
       const qty = parseInt($cantidad.val(), 10);
       if (!pid || !qty || qty < 1) { alert("Datos inválidos."); return; }
       nextFocusTarget = "product";
-      await addToCartGuarded(pid, qty); // dedupe
+      await addToCartGuarded(pid, qty);
       $cantidad.blur();
       setTimeout(() => {
         $inpNombre.focus(); $inpNombre[0]?.select?.();
@@ -726,17 +873,12 @@ $(function () {
     }
   });
 
-  // Editar cantidad inline
   $tbody.on("input change", ".qty-input", async function () {
     const $row  = $(this).closest("tr");
     const pid   = $row.data("pid").toString();
 
-    // 🔒 asegurar precio no-cero de la fila antes de recalcular
     const okPrice = await refreshRowPriceIfNeeded($row);
-    if (!okPrice) {
-      alert("No se pudo actualizar el precio de este producto. Revise el catálogo.");
-      return;
-    }
+    if (!okPrice) { alert("No se pudo actualizar el precio de este producto. Revise el catálogo."); return; }
     const price = Number($row.data("price")) || 0;
 
     let newQty  = parseInt(this.value, 10);
@@ -753,7 +895,6 @@ $(function () {
     addToTotal(price * (newQty - oldQty));
   });
 
-  // Enter en cualquier qty-input del carrito → ir a PRODUCTO (nombre)
   $tbody.on("keydown", ".qty-input", function (e) {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -766,7 +907,6 @@ $(function () {
     }, 0);
   });
 
-  // Eliminar fila con botón
   $tbody.on("click", ".eliminar-producto", function () {
     const $row = $(this).closest("tr");
     const pid = $row.data("pid").toString();
@@ -778,7 +918,6 @@ $(function () {
     $row.remove();
   });
 
-  // Vaciar carrito
   $btnVaciar.on("click", function(){
     if (!productos.length) return;
     if (!confirm("¿Vaciar todo el carrito?")) return;
@@ -788,7 +927,6 @@ $(function () {
     setTotal(0);
   });
 
-  // Filtro carrito
   $buscarCart.on("keyup", function () {
     const t = $(this).val().toLowerCase();
     $tbody.find("tr").each(function () { $(this).toggle($(this).text().toLowerCase().includes(t)); });
@@ -799,34 +937,27 @@ $(function () {
   const $efOptions  = $("#efectivo-options");
   const $amountIn   = $("#monto-recibido");
   const $changeOut  = $("#cambio");
-  const $confirmBtn = $("#confirmar-pago");
 
   function setCashPlaceholderToTotal() {
     $amountIn.attr("placeholder", money(runningTotal));
   }
 
-  // ABRIR MODAL (equivale a pulsar el botón "Generar venta")
   $("#generar-venta").off("click").on("click", async () => {
     if (!productos.length) return alert("Agregue productos.");
     if (!hasSucursal() || !$("#puntopago_id").val()) return alert("Seleccione sucursal y punto de pago.");
 
-    // 🔒 pre-chequeo: ninguna fila con precio 0
     const $bad = $tbody.find("tr").filter((_, tr) => {
       const p = Number($(tr).data("price"));
       return !Number.isFinite(p) || p <= 0;
     });
 
     if ($bad.length) {
-      // Intentar refrescar todas
       let allOk = true;
       for (const tr of $bad.toArray()) {
         const ok = await refreshRowPriceIfNeeded($(tr));
         if (!ok) allOk = false;
       }
-      if (!allOk) {
-        alert("Hay productos con precio inválido. Corrija antes de continuar.");
-        return;
-      }
+      if (!allOk) { alert("Hay productos con precio inválido. Corrija antes de continuar."); return; }
     }
 
     $amountIn.val("");
@@ -834,19 +965,15 @@ $(function () {
     $("#modal-total").text(money(runningTotal));
 
     $("input[name='payment_method']").prop("checked", false);
-    $("#efectivo").prop("checked", true);
-    $efOptions.show();
-    setCashPlaceholderToTotal();
+    $("#efectivo").prop("checked", true).trigger("change");
 
     $modal.show();
     setTimeout(() => { $amountIn.focus().select(); }, 0);
   });
 
-  // Botón cerrar / clic fuera
   $(".close").click(() => $modal.hide());
   $(window).on("click", (e) => { if (e.target === $modal[0]) $modal.hide(); });
 
-  // ESC dentro del MODAL → cerrar
   $(document).on("keydown", function (e) {
     if (!$modal.is(":visible")) return;
     if (e.key === "Escape") {
@@ -857,7 +984,6 @@ $(function () {
     }
   });
 
-  // Mostrar/Ocultar efectivo
   $(document).on("change", "input[name='payment_method']", function () {
     const isCash = this.value === "efectivo";
     $efOptions.toggle(isCash);
@@ -871,7 +997,6 @@ $(function () {
     }
   });
 
-  // Click en contenedor radio = seleccionar
   $(document).on("click", ".radio-wrap", function (e) {
     if (e.target.tagName !== "INPUT") {
       $(this).find("input[type=radio]").prop("checked", true).trigger("change");
@@ -879,7 +1004,6 @@ $(function () {
     $(this).closest(".modal-content").attr("tabindex","-1").focus();
   });
 
-  // Calcular cambio live
   $amountIn.on("input", function () {
     const val = (this.value || "").trim();
     const received = val === "" ? runningTotal : (parseFloat(val) || 0);
@@ -887,9 +1011,8 @@ $(function () {
     $changeOut.text(change >= 0 ? `Cambio: ${money(change)}` : "");
   });
 
-  // Enter en monto → confirmar
   $amountIn.on("keydown", function (e) {
-    if (e.key === "Enter") { e.preventDefault(); $confirmBtn.click(); }
+    if (e.key === "Enter") { e.preventDefault(); $("#confirmar-pago").trigger("click"); }
   });
 
   // Atajos Alt+1/2/3 SOLO para el MODAL
@@ -919,127 +1042,99 @@ $(function () {
     }
   });
 
-  // ✅ Alt+Espacio: si modal abierto → confirmar; si no, abrir modal
+  // Alt+Espacio y Alt+Enter
   $(document).on("keydown", function (e) {
     const isAltSpace = e.altKey && !e.ctrlKey && !e.metaKey && (e.code === "Space" || e.key === " ");
-    if (!isAltSpace) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    if ($("#myModal").is(":visible")) {
-      $("#confirmar-pago").click();
-    } else {
-      $("#generar-venta").trigger("click");
-    }
-  });
-
-  // 🆕 ✅ Alt+Enter: EXACTAMENTE igual a pulsar el botón "Generar venta"
-  $(document).on("keydown", function (e) {
+    if (isAltSpace) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if ($("#myModal").is(":visible")) $("#confirmar-pago").trigger("click"); else $("#generar-venta").trigger("click"); return; }
     const isAltEnter = e.key === "Enter" && e.altKey && !e.ctrlKey && !e.metaKey;
-    if (!isAltEnter) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    $("#generar-venta").trigger("click");
+    if (isAltEnter) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); $("#generar-venta").trigger("click"); }
   });
 
-  // Confirmar pago (con confirm invertido para imprimir)
-  $confirmBtn.click(() => {
-    const m = $("input[name='payment_method']:checked").val();
-    if (!m) return alert("Seleccione medio de pago.");
-
-    if (m === "efectivo") {
-      const raw = ($amountIn.val() || "").trim();
-      const received = raw === "" ? runningTotal : (parseFloat(raw) || 0);
-      if (raw !== "" && received < runningTotal) return alert("Monto recibido insuficiente.");
-      if (raw === "") $amountIn.val(String(received));
-    }
-
-    $("#medio_pago").val(m);
-    $modal.hide();
-    $("#venta-form").submit();
-  });
-
-  /* ================== Agente local helpers ================== */
+  /* ================== Agente local helpers (silenciosos) ================== */
   async function agentPrint(text) {
-    const url = POS_AGENT_URL + "/print";
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Pos-Agent-Token": POS_AGENT_TOKEN
-      },
-      body: JSON.stringify({ text })
-    });
-    if (!resp.ok) throw new Error("Agente /print devolvió " + resp.status);
-    return resp.json().catch(()=>({}));
+    try {
+      const resp = await fetch(POS_AGENT_URL + "/print", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Pos-Agent-Token": POS_AGENT_TOKEN },
+        body: JSON.stringify({ text })
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      return resp.json().catch(()=>({}));
+    } catch (e) { console.warn("[POS_AGENT] print falló:", e); return null; }
   }
   async function agentKick() {
-    const url = POS_AGENT_URL + "/kick";
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN }
-    });
-    if (!resp.ok) throw new Error("Agente /kick devolvió " + resp.status);
-    return resp.json().catch(()=>({}));
+    try {
+      const resp = await fetch(POS_AGENT_URL + "/kick", {
+        method: "POST",
+        headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN }
+      });
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      return resp.json().catch(()=>({}));
+    } catch (e) { console.warn("[POS_AGENT] kick falló:", e); return null; }
   }
 
-  /* ================== Submit con CAMBIO + confirm invertido ================== */
-  $("#venta-form").submit(function (e) {
+  /* ================== Submit (alert único con Total y Cambio) — 🚀 rápido ================== */
+  $("#venta-form").off("submit").on("submit", function (e) {
     e.preventDefault();
 
-    // 🔒 validación extra: no enviar si alguna fila tiene precio inválido
     const $bad = $tbody.find("tr").filter((_, tr) => {
       const p = Number($(tr).data("price"));
       return !Number.isFinite(p) || p <= 0;
     });
-    if ($bad.length) {
-      alert("Hay productos con precio inválido en el carrito. Corrija antes de confirmar.");
-      return;
-    }
+    if ($bad.length) { alert("Hay productos con precio inválido en el carrito. Corrija antes de confirmar."); return; }
 
     $.post($(this).attr("action"), $(this).serialize())
       .done(async (r) => {
-        if (!r || !r.success) {
-          alert((r && r.error) || "Error");
-          return;
-        }
+        if (!r || !r.success) { alert((r && r.error) || "Error"); return; }
 
         const metodo   = ($("#medio_pago").val() || "").toLowerCase();
         const efectivo = metodo === "efectivo";
+        const totalNum = (window.runningTotal || runningTotal || 0);
         const raw = ($("#monto-recibido").val() || "").trim();
-        const recibido = efectivo ? (raw === "" ? (window.runningTotal || runningTotal || 0) : (parseFloat(raw) || 0)) : 0;
-        const cambio   = efectivo ? Math.max(0, recibido - (window.runningTotal || runningTotal || 0)) : 0;
-        const cambioTxt = efectivo ? `\n\nCambio a entregar: ${money(cambio)}` : "";
+        const recibido = efectivo ? (raw === "" ? totalNum : (parseFloat(raw) || 0)) : 0;
+        const cambio   = efectivo ? Math.max(0, recibido - totalNum) : 0;
 
-        const quiereNoImprimir = confirm(
-          "✅ Venta generada.\n\n" +
-          "Para IMPRIMIR la factura elija «Cancelar».\n" +
-          "Para NO imprimir, elija «Aceptar»."
-        );
+        const mensaje = [
+          "✅ Venta generada.",
+          `Total: ${money(totalNum)}`,
+          efectivo ? `Cambio a entregar: ${money(cambio)}` : "",
+          "",
+          "¿Desea OMITIR la impresión de la factura?",
+          "— Aceptar: NO imprimir (solo abrir gaveta).",
+          "— Cancelar: Imprimir (y abrir gaveta)."
+        ].filter(Boolean).join("\n");
 
-        try {
-          if (!quiereNoImprimir) { // Cancelar → imprimir
-            await agentPrint(r.receipt_text || "Factura\n\n");
-            await new Promise(res => setTimeout(res, 200));
-            await agentKick();
-            alert(`Factura enviada a la impresora y gaveta abierta.${cambioTxt}`);
-          } else { // Aceptar → no imprimir
-            await agentKick();
-            alert(`Gaveta abierta.${cambioTxt}`);
-          }
-        } catch (err) {
-          console.error(err);
-          alert(
-            "La venta fue creada, pero no se pudo comunicar con el agente local.\n" +
-            "¿Está abierto el agente en este equipo? (127.0.0.1:8787)\n" +
-            "Detalle: " + err.message + cambioTxt
-          );
+        const omitirImpresion = confirm(mensaje);
+
+        if (omitirImpresion) {
+          await agentKick();
+        } else {
+          await agentPrint(r.receipt_text || "Factura\n\n");
+          await new Promise(res => setTimeout(res, 200));
+          await agentKick();
         }
 
         location.reload();
       })
       .fail(() => alert("Error de red"));
+  });
+
+  /* ================== CLICK CONFIRM ROBUSTO ================== */
+  $(document).off("click.confirmPago").on("click.confirmPago", "#confirmar-pago", function (e) {
+    e.preventDefault();
+    const m = $("input[name='payment_method']:checked").val();
+    if (!m) { alert("Seleccione medio de pago."); return; }
+
+    if (m === "efectivo") {
+      const raw = ($("#monto-recibido").val() || "").trim();
+      const received = raw === "" ? runningTotal : (parseFloat(raw) || 0);
+      if (raw !== "" && received < runningTotal) { alert("Monto recibido insuficiente."); return; }
+      if (raw === "") $("#monto-recibido").val(String(received));
+    }
+
+    $("#medio_pago").val(m);
+    $("#myModal").hide();
+    $("#venta-form").trigger("submit");
   });
 
   /* ================== Atajos Ctrl + 0..4 ================== */
@@ -1094,7 +1189,7 @@ $(function () {
 
   /* ================== ESC: eliminar primer item del carrito ================== */
   $(document).on("keydown", function (e) {
-    if ($("#myModal").is(":visible")) return; // no borrar si modal visible
+    if ($("#myModal").is(":visible")) return;
     if (e.key !== "Escape") return;
 
     const $first = $tbody.find("tr:visible").first();
@@ -1128,7 +1223,7 @@ $(function () {
           $inpCodeOrBar.val(code);
           try { $inpCodeOrBar.autocomplete("close"); } catch (_){}
           if (!hasSucursal()) { alert("Seleccione primero la sucursal."); return; }
-          resolveByBarcode(code).then(pid => { if (pid) addToCartGuarded(pid, 1); }); // dedupe
+          resolveByBarcode(code).then(pid => { if (pid) addToCartGuarded(pid, 1); });
           return;
         }
         reset(); return;
@@ -1149,10 +1244,6 @@ $(function () {
   /* ================== Init ================== */
   enableQtyAndAdd(false);
   if (!POS_AGENT_TOKEN) {
-    console.warn("[POS_AGENT] Token vacío: el agente rechazará la petición (401). Verifica el context_processor y settings.");
+    console.warn("[POS_AGENT] Token vacío: el agente rechazará la petición (401).");
   }
-
-  // Sugerencia anti-autocompletado del navegador (HTML):
-  // <input id="producto_busqueda_nombre" autocomplete="off">
-  // <input id="codigo_o_barras" autocomplete="off">
 });
