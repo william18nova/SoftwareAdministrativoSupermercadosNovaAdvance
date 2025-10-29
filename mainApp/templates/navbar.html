@@ -2,7 +2,9 @@
 
 <nav class="nv">
   <div class="nv__left">
-    <button class="nv__burger" id="nvBurger" aria-label="Abrir menú">
+    <!-- + Accesibilidad -->
+    <button class="nv__burger" id="nvBurger" aria-label="Abrir menú"
+            aria-controls="nvLinks" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
 
@@ -149,7 +151,7 @@
       </ul>
     </li>
 
-    {# ============= Permisos (NUEVO) ============= #}
+    {# ============= Permisos ============= #}
     <li class="nv__item has-dd {% if '/permisos' in request.path and '/roles_permisos' not in request.path %}is-parent-active{% endif %}">
       <a href="{{ list_perm_url }}">Permisos</a>
       <ul class="nv__dd">
@@ -210,23 +212,20 @@
         <li><a href="{{ gen_venta_url }}">Generar venta</a></li>
         <li><a href="{{ list_venta_url }}">Visualizar ventas</a></li>
         <li><a href="{{ cambios_url }}">Cambios / Devoluciones</a></li>
-        {# NUEVO #}
         <li><a href="{{ ventas_diarias_url }}">Ventas diarias</a></li>
       </ul>
     </li>
 
-    {# ============= Pedidos a Proveedor ============= #}
+    {# ============= Pedidos ============= #}
     <li class="nv__item has-dd {% if '/pedido' in request.path or '/pedidos' in request.path %}is-parent-active{% endif %}">
       <a href="{{ list_pedido_url }}">Pedidos</a>
       <ul class="nv__dd">
         <li><a href="{{ add_pedido_url }}">Agregar pedido</a></li>
         <li><a href="{{ list_pedido_url }}">Visualizar pedidos</a></li>
-        {# NUEVO #}
         <li><a href="{{ pedidos_pagados_url }}">Pedidos pagados</a></li>
       </ul>
     </li>
 
-    {# ============= Roles ↔ Permisos (NUEVO, acceso directo) ============= #}
     <li>
       <a href="{{ roles_permisos_url }}"
          class="{% if '/roles_permisos' in request.path %}is-active{% endif %}">
@@ -234,7 +233,6 @@
       </a>
     </li>
 
-    {# ============= Cerrar sesión ============= #}
     {% if user.is_authenticated %}
     <li>
       <form method="post" action="{% url 'logout' %}" style="display:inline;">

@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — AC ultra-rápidos + precio en opciones + agregado inmediato + atajos + modal pagos + SNAPSHOT L1 + 🔒 anti-precio-cero + 🤖 autopick código + 🧹 single-alert + ✅ AC Sucursal/Punto con fallback + 🚀 submit rápido + 🔎 búsqueda por ID en Producto");
+  console.log("⚡ generar_venta.js — AC ultra-rápidos + precio en opciones + agregado inmediato + atajos + modal pagos + SNAPSHOT L1 + 🔒 anti-precio-cero + 🤖 autopick código + 🧹 single-alert + ✅ AC Sucursal/Punto con fallback + 🚀 submit rápido + 🔎 búsqueda por ID en Producto + 🛡️ burst last-only");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -304,7 +304,7 @@ $(function () {
   }
   function addToTotal(delta) { setTotal(runningTotal + (Number(delta) || 0)); }
 
-  /* ================== Agregar al carrito (dedupe) ================== */
+  /* ================== Agregar al carrito (antidoble + burst last-only) ================== */
   const lastAddGuard = { pid: null, ts: 0 };
   async function addToCartGuarded(pid, qty = 1) {
     const nowTs = now();
@@ -314,6 +314,19 @@ $(function () {
     lastAddGuard.pid = String(pid);
     lastAddGuard.ts  = nowTs;
     await addToCart(pid, qty);
+  }
+
+  // --- BURST "LAST ONLY": si en una ventana corta entran 2+ adds, solo ejecuta el ÚLTIMO ---
+  const burstAdd = { timer: null, last: null, windowMs: 200 }; // puedes ajustar 180–250ms
+  function addToCartLastOnly(pid, qty = 1) {
+    if (!pid || !qty || qty < 1) return;
+    burstAdd.last = { pid: String(pid), qty: Number(qty) || 1 };
+    if (burstAdd.timer) clearTimeout(burstAdd.timer);
+    burstAdd.timer = setTimeout(() => {
+      burstAdd.timer = null;
+      const { pid: p, qty: q } = burstAdd.last || {};
+      addToCartGuarded(p, q); // encadena con el guard anti-doble
+    }, burstAdd.windowMs);
   }
 
   async function addToCart(pid, qty = 1) {
@@ -568,7 +581,7 @@ $(function () {
     updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
     instantFromPid(item.id);
     try { $inpCodeOrBar.autocomplete("close"); } catch {}
-    addToCartGuarded(item.id, 1);
+    addToCartLastOnly(item.id, 1); // 👈 last-only
   }
 
   /* ================== FUENTES de AC ================== */
@@ -724,7 +737,7 @@ $(function () {
     onSelect: (item) => {
       updateCache(item.id, { nombre:item.name, precio_unitario:item.price, cantidad_disponible:item.stock });
       instantFromPid(item.id);
-      addToCartGuarded(item.id, 1);
+      addToCartLastOnly(item.id, 1); // 👈 last-only
     }
   });
   applyPriceTemplate($inpNombre, { mode: "name" });
@@ -737,7 +750,7 @@ $(function () {
     onSelect: (item) => {
       updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
       instantFromPid(item.id);
-      addToCartGuarded(item.id, 1);
+      addToCartLastOnly(item.id, 1); // 👈 last-only
     }
   });
   applyPriceTemplate($inpCodeOrBar, { mode: "code" });
@@ -845,7 +858,7 @@ $(function () {
   });
 
   /* ================== UX inputs ================== */
-  $inpNombre.on("input", function(){ const nm=$.trim(this.value); if (nm) { if(/^\d+$/.test(nm)) { /* búsqueda por ID: nada extra, el AC ya lo maneja */ } instantFromName(nm); } else { try { $inpNombre.autocomplete("close"); } catch {} } });
+  $inpNombre.on("input", function(){ const nm=$.trim(this.value); if (nm) { if(/^\d+$/.test(nm)) { /* búsqueda por ID manejada en el AC */ } instantFromName(nm); } else { try { $inpNombre.autocomplete("close"); } catch {} } });
   $inpCodeOrBar.on("input", function(){ const v=$.trim(this.value); if (v) { if (/^\d{6,}$/.test(v)) instantFromBarcode(v); else instantFromPid(v); } else { try { $inpCodeOrBar.autocomplete("close"); } catch {} } });
 
   $agregar.off("click").on("click", async () => {
@@ -853,7 +866,7 @@ $(function () {
     const qty = parseInt($cantidad.val(), 10);
     if (!pid || !qty || qty < 1) { alert("Datos inválidos."); return; }
     nextFocusTarget = "code";
-    await addToCartGuarded(pid, qty);
+    await addToCartLastOnly(pid, qty); // 👈 last-only
   });
 
   $cantidad.off("keydown").on("keydown", async function (e) {
@@ -863,7 +876,7 @@ $(function () {
       const qty = parseInt($cantidad.val(), 10);
       if (!pid || !qty || qty < 1) { alert("Datos inválidos."); return; }
       nextFocusTarget = "product";
-      await addToCartGuarded(pid, qty);
+      await addToCartLastOnly(pid, qty); // 👈 last-only
       $cantidad.blur();
       setTimeout(() => {
         $inpNombre.focus(); $inpNombre[0]?.select?.();
@@ -1223,7 +1236,7 @@ $(function () {
           $inpCodeOrBar.val(code);
           try { $inpCodeOrBar.autocomplete("close"); } catch (_){}
           if (!hasSucursal()) { alert("Seleccione primero la sucursal."); return; }
-          resolveByBarcode(code).then(pid => { if (pid) addToCartGuarded(pid, 1); });
+          resolveByBarcode(code).then(pid => { if (pid) addToCartLastOnly(pid, 1); }); // 👈 last-only
           return;
         }
         reset(); return;

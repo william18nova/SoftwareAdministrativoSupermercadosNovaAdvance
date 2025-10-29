@@ -2774,7 +2774,9 @@ class GenerarVentaView(LoginRequiredMixin, View):
 
         ahora = timezone.localtime()
         head = [
-            line("NOVA"),
+            line("NOVA POS"),
+            line("SUPER MERCADO VILLA CAFE"),
+            line("NIT: 1.005.813.837-6"),
             line("FACTURA"),
             lr("Fecha:", ahora.strftime("%Y-%m-%d %H:%M")),
             lr("Sucursal:", venta_data.get("sucursal_nombre","")),
@@ -2851,7 +2853,7 @@ class GenerarVentaView(LoginRequiredMixin, View):
             if getattr(settings, "DEBUG", False):
                 return JsonResponse({'success': False, 'error': f'Error al crear la venta: {e!s}'})
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
-    
+
 class ProductoSnapshotView(View):
     """
     Devuelve un snapshot compacto {id, name, price, stock, barcode} de TODOS
@@ -2913,7 +2915,7 @@ def _build_ticket(venta: Venta) -> bytes:
     out += _wrap("NOVA ADVANCE")
     out += _wrap("NIT: 900.000.000-1")
     out.append(_line())
-    out += _wrap(f"Factura #{venta.pk}")
+    out += _wrap(f"NIT: 1.005.813.837-6 #{venta.pk}")
     out += _wrap(f"Fecha: {venta.fecha}  {venta.hora.strftime('%H:%M')}")
     out += _wrap(f"Sucursal: {venta.sucursalid.nombre}")
     if getattr(venta, "clienteid", None):
