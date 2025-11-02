@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — AC ultra-rápidos + precio en opciones + agregado inmediato + atajos + modal pagos + SNAPSHOT L1 + 🔒 anti-precio-cero + 🤖 autopick código + 🧹 single-alert + ✅ AC Sucursal/Punto con fallback + 🚀 submit rápido + 🔎 búsqueda por ID en Producto + 🛡️ burst last-only");
+  console.log("⚡ generar_venta.js — AC ultra-rápidos + precio en opciones + agregado inmediato + atajos + modal pagos + SNAPSHOT L1 + 🔒 anti-precio-cero + 🤖 autopick código + 🧹 single-alert + ✅ AC Sucursal/Punto con fallback + 🚀 submit rápido + 🔎 por ID + 🛡️ burst last-only + 🧯 anti-total-negativo + 🧪 qty-sanitize + 🧲 anti-escaner-en-cantidad + sin límite de cantidad (sin confirm de cantidades altas)");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -34,7 +34,8 @@ $(function () {
 
   /* ================== Util ================== */
   const money = (n) =>
-    new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(Number(n) || 0);
+    new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" })
+      .format(Number(n) || 0);
 
   const fetchJSON = async (url) => {
     const r = await fetch(url);
@@ -63,7 +64,8 @@ $(function () {
   });
 
   /* ================== Estado persistido ================== */
-  let sucursalID = (localStorage.getItem("sucursalID") || "").toString().match(/\d+/)?.[0] || "";
+  let sucursalID = (localStorage.getItem("sucursalID") || "")
+                    .toString().match(/\d+/)?.[0] || "";
   const savedPunto = {
     id:  localStorage.getItem("puntopagoID") || "",
     name:localStorage.getItem("puntopagoName") || "",
@@ -96,7 +98,8 @@ $(function () {
   const now = () => Date.now();
   const isFresh = (ts) => ts && now() - ts < FRESH_MS;
 
-  const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  const norm = s => (s||"").toLowerCase()
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
   const onlyDigits = s => String(s||"").replace(/\D+/g,"");
 
   class LRU {
@@ -294,15 +297,38 @@ $(function () {
     catch { return catalogBySucursal.get(sid) || []; }
   }
 
-  /* ================== Totales ================== */
+  /* ================== Totales (🧯 nunca negativos) ================== */
   function setTotal(v) {
-    runningTotal = v;
-    window.runningTotal = v;
-    $totalEl.text(money(runningTotal));
+    const safe = Math.max(0, Number(v) || 0);
+    runningTotal = safe;
+    window.runningTotal = safe;
+    $totalEl.text(money(safe));
     $("#productos").val(JSON.stringify(productos));
     $("#cantidades").val(JSON.stringify(cantidades));
   }
-  function addToTotal(delta) { setTotal(runningTotal + (Number(delta) || 0)); }
+  function addToTotal(delta) {
+    const next = (Number(runningTotal) || 0) + (Number(delta) || 0);
+    setTotal(next); // setTotal ya clamp a ≥ 0
+  }
+
+  /* ================== Cantidad: sanitizar (sin tope) ================== */
+  const clampQty = (x) => {
+    const n = parseInt(String(x).replace(/\D+/g, ""), 10);
+    if (!Number.isFinite(n) || n < 1) return 1;
+    return n; // sin límite superior ni confirm
+  };
+
+  // Bloquea teclas no numéricas en #cantidad
+  $cantidad.on("keydown", function(e){
+    const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key);
+    if (ok) return;
+    if (!/^\d$/.test(e.key)) e.preventDefault();
+  });
+  // Limpia pegados raros
+  $cantidad.on("input blur", function(){
+    const digits = (this.value||"").replace(/\D+/g,"");
+    this.value = clampQty(digits);
+  });
 
   /* ================== Agregar al carrito (antidoble + burst last-only) ================== */
   const lastAddGuard = { pid: null, ts: 0 };
@@ -316,8 +342,8 @@ $(function () {
     await addToCart(pid, qty);
   }
 
-  // --- BURST "LAST ONLY": si en una ventana corta entran 2+ adds, solo ejecuta el ÚLTIMO ---
-  const burstAdd = { timer: null, last: null, windowMs: 200 }; // puedes ajustar 180–250ms
+  // --- BURST "LAST ONLY": si en ventana corta entran 2+, solo ejecuta el ÚLTIMO ---
+  const burstAdd = { timer: null, last: null, windowMs: 200 };
   function addToCartLastOnly(pid, qty = 1) {
     if (!pid || !qty || qty < 1) return;
     burstAdd.last = { pid: String(pid), qty: Number(qty) || 1 };
@@ -325,7 +351,7 @@ $(function () {
     burstAdd.timer = setTimeout(() => {
       burstAdd.timer = null;
       const { pid: p, qty: q } = burstAdd.last || {};
-      addToCartGuarded(p, q); // encadena con el guard anti-doble
+      addToCartGuarded(p, q);
     }, burstAdd.windowMs);
   }
 
@@ -348,7 +374,7 @@ $(function () {
 
       if (idx > -1) {
         const $row = $tbody.find(`tr[data-pid='${pid}']`);
-        const newQty = cantidades[idx] + qtyAdd;
+        const newQty = Math.max(1, (cantidades[idx] + qtyAdd)|0);
         cantidades[idx] = newQty;
 
         $row.attr("data-qty", newQty);
@@ -359,13 +385,14 @@ $(function () {
         $row.find(".subtotal-cell").text(money(price * newQty));
         addToTotal(price * qtyAdd);
       } else {
+        const safeQty = Math.max(1, qtyAdd|0);
         productos.push(key);
-        cantidades.push(qtyAdd);
-        const subtotal = price * qtyAdd;
+        cantidades.push(safeQty);
+        const subtotal = price * safeQty;
         $tbody.prepend(`
-          <tr data-pid="${pid}" data-price="${price}" data-qty="${qtyAdd}">
+          <tr data-pid="${pid}" data-price="${price}" data-qty="${safeQty}">
             <td data-id="${pid}">${onlyName(nombre)}</td>
-            <td><input type="number" class="qty-input" min="1" value="${qtyAdd}" /></td>
+            <td><input type="number" class="qty-input" min="1" inputmode="numeric" pattern="\\d*" value="${safeQty}" /></td>
             <td class="price-cell">${money(price)}</td>
             <td class="subtotal-cell">${money(subtotal)}</td>
             <td class="text-center">
@@ -386,6 +413,7 @@ $(function () {
       focusAfterAdd();
     };
 
+    // hidrata cache si falta
     if (!cached || !cached.nombre) {
       try {
         const r = await $.post(VERIFICAR_URL, { producto_id: pid, cantidad: qty, sucursal_id: sucursalID });
@@ -581,7 +609,7 @@ $(function () {
     updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
     instantFromPid(item.id);
     try { $inpCodeOrBar.autocomplete("close"); } catch {}
-    addToCartLastOnly(item.id, 1); // 👈 last-only
+    addToCartLastOnly(item.id, 1);
   }
 
   /* ================== FUENTES de AC ================== */
@@ -598,7 +626,7 @@ $(function () {
       const idx = preIndex.get(sucursalID);
       let locals = [];
 
-      // 🔎 Búsqueda por ID (si el término son solo dígitos)
+      // 🔎 Búsqueda por ID
       if (/^\d+$/.test(term)) {
         let idItem = null;
         if (idx) {
@@ -631,7 +659,7 @@ $(function () {
           } catch {}
         }
         if (idItem) {
-          locals.push(idItem); // aparece primero
+          locals.push(idItem);
           updateCache(idItem.id, { nombre:idItem.name, precio_unitario:idItem.price, cantidad_disponible:idItem.stock });
         }
       }
@@ -643,7 +671,6 @@ $(function () {
         const mapped = pref.concat(sub)
           .map(x=>({ id:x.id, name:x.label, label:x.label, value:x.label, price:x.price, stock:x.stock }))
           .slice(0, 40);
-        // evitar duplicar el que vino por ID
         const seen = new Set(locals.map(x=>String(x.id)));
         for (const it of mapped) { if (!seen.has(String(it.id))) locals.push(it); if (locals.length>=40) break; }
       }
@@ -651,7 +678,7 @@ $(function () {
       resp(locals);
       termCacheName.set(cacheKey, locals);
 
-      // Red: merge (para afinar)
+      // Red
       try {
         inflightNameAC?.abort?.();
         inflightNameAC = new AbortController();
@@ -737,7 +764,7 @@ $(function () {
     onSelect: (item) => {
       updateCache(item.id, { nombre:item.name, precio_unitario:item.price, cantidad_disponible:item.stock });
       instantFromPid(item.id);
-      addToCartLastOnly(item.id, 1); // 👈 last-only
+      addToCartLastOnly(item.id, 1);
     }
   });
   applyPriceTemplate($inpNombre, { mode: "name" });
@@ -750,7 +777,7 @@ $(function () {
     onSelect: (item) => {
       updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
       instantFromPid(item.id);
-      addToCartLastOnly(item.id, 1); // 👈 last-only
+      addToCartLastOnly(item.id, 1);
     }
   });
   applyPriceTemplate($inpCodeOrBar, { mode: "code" });
@@ -858,25 +885,68 @@ $(function () {
   });
 
   /* ================== UX inputs ================== */
-  $inpNombre.on("input", function(){ const nm=$.trim(this.value); if (nm) { if(/^\d+$/.test(nm)) { /* búsqueda por ID manejada en el AC */ } instantFromName(nm); } else { try { $inpNombre.autocomplete("close"); } catch {} } });
-  $inpCodeOrBar.on("input", function(){ const v=$.trim(this.value); if (v) { if (/^\d{6,}$/.test(v)) instantFromBarcode(v); else instantFromPid(v); } else { try { $inpCodeOrBar.autocomplete("close"); } catch {} } });
-
-  $agregar.off("click").on("click", async () => {
-    const pid = $pid.val();
-    const qty = parseInt($cantidad.val(), 10);
-    if (!pid || !qty || qty < 1) { alert("Datos inválidos."); return; }
-    nextFocusTarget = "code";
-    await addToCartLastOnly(pid, qty); // 👈 last-only
+  $inpNombre.on("input", function(){
+    const nm=$.trim(this.value);
+    if (nm) {
+      if(/^\d+$/.test(nm)) { /* búsqueda por ID manejada en el AC */ }
+      instantFromName(nm);
+    } else { try { $inpNombre.autocomplete("close"); } catch {} }
+  });
+  $inpCodeOrBar.on("input", function(){
+    const v=$.trim(this.value);
+    if (v) {
+      if (/^\d{6,}$/.test(v)) instantFromBarcode(v);
+      else instantFromPid(v);
+    } else { try { $inpCodeOrBar.autocomplete("close"); } catch {} }
   });
 
-  $cantidad.off("keydown").on("keydown", async function (e) {
+  /* ================== Antiescáner en CANTIDAD (ráfaga → va a código) ================== */
+  (function guardScannerOnQty(){
+    const MIN_CHARS = 8, GAP_MS = 35;
+    let buf="", first=0, last=0, timer=null;
+    function reset(){ buf=""; first=0; last=0; if(timer){clearTimeout(timer); timer=null;} }
+
+    $cantidad.on("keydown", function(e){
+      if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
+      if (e.key === "Enter") { reset(); return; }
+
+      if (e.key && e.key.length === 1) {
+        const t = Date.now();
+        if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
+        if (!buf) first = t;
+        buf += e.key; last = t;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(reset, GAP_MS*5);
+
+        if (buf.length >= MIN_CHARS) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          const code = buf; reset();
+          $inpCodeOrBar.val(code);
+          try { $inpCodeOrBar.autocomplete("close"); } catch (_){}
+          if (!hasSucursal()) { alert("Seleccione primero la sucursal."); return; }
+          resolveByBarcode(code).then(pid => { if (pid) addToCartLastOnly(pid, 1); });
+        }
+      }
+    });
+  })();
+
+  /* ================== Botones/agregado ================== */
+  $agregar.off("click").on("click", async () => {
+    const pid = $pid.val();
+    const qty = clampQty($cantidad.val());
+    if (!pid || !qty || qty < 1) { alert("Datos inválidos."); return; }
+    nextFocusTarget = "code";
+    await addToCartLastOnly(pid, qty);
+  });
+
+  $cantidad.off("keydown.confirm").on("keydown.confirm", async function (e) {
     if (e.key === "Enter" && !$agregar.prop("disabled")) {
       e.preventDefault();
       const pid = $pid.val();
-      const qty = parseInt($cantidad.val(), 10);
+      const qty = clampQty($cantidad.val());
       if (!pid || !qty || qty < 1) { alert("Datos inválidos."); return; }
       nextFocusTarget = "product";
-      await addToCartLastOnly(pid, qty); // 👈 last-only
+      await addToCartLastOnly(pid, qty);
       $cantidad.blur();
       setTimeout(() => {
         $inpNombre.focus(); $inpNombre[0]?.select?.();
@@ -890,12 +960,13 @@ $(function () {
     const $row  = $(this).closest("tr");
     const pid   = $row.data("pid").toString();
 
+    // sanitiza el valor (sin confirmaciones)
+    let newQty  = clampQty($(this).val());
+    $(this).val(newQty);
+
     const okPrice = await refreshRowPriceIfNeeded($row);
     if (!okPrice) { alert("No se pudo actualizar el precio de este producto. Revise el catálogo."); return; }
     const price = Number($row.data("price")) || 0;
-
-    let newQty  = parseInt(this.value, 10);
-    if (!newQty || newQty < 1) newQty = 1;
 
     const oldQty = Number($row.attr("data-qty")) || 0;
     if (newQty === oldQty) return;
@@ -909,15 +980,18 @@ $(function () {
   });
 
   $tbody.on("keydown", ".qty-input", function (e) {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    this.blur();
-    setTimeout(() => {
-      $inpNombre.focus();
-      $inpNombre[0]?.select?.();
-      const v = $inpNombre.val() || "";
-      if (v.length >= 1) { try { $inpNombre.autocomplete("search", v); } catch {} }
-    }, 0);
+    const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End","Enter"].includes(e.key);
+    if (!ok && !/^\d$/.test(e.key)) e.preventDefault();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      this.blur();
+      setTimeout(() => {
+        $inpNombre.focus();
+        $inpNombre[0]?.select?.();
+        const v = $inpNombre.val() || "";
+        if (v.length >= 1) { try { $inpNombre.autocomplete("search", v); } catch {} }
+      }, 0);
+    }
   });
 
   $tbody.on("click", ".eliminar-producto", function () {
@@ -925,7 +999,7 @@ $(function () {
     const pid = $row.data("pid").toString();
     const idx = productos.indexOf(pid);
     const price = Number($row.data("price")) || 0;
-    const qty   = Number($row.attr("data-qty")) || Number($row.find(".qty-input").val()) || 0;
+    const qty   = clampQty($row.attr("data-qty") || $row.find(".qty-input").val());
     addToTotal(-(price * qty));
     if (idx > -1) { productos.splice(idx, 1); cantidades.splice(idx, 1); }
     $row.remove();
@@ -1058,7 +1132,11 @@ $(function () {
   // Alt+Espacio y Alt+Enter
   $(document).on("keydown", function (e) {
     const isAltSpace = e.altKey && !e.ctrlKey && !e.metaKey && (e.code === "Space" || e.key === " ");
-    if (isAltSpace) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if ($("#myModal").is(":visible")) $("#confirmar-pago").trigger("click"); else $("#generar-venta").trigger("click"); return; }
+    if (isAltSpace) {
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      if ($("#myModal").is(":visible")) $("#confirmar-pago").trigger("click"); else $("#generar-venta").trigger("click");
+      return;
+    }
     const isAltEnter = e.key === "Enter" && e.altKey && !e.ctrlKey && !e.metaKey;
     if (isAltEnter) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); $("#generar-venta").trigger("click"); }
   });
@@ -1211,14 +1289,14 @@ $(function () {
     e.preventDefault(); e.stopPropagation();
     const pid   = String($first.data("pid") || "");
     const price = Number($first.data("price")) || 0;
-    const qty   = Number($first.attr("data-qty")) || Number($first.find(".qty-input").val()) || 0;
+    const qty   = clampQty($first.attr("data-qty") || $first.find(".qty-input").val());
     addToTotal(-(price * qty));
     const idx = productos.indexOf(pid);
     if (idx > -1) { productos.splice(idx, 1); cantidades.splice(idx, 1); }
     $first.remove();
   });
 
-  /* ================== Detector de pistola (escáner) ================== */
+  /* ================== Detector global de pistola (escáner) ================== */
   (function globalScannerDetector() {
     const MIN_CHARS = 8, GAP_MS = 35;
     let buf="", first=0, last=0, idleTimer=null;
@@ -1236,7 +1314,7 @@ $(function () {
           $inpCodeOrBar.val(code);
           try { $inpCodeOrBar.autocomplete("close"); } catch (_){}
           if (!hasSucursal()) { alert("Seleccione primero la sucursal."); return; }
-          resolveByBarcode(code).then(pid => { if (pid) addToCartLastOnly(pid, 1); }); // 👈 last-only
+          resolveByBarcode(code).then(pid => { if (pid) addToCartLastOnly(pid, 1); });
           return;
         }
         reset(); return;
