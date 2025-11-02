@@ -1,3 +1,4 @@
+// static/javascript/ventas_diarias.js
 (function(){
   "use strict";
 
@@ -17,6 +18,7 @@
   const sucInp = $("#sucursal_ac"), sucHid = $("#sucursal_id"), sucBox = $("#sucursal_box");
   const ppInp  = $("#pp_ac"),        ppHid  = $("#pp_id"),        ppBox  = $("#pp_box");
   const fecha  = $("#fecha");
+  const modo   = $("#modo");
   const mVentas = $("#m-ventas"), mTotal = $("#m-total");
 
   // ---- AUTOCOMPLETE (simple + paginado) ----
@@ -37,19 +39,21 @@
 
     function fetchPage(q, p, replace=true){
       const extra = extraParamsFn? extraParamsFn() : {};
-      const qs = new URLSearchParams({term:q||"", page:String(p), ...extra}).toString();
+      const qs = new URLSearchParams({term:q || "", page:String(p), ...extra}).toString();
       const key = qs;
 
-      if(cache[key]){ render(cache[key].results||[], replace); more=!!cache[key].has_more; }
-      if(xhr && xhr.readyState!==4){ try{ xhr.abort(); }catch(e){} }
-      const my = ++req; loading=true;
+      if(cache[key]){ render(cache[key].results || [], replace); more = !!cache[key].has_more; }
+      if(xhr && xhr.readyState !== 4){ try{ xhr.abort(); }catch(e){} }
+      const my = ++req; loading = true;
 
-      xhr = fetch(`${url}?${qs}`).then(r=>r.json()).then(data=>{
-        cache[key]=data||{results:[],has_more:false};
-        if(my!==req) return;
-        render((data.results||[]), replace);
-        more=!!data.has_more;
-      }).catch(()=>{}).finally(()=> loading=false);
+      xhr = fetch(`${url}?${qs}`)
+        .then(r=>r.json())
+        .then(data=>{
+          cache[key] = data || {results:[], has_more:false};
+          if(my !== req) return;
+          render((data.results || []), replace);
+          more = !!data.has_more;
+        }).catch(()=>{}).finally(()=> loading=false);
     }
 
     inp.addEventListener("input", ()=>{
@@ -89,15 +93,22 @@
   // al elegir sucursal → habilita PP y limpia datos
   sucInp.addEventListener("ac:selected", ()=>{
     ppInp.disabled = false;
-    ppInp.value=""; ppHid.value=""; mVentas.textContent="—"; mTotal.textContent="—";
+    ppInp.value=""; ppHid.value="";
+    mVentas.textContent="—"; mTotal.textContent="—";
   });
 
-  // recalcular al cambiar cualquiera de los 3
+  // recalcular al cambiar cualquiera de los 3 (+ modo)
   function maybeFetch(){
-    const sid = sucHid.value, pid = ppHid.value, f = fecha.value;
+    const sid = sucHid.value, pid = ppHid.value, f = fecha.value, m = (modo.value || "TOTAL");
     if(!(sid && pid && f)) return;
 
-    const qs = new URLSearchParams({sucursal_id:sid, puntopago_id:pid, fecha:f}).toString();
+    const qs = new URLSearchParams({
+      sucursal_id: sid,
+      puntopago_id: pid,
+      fecha: f,
+      modo: m
+    }).toString();
+
     fetch(`${statsUrl}?${qs}`).then(r=>r.json()).then(data=>{
       if(!data.success){ flash(false, data.error || "Error"); return; }
       mVentas.textContent = String(data.num_ventas || 0);
@@ -107,4 +118,5 @@
 
   ppInp.addEventListener("ac:selected", maybeFetch);
   fecha.addEventListener("change", maybeFetch);
+  modo.addEventListener("change", maybeFetch);
 })();

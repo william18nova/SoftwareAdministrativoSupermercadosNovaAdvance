@@ -66,7 +66,7 @@ from django.utils.decorators import method_decorator
 from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
-from django.db.models.functions import Coalesce, Lower, StrIndex
+from django.db.models.functions import Upper, Lower, StrIndex
 import os, io, textwrap, subprocess
 from django.views.decorators.http import require_POST
 
@@ -4218,10 +4218,12 @@ class SucursalParaVentasAutocomplete(LoginRequiredMixin, View):
         page = int(request.GET.get("page") or 1)
 
         sub = PuntosPago.objects.filter(sucursalid=OuterRef("pk"))
-        qs = (Sucursal.objects
-              .annotate(has_pp=Exists(sub))
-              .filter(has_pp=True)
-              .order_by("nombre"))
+        qs = (
+            Sucursal.objects
+            .annotate(has_pp=Exists(sub))
+            .filter(has_pp=True)
+            .order_by("nombre")
+        )
 
         if term:
             qs = qs.filter(nombre__icontains=term)
@@ -4231,7 +4233,6 @@ class SucursalParaVentasAutocomplete(LoginRequiredMixin, View):
         data = [{"id": s.pk, "text": s.nombre} for s in qs[start:end]]
         return JsonResponse({"results": data, "has_more": end < total})
 
-
 class PuntoPagoParaVentasAutocomplete(LoginRequiredMixin, View):
     """Autocomplete de puntos de pago filtrados por sucursal."""
     PAGE = PAGE_SIZE
@@ -4239,10 +4240,10 @@ class PuntoPagoParaVentasAutocomplete(LoginRequiredMixin, View):
     def get(self, request):
         term = (request.GET.get("term") or "").strip()
         page = int(request.GET.get("page") or 1)
-        sid  = request.GET.get("sucursal_id")
+        sid = request.GET.get("sucursal_id")
 
         qs = PuntosPago.objects.all().order_by("nombre")
-        if sid and sid.isdigit():
+        if sid and str(sid).isdigit():
             qs = qs.filter(sucursalid_id=int(sid))
         if term:
             qs = qs.filter(nombre__icontains=term)
@@ -4254,29 +4255,65 @@ class PuntoPagoParaVentasAutocomplete(LoginRequiredMixin, View):
 
 
 class VentasDiariasStatsView(LoginRequiredMixin, View):
-    """Devuelve {count, total} para (sucursal, puntopago, fecha)"""
+    """
+    Devuelve {num_ventas, total_vendido} para (sucursal, puntopago, fecha) y modo de pago.
+    Usa Venta.mediopago (case-insensitive).
+
+    Modos soportados desde el front:
+      - TOTAL      → no filtra por método
+      - EFECTIVO   → filtra mediopago ∈ {EFECTIVO, CASH, EF}
+      - NEQUI      → filtra mediopago ∈ {NEQUI}
+      - DAVIPLATA  → filtra mediopago ∈ {DAVIPLATA, DAVI}
+    """
+    # Normalizaciones aceptadas (todas en mayúscula)
+    METODO_ALIASES = {
+        "EFECTIVO": {"EFECTIVO", "CASH", "EF"},
+        "NEQUI": {"NEQUI"},
+        "DAVIPLATA": {"DAVIPLATA", "DAVI", "DAVI PLATA"},
+    }
+
     def get(self, request):
-        sid = request.GET.get("sucursal_id")
-        pid = request.GET.get("puntopago_id")
-        f   = request.GET.get("fecha")
+        sid  = request.GET.get("sucursal_id")
+        pid  = request.GET.get("puntopago_id")
+        f    = request.GET.get("fecha")
+        modo = (request.GET.get("modo") or "TOTAL").upper().strip()
 
         if not (sid and pid and f):
             return JsonResponse({"success": False, "error": "Parámetros incompletos."}, status=400)
 
-        suc = get_object_or_404(Sucursal, pk=sid)
-        pp  = get_object_or_404(PuntosPago, pk=pid, sucursalid=suc)
+        suc = get_object_or_404(Sucursal, pk=sid)                 # pk → sucursalid
+        pp  = get_object_or_404(PuntosPago, pk=pid, sucursalid=suc)  # pk → puntopagoid
 
-        # fecha viene yyyy-mm-dd
+        # fecha yyyy-mm-dd
         try:
             fecha = timezone.datetime.fromisoformat(f).date()
         except Exception:
             return JsonResponse({"success": False, "error": "Fecha inválida."}, status=400)
 
+        # Base: ventas del punto de pago en esa fecha
         qs = Venta.objects.filter(puntopagoid=pp, fecha=fecha)
-        agg = qs.aggregate(num=Count("ventaid"), total=Sum("total"))
+
+        # TOTAL: sin discriminar método
+        if modo == "TOTAL":
+            agg = qs.aggregate(num=Count("ventaid"), total=Sum("total"))
+            return JsonResponse({
+                "success": True,
+                "num_ventas": int(agg["num"] or 0),
+                "total_vendido": float(agg["total"] or 0),
+            })
+
+        # Filtrado por método usando Venta.mediopago (case-insensitive)
+        met_aliases = self.METODO_ALIASES.get(modo)
+        if not met_aliases:
+            return JsonResponse({"success": False, "error": "Modo de pago inválido."}, status=400)
+
+        # Normalizamos a mayúsculas para comparar sin importar el casing almacenado
+        qs_met = qs.annotate(_mp=Upper("mediopago")).filter(_mp__in=met_aliases)
+        agg = qs_met.aggregate(num=Count("ventaid"), total=Sum("total"))
+
         return JsonResponse({
             "success": True,
-            "num_ventas": agg["num"] or 0,
+            "num_ventas": int(agg["num"] or 0),
             "total_vendido": float(agg["total"] or 0),
         })
 

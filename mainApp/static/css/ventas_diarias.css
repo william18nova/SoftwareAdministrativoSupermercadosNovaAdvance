@@ -1,3 +1,4 @@
+/* static/css/ventas_diarias.css */
 /* Fuente y tokens coherentes con “Nova” */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
@@ -18,7 +19,7 @@ body{
     linear-gradient(135deg,var(--bg-1),var(--bg-2));
 }
 
-/* wrapper centrado respetando navbar (usa .page-wrap de tu layout si la tienes) */
+/* wrapper centrado respetando navbar */
 .vd-wrap{
   width:100%; min-height:calc(100svh - 80px);
   display:flex; align-items:center; justify-content:center;
@@ -46,14 +47,44 @@ h2 i{ color:var(--brand); margin-right:8px; }
 }
 .vd-label{ font-weight:700; color:var(--text-muted); }
 .vd-field{ position:relative; }
-.vd-field i{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); }
+.vd-field i{
+  position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  color:var(--text-muted);
+}
+
+/* inputs base (text/date/select comparten look) */
 .vd-input{
-  width:100%; height:44px; padding:0 12px 0 38px;
+  width:100%; height:44px;
+  padding:0 12px 0 38px; /* espacio para icono izquierdo */
   border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.22);
   background:rgba(255,255,255,.10); color:var(--text);
-  outline:none; transition:.2s;
+  font-size:15px; line-height:1.4;
+  outline:none; transition:.2s border-color, .2s box-shadow, .2s background;
 }
-.vd-input:focus{ border-color:var(--ring); box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 50%, transparent); }
+.vd-input:hover{ background:rgba(255,255,255,.14); }
+.vd-input:focus{
+  border-color:var(--ring);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 45%, transparent);
+}
+
+/* SELECT mejorado: flecha SVG, padding derecho extra */
+select.vd-input{
+  appearance:none; -webkit-appearance:none; -moz-appearance:none;
+  cursor:pointer;
+  padding-right:42px;              /* espacio para flecha */
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23d8e8ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  background-size:16px;
+}
+select.vd-input::-ms-expand{ display:none; }
+
+/* Opciones del desplegable (depende del SO/navegador, pero mejora contraste) */
+select.vd-input option{
+  background:#fff; color:#0b1220;
+  font-weight:600;
+}
 
 /* autocomplete */
 .ac-box{
@@ -76,10 +107,16 @@ h2 i{ color:var(--brand); margin-right:8px; }
 
 /* alerts */
 .alert{
-  display:block; padding:12px 14px; border-radius:12px; font-weight:700; margin-bottom:12px; border:1px solid transparent;
+  display:block; padding:12px 14px; border-radius:12px; font-weight:700;
+  margin-bottom:12px; border:1px solid transparent;
 }
-.alert-success{ background: color-mix(in srgb,#16a34a 18%, white); color:#064e1a; border-color: color-mix(in srgb,#16a34a 38%, white); }
-.alert-error  { background: rgba(255,77,95,.18); color:#ff4d5f; border-color: rgba(255,140,150,.65); }
+.alert-success{
+  background: color-mix(in srgb,#16a34a 18%, white);
+  color:#064e1a; border-color: color-mix(in srgb,#16a34a 38%, white);
+}
+.alert-error{
+  background: rgba(255,77,95,.18); color:#ff4d5f; border-color: rgba(255,140,150,.65);
+}
 
 /* responsive */
 @media (max-width:768px){
