@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — instant add + live pricing bg + AC ultra + snapshot L1 + ID search + anti-zero + burst last-only (60ms) + anti-scanner + atajos + modal + POS Agent");
+  console.log("⚡ generar_venta.js — instant add + AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -33,11 +33,15 @@ $(function () {
   const $btnVaciar  = $("#vaciar-carrito");
 
   /* ================== CSRF / Ajax ================== */
+  function getCSRF() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : "";
+  }
   $.ajaxSetup({
     beforeSend: (xhr, settings) => {
       if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)) {
-        const m = document.cookie.match(/csrftoken=([^;]+)/);
-        if (m) xhr.setRequestHeader("X-CSRFToken", m[1]);
+        const t = getCSRF();
+        if (t) xhr.setRequestHeader("X-CSRFToken", t);
       }
     },
     cache: true,
@@ -80,16 +84,13 @@ $(function () {
   let runningTotal = 0;
   let lastAddedPid = null;
 
-  // Defer pesados (serialize) al idle
   const defer = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 150 }) : setTimeout(fn, 0));
-
   function syncHiddenFields() {
     defer(() => {
       $("#productos").val(JSON.stringify(productos));
       $("#cantidades").val(JSON.stringify(cantidades));
     });
   }
-
   function setTotal(v) {
     const safe = Math.max(0, Number(v) || 0);
     runningTotal = safe;
@@ -101,7 +102,6 @@ $(function () {
   }
 
   /* ================== Cache producto ================== */
-  const FRESH_MS = 120000;
   const productCache = new Map(); // pid -> {nombre, barcode, price, stock, ts}
   const barcodeIndex = new Map(); // barcode -> pid
   const nameIndex    = new Map(); // name(lc) -> pid
@@ -129,6 +129,7 @@ $(function () {
   const catalogBySucursal = new Map();
   const catalogTS = new Map();
   const CATALOG_TTL_MS = 5 * 60 * 1000;
+  const preIndex = new Map(); // sid -> {names:[...], codes:[...], map: Map(id->ref)}
 
   function hydrateFromCatalog(items){
     for (const p of items) {
@@ -171,7 +172,7 @@ $(function () {
     catalogBySucursal.set(sid, items);
     catalogTS.set(sid, now());
     try {
-      localStorage.setItem(`catalog_%${sid}`.replace("%",""), JSON.stringify(items)); // robusto ante %
+      localStorage.setItem(`catalog_${sid}`, JSON.stringify(items));
       localStorage.setItem(`catalog_${sid}_ts`, String(now()));
     } catch {}
     hydrateFromCatalog(items);
@@ -187,11 +188,16 @@ $(function () {
   }
 
   /* ================== Índices de búsqueda local ================== */
-  const preIndex = new Map(); // sid -> {names:[...], codes:[...], map: Map(id->ref)}
+  class LRU {
+    constructor(max=200){ this.max=max; this.map=new Map(); }
+    get(k){ if(!this.map.has(k)) return null; const v=this.map.get(k); this.map.delete(k); this.map.set(k,v); return v; }
+    set(k,v){ if(this.map.has(k)) this.map.delete(k); this.map.set(k,v); if(this.map.size>this.max){ const f=this.map.keys().next().value; this.map.delete(f);} }
+  }
+  const termCacheName = new LRU(200);
+  const termCacheCode = new LRU(200);
 
   /* ================== Precio en vivo (ignora caché) ================== */
   function ensureLivePrice(pid) {
-    // No bloquear: devolver promesa pero sin await en flujos críticos
     return $.post(VERIFICAR_URL, { producto_id: pid, cantidad: 1, sucursal_id: sucursalID, _ts: Date.now() })
       .then((r) => {
         if (!r || !r.exists) return null;
@@ -208,7 +214,7 @@ $(function () {
       if (!Number.isFinite(live) || live <= 0) return false;
       const old = Number($row.data("price")) || 0;
       const qty = Number($row.attr("data-qty")) || Number($row.find(".qty-input").val()) || 1;
-      $row.attr("data-price", live).data("price", live).removeClass("pending-price");
+      $row.attr("data-price", live).data("price", live);
       $row.find(".price-cell").text(money(live));
       $row.find(".subtotal-cell").text(money(live * qty));
       if (!$row.data("counted")) {
@@ -221,7 +227,7 @@ $(function () {
     });
   }
 
-  /* ================== Inserción instantánea + “pending price” ================== */
+  /* ================== Inserción instantánea ================== */
   function buildRowHTML(pid, qty, name, cachedPrice) {
     const hasPrice = Number.isFinite(cachedPrice) && cachedPrice > 0;
     const subtotalTxt = hasPrice ? money(cachedPrice * qty) : "…";
@@ -241,14 +247,12 @@ $(function () {
        </tr>`
     );
   }
-
   function insertOrUpdateRowInstant(pid, qty, name, cachedPrice) {
     const key = String(pid);
     const idx = productos.indexOf(key);
     const hasPrice = Number.isFinite(cachedPrice) && cachedPrice > 0;
 
     if (idx > -1) {
-      // actualizar existente rápido y sin relayouts excesivos
       cantidades[idx] += qty;
       const $r = $tbody.find(`tr[data-pid='${pid}']`);
       const newQty = cantidades[idx];
@@ -263,7 +267,6 @@ $(function () {
     } else {
       productos.push(key);
       cantidades.push(qty);
-      // Insertar con DOM nativo (más rápido que prepend jQuery)
       const html = buildRowHTML(pid, qty, name, cachedPrice);
       const tmpl = document.createElement("tbody");
       tmpl.innerHTML = html.trim();
@@ -288,8 +291,7 @@ $(function () {
     lastAddGuard.ts  = ts;
     addToCart(pid, qty);
   }
-
-  const burstAdd = { timer: null, last: null, windowMs: 60 }; // 60ms: súper reactivo
+  const burstAdd = { timer: null, last: null, windowMs: 60 };
   function addToCartLastOnly(pid, qty = 1) {
     if (!pid || !qty || qty < 1) return;
     burstAdd.last = { pid: String(pid), qty: Number(qty) || 1 };
@@ -300,7 +302,6 @@ $(function () {
       addToCartGuarded(p, q);
     }, burstAdd.windowMs);
   }
-
   function addToCart(pid, qty = 1) {
     if (!pid || qty < 1) return;
     const key    = String(pid);
@@ -308,15 +309,11 @@ $(function () {
     const name   = cached.nombre || `Producto ${pid}`;
     const cPrice = Number(cached.price) || 0;
 
-    // 1) Inserción instantánea (sin bloquear)
     insertOrUpdateRowInstant(pid, qty, name, cPrice);
-
-    // 2) Precio en vivo en segundo plano + ajuste total
     queueMicrotask(() => {
       refreshRowPriceIfNeeded($tbody.find(`tr[data-pid='${pid}']`));
     });
 
-    // Limpieza UX no bloqueante
     lastAddedPid = key;
     $inpNombre.val("");
     $inpCode.val("");
@@ -367,14 +364,6 @@ $(function () {
   }
 
   /* ================== Infra autocomplete ================== */
-  class LRU {
-    constructor(max=200){ this.max=max; this.map=new Map(); }
-    get(k){ if(!this.map.has(k)) return null; const v=this.map.get(k); this.map.delete(k); this.map.set(k,v); return v; }
-    set(k,v){ if(this.map.has(k)) this.map.delete(k); this.map.set(k,v); if(this.map.size>this.max){ const f=this.map.keys().next().value; this.map.delete(f);} }
-  }
-  const termCacheName = new LRU(200);
-  const termCacheCode = new LRU(200);
-
   function attachAltEnterBypass(inputEl) {
     if (!inputEl) return;
     inputEl.addEventListener("keydown", function(e){
@@ -396,7 +385,7 @@ $(function () {
       }
     });
   }
-  function throttle(fn, ms=45){ // 45ms: más ágil
+  function throttle(fn, ms=45){
     let t=0, lastArgs=null, lastThis=null, timer=null;
     return function(...args){
       const ts=Date.now(); lastArgs=args; lastThis=this;
@@ -845,7 +834,7 @@ $(function () {
     this.value = newQty;
 
     refreshRowPriceIfNeeded($row).then((okPrice) => {
-      if (!okPrice) return; // queda pendiente sin bloquear
+      if (!okPrice) return;
       const price = Number($row.data("price")) || 0;
       const oldQty = Number($row.attr("data-qty")) || 0;
       if (newQty === oldQty) return;
@@ -891,7 +880,6 @@ $(function () {
 
   $buscarCart.on("keyup", function () {
     const t = $(this).val().toLowerCase();
-    // minimizar recálculos: medir una vez
     const rows = $tbody.find("tr");
     for (let i=0;i<rows.length;i++){
       const el = rows[i];
@@ -1015,11 +1003,32 @@ $(function () {
     }
   });
 
-  /* ================== Submit (único) ================== */
+  /* ================== Agente local helpers (con keepalive para recarga veloz) ================== */
+  function agentPrintFireAndForget(text) {
+    try {
+      fetch(POS_AGENT_URL + "/print", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json", "X-Pos-Agent-Token": POS_AGENT_TOKEN },
+        body: JSON.stringify({ text })
+      }).catch(()=>{});
+    } catch {}
+  }
+  function agentKickFireAndForget() {
+    try {
+      fetch(POS_AGENT_URL + "/kick", {
+        method: "POST",
+        keepalive: true,
+        headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN }
+      }).catch(()=>{});
+    } catch {}
+  }
+
+  /* ================== Submit — versión ultrarrápida con recarga inmediata ================== */
   $("#venta-form").off("submit").on("submit", function (e) {
     e.preventDefault();
 
-    // Refresco silencioso si quedan pendientes sin bloquear
+    // Revalida filas pendientes SIN bloquear (se dispara pero no esperamos)
     const $bad = $tbody.find("tr").filter((_, tr) => {
       const p = Number($(tr).data("price"));
       const counted = $(tr).data("counted");
@@ -1029,46 +1038,77 @@ $(function () {
       for (const tr of $bad.toArray()) { refreshRowPriceIfNeeded($(tr)); }
     }
 
-    $.post($(this).attr("action"), $(this).serialize())
-      .done((r) => {
-        if (!r || !r.success) { alert((r && r.error) || "Error"); return; }
+    // Envío minimal con fetch + URLSearchParams (más rápido que $.post)
+    const form = this;
+    const fd = new FormData(form);
+    const body = new URLSearchParams(fd);
 
-        const metodo = ($("#medio_pago").val() || "").toLowerCase();
-        const efectivo = metodo === "efectivo";
-        const totalNum = (runningTotal || 0);
-        const raw = ($("#monto-recibido").val() || "").trim();
-        const recibido = efectivo ? (raw === "" ? totalNum : (parseFloat(raw) || 0)) : 0;
-        const cambio = efectivo ? Math.max(0, recibido - totalNum) : 0;
+    const t0 = performance.now();
+    fetch($(form).attr("action"), {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-CSRFToken": getCSRF(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP "+r.status)))
+    .then((r) => {
+      const t1 = performance.now();
+      if (!r || !r.success) { alert((r && r.error) || "Error"); return; }
 
-        const omitirImpresion = confirm(
-          ["✅ Venta generada.",
-           `Total: ${money(totalNum)}`,
-           efectivo ? `Cambio a entregar: ${money(cambio)}` : "",
-           "", "¿Desea OMITIR la impresión de la factura?",
-           "— Aceptar: NO imprimir (solo abrir gaveta).",
-           "— Cancelar: Imprimir (y abrir gaveta)."
-          ].filter(Boolean).join("\n")
-        );
+      const metodo = ($("#medio_pago").val() || "").toLowerCase();
+      const efectivo = metodo === "efectivo";
+      const totalNum = (runningTotal || 0);
+      const raw = ($("#monto-recibido").val() || "").trim();
+      const recibido = efectivo ? (raw === "" ? totalNum : (parseFloat(raw) || 0)) : 0;
+      const cambio = efectivo ? Math.max(0, recibido - totalNum) : 0;
 
-        // Acciones del POS Agent no bloqueantes
-        (async () => {
-          try {
-            if (omitirImpresion) {
-              await fetch(POS_AGENT_URL + "/kick", { method: "POST", headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN } });
-            } else {
-              await fetch(POS_AGENT_URL + "/print", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "X-Pos-Agent-Token": POS_AGENT_TOKEN },
-                body: JSON.stringify({ text: r.receipt_text || "Factura\n\n" })
-              });
-              await new Promise(res => setTimeout(res, 150));
-              await fetch(POS_AGENT_URL + "/kick", { method: "POST", headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN } });
-            }
-          } catch {}
-          location.reload();
-        })();
-      })
-      .fail(() => alert("Error de red"));
+      const omitirImpresion = confirm(
+        ["✅ Venta generada.",
+         `Total: ${money(totalNum)}`,
+         efectivo ? `Cambio a entregar: ${money(cambio)}` : "",
+         "", "¿Desea OMITIR la impresión de la factura?",
+         "— Aceptar: NO imprimir (solo abrir gaveta).",
+         "— Cancelar: Imprimir (y abrir gaveta)."
+        ].filter(Boolean).join("\n")
+      );
+
+      // 🔥 Disparamos impresión/apertura en paralelo CON keepalive y recargamos de inmediato
+      try {
+        if (omitirImpresion) {
+          agentKickFireAndForget();
+        } else {
+          agentPrintFireAndForget(r.receipt_text || "Factura\n\n");
+          // breve pausa para spool, pero sin bloquear navegación
+          setTimeout(agentKickFireAndForget, 120);
+        }
+      } catch {}
+
+      // Recarga inmediata (más ágil que reload(true) y evita duplicar historial)
+      const t2 = performance.now();
+      console.log(`⏱️ Venta guardada en ${(t1 - t0).toFixed(0)}ms; recargando… (+${(t2 - t1).toFixed(0)}ms post-OK)`);
+      location.replace(location.href);
+    })
+    .catch(() => alert("Error de red"));
+  });
+
+  /* ================== CLICK CONFIRM ================== */
+  $(document).off("click.confirmPago").on("click.confirmPago", "#confirmar-pago", function (e) {
+    e.preventDefault();
+    const m = $("input[name='payment_method']:checked").val();
+    if (!m) { alert("Seleccione medio de pago."); return; }
+    if (m === "efectivo") {
+      const raw = ($("#monto-recibido").val() || "").trim();
+      const received = raw === "" ? runningTotal : (parseFloat(raw) || 0);
+      if (raw !== "" && received < runningTotal) { alert("Monto recibido insuficiente."); return; }
+      if (raw === "") $("#monto-recibido").val(String(received));
+    }
+    $("#medio_pago").val(m);
+    $("#myModal").hide();
+    $("#venta-form").trigger("submit");
   });
 
   /* ================== Atajos Ctrl + 0..4 ================== */

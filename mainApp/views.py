@@ -786,8 +786,6 @@ class EditarInventarioView(LoginRequiredMixin, View):
         )
         return JsonResponse({
             "success": True,
-            # Puedes quedarte en la misma página de edición si prefieres:
-            # "redirect_url": reverse("editar_inventario", args=[sucursal_destino.pk]),
             "redirect_url": reverse("visualizar_inventarios"),
         })
 
@@ -831,17 +829,57 @@ class SucursalInventarioAutocompleteEditarView(PaginatedAutocompleteMixin):
 # ─────────────────────────────────────────────────────────────────────────────
 # Autocomplete de PRODUCTOS (excluye IDs ya listados)
 # ─────────────────────────────────────────────────────────────────────────────
-class ProductoInventarioAutocompleteView(PaginatedAutocompleteMixin):
-    """Devuelve productos paginados, excluyendo los IDs recibidos en ?excluded."""
-    model     = Producto
-    text_field = "nombre"
-    id_field   = "productoid"
-    per_page   = 50
+class ProductoInventarioAutocompleteView(LoginRequiredMixin, View):
+    """
+    Autocomplete de productos para Editar Inventario:
+    - Muestra TODOS los productos (vinculados o no al inventario de la sucursal).
+    - Excluye los IDs enviados en ?excluded=1,2,3
+    - Filtra por 'term' en nombre (añade más campos si quieres).
+    - Paginado por ?page= (1 por defecto), page_size=50.
+    Respuesta: {results:[{id:<productoid>, text:<nombre>}]}
+    """
 
-    def extra_filter(self, qs, request):
-        excluded = request.GET.get("excluded", "")
-        ids = [int(x) for x in excluded.split(",") if x.isdigit()]
-        return qs.exclude(productoid__in=ids) if ids else qs
+    page_size = 50
+
+    def get(self, request, *args, **kwargs):
+        term = (request.GET.get("term") or "").strip()
+        page = int(request.GET.get("page") or 1)
+
+        # 1) Query base: TODOS los productos, sin relación a inventario/sucursal
+        qs = Producto.objects.all().only("productoid", "nombre")
+
+        # 2) Filtro por término (agrega más si los tienes)
+        if term:
+            qs = qs.filter(
+                Q(nombre__icontains=term)
+                # | Q(codigo__icontains=term)
+                # | Q(referencia__icontains=term)
+            )
+
+        # 3) Excluir los IDs ya agregados en la UI
+        excluded_param = (request.GET.get("excluded") or "").strip()
+        if excluded_param:
+            try:
+                excluded_ids = [int(x) for x in excluded_param.split(",") if x.isdigit()]
+                if excluded_ids:
+                    qs = qs.exclude(productoid__in=excluded_ids)
+            except Exception:
+                pass
+
+        qs = qs.order_by("nombre")
+
+        paginator = Paginator(qs, self.page_size)
+        page_obj = paginator.get_page(page)
+
+        results = [
+            {"id": obj.productoid, "text": obj.nombre}
+            for obj in page_obj.object_list
+        ]
+
+        return JsonResponse({
+            "results": results,
+            "pagination": {"more": page_obj.has_next()}
+        })
 
 
 @login_required

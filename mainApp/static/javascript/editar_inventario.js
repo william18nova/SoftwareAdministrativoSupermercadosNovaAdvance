@@ -223,12 +223,12 @@
       const emptyKey = `${""}|1|${cfg.extraKey()}`;
       if (!cfg.cache[emptyKey]) {
         cfg.state.term = "";
-        fetchOnce().finally(()=>{ cfg.state.term = prev; draw(suggestionsFromCache()); });
+        (async()=>{ await fetchOnce(); cfg.state.term = prev; draw(suggestionsFromCache()); })();
       } else {
         draw(suggestionsFromCache());
       }
       // valida término actual
-      fetchOnce();
+      kickFetch();
     });
 
     // BLUR (pequeño delay para permitir click)
@@ -312,7 +312,6 @@
     const sid=dom.sucHid.value.trim();
     const pid=dom.prdHid.value.trim();
     const qty=(dom.qtyInp.value||'').trim();
-    const pname=dom.prdInp.value.trim();
 
     let bad=false;
     if (!sid){ UI.fieldError('sucursal','Debe seleccionar una sucursal.'); bad=true; }
@@ -346,7 +345,6 @@
         body: fd
       });
 
-      // Si tu vista devuelve HTML (no JSON), igual recargamos ante 2xx
       if (resp.ok){
         // Intentar leer JSON, si falla, igual recargamos
         let data = null;
@@ -384,17 +382,19 @@
     ev.preventDefault();
     UI.clearAlerts();
 
+    // sincronizar cantidades editadas
+    state.items = [];
+    dataTable.rows().every(function(){
+      const tr = this.node();
+      const pid = tr.getAttribute('data-product-id');
+      const name = tr.querySelector('td:nth-child(1)')?.textContent.trim() || '';
+      const qty  = tr.querySelector('.qty-input')?.value.trim() || '1';
+      if (pid) state.items.push({ productId: pid, productName: name, cantidad: qty });
+    });
+
     if (!state.items.length){
       UI.err('Debe agregar al menos un producto.'); return;
     }
-
-    // sincronizar cantidades editadas
-    dataTable.rows().every(function(){
-      const [prod, qtyCell] = this.node().querySelectorAll('td');
-      const item = state.items.find(i=>i.productName===prod.textContent.trim());
-      const inp  = qtyCell.querySelector('.qty-input');
-      if (item && inp) item.cantidad = inp.value.trim();
-    });
 
     if (dom.hiddenTemp){
       dom.hiddenTemp.value = JSON.stringify(state.items);
