@@ -829,57 +829,60 @@ class SucursalInventarioAutocompleteEditarView(PaginatedAutocompleteMixin):
 # ─────────────────────────────────────────────────────────────────────────────
 # Autocomplete de PRODUCTOS (excluye IDs ya listados)
 # ─────────────────────────────────────────────────────────────────────────────
+
+
 class ProductoInventarioAutocompleteView(LoginRequiredMixin, View):
     """
-    Autocomplete de productos para Editar Inventario:
-    - Muestra TODOS los productos (vinculados o no al inventario de la sucursal).
-    - Excluye los IDs enviados en ?excluded=1,2,3
-    - Filtra por 'term' en nombre (añade más campos si quieres).
-    - Paginado por ?page= (1 por defecto), page_size=50.
-    Respuesta: {results:[{id:<productoid>, text:<nombre>}]}
+    Devuelve SOLO productos NO vinculados al inventario de la sucursal indicada.
+    Requiere ?sucursal_id=<id>.
+    Formato: {results:[{id,text}], pagination:{more}}
     """
 
     page_size = 50
 
     def get(self, request, *args, **kwargs):
-        term = (request.GET.get("term") or "").strip()
-        page = int(request.GET.get("page") or 1)
+        term        = (request.GET.get("term") or "").strip()
+        page        = int(request.GET.get("page") or 1)
+        sucursal_id = (request.GET.get("sucursal_id") or "").strip()
 
-        # 1) Query base: TODOS los productos, sin relación a inventario/sucursal
-        qs = Producto.objects.all().only("productoid", "nombre")
+        # Sin sucursal_id no devolvemos nada
+        if not sucursal_id.isdigit():
+            return JsonResponse({"results": [], "pagination": {"more": False}})
 
-        # 2) Filtro por término (agrega más si los tienes)
+        sucursal_id = int(sucursal_id)
+
+        # 🔍 Usar _base_manager para evitar managers que filtran
+        qs = Producto._base_manager.all().only("productoid", "nombre")
+
+        # Filtro por término
         if term:
-            qs = qs.filter(
-                Q(nombre__icontains=term)
-                # | Q(codigo__icontains=term)
-                # | Q(referencia__icontains=term)
-            )
+            qs = qs.filter(Q(nombre__icontains=term))
 
-        # 3) Excluir los IDs ya agregados en la UI
+        # Excluir IDs que ya están en la tabla visible (prevent duplicados)
         excluded_param = (request.GET.get("excluded") or "").strip()
         if excluded_param:
-            try:
-                excluded_ids = [int(x) for x in excluded_param.split(",") if x.isdigit()]
-                if excluded_ids:
-                    qs = qs.exclude(productoid__in=excluded_ids)
-            except Exception:
-                pass
+            ids = [int(x) for x in excluded_param.split(",") if x.isdigit()]
+            if ids:
+                qs = qs.exclude(productoid__in=ids)
 
-        qs = qs.order_by("nombre")
+        # ⚙️ Subquery: verificar existencia en inventario de la sucursal
+        subquery = Inventario.objects.filter(
+            sucursalid_id=sucursal_id,
+            productoid_id=OuterRef("productoid"),
+        )
+
+        # ✅ Solo productos SIN registro en inventario para esa sucursal
+        qs = qs.annotate(existe=Exists(subquery)).filter(existe=False).order_by("nombre")
 
         paginator = Paginator(qs, self.page_size)
         page_obj = paginator.get_page(page)
-
-        results = [
-            {"id": obj.productoid, "text": obj.nombre}
-            for obj in page_obj.object_list
-        ]
+        results = [{"id": p.productoid, "text": p.nombre} for p in page_obj.object_list]
 
         return JsonResponse({
             "results": results,
             "pagination": {"more": page_obj.has_next()}
         })
+
 
 
 @login_required
