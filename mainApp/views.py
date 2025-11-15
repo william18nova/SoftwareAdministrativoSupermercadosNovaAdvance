@@ -378,7 +378,7 @@ class CategoriaAutocompleteView(PaginatedAutocompleteMixin):
     per_page   = 10                   # ← (opcional) página de 10 resultados
 
 
-class ProductoListView(LoginRequiredMixin, ListView):
+class ProductoListView(LoginRequiredMixin, TemplateView):
     """
     Lista completa de productos sin paginación en Django.
     La paginación se hace en el cliente con DataTables.
@@ -396,6 +396,118 @@ class ProductoListView(LoginRequiredMixin, ListView):
             .select_related("categoria")
             .order_by(self.ordering or "nombre")
         )
+        
+class ProductoDataTableView(LoginRequiredMixin, View):
+    """
+    Endpoint ultra-rápido para DataTables (server-side).
+    - Usa values() para evitar instanciar modelos completos.
+    - Aprovecha índices en nombre y código de barras.
+    - Modo 'scanner' cuando el término es numérico largo.
+    """
+
+    def get(self, request, *args, **kwargs):
+      # -------- parámetros DataTables --------
+      draw   = int(request.GET.get("draw", "1"))
+      start  = int(request.GET.get("start", "0"))
+      length = int(request.GET.get("length", "25"))
+      search_value = request.GET.get("search[value]", "").strip()
+
+      # -------- base queryset (solo para total) --------
+      base_qs = Producto.objects.all()
+      records_total = base_qs.count()
+
+      qs = base_qs
+
+      # -------- filtro ultra-rápido --------
+      if search_value:
+          # Si parece código de barras (solo dígitos y largo >= 8):
+          if search_value.isdigit() and len(search_value) >= 8:
+              # Usa solo índice de codigo_de_barras
+              qs = qs.filter(codigo_de_barras__iexact=search_value)
+          else:
+              # Búsqueda más general, pero usando índices cuando se pueda
+              tokens = search_value.split()
+              for token in tokens:
+                  qs = qs.filter(
+                      Q(nombre__icontains=token) |
+                      Q(codigo_de_barras__icontains=token) |
+                      Q(categoria__nombre__icontains=token)
+                  )
+
+      records_filtered = qs.count()
+
+      # -------- ordenamiento --------
+      order_column_index = request.GET.get("order[0][column]", "1")
+      order_dir          = request.GET.get("order[0][dir]", "asc")
+
+      columns = [
+          "productoid",           # 0
+          "nombre",               # 1
+          "descripcion",          # 2
+          "precio",               # 3
+          "categoria__nombre",    # 4
+          "codigo_de_barras",     # 5
+          "iva",                  # 6
+          # 7 = acciones (no ordena)
+      ]
+
+      try:
+          idx = int(order_column_index)
+          order_column = columns[idx]
+      except (ValueError, IndexError):
+          order_column = "nombre"
+
+      if order_dir == "desc":
+          order_column = "-" + order_column
+
+      # -------- slice + values (solo columnas necesarias) --------
+      qs_page = (
+          qs.select_related("categoria")
+            .order_by(order_column)
+            .values(
+                "productoid",
+                "nombre",
+                "descripcion",
+                "precio",
+                "categoria__nombre",
+                "codigo_de_barras",
+                "iva",
+            )[start:start + length]
+      )
+
+      # -------- construir respuesta --------
+      data = []
+      for p in qs_page:
+          data.append({
+              "productoid": p["productoid"],
+              "nombre": p["nombre"],
+              "descripcion": p["descripcion"] or "—",
+              "precio": f"${p['precio']:.2f}",
+              "categoria": p["categoria__nombre"] or "—",
+              "codigo_de_barras": p["codigo_de_barras"] or "—",
+              "iva": f"{p['iva']:.2f}",
+              "acciones": f"""
+                <div class="btn-container">
+                  <a href="{reverse('editar_producto', args=[p['productoid']])}"
+                     class="btn editar" title="Editar {p['nombre']}">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <button type="button" class="btn borrar"
+                          data-url="{reverse('eliminar_producto', args=[p['productoid']])}"
+                          data-nombre="{p['nombre']}"
+                          title="Eliminar {p['nombre']}">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              """,
+          })
+
+      return JsonResponse({
+          "draw": draw,
+          "recordsTotal": records_total,
+          "recordsFiltered": records_filtered,
+          "data": data,
+      })
 
 @login_required
 def eliminar_producto(request, producto_id):
@@ -3411,7 +3523,7 @@ class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
         return JsonResponse({"results": results, "has_more": total > self.per_page})
 
 
-class VentaListView(LoginRequiredMixin, ListView):
+class VentaListView(LoginRequiredMixin, TemplateView):
     """
     Todas las ventas con la MÁS RECIENTE primero.
     """
@@ -3433,7 +3545,121 @@ class VentaListView(LoginRequiredMixin, ListView):
     def get_paginate_by(self, queryset):
         return None
 
+class VentaDataTableView(LoginRequiredMixin, View):
+    """
+    Endpoint server-side ultra-rápido para DataTables en visualizar_ventas.
+    Devuelve solo las ventas necesarias para la página actual.
+    """
 
+    def get(self, request, *args, **kwargs):
+        # ---------- parámetros básicos DataTables ----------
+        draw   = int(request.GET.get("draw", "1"))
+        start  = int(request.GET.get("start", "0"))
+        length = int(request.GET.get("length", "25"))
+        search_value = request.GET.get("search[value]", "").strip()
+
+        # ---------- base queryset ----------
+        base_qs = Venta.objects.select_related(
+            "clienteid", "empleadoid", "sucursalid", "puntopagoid"
+        )
+
+        records_total = base_qs.count()
+        qs = base_qs
+
+        # ---------- filtro (buscador) ----------
+        if search_value:
+            tokens = search_value.split()
+            for token in tokens:
+                qs = qs.filter(
+                    Q(ventaid__icontains=token) |
+                    Q(clienteid__nombre__icontains=token) |
+                    Q(clienteid__apellido__icontains=token) |
+                    Q(empleadoid__nombre__icontains=token) |
+                    Q(empleadoid__apellido__icontains=token) |
+                    Q(sucursalid__nombre__icontains=token) |
+                    Q(puntopagoid__nombre__icontains=token) |
+                    Q(mediopago__icontains=token)
+                )
+
+        records_filtered = qs.count()
+
+        # ---------- ordenamiento ----------
+        order_column_index = request.GET.get("order[0][column]", "0")
+        order_dir          = request.GET.get("order[0][dir]", "desc")  # más recientes
+
+        columns = [
+            "ventaid",                   # 0
+            "fecha",                     # 1
+            "hora",                      # 2
+            "clienteid__nombre",         # 3 (solo nombre, para ordenar)
+            "empleadoid__nombre",        # 4
+            "sucursalid__nombre",        # 5
+            "puntopagoid__nombre",       # 6
+            "total",                     # 7
+            "mediopago",                 # 8
+        ]
+
+        try:
+            idx = int(order_column_index)
+            order_column = columns[idx]
+        except (ValueError, IndexError):
+            order_column = "ventaid"
+
+        if order_dir == "desc":
+            order_column = "-" + order_column
+
+        # ---------- slice + values (solo columnas que usamos) ----------
+        qs_page = (
+            qs.order_by(order_column)
+              .values(
+                  "ventaid",
+                  "fecha",
+                  "hora",
+                  "total",
+                  "mediopago",
+                  "clienteid__nombre",
+                  "clienteid__apellido",
+                  "empleadoid__nombre",
+                  "empleadoid__apellido",
+                  "sucursalid__nombre",
+                  "puntopagoid__nombre",
+              )[start:start + length]
+        )
+
+        # ---------- construir datos para DataTables ----------
+        data = []
+        for v in qs_page:
+            cliente = "—"
+            if v["clienteid__nombre"]:
+                apellido = v["clienteid__apellido"] or ""
+                cliente = f"{v['clienteid__nombre']} {apellido}".strip()
+
+            empleado = f"{v['empleadoid__nombre']} {(v['empleadoid__apellido'] or '')}".strip()
+            sucursal = v["sucursalid__nombre"] or "—"
+            punto    = v["puntopagoid__nombre"] or "—"
+            medio    = (v["mediopago"] or "").title()
+
+            fecha_str = v["fecha"].strftime("%d/%m/%Y") if v["fecha"] else ""
+            hora_str  = v["hora"].strftime("%H:%M") if v["hora"] else ""
+
+            data.append({
+                "ventaid"   : v["ventaid"],
+                "fecha"     : fecha_str,
+                "hora"      : hora_str,
+                "cliente"   : cliente,
+                "empleado"  : empleado,
+                "sucursal"  : sucursal,
+                "puntopago" : punto,
+                "total"     : f"${v['total']:.2f}",
+                "mediopago" : medio,
+            })
+
+        return JsonResponse({
+            "draw"            : draw,
+            "recordsTotal"    : records_total,
+            "recordsFiltered" : records_filtered,
+            "data"            : data,
+        })
 
 class VentaDetailView(LoginRequiredMixin, View):
     """

@@ -45,7 +45,7 @@
       <input id="buscador-productos" class="search-input" type="text" placeholder="Buscar…">
     </div>
 
-    {# ---- tabla ----- #}
+    {# ---- tabla (sin filas; DataTables las carga por AJAX) ----- #}
     <table id="productosTable" class="display">
       <thead>
         <tr>
@@ -60,41 +60,15 @@
         </tr>
       </thead>
       <tbody>
-        {% for p in productos %}
-        <tr>
-          <td data-label="ID">{{ p.productoid }}</td>
-          <td data-label="Nombre">{{ p.nombre }}</td>
-          <td data-label="Descripción">{{ p.descripcion|default:"—" }}</td>
-          <td data-label="Precio">${{ p.precio|floatformat:2 }}</td>
-          <td data-label="Categoría">
-            {% if p.categoria %}{{ p.categoria.nombre }}{% else %}—{% endif %}
-          </td>
-          <td data-label="Cód. Barras">{{ p.codigo_de_barras|default:"—" }}</td>
-          <td data-label="IVA">{{ p.iva|floatformat:2 }}</td>
-          <td data-label="Acciones" class="actions-cell">
-            <div class="btn-container">
-              <a href="{% url 'editar_producto' p.productoid %}"
-                 class="btn editar" title="Editar {{ p.nombre }}">
-                <i class="fas fa-edit"></i>
-              </a>
-
-              <button type="button" class="btn borrar"
-                      data-nombre="{{ p.nombre }}"
-                      title="Eliminar {{ p.nombre }}">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </div>
-
-            <!-- formulario oculto para DELETE -->
-            <form class="delete-form"
-                  action="{% url 'eliminar_producto' p.productoid %}"
-                  method="post" style="display:none;">{% csrf_token %}</form>
-          </td>
-        </tr>
-        {% endfor %}
+        {# vacío: las filas se cargan vía AJAX (server-side) #}
       </tbody>
     </table>
   </div>
+
+  <!-- URL para el endpoint de datos de DataTables -->
+  <script>
+    window.productosDataUrl = "{% url 'productos_datatable' %}";
+  </script>
 
   <!-- JS propio -->
   <script src="{% static 'javascript/visualizar_productos.js' %}" defer></script>

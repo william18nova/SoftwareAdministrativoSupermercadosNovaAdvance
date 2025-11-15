@@ -41,24 +41,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for v in ventas %}
-        <tr data-id="{{ v.ventaid }}" class="clickable-row">
-          <td data-label="ID">{{ v.ventaid }}</td>
-          <td data-label="Fecha">{{ v.fecha|date:"d/m/Y" }}</td>
-          <td data-label="Hora">{{ v.hora|time:"H:i" }}</td>
-          <td data-label="Cliente">
-            {% if v.clienteid %}
-              {{ v.clienteid.nombre }} {{ v.clienteid.apellido }}
-            {% else %}—
-            {% endif %}
-          </td>
-          <td data-label="Empleado">{{ v.empleadoid.nombre }} {{ v.empleadoid.apellido }}</td>
-          <td data-label="Sucursal">{{ v.sucursalid.nombre }}</td>
-          <td data-label="Punto Pago">{{ v.puntopagoid.nombre }}</td>
-          <td data-label="Total">${{ v.total|floatformat:2 }}</td>
-          <td data-label="Medio Pago">{{ v.mediopago|title }}</td>
-        </tr>
-        {% endfor %}
+        {# vacío: filas vendrán por AJAX (DataTables server-side) #}
       </tbody>
     </table>
   </div>
@@ -75,9 +58,10 @@
 {# ——— Overrides específicos de ventas (muestra los alerts) ——— #}
 <link rel="stylesheet" href="{% static 'css/visualizar_ventas.css' %}">
 
-{# URL base para navegar al ver_venta/id #}
+{# URL base para navegar al ver_venta/id y URL de datos para DataTables #}
 <script>
-  const verVentaUrl = "{% url 'ver_venta' 0 %}";
+  const verVentaUrl   = "{% url 'ver_venta' 0 %}";
+  const ventasDataUrl = "{% url 'ventas_datatable' %}";
 </script>
 
 {# ——— Lógica JS ——— #}

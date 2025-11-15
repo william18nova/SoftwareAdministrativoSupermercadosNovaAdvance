@@ -1,5 +1,5 @@
 /*  static/javascript/editar_inventario.js
-    FAST PATCH FINAL (sin duplicados en autocomplete)
+    FAST PATCH FINAL (sin duplicados en autocomplete + paginación en tabla + payload liviano)
     ──────────────────────────────────────────────────────────────────
     • Autocompletes ultra-rápidos (una petición por término, sin prefetch)
     • Cache local con búsqueda sin acentos y 12 sugerencias máx.
@@ -7,7 +7,8 @@
     • Precarga filas existentes + agregar/eliminar dinámico
     • Agregar producto guarda en servidor y recarga la página
     • Producto AC: SOLO productos NO vinculados a la sucursal actual
-    • NEW: Deduplicación por id y por nombre normalizado
+    • Deduplicación por id y por nombre normalizado
+    • Guardar Cambios envía solo productId + cantidad (JSON más pequeño)
 ------------------------------------------------------------------*/
 (() => {
   "use strict";
@@ -78,16 +79,26 @@
     state.items.push({ productId: pid, productName: name, cantidad: qty });
   });
 
-  /* ───────── DataTable ───────── */
+  /* ───────── DataTable (con paginación) ───────── */
   const dataTable = $("#productos-list").DataTable({
-    paging    : false,
-    searching : true,
-    info      : false,
-    responsive: true,
+    paging      : true,
+    pageLength  : 50,
+    lengthMenu  : [[25, 50, 100, -1], [25, 50, 100, "Todos"]],
+    deferRender : true,
+    searching   : true,
+    info        : false,
+    responsive  : true,
     language  : {
       search      : "Buscar:",
       zeroRecords : "No se encontraron resultados",
-      emptyTable  : "No hay productos para mostrar"
+      emptyTable  : "No hay productos para mostrar",
+      lengthMenu  : "Mostrar _MENU_ productos",
+      paginate    : {
+        first   : "Primero",
+        last    : "Último",
+        next    : "Siguiente",
+        previous: "Anterior"
+      }
     }
   });
 
@@ -112,8 +123,22 @@
       const input = map[field] || $qs(`#id_${field}`);
       if (input) input.classList.add("input-error");
     },
-    disable(el){ if (el){ el.disabled = true; el.dataset._txt = el.textContent; el.textContent = "Guardando…"; } },
-    enable(el){ if (el){ el.disabled = false; if (el.dataset._txt){ el.textContent = el.dataset._txt; delete el.dataset._txt; } } }
+    disable(el){
+      if (el){
+        el.disabled = true;
+        el.dataset._txt = el.textContent;
+        el.textContent = "Guardando…";
+      }
+    },
+    enable(el){
+      if (el){
+        el.disabled = false;
+        if (el.dataset._txt){
+          el.textContent = el.dataset._txt;
+          delete el.dataset._txt;
+        }
+      }
+    }
   };
 
   const cacheSucursal = Object.create(null);
@@ -226,7 +251,11 @@
       const emptyKey = `${""}|1|${cfg.extraKey()}`;
       if (!cfg.cache[emptyKey]) {
         cfg.state.term = "";
-        (async()=>{ await fetchOnce(); cfg.state.term = prev; draw(suggestionsFromCache()); })();
+        (async()=>{
+          await fetchOnce();
+          cfg.state.term = prev;
+          draw(suggestionsFromCache());
+        })();
       } else {
         draw(suggestionsFromCache());
         kickFetch();
@@ -285,7 +314,7 @@
   }
   focusOrder.forEach(inp=>inp?.addEventListener("keydown", e => handleEnterFor(inp, e)));
 
-  /* ───────── Agregar producto ───────── */
+  /* ───────── Agregar producto (igual que antes, recarga página) ───────── */
   dom.btnAdd.addEventListener("click", async ()=>{
     UI.clearAlerts();
     const sid=dom.sucHid.value.trim() || getSucursalId();
@@ -296,7 +325,10 @@
     if (!pid){ UI.fieldError("productoid","Debe seleccionar un producto."); bad=true; }
     if (!qty || Number(qty)<=0){ UI.fieldError("cantidad","Cantidad debe ser mayor que 0."); bad=true; }
     if (bad) return;
-    if (state.items.some(i=>i.productId===pid)){ UI.fieldError("productoid","Este producto ya está en la lista."); return; }
+    if (state.items.some(i=>i.productId===pid)){
+      UI.fieldError("productoid","Este producto ya está en la lista.");
+      return;
+    }
 
     const fd  = new FormData();
     fd.append("sucursal", sid);
@@ -330,33 +362,45 @@
     dataTable.row(btn.closest("tr")).remove().draw(false);
   });
 
-  /* ───────── Submit principal ───────── */
+  /* ───────── Submit principal (Guardar Cambios) ───────── */
   dom.form.addEventListener("submit",async ev=>{
     ev.preventDefault();
     UI.clearAlerts();
-    state.items = [];
+
+    // 🔹 Construimos un payload mínimo: productId + cantidad (sin nombres)
+    const payload = [];
     dataTable.rows().every(function(){
-      const tr = this.node();
-      const pid = tr.getAttribute("data-product-id");
-      const name = tr.querySelector("td:nth-child(1)")?.textContent.trim() || "";
+      const tr   = this.node();
+      const pid  = tr.getAttribute("data-product-id");
       const qty  = tr.querySelector(".qty-input")?.value.trim() || "1";
-      if (pid) state.items.push({ productId: pid, productName: name, cantidad: qty });
+      if (pid) payload.push({ productId: pid, cantidad: qty });
     });
-    if (!state.items.length){ UI.err("Debe agregar al menos un producto."); return; }
-    if (dom.hiddenTemp){ dom.hiddenTemp.value = JSON.stringify(state.items); }
+
+    if (!payload.length){
+      UI.err("Debe agregar al menos un producto.");
+      return;
+    }
+
+    if (dom.hiddenTemp){
+      dom.hiddenTemp.value = JSON.stringify(payload);
+    }
 
     try{
       const resp = await fetch(dom.form.action,{
-        method:"POST",
-        headers:{ "X-CSRFToken": getCsrf(), "Accept":"application/json" },
-        body:new FormData(dom.form)
+        method :"POST",
+        headers: { "X-CSRFToken": getCsrf(), "Accept":"application/json" },
+        body   : new FormData(dom.form)
       });
       const data = await resp.json();
-      if (data.success){ window.location.href = data.redirect_url || window.location.href; }
-      else{
+      if (data.success){
+        window.location.href = data.redirect_url || window.location.href;
+      } else {
         const errs = JSON.parse(data.errors || "{}");
         Object.entries(errs).forEach(([field, arr])=> arr.forEach(e=>UI.fieldError(field,e.message)));
       }
-    }catch(err){ console.error(err); UI.err("Ocurrió un error inesperado."); }
+    }catch(err){
+      console.error(err);
+      UI.err("Ocurrió un error inesperado.");
+    }
   });
 })();

@@ -79,6 +79,7 @@ urlpatterns = [
     path("agregar_producto/", ProductoCreateAJAXView.as_view(), name="agregar_producto"),
     path("categoria_autocomplete/", CategoriaAutocompleteView.as_view(), name="categoria_autocomplete"),
     path('visualizar_productos/',  ProductoListView.as_view(), name='visualizar_productos'),
+    path("productos/data/", views.ProductoDataTableView.as_view(), name="productos_datatable"),
     path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
     path("productos/editar/<int:producto_id>/", ProductoUpdateAJAXView.as_view(), name="editar_producto"),
 
@@ -187,6 +188,7 @@ urlpatterns = [
     path('autocomplete/producto-barras/',  views.ProductoBarrasAutocompleteView.as_view(),  name='producto_autocomplete_barras'),
 
     path('visualizar_ventas/', views.VentaListView.as_view(), name='visualizar_ventas'),
+    path("ventas/data/", views.VentaDataTableView.as_view(), name="ventas_datatable"),
     #  … otras urls …
     path('ver_venta/<int:venta_id>/', views.VentaDetailView.as_view(), name='ver_venta'),
     path("ventas/ticket-texto/", views.TicketTextoView.as_view(), name="ticket_texto"),

@@ -1,20 +1,37 @@
-/*  visualizar_productos.js  */
+/*  static/javascript/visualizar_productos.js  */
 $(function () {
   "use strict";
 
-  /* ───────── DataTable + buscador externo ───────── */
+  /* ───────── DataTable server-side + buscador externo ───────── */
   const table = $("#productosTable").DataTable({
-    // Paginación 100% en el cliente
+    processing : true,          // indicador “Cargando…”
+    serverSide : true,          // paginación y búsqueda en el servidor
+    ajax       : {
+      url : window.productosDataUrl,
+      type: "GET"
+    },
+    columns: [
+      { data: "productoid" },
+      { data: "nombre" },
+      { data: "descripcion" },
+      { data: "precio" },
+      { data: "categoria" },
+      { data: "codigo_de_barras" },
+      { data: "iva" },
+      { data: "acciones", orderable: false, searchable: false }
+    ],
     paging      : true,
-    pageLength  : 25,                               // tamaño inicial de página
+    pageLength  : 25,
     lengthMenu  : [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
-    deferRender : true,                             // acelera con muchas filas
+    deferRender : true,     // acelera el render en el cliente
     searching   : true,
     info        : true,
     responsive  : true,
-    columnDefs  : [{ targets: "no-sort", orderable: false }],
+    searchDelay : 250,      // 🔥 evita consultas por cada tecla
+    columnDefs  : [
+      { targets: "no-sort", orderable: false }
+    ],
     language    : {
-      // ocultamos la caja nativa de búsqueda
       search      : "",
       lengthMenu  : "Mostrar _MENU_ productos",
       zeroRecords : "No se encontraron productos",
@@ -25,28 +42,80 @@ $(function () {
         last    : "Último",
         next    : "Siguiente",
         previous: "Anterior"
-      }
+      },
+      processing  : "Cargando..."
     },
-    // Opcional: guarda estado (página, orden, etc.) entre recargas
-    stateSave: true
+    stateSave: true,
+
+    // Mantiene tu diseño responsive con data-label en cada celda
+    createdRow: function (row, data) {
+      const labels = [
+        "ID",
+        "Nombre",
+        "Descripción",
+        "Precio",
+        "Categoría",
+        "Cód. Barras",
+        "IVA",
+        "Acciones"
+      ];
+      $(row).find("td").each(function (i) {
+        $(this).attr("data-label", labels[i]);
+      });
+      $(row).find("td").eq(7).addClass("actions-cell");
+    }
   });
 
-  // Buscador externo
+  // Buscador externo (input arriba de la tabla)
   $("#buscador-productos").on("input", function () {
     table.search(this.value).draw();
   });
 
-  // Por si DataTables llegó a pintar la barra nativa, la escondemos
+  // Ocultamos la caja nativa de búsqueda de DataTables
   $("#productosTable_filter").hide();
 
-  /* ───────── eliminar producto (delegado) ───────── */
+  /* ───────── CSRF helper para AJAX POST (eliminar) ───────── */
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + "=")) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie("csrftoken");
+
+  /* ───────── eliminar producto (delegado, vía AJAX) ───────── */
   $("#productosTable").on("click", ".btn.borrar", function () {
     const $btn   = $(this);
     const nombre = $btn.data("nombre");
-    const $form  = $btn.closest("td").find(".delete-form");
+    const url    = $btn.data("url");
+
+    if (!url) {
+      console.error("Sin data-url en botón borrar");
+      return;
+    }
 
     if (confirm(`¿Desea eliminar el producto «${nombre}»?`)) {
-      $form.trigger("submit");
+      $.ajax({
+        url     : url,
+        type    : "POST",
+        headers : { "X-CSRFToken": csrftoken },
+        success : function () {
+          // Recarga solo los datos de la tabla (manteniendo la página actual)
+          table.ajax.reload(null, false);
+        },
+        error   : function (xhr) {
+          console.error("Error al eliminar producto:", xhr.status, xhr.responseText);
+          alert("Ocurrió un error al eliminar el producto.");
+        }
+      });
     }
   });
 
@@ -62,13 +131,14 @@ $(function () {
   }
 
   /* ───────── detector de pistola de código de barras ─────────
-     - Escribe el código en #buscador-productos
-     - Dispara el filtrado de DataTables
+     - Acumula teclas rápidas
+     - Si parece un código, lo pone en #buscador-productos
+     - Dispara DataTables.search() → backend usa índices
   ---------------------------------------------------------------- */
   (function barcodeScannerDetector(){
     const CFG = {
-      minChars: 8,         // mínimo de dígitos para considerar un código
-      gapMs: 60,           // intervalo máximo entre teclas para considerarlo “rápido”
+      minChars: 8,         // mínimo de caracteres para considerar un código
+      gapMs: 60,           // intervalo máximo entre teclas para ser “rápido”
       finishKeys: ['Enter','Tab'],
       debug: false
     };
@@ -76,55 +146,86 @@ $(function () {
 
     function setBarcodeValue(code){
       $input.val(code);
-      // dispara búsqueda
+      // dispara búsqueda (server-side)
       $input.trigger("input");
       table.search(code).draw();
       if (CFG.debug) console.log("[scanner] code:", code);
     }
 
-    let buf="", first=0, last=0, idleTimer=null;
-    function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
+    let buf = "";
+    let first = 0;
+    let last  = 0;
+    let idleTimer = null;
+
+    function reset(){
+      buf = "";
+      first = 0;
+      last = 0;
+      if (idleTimer){
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    }
 
     function handleFinish(){
       const span = last - first;
-      const fastEnough = buf && span < buf.length * (CFG.gapMs+10);
+      const fastEnough = buf && span < buf.length * (CFG.gapMs + 10);
       if (fastEnough && buf.length >= CFG.minChars){
-        const code = buf; reset(); setBarcodeValue(code); return true;
+        const code = buf;
+        reset();
+        setBarcodeValue(code);
+        return true;
       }
-      reset(); return false;
+      reset();
+      return false;
     }
 
     document.addEventListener("keydown", function(e){
-      if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
+      // Si hay modificadores, reseteamos (no es escáner)
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        reset();
+        return;
+      }
       const t = Date.now();
 
+      // Teclas de cierre (Enter/Tab)
       if (CFG.finishKeys.includes(e.key)){
-        if (handleFinish()){ e.preventDefault(); e.stopImmediatePropagation(); }
+        if (handleFinish()){
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
         return;
       }
 
+      // Teclas imprimibles
       if (e.key && e.key.length === 1){
-        if (buf && (t-last) > CFG.gapMs) { buf=""; first=t; }
-        if (!buf) first=t;
-        buf+=e.key; last=t;
+        if (buf && (t - last) > CFG.gapMs) {
+          buf = "";
+          first = t;
+        }
+        if (!buf) first = t;
+        buf += e.key;
+        last = t;
 
         if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(()=>{ handleFinish(); }, CFG.gapMs*5);
+        idleTimer = setTimeout(() => { handleFinish(); }, CFG.gapMs * 5);
 
-        // Evita escribir caracteres en otros inputs si no estamos en el buscador
+        // Evita escribir en otros inputs si el foco NO está en el buscador
         if (document.activeElement !== $input[0]) {
           e.preventDefault();
           e.stopImmediatePropagation();
         }
-      }else{
+      } else {
+        // Ignoramos Shift, pero otras teclas rompen el buffer
         if (e.key !== "Shift") reset();
       }
     }, true);
 
-    document.addEventListener("paste", e=>{
-      const txt=(e.clipboardData||window.clipboardData)?.getData("text")||"";
-      const val=txt.trim();
-      if(val && val.length>=CFG.minChars){
+    // Soporte para pegar códigos (por si acaso)
+    document.addEventListener("paste", e => {
+      const txt = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+      const val = txt.trim();
+      if (val && val.length >= CFG.minChars){
         e.preventDefault();
         setBarcodeValue(val);
       }
