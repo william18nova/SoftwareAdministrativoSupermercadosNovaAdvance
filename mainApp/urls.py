@@ -2,17 +2,17 @@ from django.urls import path, include
 from . import views
 from django.contrib.auth import views as auth_views
 from .views import (
-                    LoginView, 
-                    HomePageView, 
-                    SucursalCreateAJAXView, 
-                    SucursalListView, 
-                    SucursalUpdateAJAXView, 
-                    CategoriaCreateAJAXView, 
-                    CategoriaListView, 
-                    CategoriaUpdateAJAXView, 
-                    ProductoCreateAJAXView, 
-                    CategoriaAutocompleteView, 
-                    ProductoListView, 
+                    LoginView,
+                    HomePageView,
+                    SucursalCreateAJAXView,
+                    SucursalListView,
+                    SucursalUpdateAJAXView,
+                    CategoriaCreateAJAXView,
+                    CategoriaListView,
+                    CategoriaUpdateAJAXView,
+                    ProductoCreateAJAXView,
+                    CategoriaAutocompleteView,
+                    ProductoListView,
                     ProductoUpdateAJAXView,
                     InventarioCreateAJAXView,
                     SucursalSinInventarioAutocomplete,
@@ -63,9 +63,9 @@ from .views import (
 
 urlpatterns = [
     path("", LoginView.as_view(), name="login"),
-    
+
     path('home/', HomePageView.as_view(), name='home'),
-    
+
     path('agregar_sucursal/', SucursalCreateAJAXView.as_view(), name='agregar_sucursal'),
     path("visualizar_sucursales/", SucursalListView.as_view(), name="visualizar_sucursales"),
     path('sucursales/eliminar/<int:sucursal_id>/', views.eliminar_sucursal, name='eliminar_sucursal'),
@@ -75,14 +75,14 @@ urlpatterns = [
     path("visualizar_categorias/", CategoriaListView.as_view(), name="visualizar_categorias"),
     path('categorias/eliminar/<int:categoria_id>/', views.eliminar_categoria, name='eliminar_categoria'),
     path("categorias/editar/<int:categoria_id>/", CategoriaUpdateAJAXView.as_view(), name="editar_categoria"),
-    
+
     path("agregar_producto/", ProductoCreateAJAXView.as_view(), name="agregar_producto"),
     path("categoria_autocomplete/", CategoriaAutocompleteView.as_view(), name="categoria_autocomplete"),
     path('visualizar_productos/',  ProductoListView.as_view(), name='visualizar_productos'),
     path('productos/eliminar/<int:producto_id>/', views.eliminar_producto, name='eliminar_producto'),
     path("productos/editar/<int:producto_id>/", ProductoUpdateAJAXView.as_view(), name="editar_producto"),
-    
-    
+
+
     path('agregar_inventario/', InventarioCreateAJAXView.as_view(), name='agregar_inventario'),
     # Ruta para autocompletar Sucursales sin Inventario
     path('autocomplete/sucursal_inventario/', SucursalSinInventarioAutocomplete.as_view(), name='sucursal_inventario_autocomplete'),
@@ -94,13 +94,13 @@ urlpatterns = [
     path('autocomplete/sucursal_inventario_editar/', SucursalInventarioAutocompleteEditarView.as_view(), name='sucursal_inventario_autocomplete_editar'),
     path('autocomplete/producto_inventario_editar/', ProductoInventarioAutocompleteView.as_view(), name='producto_inventario_autocomplete_editar'),
     path('inventario/eliminar/<int:inventario_id>/', views.eliminar_producto_inventario_view, name='eliminar_producto_inventario'),
-    
+
     path('agregar_proveedor/', ProveedorCreateView.as_view(), name='agregar_proveedor'),
     path("visualizar_proveedores/", ProveedorListView.as_view(), name="visualizar_proveedores"),
     path('eliminar_proveedor/<int:proveedor_id>/', views.eliminar_proveedor, name='eliminar_proveedor'),
     path("editar_proveedor/<int:proveedor_id>/", ProveedorUpdateView.as_view(), name="editar_proveedor"),
-    
-    
+
+
     path("agregar_productos_precios_proveedor/",PreciosProveedorCreateAJAXView.as_view(),name="agregar_productos_precios_proveedor"),
     path("autocomplete/proveedor_precios/", ProveedorSinPreciosAutocomplete.as_view(), name="proveedor_precios_autocomplete"),
     path("autocomplete/producto_precios/", ProductoExcludingAutocomplete.as_view(), name="producto_precios_autocomplete"),
@@ -154,8 +154,8 @@ urlpatterns = [
     path("editar_horarios_cajas/<int:puntopagoid>/", views.EditarHorarioCajaView.as_view(), name="editar_horarios_cajas"),
     path("autocomplete/sucursal_caja_editar/", views.SucursalDisponibleCajaAutocomplete.as_view(), name="sucursal_caja_editar_autocomplete"),
     path("autocomplete/puntopago_caja_editar/", views.PuntoCajaDisponibleAutocomplete.as_view(), name="puntopago_caja_editar_autocomplete"),
-    
-    
+
+
     path("agregar_cliente/", views.ClienteCreateAJAXView.as_view(), name="agregar_cliente"),
     path("visualizar_clientes/", views.ClienteListView.as_view(), name="visualizar_clientes"),
     path("clientes/editar/<int:cliente_id>/",views.ClienteUpdateAJAXView.as_view(),name="editar_cliente"),
@@ -185,15 +185,16 @@ urlpatterns = [
     path("producto_por_codigo/",      views.BuscarProductoPorCodigoView.as_view(), name="buscar_producto_por_codigo"),
     path('autocomplete/producto-codigo/',  views.ProductoCodigoAutocompleteView.as_view(),  name='producto_autocomplete_codigo'),
     path('autocomplete/producto-barras/',  views.ProductoBarrasAutocompleteView.as_view(),  name='producto_autocomplete_barras'),
-    
+
     path('visualizar_ventas/', views.VentaListView.as_view(), name='visualizar_ventas'),
     #  … otras urls …
     path('ver_venta/<int:venta_id>/', views.VentaDetailView.as_view(), name='ver_venta'),
+    path("ventas/ticket-texto/", views.TicketTextoView.as_view(), name="ticket_texto"),
     path("cambios/", views.CambiosListView.as_view(), name="visualizar_cambios"),
     path("ventas/imprimir/", views.ImprimirFacturaView.as_view(), name="imprimir_factura"),
 
-    
-    
+
+
     path("agregar_pedido/", views.PedidoProveedorCreateAJAXView.as_view(), name="agregar_pedido"),
     path("autocomplete/producto_pedido/", views.ProductoPedidoAutocomplete.as_view(), name="producto_pedido_autocomplete"),
     path("visualizar_pedidos/", views.PedidoListView.as_view(), name="visualizar_pedidos"),
@@ -205,18 +206,18 @@ urlpatterns = [
       views.PuntoPagoPorSucursalAutocomplete.as_view(),
       name="puntopago_autocomplete"
     ),
-    
+
      path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
-     
+
      path("permisos/agregar/", views.PermisoCreateView.as_view(), name="permiso_agregar"),
      path("visualizar_permisos/", views.PermisoListView.as_view(), name="visualizar_permisos"),
      path("permisos/editar/<int:permiso_id>/",
          views.PermisoUpdateAJAXView.as_view(),
          name="editar_permiso"),
      path("permisos/<int:pk>/eliminar/", views.eliminar_permiso, name="eliminar_permiso"),
-     
-     
-     
+
+
+
     path("roles_permisos/", views.RolPermisoAssignView.as_view(), name="roles_permisos"),
     path("autocomplete/rol/", views.RolAutocomplete.as_view(), name="rol_autocomplete"),
     path("autocomplete/permiso/", views.PermisoAutocomplete.as_view(), name="permiso_autocomplete"),
@@ -243,8 +244,8 @@ urlpatterns = [
      name="puntopago_ventas_autocomplete"),
      path("ventas_diarias/stats/", views.VentasDiariasStatsView.as_view(),
      name="ventas_diarias_stats"),
-     
-     
+
+
      # --- Reporte: pedidos pagados ---
      path("reportes/pedidos_pagados/", views.PedidosPagadosView.as_view(),
           name="pedidos_pagados"),

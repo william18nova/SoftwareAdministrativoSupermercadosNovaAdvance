@@ -4,7 +4,7 @@
 {% block title %}Detalle Venta #{{ venta.ventaid }}{% endblock %}
 
 {% block extra_head %}
-  <!-- reutilizamos estilo de Generar Venta y agregamos el nuestro -->
+  <!-- Reutilizamos estilos existentes -->
   <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
   <link rel="stylesheet" href="{% static 'css/ver_venta.css' %}">
 {% endblock %}
@@ -31,13 +31,11 @@
     </div>
     <div>
       <label>Cliente</label>
-      <input readonly
-         value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
+      <input readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
     </div>
     <div>
       <label>Empleado</label>
-      <input readonly
-             value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
+      <input readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
     </div>
     <div>
       <label>Sucursal</label>
@@ -59,10 +57,10 @@
         <thead>
           <tr>
             <th>Producto</th>
-            <th>Cant.</th>
-            <th>Precio U.</th>
-            <th>Subtotal</th>
-            <th>Devolver</th>
+            <th class="text-end">Cant.</th>
+            <th class="text-end">Precio U.</th>
+            <th class="text-end">Subtotal</th>
+            <th class="text-end">Devolver</th>
           </tr>
         </thead>
         <tbody>
@@ -95,23 +93,27 @@
           <i class="fas fa-list me-1"></i> Volver a la lista
         </a>
 
-        <!-- NUEVO: Botón imprimir -->
+        <!-- Botón imprimir (cliente) -->
         <button type="button"
                 id="btn-imprimir-factura"
                 class="btn-primary"
                 data-venta-id="{{ venta.pk }}">
           <i class="fas fa-print me-1"></i> Imprimir factura
         </button>
-        <!-- /NUEVO -->
       </div>
     </div>
   </form>
 </div>
 
-<!-- NUEVO: Cargar JS -->
+<!-- Exponer variables para ver_venta.js -->
 <script>
+  // Impresión en servidor (fallback existente)
   window.imprimirFacturaUrl = "{% url 'imprimir_factura' %}";
+  // Ticket en texto para el POS Agent
+  window.ticketTextoUrl     = "{% url 'ticket_texto' %}";
+  // Datos del POS Agent local (si los pasas por contexto; si no, quedan vacíos)
+  window.POS_AGENT_URL      = "{{ POS_AGENT_URL|default:'' }}";
+  window.POS_AGENT_TOKEN    = "{{ POS_AGENT_TOKEN|default:'' }}";
 </script>
 <script src="{% static 'javascript/ver_venta.js' %}"></script>
-<!-- /NUEVO -->
 {% endblock %}

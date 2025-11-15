@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — instant add + AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido");
+  console.log("⚡ generar_venta.js — instant add + AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido + 🧯 hard-reset total 0");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -100,6 +100,54 @@ $(function () {
   function addToTotal(delta) {
     setTotal((Number(runningTotal) || 0) + (Number(delta) || 0));
   }
+
+  // --- Integridad del total (recalcula desde DOM si hay desajuste) ---
+  function computeDOMTotal() {
+    let sum = 0;
+    $tbody.find("tr").each(function(){
+      const $r = $(this);
+      const counted = !!$r.data("counted");
+      const price = Number($r.data("price")) || 0;
+      const qty   = Number($r.attr("data-qty")) || Number($r.find(".qty-input").val()) || 1;
+      if (counted && price > 0 && qty > 0) sum += price * qty;
+    });
+    return sum;
+  }
+  function enforceTotalIntegrity() {
+    const dom = computeDOMTotal();
+    if (!Number.isFinite(dom)) return;
+    if (Math.abs(dom - (runningTotal||0)) > 0.0001) setTotal(dom);
+  }
+
+  // --- Limpieza total y a prueba de bfcache ---
+  function clearCartAndTotals() {
+    productos.length = 0;
+    cantidades.length = 0;
+    $tbody.empty();
+    $("#productos").val("[]");
+    $("#cantidades").val("[]");
+    setTotal(0);
+    $("#medio_pago").val("");
+    $("#monto-recibido").val("");
+    $("#cambio").text("");
+    $("#myModal").hide();
+  }
+
+  // Cinturón extra: si la página vuelve del bfcache, limpiamos carrito/total
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) {
+      clearCartAndTotals();
+    } else {
+      // En cualquier carga, si no hay filas, garantizamos total 0
+      if ($tbody.find("tr").length === 0) setTotal(0);
+      else enforceTotalIntegrity();
+    }
+  });
+
+  // Si el usuario recarga o navega, limpiamos igual
+  window.addEventListener("beforeunload", () => {
+    try { clearCartAndTotals(); } catch (_){}
+  });
 
   /* ================== Cache producto ================== */
   const productCache = new Map(); // pid -> {nombre, barcode, price, stock, ts}
@@ -223,6 +271,7 @@ $(function () {
       } else if (old && old !== live) {
         addToTotal((live - old) * qty);
       }
+      enforceTotalIntegrity();
       return true;
     });
   }
@@ -280,6 +329,7 @@ $(function () {
         $(row).data("counted", false);
       }
     }
+    enforceTotalIntegrity();
   }
 
   /* ================== Agregado con “burst last-only” ================== */
@@ -844,6 +894,7 @@ $(function () {
       if (i > -1) cantidades[i] = newQty;
       $row.find(".subtotal-cell").text(money(price * newQty));
       addToTotal(price * (newQty - oldQty));
+      enforceTotalIntegrity();
     });
   });
 
@@ -869,6 +920,7 @@ $(function () {
     if ($row.data("counted")) addToTotal(-(price * qty));
     if (idx > -1) { productos.splice(idx, 1); cantidades.splice(idx, 1); }
     $row.remove();
+    enforceTotalIntegrity();
   });
 
   $btnVaciar.on("click", function(){
@@ -891,7 +943,7 @@ $(function () {
   /* ================== Revalorar TODO al abrir modal ================== */
   function repriceAllRowsAndRecalcTotal() {
     const $rows = $tbody.find("tr");
-    if (!$rows.length) return Promise.resolve(true);
+    if (!$rows.length) { setTotal(0); return Promise.resolve(true); }
     let newTotal = 0;
     const tasks = [];
     $rows.each(function(){
@@ -1003,28 +1055,39 @@ $(function () {
     }
   });
 
-  /* ================== Agente local helpers (con keepalive para recarga veloz) ================== */
-  function agentPrintFireAndForget(text) {
+  /* ================== Agente local helpers (seguros con timeout) ================== */
+  async function agentPrintSafe(text, { timeout = 800 } = {}) {
+    if (!POS_AGENT_TOKEN) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
     try {
-      fetch(POS_AGENT_URL + "/print", {
+      await fetch(POS_AGENT_URL + "/print", {
         method: "POST",
-        keepalive: true,
-        headers: { "Content-Type": "application/json", "X-Pos-Agent-Token": POS_AGENT_TOKEN },
-        body: JSON.stringify({ text })
-      }).catch(()=>{});
-    } catch {}
+        headers: {
+          "Content-Type": "application/json",
+          "X-Pos-Agent-Token": POS_AGENT_TOKEN
+        },
+        body: JSON.stringify({ text }),
+        signal: ctrl.signal
+      });
+    } catch (_) { /* silencioso */ }
+    finally { clearTimeout(t); }
   }
-  function agentKickFireAndForget() {
+  async function agentKickSafe({ timeout = 600 } = {}) {
+    if (!POS_AGENT_TOKEN) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
     try {
-      fetch(POS_AGENT_URL + "/kick", {
+      await fetch(POS_AGENT_URL + "/kick", {
         method: "POST",
-        keepalive: true,
-        headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN }
-      }).catch(()=>{});
-    } catch {}
+        headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN },
+        signal: ctrl.signal
+      });
+    } catch (_) { /* silencioso */ }
+    finally { clearTimeout(t); }
   }
 
-  /* ================== Submit — versión ultrarrápida con recarga inmediata ================== */
+  /* ================== Submit — ultrarrápido + HARD RESET ANTES DE RECARGAR ================== */
   $("#venta-form").off("submit").on("submit", function (e) {
     e.preventDefault();
 
@@ -1055,7 +1118,7 @@ $(function () {
       body
     })
     .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP "+r.status)))
-    .then((r) => {
+    .then(async (r) => {
       const t1 = performance.now();
       if (!r || !r.success) { alert((r && r.error) || "Error"); return; }
 
@@ -1076,21 +1139,23 @@ $(function () {
         ].filter(Boolean).join("\n")
       );
 
-      // 🔥 Disparamos impresión/apertura en paralelo CON keepalive y recargamos de inmediato
+      // 🔒 HARD RESET inmediato del estado UI/total (protege contra bfcache y demoras)
+      clearCartAndTotals();
+
       try {
         if (omitirImpresion) {
-          agentKickFireAndForget();
+          await agentKickSafe({ timeout: 600 });
         } else {
-          agentPrintFireAndForget(r.receipt_text || "Factura\n\n");
-          // breve pausa para spool, pero sin bloquear navegación
-          setTimeout(agentKickFireAndForget, 120);
+          await agentPrintSafe(r.receipt_text || "Factura\n\n", { timeout: 800 });
+          await agentKickSafe({ timeout: 600 });
         }
-      } catch {}
+      } catch (_) { /* no bloquea la recarga */ }
 
-      // Recarga inmediata (más ágil que reload(true) y evita duplicar historial)
       const t2 = performance.now();
-      console.log(`⏱️ Venta guardada en ${(t1 - t0).toFixed(0)}ms; recargando… (+${(t2 - t1).toFixed(0)}ms post-OK)`);
-      location.replace(location.href);
+      console.log(`⏱️ Venta guardada en ${(t1 - t0).toFixed(0)}ms; impresión+gaveta ${(t2 - t1).toFixed(0)}ms → recargando…`);
+
+      // Pequeño defer para que el DOM muestre total $0 antes de recargar
+      setTimeout(() => { location.replace(location.href); }, 50);
     })
     .catch(() => alert("Error de red"));
   });
@@ -1174,6 +1239,7 @@ $(function () {
     const idx = productos.indexOf(pid);
     if (idx > -1) { productos.splice(idx, 1); cantidades.splice(idx, 1); }
     $first.remove();
+    enforceTotalIntegrity();
   });
 
   /* ================== Detector global de pistola (escáner) ================== */
@@ -1208,5 +1274,7 @@ $(function () {
   /* ================== Init ================== */
   $cantidad.prop("disabled", true);
   $agregar.prop("disabled", true);
+  // Seguridad: si no hay filas visibles al iniciar, total debe ser $0
+  if ($tbody.find("tr").length === 0) setTotal(0);
   if (!POS_AGENT_TOKEN) console.warn("[POS_AGENT] Token vacío: el agente podría rechazar (401).");
 });

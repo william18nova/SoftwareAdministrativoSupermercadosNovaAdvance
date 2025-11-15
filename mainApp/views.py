@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso
 from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField, Value, IntegerField, Case, When
-from django.http import JsonResponse, HttpRequest, HttpResponse
+from django.http import JsonResponse, HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.contrib.auth import authenticate, login as auth_login
 import json
 from datetime import date
@@ -2937,13 +2937,77 @@ class ProductoSnapshotView(View):
 TICKET_WIDTH = 32  # caracteres aprox. para 58mm
 
 def _fmt_money(v):
-    return f"${v:,.0f}".replace(",", ".")
+    try:
+        n = Decimal(v or 0)
+    except Exception:
+        n = Decimal("0")
+    return f"${n:,.0f}".replace(",", ".")
 
 def _wrap(text, width=TICKET_WIDTH):
     return textwrap.wrap(str(text or ""), width=width, break_long_words=True, break_on_hyphens=False)
 
 def _line():
     return "-" * TICKET_WIDTH
+
+def _build_ticket_text(venta: Venta) -> str:
+    """
+    Igual que _build_ticket, pero retorna TEXTO (no bytes),
+    perfecto para mandarlo al POS Agent vía JSON {text: "..."}.
+    """
+    tz_now = timezone.localtime()
+    out = []
+
+    # Encabezado
+    out += _wrap("NOVA ADVANCE")
+    out += _wrap("NIT: 900.000.000-1")
+    out.append(_line())
+    out += _wrap(f"NIT: 1.005.813.837-6 #{venta.pk}")
+    out += _wrap(f"Fecha: {venta.fecha}  {venta.hora.strftime('%H:%M')}")
+    out += _wrap(f"Sucursal: {venta.sucursalid.nombre}")
+    if getattr(venta, "clienteid", None):
+        out += _wrap(f"Cliente: {venta.clienteid.nombre}")
+    out.append(_line())
+
+    # Detalle
+    detalles = (DetalleVenta.objects
+                .filter(ventaid=venta)
+                .select_related("productoid"))
+    for det in detalles:
+        nombre = (det.productoid.nombre or "").strip() or "(Producto)"
+        pu     = det.preciounitario or 0
+        qty    = det.cantidad or 0
+        subtotal = pu * qty
+
+        lines = _wrap(nombre)
+        out.append(lines[0])
+        left = f"{qty} x {_fmt_money(pu)}"
+        right = _fmt_money(subtotal)
+        out.append(f"{left:<{TICKET_WIDTH-len(right)}}{right}")
+        for extra in lines[1:]:
+            out.append(extra)
+
+    out.append(_line())
+    out.append(f"{'TOTAL':<{TICKET_WIDTH-10}}{_fmt_money(venta.total):>10}")
+    out.append(_line())
+    out += _wrap(f"Medio de pago: {venta.mediopago.upper()}")
+    out.append("")
+    out += _wrap("¡Gracias por su compra!")
+    out.append("")
+    # 3 saltos
+    return "\n".join(out) + "\n\n\n"
+
+@method_decorator(require_POST, name="dispatch")
+class TicketTextoView(LoginRequiredMixin, View):
+    """
+    POST: {venta_id} → devuelve JSON con 'receipt_text' para impresión local (POS Agent).
+    """
+    def post(self, request, *args, **kwargs):
+        venta_id = request.POST.get("venta_id")
+        if not venta_id or not str(venta_id).isdigit():
+            return HttpResponseBadRequest("venta_id inválido")
+        venta = get_object_or_404(Venta, pk=int(venta_id))
+        text = _build_ticket_text(venta)
+        return JsonResponse({"success": True, "receipt_text": text})
 
 def _build_ticket(venta: Venta) -> bytes:
     """
@@ -3349,14 +3413,25 @@ class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
 
 class VentaListView(LoginRequiredMixin, ListView):
     """
-    Lista de ventas, más recientes primero, paginada
-    y con tabla responsive + buscador externo.
+    Todas las ventas con la MÁS RECIENTE primero.
     """
     model               = Venta
     template_name       = "visualizar_ventas.html"
     context_object_name = "ventas"
-    paginate_by         = 50
-    ordering            = ["-fecha", "-hora"]
+    paginate_by         = None  # sin paginación
+
+    def get_queryset(self):
+      return (
+          Venta.objects
+          .select_related("clienteid", "empleadoid", "sucursalid", "puntopagoid")
+          # Opción 1 (si tu PK real es ventaid):
+          .order_by("-ventaid")
+          # Opción 2 (si usas PK estándar id): .order_by("-pk")
+      )
+
+    # (opcional/redundante) deja explícito que no hay paginación
+    def get_paginate_by(self, queryset):
+        return None
 
 
 
