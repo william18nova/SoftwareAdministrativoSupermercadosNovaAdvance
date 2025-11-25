@@ -16,40 +16,51 @@
     Detalle de la Venta #{{ venta.ventaid }}
   </h1>
 
-  <div class="venta-grid">
-    <div>
-      <label>Fecha</label>
-      <input readonly value="{{ venta.fecha|date:'d/m/Y' }}">
-    </div>
-    <div>
-      <label>Hora</label>
-      <input readonly value="{{ venta.hora|time:'H:i' }}">
-    </div>
-    <div>
-      <label>Medio de Pago</label>
-      <input readonly value="{{ venta.mediopago|title }}">
-    </div>
-    <div>
-      <label>Cliente</label>
-      <input readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
-    </div>
-    <div>
-      <label>Empleado</label>
-      <input readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
-    </div>
-    <div>
-      <label>Sucursal</label>
-      <input readonly value="{{ venta.sucursalid.nombre }}">
-    </div>
-    <div>
-      <label>Punto de Pago</label>
-      <input readonly value="{{ venta.puntopagoid.nombre }}">
-    </div>
-  </div>
-
+  <!-- AHORA el form envuelve todo: grid + tabla + botones -->
   <form method="post">
     {% csrf_token %}
     {{ formset.management_form }}
+
+    <div class="venta-grid">
+      <div>
+        <label>Fecha</label>
+        <input readonly value="{{ venta.fecha|date:'d/m/Y' }}">
+      </div>
+      <div>
+        <label>Hora</label>
+        <input readonly value="{{ venta.hora|time:'H:i' }}">
+      </div>
+      <div>
+        <label for="id_mediopago">Medio de Pago</label>
+        <select name="mediopago" id="id_mediopago">
+          <option value="efectivo" {% if venta.mediopago == "efectivo" %}selected{% endif %}>
+            Efectivo
+          </option>
+          <option value="nequi" {% if venta.mediopago == "nequi" %}selected{% endif %}>
+            Nequi
+          </option>
+          <option value="daviplata" {% if venta.mediopago == "daviplata" %}selected{% endif %}>
+            Daviplata
+          </option>
+        </select>
+      </div>
+      <div>
+        <label>Cliente</label>
+        <input readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
+      </div>
+      <div>
+        <label>Empleado</label>
+        <input readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
+      </div>
+      <div>
+        <label>Sucursal</label>
+        <input readonly value="{{ venta.sucursalid.nombre }}">
+      </div>
+      <div>
+        <label>Punto de Pago</label>
+        <input readonly value="{{ venta.puntopagoid.nombre }}">
+      </div>
+    </div>
 
     <h2 class="venta-card__subtitle">Productos</h2>
     <div class="table-responsive rounded-2 overflow-hidden">
@@ -86,12 +97,15 @@
     <div class="venta-footer">
       <h3>Total actual: <span>${{ venta.total|floatformat:2 }}</span></h3>
       <div class="btn-group">
-        <button type="submit" class="btn-primary-alt">
+        <!-- Submit normal (devoluciones + cambio de medio de pago) -->
+        <button type="submit" class="btn-primary-alt" name="accion" value="devolver">
           <i class="fas fa-undo me-1"></i> Registrar devolución
         </button>
-        <a href="{% url 'visualizar_ventas' %}" class="btn-primary">
+
+        <!-- También hace POST para guardar y luego redirigir a la lista -->
+        <button type="submit" class="btn-primary" name="accion" value="volver_lista">
           <i class="fas fa-list me-1"></i> Volver a la lista
-        </a>
+        </button>
 
         <!-- Botón imprimir (cliente) -->
         <button type="button"

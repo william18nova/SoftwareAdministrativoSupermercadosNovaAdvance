@@ -3663,7 +3663,8 @@ class VentaDataTableView(LoginRequiredMixin, View):
 
 class VentaDetailView(LoginRequiredMixin, View):
     """
-    Muestra el detalle de una venta y permite registrar devoluciones.
+    Muestra el detalle de una venta y permite registrar devoluciones
+    y cambiar el medio de pago.
     """
     template_name = "ver_venta.html"
 
@@ -3703,6 +3704,17 @@ class VentaDetailView(LoginRequiredMixin, View):
     def post(self, request, venta_id):
         venta    = get_object_or_404(Venta, pk=venta_id)
         detalles = DetalleVenta.objects.filter(ventaid=venta)
+
+        # ===== 1) Actualizar medio de pago SIEMPRE que venga en el POST =====
+        nuevo_mediopago = request.POST.get("mediopago")
+
+        # Si viene algo y es distinto a lo que hay en BD → actualizar
+        if nuevo_mediopago and nuevo_mediopago != venta.mediopago:
+            venta.mediopago = nuevo_mediopago
+            venta.save(update_fields=["mediopago"])
+            messages.success(request, "✅ Medio de pago actualizado.")
+
+        # ===== 2) Procesar devoluciones (sean o no haya cambio de mediopago) =====
         DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
         formset = DevolucionFormSet(request.POST)
 
@@ -3720,6 +3732,7 @@ class VentaDetailView(LoginRequiredMixin, View):
                 CambioDevolucion.registrar_devolucion(venta, devoluciones)
                 messages.success(request, "✅ Devolución registrada correctamente.")
 
+        # Siempre volvemos a la lista
         return redirect(reverse_lazy("visualizar_ventas"))
 
 class CambiosListView(LoginRequiredMixin, ListView):
