@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — instant add + AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido + 🧯 hard-reset total 0");
+  console.log("⚡ generar_venta.js — AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido + ✅ scanner: qty-guard => code");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -50,8 +50,18 @@ $(function () {
   /* ================== Utils ================== */
   const money = (n) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" })
     .format(Number(n) || 0);
+
   const onlyDigits = (s) => String(s||"").replace(/\D+/g, "");
   const norm = (s)=> (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+
+  const normalizeUnits = (s) => {
+    let x = norm(s);
+    x = x.replace(/\bx\s*(\d+)\b/g, "x$1");
+    x = x.replace(/(\d+(?:[.,]\d+)?)\s*(ml|g|gr|kg|l|lt|oz)\b/g, (m, a, u) => `${a.replace(",", ".")}${u}`);
+    x = x.replace(/\s+/g, " ").trim();
+    return x;
+  };
+
   const onlyName = (s) => {
     s = String(s || "").trim();
     s = s.replace(/^[\s•·\-\u2013\u2014:|.,;]+/, "");
@@ -63,11 +73,23 @@ $(function () {
     s = s.replace(/^[\s•·\-\u2013\u2014:|.,;]+/, "");
     return s;
   };
+
   const clampQty = (x) => {
     const n = parseInt(String(x).replace(/\D+/g, ""), 10);
     return Number.isFinite(n) && n > 0 ? n : 1;
   };
+
   const now = () => Date.now();
+
+  function classifyQuery(term){
+    const raw = String(term || "").trim();
+    const digits = onlyDigits(raw);
+    const hasLetters = /[a-záéíóúñ]/i.test(raw);
+    const compact = raw.replace(/\s+/g,"");
+    const isPureDigits = digits.length > 0 && digits.length === compact.length;
+    const isBarcodeLike = isPureDigits && digits.length >= 6;
+    return { raw, digits, hasLetters, isPureDigits, isBarcodeLike };
+  }
 
   /* ================== Estado persistido ================== */
   let sucursalID = (localStorage.getItem("sucursalID") || "").toString().match(/\d+/)?.[0] || "";
@@ -79,8 +101,8 @@ $(function () {
   const hasSucursal = () => /^\d+$/.test(String(sucursalID || ""));
 
   /* ================== Estado venta ================== */
-  const productos  = []; // array de strings (pid)
-  const cantidades = []; // array de números
+  const productos  = [];
+  const cantidades = [];
   let runningTotal = 0;
   let lastAddedPid = null;
 
@@ -101,7 +123,6 @@ $(function () {
     setTotal((Number(runningTotal) || 0) + (Number(delta) || 0));
   }
 
-  // --- Integridad del total (recalcula desde DOM si hay desajuste) ---
   function computeDOMTotal() {
     let sum = 0;
     $tbody.find("tr").each(function(){
@@ -119,7 +140,16 @@ $(function () {
     if (Math.abs(dom - (runningTotal||0)) > 0.0001) setTotal(dom);
   }
 
-  // --- Limpieza total y a prueba de bfcache ---
+  function throttle(fn, ms=60){
+    let t=0, lastArgs=null, lastThis=null, timer=null;
+    return function(...args){
+      const ts=Date.now(); lastArgs=args; lastThis=this;
+      const run=()=>{ timer=null; t=ts; fn.apply(lastThis,lastArgs); };
+      if (!t || ts-t>=ms){ run(); } else { if (!timer) timer=setTimeout(run, ms-(ts-t)); }
+    };
+  }
+  const enforceTotalIntegritySoft = throttle(enforceTotalIntegrity, 150);
+
   function clearCartAndTotals() {
     productos.length = 0;
     cantidades.length = 0;
@@ -131,28 +161,64 @@ $(function () {
     $("#monto-recibido").val("");
     $("#cambio").text("");
     $("#myModal").hide();
+    lastAddedPid = null;
   }
 
-  // Cinturón extra: si la página vuelve del bfcache, limpiamos carrito/total
   window.addEventListener("pageshow", (e) => {
-    if (e.persisted) {
-      clearCartAndTotals();
-    } else {
-      // En cualquier carga, si no hay filas, garantizamos total 0
+    if (e.persisted) clearCartAndTotals();
+    else {
       if ($tbody.find("tr").length === 0) setTotal(0);
-      else enforceTotalIntegrity();
+      else enforceTotalIntegritySoft();
     }
   });
 
-  // Si el usuario recarga o navega, limpiamos igual
-  window.addEventListener("beforeunload", () => {
-    try { clearCartAndTotals(); } catch (_){}
-  });
+  window.addEventListener("beforeunload", () => { try { clearCartAndTotals(); } catch (_){ } });
+
+  /* ================== Helpers: focus qty row ================== */
+  function focusQtyOfRow($row){
+    if (!$row || !$row.length) return false;
+    const $q = $row.find(".qty-input");
+    if (!$q.length) return false;
+    $q.focus();
+    $q[0]?.select?.();
+    return true;
+  }
+
+  function focusQtySmart(){
+    if (lastAddedPid) {
+      const $r = $tbody.find(`tr[data-pid='${String(lastAddedPid)}']`);
+      if ($r.length && focusQtyOfRow($r)) return true;
+    }
+    const $first = $tbody.find("tr:visible").first();
+    if ($first.length && focusQtyOfRow($first)) {
+      lastAddedPid = String($first.data("pid") || "") || null;
+      return true;
+    }
+    if ($cantidad && $cantidad.length) {
+      $cantidad.focus();
+      $cantidad[0]?.select?.();
+      return true;
+    }
+    return false;
+  }
+
+  function refreshLastAddedPidAfterRemoval(removedPid){
+    const rp = String(removedPid || "");
+    if (rp && String(lastAddedPid || "") === rp) lastAddedPid = null;
+    if (lastAddedPid) {
+      const $r = $tbody.find(`tr[data-pid='${String(lastAddedPid)}']`);
+      if ($r.length) return;
+      lastAddedPid = null;
+    }
+    const $first = $tbody.find("tr:visible").first();
+    lastAddedPid = $first.length ? String($first.data("pid") || "") : null;
+  }
 
   /* ================== Cache producto ================== */
   const productCache = new Map(); // pid -> {nombre, barcode, price, stock, ts}
   const barcodeIndex = new Map(); // barcode -> pid
   const nameIndex    = new Map(); // name(lc) -> pid
+
   function updateCache(pid, data = {}) {
     const key = String(pid);
     const prev = productCache.get(key) || {};
@@ -168,34 +234,40 @@ $(function () {
       ts: data.ts || now(),
     };
     productCache.set(key, rec);
-    if (rec.barcode) barcodeIndex.set(rec.barcode, key);
+    if (rec.barcode) barcodeIndex.set(String(rec.barcode), key);
     if (rec.nombre) nameIndex.set(rec.nombre.toLowerCase(), key);
     return rec;
   }
 
   /* ================== Catálogo Snapshot L1 ================== */
   const catalogBySucursal = new Map();
-  const catalogTS = new Map();
-  const CATALOG_TTL_MS = 5 * 60 * 1000;
   const preIndex = new Map(); // sid -> {names:[...], codes:[...], map: Map(id->ref)}
+  const CATALOG_TTL_MS = 5 * 60 * 1000;
 
   function hydrateFromCatalog(items){
-    for (const p of items) {
-      updateCache(p.id, { nombre:p.name, barcode:p.barcode, precio_unitario:p.price, cantidad_disponible:p.stock });
-    }
+    for (const p of items) updateCache(p.id, { nombre:p.name, barcode:p.barcode, precio_unitario:p.price, cantidad_disponible:p.stock });
   }
+
   function buildPreIndexFor(sid, items){
     const idx = { names: [], codes: [], map:new Map() };
     for (const p of items) {
       const id = p.id;
-      const nname = norm(p.name || "");
-      const nbarcode = p.barcode ? onlyDigits(p.barcode) : "";
-      idx.names.push({ id, nname, label:p.name||"", price:p.price, stock:p.stock, barcode:p.barcode||"" });
-      idx.codes.push({ id, nbarcode, label: p.barcode || p.name || "", price:p.price, stock:p.stock });
-      idx.map.set(String(id), { id, name:p.name||"", barcode:p.barcode||"", price:p.price, stock:p.stock });
+      const rawName = (p.name || "").toString();
+      const nnameU = normalizeUnits(rawName);
+      const toks = nnameU ? nnameU.split(/\s+/).filter(Boolean) : [];
+
+      const barcodeRaw = (p.barcode || "").toString();
+      const nbarcode = barcodeRaw ? onlyDigits(barcodeRaw) : "";
+
+      idx.names.push({ id, nnameU, toks, label: rawName || "", price: p.price, stock: p.stock, barcode: barcodeRaw || "" });
+      idx.codes.push({ id, nbarcode, label: barcodeRaw || rawName || "", price: p.price, stock: p.stock });
+      idx.map.set(String(id), { id, name: rawName || "", barcode: barcodeRaw || "", price: p.price, stock: p.stock });
     }
+    idx.names.sort((a,b) => (a.nnameU < b.nnameU ? -1 : a.nnameU > b.nnameU ? 1 : 0));
+    idx.codes.sort((a,b) => (a.nbarcode < b.nbarcode ? -1 : a.nbarcode > b.nbarcode ? 1 : 0));
     preIndex.set(sid, idx);
   }
+
   function loadCatalogFromLocalStorage(sid) {
     try {
       const raw = localStorage.getItem(`catalog_${sid}`);
@@ -205,12 +277,12 @@ $(function () {
       const arr = JSON.parse(raw);
       if (!Array.isArray(arr)) return false;
       catalogBySucursal.set(sid, arr);
-      catalogTS.set(sid, ts);
       hydrateFromCatalog(arr);
       buildPreIndexFor(sid, arr);
       return true;
     } catch { return false; }
   }
+
   async function fetchCatalogSnapshot(sid) {
     const url = SNAPSHOT_URL + "?" + new URLSearchParams({ sucursal_id: sid });
     const r = await fetch(url);
@@ -218,7 +290,6 @@ $(function () {
     const d = await r.json();
     const items = Array.isArray(d.results) ? d.results : [];
     catalogBySucursal.set(sid, items);
-    catalogTS.set(sid, now());
     try {
       localStorage.setItem(`catalog_${sid}`, JSON.stringify(items));
       localStorage.setItem(`catalog_${sid}_ts`, String(now()));
@@ -227,6 +298,7 @@ $(function () {
     buildPreIndexFor(sid, items);
     return items;
   }
+
   async function ensureCatalog(sid, {force=false}={}) {
     if (!sid) return [];
     if (!force && catalogBySucursal.has(sid)) return catalogBySucursal.get(sid) || [];
@@ -235,16 +307,192 @@ $(function () {
     catch { return catalogBySucursal.get(sid) || []; }
   }
 
-  /* ================== Índices de búsqueda local ================== */
+  /* ================== Ranking local ================== */
   class LRU {
     constructor(max=200){ this.max=max; this.map=new Map(); }
     get(k){ if(!this.map.has(k)) return null; const v=this.map.get(k); this.map.delete(k); this.map.set(k,v); return v; }
     set(k,v){ if(this.map.has(k)) this.map.delete(k); this.map.set(k,v); if(this.map.size>this.max){ const f=this.map.keys().next().value; this.map.delete(f);} }
   }
-  const termCacheName = new LRU(200);
-  const termCacheCode = new LRU(200);
+  const termCacheName = new LRU(240);
+  const termCacheCode = new LRU(240);
 
-  /* ================== Precio en vivo (ignora caché) ================== */
+  let pickBoost = Object.create(null);
+  let pickSaveTimer = null;
+
+  function loadPickBoost(sid){
+    pickBoost = Object.create(null);
+    try {
+      const raw = localStorage.getItem(`pick_boost_${sid}`) || "";
+      const obj = raw ? JSON.parse(raw) : null;
+      if (obj && typeof obj === "object") pickBoost = obj;
+    } catch {}
+  }
+
+  function bumpPick(pid){
+    if (!hasSucursal() || !pid) return;
+    const k = String(pid);
+    pickBoost[k] = (pickBoost[k] || 0) + 1;
+    if (pickSaveTimer) clearTimeout(pickSaveTimer);
+    pickSaveTimer = setTimeout(() => {
+      try { localStorage.setItem(`pick_boost_${sucursalID}`, JSON.stringify(pickBoost)); } catch {}
+    }, 400);
+  }
+
+  function pushTopK(arr, item, score, K=40){
+    if (score <= 0) return;
+    const rec = { item, score };
+    if (arr.length < K) { arr.push(rec); return; }
+    let minI = 0, minS = arr[0].score;
+    for (let i=1;i<arr.length;i++){
+      if (arr[i].score < minS) { minS = arr[i].score; minI = i; }
+    }
+    if (score <= minS) return;
+    arr[minI] = rec;
+  }
+
+  function isStrongToken(t){
+    if (!t) return false;
+    return /\d/.test(t) || /^x\d+/.test(t) || /\d+(ml|g|gr|kg|l|lt|oz)$/.test(t);
+  }
+
+  function scoreName(qU, qTokens, strongTokens, cand){
+    const s = cand.nnameU;
+    if (!s) return 0;
+    if (s === qU) return 2600 + (pickBoost[String(cand.id)] || 0) * 7;
+
+    let score = 0;
+    const pos = s.indexOf(qU);
+    if (pos === 0) score += 1500;
+    else if (pos > 0) score += 850;
+    if (pos >= 0) score += Math.max(0, 160 - pos * 6);
+
+    if (qTokens.length) {
+      let hits = 0, strongHits = 0;
+
+      for (let i=0;i<qTokens.length;i++){
+        const t = qTokens[i];
+        if (!t) continue;
+        const strong = isStrongToken(t);
+        let found = false;
+
+        for (let j=0;j<cand.toks.length;j++){
+          const ct = cand.toks[j];
+          if (ct === t) { score += strong ? 240 : 170; hits++; if (strong) strongHits++; found=true; break; }
+          if (ct.startsWith(t)) { score += strong ? 170 : 120; hits++; if (strong) strongHits++; found=true; break; }
+        }
+        if (!found) score -= (strong ? 190 : 70);
+      }
+
+      if (hits) score += hits * 45;
+      if (hits === qTokens.length) score += 260;
+      if (strongTokens.length && strongHits === strongTokens.length) score += 360;
+    }
+
+    const diff = Math.abs((s.length || 0) - (qU.length || 0));
+    score += Math.max(0, 90 - diff);
+
+    score += (pickBoost[String(cand.id)] || 0) * 7;
+
+    const st = Number(cand.stock) || 0;
+    if (st > 0) score += Math.min(80, st / 2);
+
+    return score;
+  }
+
+  function scoreCode(qDigits, candCode){
+    const s = candCode.nbarcode || "";
+    if (!s || !qDigits) return 0;
+    if (s === qDigits) return 2400 + (pickBoost[String(candCode.id)] || 0) * 7;
+    const pos = s.indexOf(qDigits);
+    if (pos === 0) return 1700 + Math.max(0, 130 - qDigits.length * 2) + (pickBoost[String(candCode.id)] || 0) * 7;
+    if (pos > 0) return 1000 + Math.max(0, 70 - pos * 5) + (pickBoost[String(candCode.id)] || 0) * 7;
+    return 0;
+  }
+
+  function rankNameLocal(term, idx, limit=40){
+    const qU = normalizeUnits(term);
+    if (!qU) return [];
+
+    const qTokens = qU.split(/\s+/).filter(Boolean).slice(0, 6);
+    const strongTokens = qTokens.filter(isStrongToken);
+
+    const top = [];
+    for (let i=0;i<idx.names.length;i++){
+      const c = idx.names[i];
+
+      if (qTokens.length) {
+        const t0 = qTokens[0];
+        if (t0 && c.nnameU.indexOf(t0) === -1) continue;
+      } else {
+        if (c.nnameU.indexOf(qU) === -1) continue;
+      }
+
+      if (strongTokens.length) {
+        let ok = false;
+        for (let k=0;k<strongTokens.length;k++){
+          const st = strongTokens[k];
+          if (st && c.nnameU.indexOf(st) !== -1) { ok = true; break; }
+        }
+        if (!ok) continue;
+      }
+
+      const sc = scoreName(qU, qTokens, strongTokens, c);
+      pushTopK(top, c, sc, limit);
+    }
+
+    top.sort((a,b) => b.score - a.score);
+    return top.map(({item:c}) => ({ id:c.id, name:c.label, barcode:c.barcode, price:c.price, stock:c.stock }));
+  }
+
+  function rankCodeLocal(term, idx, limit=40){
+    const info = classifyQuery(term);
+    if (!info.isBarcodeLike) return rankNameLocal(term, idx, limit);
+
+    const qDigits = info.digits;
+    const top = [];
+    for (let i=0;i<idx.codes.length;i++){
+      const c = idx.codes[i];
+      if (!c.nbarcode) continue;
+      if (c.nbarcode.indexOf(qDigits) === -1) continue;
+      const sc = scoreCode(qDigits, c);
+      pushTopK(top, c, sc, limit);
+    }
+
+    top.sort((a,b) => b.score - a.score);
+    return top.map(({item:c}) => {
+      const ref = idx.map.get(String(c.id));
+      const barcode = ref?.barcode || c.label || "";
+      const name = ref?.name || "";
+      return { id:c.id, name, barcode, price: ref?.price ?? c.price, stock: ref?.stock ?? c.stock };
+    });
+  }
+
+  function buildLocalSmart(term, idx, limit=40){
+    const t = (term || "").trim();
+    const info = classifyQuery(t);
+
+    const locals = [];
+    const seen = new Set();
+
+    if (info.isPureDigits && idx) {
+      const ref = idx.map.get(String(info.digits));
+      if (ref) { locals.push({ id: ref.id, name: ref.name, barcode: ref.barcode, price: ref.price, stock: ref.stock }); seen.add(String(ref.id)); }
+    }
+
+    if (idx && info.isBarcodeLike) {
+      const byCode = rankCodeLocal(t, idx, limit);
+      for (const it of byCode) { const k=String(it.id); if(seen.has(k)) continue; locals.push(it); seen.add(k); if(locals.length>=limit) break; }
+    }
+
+    if (idx && locals.length < limit) {
+      const byName = rankNameLocal(t, idx, limit);
+      for (const it of byName) { const k=String(it.id); if(seen.has(k)) continue; locals.push(it); seen.add(k); if(locals.length>=limit) break; }
+    }
+
+    return locals.slice(0, limit);
+  }
+
+  /* ================== Precio en vivo ================== */
   function ensureLivePrice(pid) {
     return $.post(VERIFICAR_URL, { producto_id: pid, cantidad: 1, sucursal_id: sucursalID, _ts: Date.now() })
       .then((r) => {
@@ -256,24 +504,48 @@ $(function () {
       })
       .catch(() => null);
   }
+
+  function setRowPriceUI($row, price){
+    $row.attr("data-price", price).data("price", price);
+    $row.removeClass("pending-price");
+    $row.find(".price-cell").text(money(price));
+  }
+
   function refreshRowPriceIfNeeded($row) {
     const pid = String($row.data("pid") || "");
     return ensureLivePrice(pid).then((live) => {
       if (!Number.isFinite(live) || live <= 0) return false;
+
       const old = Number($row.data("price")) || 0;
       const qty = Number($row.attr("data-qty")) || Number($row.find(".qty-input").val()) || 1;
-      $row.attr("data-price", live).data("price", live);
-      $row.find(".price-cell").text(money(live));
+
+      setRowPriceUI($row, live);
       $row.find(".subtotal-cell").text(money(live * qty));
+
       if (!$row.data("counted")) {
         addToTotal(live * qty);
         $row.data("counted", true);
       } else if (old && old !== live) {
         addToTotal((live - old) * qty);
       }
-      enforceTotalIntegrity();
+      enforceTotalIntegritySoft();
       return true;
     });
+  }
+
+  /* ================== Debounce verificación precio ================== */
+  const verifyTimers = new Map(); // pid -> timer
+  function scheduleVerifyRowPrice($row, delay=220){
+    const pid = String($row.data("pid") || "");
+    if (!pid) return;
+    const prev = verifyTimers.get(pid);
+    if (prev) clearTimeout(prev);
+    const t = setTimeout(() => {
+      verifyTimers.delete(pid);
+      const $still = $tbody.find(`tr[data-pid='${pid}']`);
+      if ($still.length) refreshRowPriceIfNeeded($still);
+    }, Math.max(0, delay|0));
+    verifyTimers.set(pid, t);
   }
 
   /* ================== Inserción instantánea ================== */
@@ -296,6 +568,7 @@ $(function () {
        </tr>`
     );
   }
+
   function insertOrUpdateRowInstant(pid, qty, name, cachedPrice) {
     const key = String(pid);
     const idx = productos.indexOf(key);
@@ -303,33 +576,40 @@ $(function () {
 
     if (idx > -1) {
       cantidades[idx] += qty;
+
       const $r = $tbody.find(`tr[data-pid='${pid}']`);
       const newQty = cantidades[idx];
       $r.attr("data-qty", newQty);
+
       const $qin = $r.find(".qty-input");
       if ($qin.length) $qin[0].value = newQty;
+
       const price = Number($r.data("price")) || 0;
       if (price > 0) {
         $r.find(".subtotal-cell").text(money(price * newQty));
         addToTotal(price * qty);
+        enforceTotalIntegritySoft();
+      } else {
+        scheduleVerifyRowPrice($r, 120);
       }
     } else {
       productos.push(key);
       cantidades.push(qty);
-      const html = buildRowHTML(pid, qty, name, cachedPrice);
+
+      const cached = productCache.get(key) || {};
+      const nm = cached.nombre || name || `Producto ${pid}`;
+      const html = buildRowHTML(pid, qty, nm, cachedPrice);
+
       const tmpl = document.createElement("tbody");
       tmpl.innerHTML = html.trim();
       const row = tmpl.firstChild;
       $tbody[0].insertBefore(row, $tbody[0].firstChild || null);
 
-      if (hasPrice) {
-        addToTotal(cachedPrice * qty);
-        $(row).data("counted", true);
-      } else {
-        $(row).data("counted", false);
-      }
+      if (hasPrice) { addToTotal(cachedPrice * qty); $(row).data("counted", true); }
+      else { $(row).data("counted", false); scheduleVerifyRowPrice($(row), 120); }
+
+      enforceTotalIntegritySoft();
     }
-    enforceTotalIntegrity();
   }
 
   /* ================== Agregado con “burst last-only” ================== */
@@ -352,38 +632,33 @@ $(function () {
       addToCartGuarded(p, q);
     }, burstAdd.windowMs);
   }
+
   function addToCart(pid, qty = 1) {
     if (!pid || qty < 1) return;
+
     const key    = String(pid);
     const cached = productCache.get(key) || {};
     const name   = cached.nombre || `Producto ${pid}`;
     const cPrice = Number(cached.price) || 0;
 
     insertOrUpdateRowInstant(pid, qty, name, cPrice);
+
     queueMicrotask(() => {
-      refreshRowPriceIfNeeded($tbody.find(`tr[data-pid='${pid}']`));
+      const $r = $tbody.find(`tr[data-pid='${pid}']`);
+      if ($r.length) scheduleVerifyRowPrice($r, 90);
     });
 
     lastAddedPid = key;
+
     $inpNombre.val("");
     $inpCode.val("");
     $pid.val("");
-    $cantidad.val(1);
+    $cantidad.val("1");
+
     queueMicrotask(() => { if ($inpCode.is(":visible")) { $inpCode.focus(); $inpCode[0]?.select?.(); } });
   }
 
   /* ================== Resolutores rápidos ================== */
-  function resolveByProductId(pid) {
-    if (!pid) return Promise.resolve(null);
-    return $.post(VERIFICAR_URL, { producto_id: pid, cantidad: 1, sucursal_id: sucursalID, _ts: Date.now() })
-      .then((r) => {
-        if (!r || !r.exists) return null;
-        const rec = updateCache(pid, r);
-        setProductFields({ nombre: rec.nombre, pid, barcode: rec.barcode });
-        return pid;
-      })
-      .catch(() => null);
-  }
   function resolveByBarcode(code) {
     if (!code) return Promise.resolve(null);
     const cachedPid = barcodeIndex.get(code);
@@ -402,10 +677,12 @@ $(function () {
       })
       .catch(() => null);
   }
+
   function setProductFields({ nombre, pid, barcode }) {
     if (nombre != null)  $inpNombre.val(onlyName(nombre));
     if (pid != null)     $pid.val(pid);
     if (barcode != null) $inpCode.val(barcode);
+
     if ($pid.val()) {
       $cantidad.prop("disabled", false);
       $agregar.prop("disabled", false);
@@ -424,6 +701,7 @@ $(function () {
       }
     }, true);
   }
+
   function blockNavOpenWhenEmpty($inp, minChars) {
     $inp.on("keydown", function(e){
       const navKeys = ["ArrowDown","ArrowUp","PageDown","PageUp","Home","End"];
@@ -435,18 +713,14 @@ $(function () {
       }
     });
   }
-  function throttle(fn, ms=45){
-    let t=0, lastArgs=null, lastThis=null, timer=null;
-    return function(...args){
-      const ts=Date.now(); lastArgs=args; lastThis=this;
-      const run=()=>{ timer=null; t=ts; fn.apply(lastThis,lastArgs); };
-      if (!t || ts-t>=ms){ run(); } else { if (!timer) timer=setTimeout(run, ms-(ts-t)); }
-    };
-  }
+
   function createAC({ $inp, sourceFn, onSelect, openIfEmpty=false, enableInstantSearch=true, minChars=1 }) {
     attachAltEnterBypass($inp[0]);
     $inp.autocomplete({
-      minLength: minChars, delay: 0, autoFocus: true, appendTo: "body",
+      minLength: minChars,
+      delay: 0,
+      autoFocus: true,
+      appendTo: "body",
       position:{ my:"left top+6", at:"left bottom", collision:"flipfit" },
       source: sourceFn,
       open(){ $inp.autocomplete("widget").css("z-index", 3000); },
@@ -457,11 +731,13 @@ $(function () {
         return false;
       }
     });
+
     $inp.on("focus", function(){
       const v = this.value || "";
       if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
       $inp.autocomplete("search", v);
     });
+
     if (enableInstantSearch) {
       let raf = null;
       $inp.on("input", function(){
@@ -471,10 +747,10 @@ $(function () {
         raf = requestAnimationFrame(()=> $inp.autocomplete("search", v));
       });
     }
+
     blockNavOpenWhenEmpty($inp, openIfEmpty ? 0 : minChars);
   }
 
-  /* === Render con precio en opciones === */
   function applyPriceTemplate($inp, {mode="name"} = {}) {
     const inst = $inp.autocomplete("instance");
     if (!inst) return;
@@ -486,10 +762,16 @@ $(function () {
       const priceNum = Number(item.price);
       const right = (Number.isFinite(priceNum) && priceNum > 0) ? `<span class="ac-price">${money(priceNum)}</span>` : "";
       const $li = $("<li>");
-      const $content = $( `<div class="ac-row"><div class="ac-left">${left}</div><div class="ac-right">${right}</div></div>` );
+      const $content = $(
+        `<div class="ac-row">
+           <div class="ac-left">${left}</div>
+           <div class="ac-right">${right}</div>
+         </div>`
+      );
       return $li.append($content).appendTo(ul);
     };
   }
+
   (function injectACStyles(){
     const css =
 `.ui-autocomplete .ac-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;max-width:72ch}
@@ -508,29 +790,40 @@ $(function () {
 
   /* ============ Búsquedas ultra-rápidas (red) ============ */
   const netSearchName = throttle(async (term, signal) => {
-    const url = PRODUCTO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 40 });
+    const tU = normalizeUnits(term);
+    const url = PRODUCTO_URL + "?" + new URLSearchParams({ term: tU || term, sucursal_id: sucursalID, limit: 40 });
     const r = await fetch(url, { signal }).catch(()=>null);
     if (!r || !r.ok) return [];
     const d = await r.json().catch(()=>({results:[]}));
-    return (d.results||[]).map(p => ({ id:p.id, name:p.text, label:p.text, value:p.text, price:p.precio, stock:p.stock }));
+    return (d.results||[]).map(p => ({
+      id:p.id,
+      name:p.text,
+      barcode:(p.barcode||p.codigo_de_barras||""),
+      price:p.precio,
+      stock:p.stock
+    }));
   }, 45);
 
   const netSearchCode = throttle(async (term, signal) => {
     const [dCod, dBar] = await Promise.all([
-      fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal }).then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]})),
-      fetch(AC_BARRAS_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal }).then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]})),
+      fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal })
+        .then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]})),
+      fetch(AC_BARRAS_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal })
+        .then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]})),
     ]);
     const net = [];
     const seen = new Set();
-    const push = (p, preferBarcode=false) => {
-      const lbl = preferBarcode ? (p.barcode||p.codigo_de_barras||p.text||String(p.id)) : (p.text||String(p.id));
-      const k = String(p.id)+"::"+(p.barcode||p.codigo_de_barras||"");
+    const push = (p) => {
+      const id = p.id;
+      const barcode = (p.barcode || p.codigo_de_barras || "");
+      const name = (p.text || p.nombre || "");
+      const k = String(id)+"::"+barcode;
       if (seen.has(k)) return;
       seen.add(k);
-      net.push({ id:p.id, name:p.text||"", label:lbl, value:lbl, barcode:(p.barcode||p.codigo_de_barras||""), price:p.precio, stock:p.stock });
+      net.push({ id, name, barcode, price:p.precio, stock:p.stock });
     };
-    (dBar.results||[]).forEach(p=> push(p, true));
-    (dCod.results||[]).forEach(p=> push(p, false));
+    (dBar.results||[]).forEach(push);
+    (dCod.results||[]).forEach(push);
     return net;
   }, 45);
 
@@ -539,155 +832,117 @@ $(function () {
   let autoPickGuardTS = 0;
 
   function maybeAutoPickBarcode(term, items){
-    const qdigits = onlyDigits(term);
-    const isBarcodeQuery = /^\d{6,}$/.test(qdigits);
-    if (!isBarcodeQuery || !hasSucursal() || !Array.isArray(items) || items.length !== 1) return;
+    const info = classifyQuery(term);
+    if (!info.isBarcodeLike || !hasSucursal() || !Array.isArray(items) || items.length !== 1) return;
     const ts = Date.now();
     if (ts - autoPickGuardTS < 250) return;
     autoPickGuardTS = ts;
+
     const item = items[0];
-    updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
-    setProductFields({ nombre:item.name||item.value, pid:item.id, barcode:item.barcode||item.label });
+    updateCache(item.id, { nombre:item.name, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
+    setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode || item.label });
+    bumpPick(item.id);
     try { $inpCode.autocomplete("close"); } catch {}
+    try { $inpNombre.autocomplete("close"); } catch {}
     addToCartLastOnly(item.id, 1);
   }
 
-  /* ================== Fuentes de AC (local + red) ================== */
-  function sourceUltraFastName(req, resp){
-    (async ()=>{
-      const term = (req.term||"").trim();
-      const q = norm(term);
-      if (q.length < 1 || !hasSucursal()) { resp([]); return; }
+  function toACItems(raw, {labelMode="name"} = {}) {
+    return (raw || []).map(p => {
+      const barcode = p.barcode || "";
+      const name = p.name || "";
+      const lbl = labelMode === "code"
+        ? (barcode || name || String(p.id))
+        : (name || barcode || String(p.id));
+      return { id:p.id, name, barcode, label: lbl, value: lbl, price:p.price, stock:p.stock };
+    });
+  }
 
-      const cacheKey = `${sucursalID}|name|${q}`;
-      const cached = termCacheName.get(cacheKey);
-      if (cached) { resp(cached); return; }
+  function sourceSmartFactory({ cacheLRU, labelMode }) {
+    return function(req, resp){
+      (async ()=>{
+        const term = (req.term||"").trim();
+        const qU = normalizeUnits(term);
+        if (!qU || !hasSucursal()) { resp([]); return; }
 
-      const idx = preIndex.get(sucursalID);
-      let locals = [];
+        const info = classifyQuery(term);
+        const cacheKey = `${sucursalID}|smart|${labelMode}|${qU}|${info.digits}`;
+        const cached = cacheLRU.get(cacheKey);
+        if (cached) { resp(cached); maybeAutoPickBarcode(term, cached); return; }
 
-      // por ID directo
-      if (/^\d+$/.test(term)) {
-        let idItem = null;
+        const idx = preIndex.get(sucursalID);
+        let locals = [];
         if (idx) {
-          const ref = idx.map.get(String(term));
-          if (ref) idItem = { id:ref.id, name:ref.name, label:`[ID ${ref.id}] ${ref.name}`, value:ref.name, price:ref.price, stock:ref.stock };
+          const rawLocal = buildLocalSmart(term, idx, 40);
+          locals = toACItems(rawLocal, { labelMode });
+          for (const it of locals) updateCache(it.id, { nombre:it.name, barcode:it.barcode, precio_unitario:it.price, cantidad_disponible:it.stock });
         }
-        if (!idItem) {
-          try {
-            const r = await $.post(VERIFICAR_URL, { producto_id: term, cantidad: 1, sucursal_id: sucursalID, _ts: Date.now() });
-            if (r && r.exists) {
-              updateCache(r.id, r);
-              idItem = { id:r.id, name:r.nombre, label:`[ID ${r.id}] ${r.nombre}`, value:r.nombre, price:r.precio_unitario ?? r.precio, stock:r.cantidad_disponible ?? r.stock };
-            }
-          } catch {}
-        }
-        if (idItem) {
-          locals.push(idItem);
-          updateCache(idItem.id, { nombre:idItem.name, precio_unitario:idItem.price, cantidad_disponible:idItem.stock });
-        }
-      }
 
-      if (idx) {
-        const pref = idx.names.filter(x=> x.nname.startsWith(q)).slice(0, 40);
-        const sub  = idx.names.filter(x=> !x.nname.startsWith(q) && x.nname.includes(q)).slice(0, 40);
-        const mapped = pref.concat(sub).map(x=>({ id:x.id, name:x.label, label:x.label, value:x.label, price:x.price, stock:x.stock })).slice(0, 40);
-        const seen = new Set(locals.map(x=>String(x.id)));
-        for (const it of mapped) { if (!seen.has(String(it.id))) locals.push(it); if (locals.length>=40) break; }
-      }
+        resp(locals);
+        cacheLRU.set(cacheKey, locals);
+        maybeAutoPickBarcode(term, locals);
 
-      resp(locals);
-      termCacheName.set(cacheKey, locals);
+        try {
+          const useCode = info.isBarcodeLike;
+          const controllerKey = (labelMode === "code") ? "code" : "name";
 
-      // Red (no bloquea)
-      try {
-        inflightNameAC?.abort?.();
-        inflightNameAC = new AbortController();
-        const net = await netSearchName(term, inflightNameAC.signal);
-        if (!Array.isArray(net) || !net.length) return;
-        net.forEach(p => updateCache(p.id, { nombre:p.name, precio_unitario:p.price, cantidad_disponible:p.stock }));
-        const seen = new Set(locals.map(x=>String(x.id)));
-        const merged = locals.slice();
-        for (const r of net) { if (!seen.has(String(r.id))) merged.push(r); if (merged.length>=40) break; }
-        termCacheName.set(cacheKey, merged);
-        if (norm(String($("#producto_busqueda_nombre").val()||"")) === q) resp(merged);
-      } catch {}
-    })();
+          if (controllerKey === "name") { inflightNameAC?.abort?.(); inflightNameAC = new AbortController(); }
+          else { inflightCodeAC?.abort?.(); inflightCodeAC = new AbortController(); }
+
+          const signal = (controllerKey === "name") ? inflightNameAC.signal : inflightCodeAC.signal;
+          const netRaw = useCode ? await netSearchCode(term, signal) : await netSearchName(term, signal);
+          if (!Array.isArray(netRaw) || !netRaw.length) return;
+
+          const netItems = toACItems(netRaw, { labelMode });
+          for (const it of netItems) updateCache(it.id, { nombre:it.name, barcode:it.barcode, precio_unitario:it.price, cantidad_disponible:it.stock });
+
+          const seen = new Set(locals.map(x=>String(x.id)+"::"+(x.barcode||"")));
+          const merged = locals.slice();
+          for (const it of netItems) {
+            const k = String(it.id)+"::"+(it.barcode||"");
+            if (!seen.has(k)) merged.push(it);
+            if (merged.length >= 40) break;
+          }
+
+          cacheLRU.set(cacheKey, merged);
+
+          const current = (labelMode === "code")
+            ? normalizeUnits(String($inpCode.val()||""))
+            : normalizeUnits(String($inpNombre.val()||""));
+
+          if (current === qU) {
+            resp(merged);
+            maybeAutoPickBarcode(term, merged);
+          }
+        } catch {}
+      })();
+    };
   }
 
-  function sourceUltraFastCode(req, resp){
-    (async ()=>{
-      const term = (req.term||"").trim();
-      const qname = norm(term);
-      const qdigits = onlyDigits(term);
-      if (qname.length < 1 || !hasSucursal()) { resp([]); return; }
-
-      const cacheKey = `${sucursalID}|code|${qname}|${qdigits}`;
-      const cached = termCacheCode.get(cacheKey);
-      if (cached) { resp(cached); maybeAutoPickBarcode(term, cached); return; }
-
-      const idx = preIndex.get(sucursalID);
-      let locals = [];
-      if (idx) {
-        if (/^\d+$/.test(qdigits)) {
-          const pref = idx.codes.filter(x=> x.nbarcode && x.nbarcode.startsWith(qdigits)).slice(0, 40);
-          const sub  = idx.codes.filter(x=> x.nbarcode && !x.nbarcode.startsWith(qdigits) && x.nbarcode.includes(qdigits)).slice(0, 40);
-          locals = pref.concat(sub).map(x=>{
-            const ref = idx.map.get(String(x.id));
-            return ({ id:x.id, name: ref?.name || "", label:(ref?.barcode || x.label || String(x.id)), value:(ref?.barcode || x.label || String(x.id)), barcode:(ref?.barcode || ""), price:x.price, stock:x.stock });
-          }).slice(0, 40);
-        } else {
-          const pref = idx.names.filter(x=> x.nname.startsWith(qname)).slice(0, 40);
-          const sub  = idx.names.filter(x=> !x.nname.startsWith(qname) && x.nname.includes(qname)).slice(0, 40);
-          locals = pref.concat(sub).map(x=>({ id:x.id, name:x.label, label:x.label, value:x.label, price:x.price, stock:x.stock })).slice(0, 40);
-        }
-      }
-
-      resp(locals);
-      termCacheCode.set(cacheKey, locals);
-      maybeAutoPickBarcode(term, locals);
-
-      // Red (no bloquea)
-      try {
-        inflightCodeAC?.abort?.();
-        inflightCodeAC = new AbortController();
-        const net = await netSearchCode(term, inflightCodeAC.signal);
-        if (!Array.isArray(net) || !net.length) return;
-        net.forEach(p => updateCache(p.id, { nombre:p.name||p.value, barcode:p.barcode, precio_unitario:p.price, cantidad_disponible:p.stock }));
-        const seenKV = new Set(locals.map(x=> String(x.id)+"::"+(x.barcode||"")));
-        const merged = locals.slice();
-        for (const r of net) {
-          const k = String(r.id)+"::"+(r.barcode||"");
-          if (!seenKV.has(k)) merged.push(r);
-          if (merged.length>=40) break;
-        }
-        termCacheCode.set(cacheKey, merged);
-        if (norm(String($("#codigo_o_barras").val()||"")) === qname) {
-          resp(merged);
-          maybeAutoPickBarcode(term, merged);
-        }
-      } catch {}
-    })();
-  }
-
-  /* ================== Crear AC (Productos) ================== */
+  /* ================== Crear AC producto ================== */
   createAC({
-    $inp: $inpNombre, minChars: 1, openIfEmpty: false,
-    sourceFn: sourceUltraFastName,
+    $inp: $inpNombre,
+    minChars: 1,
+    openIfEmpty: false,
+    sourceFn: sourceSmartFactory({ cacheLRU: termCacheName, labelMode: "name" }),
     onSelect: (item) => {
-      updateCache(item.id, { nombre:item.name, precio_unitario:item.price, cantidad_disponible:item.stock });
-      setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode });
+      updateCache(item.id, { nombre:item.name, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
+      setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode || item.label });
+      bumpPick(item.id);
       addToCartLastOnly(item.id, 1);
     }
   });
   applyPriceTemplate($inpNombre, { mode: "name" });
 
   createAC({
-    $inp: $inpCode, minChars: 1, openIfEmpty: false,
-    sourceFn: sourceUltraFastCode,
+    $inp: $inpCode,
+    minChars: 1,
+    openIfEmpty: false,
+    sourceFn: sourceSmartFactory({ cacheLRU: termCacheCode, labelMode: "code" }),
     onSelect: (item) => {
-      updateCache(item.id, { nombre:item.name||item.value, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
-      setProductFields({ nombre:item.name||item.value, pid:item.id, barcode:item.barcode||item.label });
+      updateCache(item.id, { nombre:item.name, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
+      setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode || item.label });
+      bumpPick(item.id);
       addToCartLastOnly(item.id, 1);
     }
   });
@@ -697,6 +952,7 @@ $(function () {
   if (sucursalID) {
     $("#sucursal_autocomplete").val(localStorage.getItem("sucursalName") || "");
     $("#sucursal_id").val(sucursalID);
+    loadPickBoost(sucursalID);
     ensureCatalog(sucursalID);
   }
   if (savedPunto.id && savedPunto.suc && savedPunto.suc.toString() === sucursalID) {
@@ -704,7 +960,7 @@ $(function () {
     $("#puntopago_id").val(savedPunto.id);
   }
 
-  /* ================== AC Sucursal / Punto (con fallback) ================== */
+  /* ================== AC Sucursal / Punto (FIX: req.term) ================== */
   async function fetchJSON(url){ try{ const r=await fetch(url); if(!r.ok) return null; return await r.json(); } catch { return null; } }
   async function fetchAny(baseUrl, paramsList) {
     for (const p of paramsList) {
@@ -719,20 +975,25 @@ $(function () {
   const LS_PP  = (sid)=>`ac_puntos_cache_${sid||"none"}`;
 
   createAC({
-    $inp: $("#sucursal_autocomplete"), minChars: 0, openIfEmpty: true,
-    sourceFn: async (term, resp) => {
-      const results = await fetchAny(SUCURSAL_URL, [
-        { term: term || "", limit: 50 },
-        { limit: 50 },
-        { term: " ", limit: 50 }
-      ]);
-      let items = results.map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
-      if (!items.length) {
-        try { items = JSON.parse(localStorage.getItem(LS_SUC) || "[]"); } catch { items = []; }
-      } else {
-        try { localStorage.setItem(LS_SUC, JSON.stringify(items)); } catch {}
-      }
-      resp(items);
+    $inp: $("#sucursal_autocomplete"),
+    minChars: 0,
+    openIfEmpty: true,
+    sourceFn: function(req, resp){
+      (async ()=>{
+        const term = (req && typeof req.term === "string") ? req.term : "";
+        const results = await fetchAny(SUCURSAL_URL, [
+          { term: term || "", limit: 50 },
+          { limit: 50 },
+          { term: " ", limit: 50 }
+        ]);
+        let items = results.map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
+        if (!items.length) {
+          try { items = JSON.parse(localStorage.getItem(LS_SUC) || "[]"); } catch { items = []; }
+        } else {
+          try { localStorage.setItem(LS_SUC, JSON.stringify(items)); } catch {}
+        }
+        resp(items);
+      })();
     },
     onSelect: async ({ id, label }) => {
       sucursalID = String(id).match(/\d+/)?.[0] || "";
@@ -748,32 +1009,40 @@ $(function () {
         localStorage.removeItem("puntopagoName");
         localStorage.removeItem("puntopagoSucursalID");
       }
+
       $cantidad.prop("disabled", true);
       $agregar.prop("disabled", true);
 
+      loadPickBoost(sucursalID);
       await ensureCatalog(sucursalID, { force:true });
-      termCacheName.set(`${sucursalID}|name|__warm__`, []);
-      termCacheCode.set(`${sucursalID}|code|__warm__`, []);
+
+      termCacheName.set(`${sucursalID}|warm|name`, []);
+      termCacheCode.set(`${sucursalID}|warm|code`, []);
     }
   });
 
   createAC({
-    $inp: $("#puntopago_autocomplete"), minChars: 0, openIfEmpty: true,
-    sourceFn: async (term, resp) => {
-      if (!hasSucursal()) { resp([]); return; }
-      const results = await fetchAny(PUNTOPAGO_URL, [
-        { term: term || "", sucursal_id: sucursalID, limit: 50 },
-        { sucursal_id: sucursalID, limit: 50 },
-        { term: " ", sucursal_id: sucursalID, limit: 50 }
-      ]);
-      let items = results.map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
-      const key = LS_PP(sucursalID);
-      if (!items.length) {
-        try { items = JSON.parse(localStorage.getItem(key) || "[]"); } catch { items = []; }
-      } else {
-        try { localStorage.setItem(key, JSON.stringify(items)); } catch {}
-      }
-      resp(items);
+    $inp: $("#puntopago_autocomplete"),
+    minChars: 0,
+    openIfEmpty: true,
+    sourceFn: function(req, resp){
+      (async ()=>{
+        if (!hasSucursal()) { resp([]); return; }
+        const term = (req && typeof req.term === "string") ? req.term : "";
+        const results = await fetchAny(PUNTOPAGO_URL, [
+          { term: term || "", sucursal_id: sucursalID, limit: 50 },
+          { sucursal_id: sucursalID, limit: 50 },
+          { term: " ", sucursal_id: sucursalID, limit: 50 }
+        ]);
+        let items = results.map(r=>({ id:r.id, label:r.text, value:r.text, name:r.text }));
+        const key = LS_PP(sucursalID);
+        if (!items.length) {
+          try { items = JSON.parse(localStorage.getItem(key) || "[]"); } catch { items = []; }
+        } else {
+          try { localStorage.setItem(key, JSON.stringify(items)); } catch {}
+        }
+        resp(items);
+      })();
     },
     onSelect: ({ id, label }) => {
       $("#puntopago_autocomplete").val(label);
@@ -784,14 +1053,19 @@ $(function () {
     }
   });
 
-  /* ================== Cliente ================== */
+  /* ================== Cliente (FIX: req.term) ================== */
   createAC({
     $inp: $inpCliente,
-    sourceFn: async (term) => {
-      const d = await fetch(CLIENTE_URL + "?" + new URLSearchParams({ term }))
-        .then(r=> r.ok ? r.json() : {results:[]})
-        .catch(()=>({results:[]}));
-      return (d.results||[]).map(c=>({ id:c.id, label:c.text, value:c.text, name:c.text }));
+    minChars: 1,
+    openIfEmpty: false,
+    sourceFn: function(req, resp){
+      (async ()=>{
+        const term = (req && typeof req.term === "string") ? req.term : "";
+        const d = await fetch(CLIENTE_URL + "?" + new URLSearchParams({ term }))
+          .then(r=> r.ok ? r.json() : {results:[]})
+          .catch(()=>({results:[]}));
+        resp((d.results||[]).map(c=>({ id:c.id, label:c.text, value:c.text, name:c.text })));
+      })();
     },
     onSelect: ({ id, label }) => { $inpCliente.val(label); $("#cliente_id").val(id); }
   });
@@ -800,7 +1074,6 @@ $(function () {
   $inpNombre.on("input", function(){
     const nm=$.trim(this.value);
     if (nm) {
-      if(/^\d+$/.test(nm)) { /* por ID lo resuelve el AC */ }
       const recPid = nameIndex.get(onlyName(nm).toLowerCase());
       if (recPid) setProductFields({ nombre:nm, pid:recPid });
     } else { try { $inpNombre.autocomplete("close"); } catch {} }
@@ -809,9 +1082,10 @@ $(function () {
   $inpCode.on("input", function(){
     const v=$.trim(this.value);
     if (v) {
-      if (/^\d{6,}$/.test(v)) {
-        const pid = barcodeIndex.get(v);
-        if (pid) setProductFields({ nombre:productCache.get(String(pid))?.nombre, pid, barcode:v });
+      const digits = onlyDigits(v);
+      if (/^\d{6,}$/.test(digits)) {
+        const pid = barcodeIndex.get(digits);
+        if (pid) setProductFields({ nombre:productCache.get(String(pid))?.nombre, pid, barcode:digits });
       } else {
         const rec = productCache.get(String(v));
         if (rec) setProductFields({ nombre:rec.nombre, pid:v, barcode:rec.barcode });
@@ -819,56 +1093,113 @@ $(function () {
     } else { try { $inpCode.autocomplete("close"); } catch {} }
   });
 
-  /* ================== Cantidad: sanitizar y anti-scanner en CANTIDAD ================== */
-  $cantidad.on("keydown", function(e){
-    const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key);
-    if (ok) return;
-    if (!/^\d$/.test(e.key)) e.preventDefault();
-  }).on("input blur", function(){
-    const digits = (this.value||"").replace(/\D+/g,"");
-    this.value = clampQty(digits);
-  });
+  /* ================== Cantidad principal (#cantidad): vacío permitido ================== */
+  function sanitizeDigitsKeepEmpty(el){
+    const raw = String(el.value || "");
+    const digits = raw.replace(/\D+/g, "");
+    el.value = digits; // puede quedar ""
+    return digits;
+  }
+  function normalizeQtyOnCommit(el){
+    const raw = String(el.value || "").trim();
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 1) el.value = "1";
+    return el.value;
+  }
 
-  (function guardScannerOnQty(){
-    const MIN_CHARS = 8, GAP_MS = 35;
-    let buf="", first=0, last=0, timer=null;
-    function reset(){ buf=""; first=0; last=0; if(timer){clearTimeout(timer); timer=null;} }
-    $cantidad.on("keydown", function(e){
-      if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
-      if (e.key === "Enter") { reset(); return; }
-      if (e.key && e.key.length === 1) {
-        const t = Date.now();
-        if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
-        if (!buf) first = t;
-        buf += e.key; last = t;
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(reset, GAP_MS*5);
-        if (buf.length >= MIN_CHARS) {
-          e.preventDefault(); e.stopImmediatePropagation();
-          const code = buf; reset();
-          $inpCode.val(code); try { $inpCode.autocomplete("close"); } catch (_){}
-          if (!hasSucursal()) return;
-          resolveByBarcode(code).then(pid => { if (pid) addToCartLastOnly(pid, 1); });
-        }
+  $cantidad
+    .on("keydown", function(e){
+      const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key);
+      if (ok) return;
+      if (e.ctrlKey || e.metaKey) return;
+      if (!/^\d$/.test(e.key)) e.preventDefault();
+    })
+    .on("input", function(){ sanitizeDigitsKeepEmpty(this); })
+    .on("blur", function(){ normalizeQtyOnCommit(this); });
+
+  /* ================== Qty instant update (carrito) ================== */
+  function getBestLocalPrice(pid, $row){
+    let price = Number($row.data("price")) || 0;
+    if (price > 0) return price;
+
+    const cached = productCache.get(String(pid)) || {};
+    const cp = Number(cached.price) || 0;
+    if (cp > 0) { setRowPriceUI($row, cp); return cp; }
+    return 0;
+  }
+
+  function applyQtyInstant($row, newQty){
+    const pid = String($row.data("pid") || "");
+    if (!pid) return;
+
+    const oldQty = clampQty($row.attr("data-qty") || $row.find(".qty-input").val() || 1);
+    const wasCounted = !!$row.data("counted");
+
+    $row.attr("data-qty", newQty);
+
+    const i = productos.indexOf(pid);
+    if (i > -1) cantidades[i] = newQty;
+
+    const price = getBestLocalPrice(pid, $row);
+
+    if (price > 0) {
+      $row.find(".subtotal-cell").text(money(price * newQty));
+
+      if (!wasCounted) { addToTotal(price * newQty); $row.data("counted", true); }
+      else {
+        const delta = price * (newQty - oldQty);
+        if (delta) addToTotal(delta);
       }
-    });
-  })();
+      enforceTotalIntegritySoft();
+    } else {
+      $row.addClass("pending-price");
+      $row.find(".subtotal-cell").text("…");
+      scheduleVerifyRowPrice($row, 140);
+    }
+  }
 
-  /* ================== Botones/agregado ================== */
-  $agregar.off("click").on("click", () => {
-    const pid = $pid.val();
-    const qty = clampQty($cantidad.val());
-    if (!pid || !qty || qty < 1) return;
-    addToCartLastOnly(pid, qty);
+  function sanitizeRowQtyInput(el){
+    const raw = String(el.value || "");
+    const digits = raw.replace(/\D+/g, "");
+    el.value = digits; // puede quedar ""
+    return digits;
+  }
+  function commitRowQtyInput(el){
+    const raw = String(el.value || "").trim();
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 1) { el.value = "1"; return 1; }
+    el.value = String(n);
+    return n;
+  }
+
+  $tbody.on("input change", ".qty-input", function () {
+    const $row = $(this).closest("tr");
+    const digits = sanitizeRowQtyInput(this);
+    if (!digits) return;
+    const n = parseInt(digits, 10);
+    if (!Number.isFinite(n) || n < 1) return;
+    applyQtyInstant($row, n);
+    scheduleVerifyRowPrice($row, 220);
   });
 
-  $cantidad.off("keydown.confirm").on("keydown.confirm", function (e) {
-    if (e.key === "Enter" && !$agregar.prop("disabled")) {
+  $tbody.on("blur", ".qty-input", function () {
+    const $row = $(this).closest("tr");
+    const n = commitRowQtyInput(this);
+    applyQtyInstant($row, n);
+    scheduleVerifyRowPrice($row, 0);
+  });
+
+  $tbody.on("keydown", ".qty-input", function (e) {
+    const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End","Enter"].includes(e.key);
+    if (!ok && !e.ctrlKey && !e.metaKey && !/^\d$/.test(e.key)) e.preventDefault();
+
+    if (e.key === "Enter") {
       e.preventDefault();
-      const pid = $pid.val();
-      const qty = clampQty($cantidad.val());
-      if (!pid || !qty || qty < 1) return;
-      addToCartLastOnly(pid, qty);
+      const $row = $(this).closest("tr");
+      const n = commitRowQtyInput(this);
+      applyQtyInstant($row, n);
+      scheduleVerifyRowPrice($row, 0);
+
       this.blur();
       queueMicrotask(() => {
         if ($inpNombre.is(":visible")) { $inpNombre.focus(); $inpNombre[0]?.select?.(); }
@@ -878,31 +1209,28 @@ $(function () {
     }
   });
 
-  $tbody.on("input change", ".qty-input", function () {
-    const $row = $(this).closest("tr");
-    let newQty = clampQty($(this).val());
-    this.value = newQty;
-
-    refreshRowPriceIfNeeded($row).then((okPrice) => {
-      if (!okPrice) return;
-      const price = Number($row.data("price")) || 0;
-      const oldQty = Number($row.attr("data-qty")) || 0;
-      if (newQty === oldQty) return;
-      $row.attr("data-qty", newQty);
-      const pid = $row.data("pid").toString();
-      const i = productos.indexOf(pid);
-      if (i > -1) cantidades[i] = newQty;
-      $row.find(".subtotal-cell").text(money(price * newQty));
-      addToTotal(price * (newQty - oldQty));
-      enforceTotalIntegrity();
-    });
+  /* ================== Botones/agregado ================== */
+  $agregar.off("click").on("click", () => {
+    const pid = $pid.val();
+    const qty = clampQty($cantidad.val());
+    $cantidad.val(String(qty));
+    if (!pid || !qty || qty < 1) return;
+    addToCartLastOnly(pid, qty);
   });
 
-  $tbody.on("keydown", ".qty-input", function (e) {
-    const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End","Enter"].includes(e.key);
-    if (!ok && !/^\d$/.test(e.key)) e.preventDefault();
-    if (e.key === "Enter") {
-      e.preventDefault(); this.blur();
+  $cantidad.off("keydown.confirm").on("keydown.confirm", function (e) {
+    if (e.key === "Enter" && !$agregar.prop("disabled")) {
+      e.preventDefault();
+
+      const committed = normalizeQtyOnCommit(this);
+      const qty = clampQty(committed);
+
+      const pid = $pid.val();
+      if (!pid || !qty || qty < 1) return;
+
+      addToCartLastOnly(pid, qty);
+
+      this.blur();
       queueMicrotask(() => {
         if ($inpNombre.is(":visible")) { $inpNombre.focus(); $inpNombre[0]?.select?.(); }
         const v = $inpNombre.val() || "";
@@ -917,10 +1245,12 @@ $(function () {
     const idx = productos.indexOf(pid);
     const price = Number($row.data("price")) || 0;
     const qty = clampQty($row.attr("data-qty") || $row.find(".qty-input").val());
+
     if ($row.data("counted")) addToTotal(-(price * qty));
     if (idx > -1) { productos.splice(idx, 1); cantidades.splice(idx, 1); }
     $row.remove();
-    enforceTotalIntegrity();
+    enforceTotalIntegritySoft();
+    refreshLastAddedPidAfterRemoval(pid);
   });
 
   $btnVaciar.on("click", function(){
@@ -928,6 +1258,7 @@ $(function () {
     if (!confirm("¿Vaciar todo el carrito?")) return;
     productos.length = 0; cantidades.length = 0;
     $tbody.empty(); setTotal(0);
+    lastAddedPid = null;
   });
 
   $buscarCart.on("keyup", function () {
@@ -940,7 +1271,7 @@ $(function () {
     }
   });
 
-  /* ================== Revalorar TODO al abrir modal ================== */
+  /* ================== Reprecio al abrir modal ================== */
   function repriceAllRowsAndRecalcTotal() {
     const $rows = $tbody.find("tr");
     if (!$rows.length) { setTotal(0); return Promise.resolve(true); }
@@ -948,6 +1279,11 @@ $(function () {
     const tasks = [];
     $rows.each(function(){
       const $row = $(this);
+      const $qin = $row.find(".qty-input");
+      if ($qin.length) {
+        const n = commitRowQtyInput($qin[0]);
+        $row.attr("data-qty", n);
+      }
       tasks.push(
         refreshRowPriceIfNeeded($row).then((ok) => {
           if (!ok) return;
@@ -1002,7 +1338,7 @@ $(function () {
   });
 
   $(document).on("click", ".radio-wrap", function (e) {
-    if (e.target.tagName !== "INPUT") { $(this).find("input[type=radio]").prop("checked", true).trigger("change"); }
+    if (e.target.tagName !== "INPUT") $(this).find("input[type=radio]").prop("checked", true).trigger("change");
     $(this).closest(".modal-content").attr("tabindex","-1").focus();
   });
 
@@ -1016,30 +1352,6 @@ $(function () {
 
   $amountIn.on("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("#confirmar-pago").trigger("click"); } });
 
-  // Atajos Alt+1/2/3 SOLO para el MODAL
-  $(document).on("keydown", function (e) {
-    const modalVisible = $modal.length && $modal.is(":visible");
-    if (!modalVisible) return;
-    if (!e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "1" || e.key === "2" || e.key === "3") {
-      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-      if (e.key === "1") { $("#nequi").prop("checked", true).trigger("change"); }
-      if (e.key === "2") { $("#daviplata").prop("checked", true).trigger("change"); }
-      if (e.key === "3") { $("#efectivo").prop("checked", true).trigger("change"); queueMicrotask(()=>{ if ($amountIn.is(":visible")) { $amountIn.focus().select(); } }); }
-    }
-  });
-
-  $amountIn.on("keydown", function (e) {
-    if (!e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "1" || e.key === "2" || e.key === "3") {
-      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-      if (e.key === "1") { $("#nequi").prop("checked", true).trigger("change"); }
-      if (e.key === "2") { $("#daviplata").prop("checked", true).trigger("change"); }
-      if (e.key === "3") { $("#efectivo").prop("checked", true).trigger("change"); queueMicrotask(()=>{ if ($amountIn.is(":visible")) { $amountIn.focus().select(); } }); }
-    }
-  });
-
-  // Alt+Espacio y Alt+Enter
   $(document).on("keydown", function (e) {
     const isAltSpace = e.altKey && !e.ctrlKey && !e.metaKey && (e.code === "Space" || e.key === " ");
     if (isAltSpace) {
@@ -1055,7 +1367,7 @@ $(function () {
     }
   });
 
-  /* ================== Agente local helpers (seguros con timeout) ================== */
+  /* ================== Agente local helpers ================== */
   async function agentPrintSafe(text, { timeout = 800 } = {}) {
     if (!POS_AGENT_TOKEN) return;
     const ctrl = new AbortController();
@@ -1063,16 +1375,14 @@ $(function () {
     try {
       await fetch(POS_AGENT_URL + "/print", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Pos-Agent-Token": POS_AGENT_TOKEN
-        },
+        headers: { "Content-Type": "application/json", "X-Pos-Agent-Token": POS_AGENT_TOKEN },
         body: JSON.stringify({ text }),
         signal: ctrl.signal
       });
-    } catch (_) { /* silencioso */ }
+    } catch (_) {}
     finally { clearTimeout(t); }
   }
+
   async function agentKickSafe({ timeout = 600 } = {}) {
     if (!POS_AGENT_TOKEN) return;
     const ctrl = new AbortController();
@@ -1083,30 +1393,25 @@ $(function () {
         headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN },
         signal: ctrl.signal
       });
-    } catch (_) { /* silencioso */ }
+    } catch (_) {}
     finally { clearTimeout(t); }
   }
 
-  /* ================== Submit — ultrarrápido + HARD RESET ANTES DE RECARGAR ================== */
+  /* ================== Submit ================== */
   $("#venta-form").off("submit").on("submit", function (e) {
     e.preventDefault();
 
-    // Revalida filas pendientes SIN bloquear (se dispara pero no esperamos)
     const $bad = $tbody.find("tr").filter((_, tr) => {
       const p = Number($(tr).data("price"));
       const counted = $(tr).data("counted");
       return !counted || !Number.isFinite(p) || p <= 0;
     });
-    if ($bad.length) {
-      for (const tr of $bad.toArray()) { refreshRowPriceIfNeeded($(tr)); }
-    }
+    if ($bad.length) for (const tr of $bad.toArray()) scheduleVerifyRowPrice($(tr), 0);
 
-    // Envío minimal con fetch + URLSearchParams (más rápido que $.post)
     const form = this;
     const fd = new FormData(form);
     const body = new URLSearchParams(fd);
 
-    const t0 = performance.now();
     fetch($(form).attr("action"), {
       method: "POST",
       credentials: "same-origin",
@@ -1119,7 +1424,6 @@ $(function () {
     })
     .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP "+r.status)))
     .then(async (r) => {
-      const t1 = performance.now();
       if (!r || !r.success) { alert((r && r.error) || "Error"); return; }
 
       const metodo = ($("#medio_pago").val() || "").toLowerCase();
@@ -1139,7 +1443,6 @@ $(function () {
         ].filter(Boolean).join("\n")
       );
 
-      // 🔒 HARD RESET inmediato del estado UI/total (protege contra bfcache y demoras)
       clearCartAndTotals();
 
       try {
@@ -1149,12 +1452,8 @@ $(function () {
           await agentPrintSafe(r.receipt_text || "Factura\n\n", { timeout: 800 });
           await agentKickSafe({ timeout: 600 });
         }
-      } catch (_) { /* no bloquea la recarga */ }
+      } catch (_) {}
 
-      const t2 = performance.now();
-      console.log(`⏱️ Venta guardada en ${(t1 - t0).toFixed(0)}ms; impresión+gaveta ${(t2 - t1).toFixed(0)}ms → recargando…`);
-
-      // Pequeño defer para que el DOM muestre total $0 antes de recargar
       setTimeout(() => { location.replace(location.href); }, 50);
     })
     .catch(() => alert("Error de red"));
@@ -1186,20 +1485,12 @@ $(function () {
       case "1": e.preventDefault(); focusAndSelect($inpNombre); break;
       case "2": e.preventDefault(); focusAndSelect($inpCode); break;
       case "3": e.preventDefault(); focusAndSelect($buscarCart); break;
-      case "4":
-        e.preventDefault();
-        if (lastAddedPid) {
-          const $row = $tbody.find(`tr[data-pid='${lastAddedPid}']`);
-          const $q = $row.find(".qty-input");
-          if ($q.length) { focusAndSelect($q); break; }
-        }
-        focusAndSelect($cantidad);
-        break;
+      case "4": e.preventDefault(); focusQtySmart(); break;
       default: break;
     }
   });
 
-  /* ================== Atajos Alt + 0..4 (página) ================== */
+  /* ================== Atajos Alt + 0..4 ================== */
   (function setupAltShortcuts(){
     const focusAndSelect = ($el) => { if ($el && $el.length) { $el.focus(); $el[0]?.select?.(); } };
     $(document).on("keydown", function (e) {
@@ -1212,14 +1503,7 @@ $(function () {
         case "1": focusAndSelect($inpNombre); break;
         case "2": focusAndSelect($inpCode); break;
         case "3": focusAndSelect($buscarCart); break;
-        case "4":
-          if (lastAddedPid) {
-            const $row = $tbody.find(`tr[data-pid='${lastAddedPid}']`);
-            const $q = $row.find(".qty-input");
-            if ($q.length) { focusAndSelect($q); break; }
-          }
-          focusAndSelect($cantidad);
-          break;
+        case "4": focusQtySmart(); break;
         default: break;
       }
     });
@@ -1239,42 +1523,198 @@ $(function () {
     const idx = productos.indexOf(pid);
     if (idx > -1) { productos.splice(idx, 1); cantidades.splice(idx, 1); }
     $first.remove();
-    enforceTotalIntegrity();
+    enforceTotalIntegritySoft();
+    refreshLastAddedPidAfterRemoval(pid);
   });
 
-  /* ================== Detector global de pistola (escáner) ================== */
-  (function globalScannerDetector() {
+  /* ================== ✅ SCANNER GUARD: si está en CANTIDAD => NO escribir allí
+     - Si foco en #cantidad: COMMIT (Enter-like) del producto actual y luego el barcode va a input código
+     - Si foco en .qty-input (carrito): commit qty, y luego barcode va a input código
+  ====================================================================== */
+  function isQtyElement(el){
+    if (!el) return false;
+    return el === $cantidad[0] || (el.classList && el.classList.contains("qty-input"));
+  }
+
+  function pushCodeIntoCodeInputAndAdd(code){
+    const clean = onlyDigits(code);
+    if (!clean) return;
+
+    $inpCode.val(clean);
+    try { $inpCode.autocomplete("close"); } catch (_){}
+    try { $inpNombre.autocomplete("close"); } catch (_){}
+
+    queueMicrotask(() => {
+      if ($inpCode.is(":visible")) { $inpCode.focus(); $inpCode[0]?.select?.(); }
+      try { $inpCode.autocomplete("search", clean); } catch (_){}
+    });
+
+    if (!hasSucursal()) return;
+    resolveByBarcode(clean).then(pid => { if (pid) addToCartLastOnly(pid, 1); });
+  }
+
+  function commitCurrentQtyLikeEnterIfNeeded(originEl){
+    if (originEl === $cantidad[0]) {
+      const committed = normalizeQtyOnCommit($cantidad[0]);
+      const qty = clampQty(committed);
+      const pid = $pid.val();
+      if (pid && !$agregar.prop("disabled")) addToCartLastOnly(pid, qty);
+      return;
+    }
+    if (originEl && originEl.classList && originEl.classList.contains("qty-input")) {
+      const n = commitRowQtyInput(originEl);
+      const $row = $(originEl).closest("tr");
+      applyQtyInstant($row, n);
+      scheduleVerifyRowPrice($row, 0);
+    }
+  }
+
+  (function scannerDetectorWithQtyGuard() {
+    const MIN_CHARS = 8;   // EAN13 suele ser 13, pero 8 funciona para muchos
+    const GAP_MS = 35;     // scanner típico: < 20-30ms entre teclas
+
+    let buf = "";
+    let first = 0;
+    let last = 0;
+    let idleTimer = null;
+
+    let scanning = false;
+    let originEl = null;
+    let originStartValue = "";
+
+    function resetAll(){
+      buf = "";
+      first = 0;
+      last = 0;
+      scanning = false;
+      originEl = null;
+      originStartValue = "";
+      if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    }
+
+    function finalize(code){
+      const c = String(code || "");
+      const wasQty = isQtyElement(originEl);
+
+      if (wasQty) {
+        try { if (originEl) originEl.value = originStartValue; } catch (_){}
+        commitCurrentQtyLikeEnterIfNeeded(originEl);
+      }
+
+      pushCodeIntoCodeInputAndAdd(c);
+      resetAll();
+    }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.ctrlKey || e.altKey || e.metaKey) { resetAll(); return; }
+
+      const active = document.activeElement;
+      const inQty = isQtyElement(active);
+      const t = Date.now();
+
+      // terminadores típicos
+      if (e.key === "Enter" || e.key === "Tab") {
+        const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
+        if (fastEnough && buf.length >= MIN_CHARS) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          finalize(buf);
+          return;
+        }
+        resetAll();
+        return;
+      }
+
+      // teclas imprimibles
+      if (e.key && e.key.length === 1) {
+        if (originEl && active !== originEl) resetAll();
+
+        if (!buf) {
+          originEl = active;
+          originStartValue = (active && typeof active.value === "string") ? active.value : "";
+          first = t;
+          last = t;
+          buf = e.key;
+        } else {
+          if ((t - last) > GAP_MS) {
+            resetAll();
+            originEl = active;
+            originStartValue = (active && typeof active.value === "string") ? active.value : "";
+            first = t; last = t;
+            buf = e.key;
+          } else {
+            buf += e.key;
+            last = t;
+          }
+        }
+
+        // si estamos en qty: con 2 chars rápidos ya asumimos scanner para bloquear escritura
+        if (!scanning && inQty && buf.length >= 2) {
+          scanning = true;
+          try { if (active && typeof active.value === "string") active.value = originStartValue; } catch (_){}
+        }
+
+        if (scanning && inQty) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => resetAll(), GAP_MS * 6);
+
+        // si en qty ya es claramente barcode: finaliza sin esperar Enter
+        if (inQty && scanning && buf.length >= MIN_CHARS) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          finalize(buf);
+          return;
+        }
+
+        return;
+      }
+
+      if (e.key !== "Shift") resetAll();
+    }, true);
+  })();
+
+  /* ================== Fallback global: scanner en cualquier campo (menos qty) ================== */
+  (function globalScannerFallback() {
     const MIN_CHARS = 8, GAP_MS = 35;
     let buf="", first=0, last=0, idleTimer=null;
+
     function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
+
     document.addEventListener("keydown", function (e) {
+      if (isQtyElement(document.activeElement)) return; // lo maneja el detector principal
       if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
       const t = Date.now();
+
       if (e.key === "Enter" || e.key === "Tab") {
         const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
         if (fastEnough && buf.length >= MIN_CHARS) {
           e.preventDefault(); e.stopImmediatePropagation();
           const code = buf; reset();
-          $inpCode.val(code); try { $inpCode.autocomplete("close"); } catch (_){}
-          if (!hasSucursal()) return;
-          resolveByBarcode(code).then(pid => { if (pid) addToCartLastOnly(pid, 1); });
+          pushCodeIntoCodeInputAndAdd(code);
           return;
         }
         reset(); return;
       }
+
       if (e.key && e.key.length === 1) {
         if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
-        if (!buf) first = t; buf += e.key; last = t;
+        if (!buf) first = t;
+        buf += e.key; last = t;
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(reset, GAP_MS*5);
-      } else { if (e.key !== "Shift") reset(); }
+      } else {
+        if (e.key !== "Shift") reset();
+      }
     }, true);
   })();
 
   /* ================== Init ================== */
   $cantidad.prop("disabled", true);
   $agregar.prop("disabled", true);
-  // Seguridad: si no hay filas visibles al iniciar, total debe ser $0
   if ($tbody.find("tr").length === 0) setTotal(0);
   if (!POS_AGENT_TOKEN) console.warn("[POS_AGENT] Token vacío: el agente podría rechazar (401).");
 });
