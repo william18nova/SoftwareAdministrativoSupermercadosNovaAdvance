@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido + ✅ scanner: qty-guard => code");
+  console.log("⚡ generar_venta.js — AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido + ✅ scanner: qty-guard => code + ✅ live snapshot sync (precio/barcode AC)");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -172,7 +172,10 @@ $(function () {
     }
   });
 
-  window.addEventListener("beforeunload", () => { try { clearCartAndTotals(); } catch (_){ } });
+  window.addEventListener("beforeunload", () => {
+    try { clearCartAndTotals(); } catch (_){ }
+    try { stopCatalogPolling(); } catch (_){}
+  });
 
   /* ================== Helpers: focus qty row ================== */
   function focusQtyOfRow($row){
@@ -219,13 +222,25 @@ $(function () {
   const barcodeIndex = new Map(); // barcode -> pid
   const nameIndex    = new Map(); // name(lc) -> pid
 
+  // ✅ IMPORTANTE: limpia índices viejos si cambió nombre/barcode
   function updateCache(pid, data = {}) {
     const key = String(pid);
     const prev = productCache.get(key) || {};
+
+    if (prev.barcode) {
+      const oldB = String(prev.barcode);
+      if (barcodeIndex.get(oldB) === key) barcodeIndex.delete(oldB);
+    }
+    if (prev.nombre) {
+      const oldN = String(prev.nombre).toLowerCase();
+      if (nameIndex.get(oldN) === key) nameIndex.delete(oldN);
+    }
+
     const normalizePrice = (v) => {
       const n = Number(v);
       return Number.isFinite(n) && n > 0 ? n : undefined;
     };
+
     const rec = {
       nombre: onlyName(data.nombre ?? prev.nombre ?? ""),
       barcode: data.codigo_de_barras ?? data.barcode ?? prev.barcode ?? "",
@@ -233,9 +248,12 @@ $(function () {
       stock: data.cantidad_disponible ?? data.stock ?? prev.stock,
       ts: data.ts || now(),
     };
+
     productCache.set(key, rec);
+
     if (rec.barcode) barcodeIndex.set(String(rec.barcode), key);
-    if (rec.nombre) nameIndex.set(rec.nombre.toLowerCase(), key);
+    if (rec.nombre)  nameIndex.set(String(rec.nombre).toLowerCase(), key);
+
     return rec;
   }
 
@@ -284,8 +302,8 @@ $(function () {
   }
 
   async function fetchCatalogSnapshot(sid) {
-    const url = SNAPSHOT_URL + "?" + new URLSearchParams({ sucursal_id: sid });
-    const r = await fetch(url);
+    const url = SNAPSHOT_URL + "?" + new URLSearchParams({ sucursal_id: sid, _ts: Date.now() });
+    const r = await fetch(url, { cache: "no-store" });
     if (!r.ok) throw new Error("snapshot HTTP " + r.status);
     const d = await r.json();
     const items = Array.isArray(d.results) ? d.results : [];
@@ -791,8 +809,8 @@ $(function () {
   /* ============ Búsquedas ultra-rápidas (red) ============ */
   const netSearchName = throttle(async (term, signal) => {
     const tU = normalizeUnits(term);
-    const url = PRODUCTO_URL + "?" + new URLSearchParams({ term: tU || term, sucursal_id: sucursalID, limit: 40 });
-    const r = await fetch(url, { signal }).catch(()=>null);
+    const url = PRODUCTO_URL + "?" + new URLSearchParams({ term: tU || term, sucursal_id: sucursalID, limit: 40, _ts: Date.now() });
+    const r = await fetch(url, { signal, cache: "no-store" }).catch(()=>null);
     if (!r || !r.ok) return [];
     const d = await r.json().catch(()=>({results:[]}));
     return (d.results||[]).map(p => ({
@@ -806,9 +824,9 @@ $(function () {
 
   const netSearchCode = throttle(async (term, signal) => {
     const [dCod, dBar] = await Promise.all([
-      fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal })
+      fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25, _ts: Date.now() }), { signal, cache: "no-store" })
         .then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]})),
-      fetch(AC_BARRAS_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25 }), { signal })
+      fetch(AC_BARRAS_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25, _ts: Date.now() }), { signal, cache: "no-store" })
         .then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]})),
     ]);
     const net = [];
@@ -948,20 +966,133 @@ $(function () {
   });
   applyPriceTemplate($inpCode, { mode: "code" });
 
+  /* ================== ✅ LIVE SNAPSHOT SYNC (precio/barcode AC) ==================
+     - No cambia formato visual: solo refresca data del cache
+     - Solo re-renderiza AC si detecta cambios en snapshot
+  ============================================================================ */
+  const catalogSigBySucursal = new Map(); // sid -> firma
+  let catalogPollTimer = null;
+  let catalogPollSid = null;
+
+  function buildCatalogSignature(items) {
+    const parts = [];
+    for (let i = 0; i < items.length; i++) {
+      const p = items[i] || {};
+      parts.push([p.id, (p.price ?? ""), (p.barcode ?? ""), (p.name ?? "")].join("|"));
+    }
+    return parts.join("||");
+  }
+
+  function initCatalogSignature(sid) {
+    try {
+      const items = catalogBySucursal.get(sid) || [];
+      catalogSigBySucursal.set(String(sid), buildCatalogSignature(items));
+    } catch {}
+  }
+
+  function applySnapshotIfChanged(sid, items) {
+    sid = String(sid || "");
+    if (!sid) return false;
+    if (!Array.isArray(items)) items = [];
+
+    const newSig = buildCatalogSignature(items);
+    const oldSig = catalogSigBySucursal.get(sid);
+
+    if (oldSig && oldSig === newSig) return false; // ✅ no cambió
+
+    catalogSigBySucursal.set(sid, newSig);
+
+    // actualiza estructuras base
+    catalogBySucursal.set(sid, items);
+    hydrateFromCatalog(items);
+    buildPreIndexFor(sid, items);
+
+    // guarda local (opcional, útil para volver rápido)
+    try {
+      localStorage.setItem(`catalog_${sid}`, JSON.stringify(items));
+      localStorage.setItem(`catalog_${sid}_ts`, String(now()));
+    } catch {}
+
+    // limpia caches de términos para que las nuevas búsquedas vean precio/barcode nuevo
+    try { termCacheName.map.clear(); } catch {}
+    try { termCacheCode.map.clear(); } catch {}
+
+    // si el menú está abierto, re-renderiza SOLO porque hubo cambios reales
+    queueMicrotask(() => {
+      try {
+        const w = $inpNombre.autocomplete("widget");
+        if (w && w.is(":visible")) $inpNombre.autocomplete("search", $inpNombre.val() || "");
+      } catch (_){}
+      try {
+        const w = $inpCode.autocomplete("widget");
+        if (w && w.is(":visible")) $inpCode.autocomplete("search", $inpCode.val() || "");
+      } catch (_){}
+    });
+
+    return true;
+  }
+
+  async function fetchSnapshotNoStore(sid) {
+    const url = SNAPSHOT_URL + "?" + new URLSearchParams({ sucursal_id: sid, _ts: Date.now() });
+    const r = await fetch(url, { cache: "no-store" }).catch(() => null);
+    if (!r || !r.ok) return null;
+    const d = await r.json().catch(() => null);
+    const items = (d && Array.isArray(d.results)) ? d.results : [];
+    return items;
+  }
+
+  function stopCatalogPolling() {
+    if (catalogPollTimer) clearInterval(catalogPollTimer);
+    catalogPollTimer = null;
+    catalogPollSid = null;
+  }
+
+  function startCatalogPolling(sid, { intervalMs = 2500 } = {}) {
+    stopCatalogPolling();
+    catalogPollSid = String(sid || "");
+    if (!catalogPollSid) return;
+
+    async function tick() {
+      if (!hasSucursal()) return;
+      if (String(sucursalID) !== String(catalogPollSid)) return;
+      if (document.visibilityState !== "visible") return;
+
+      const items = await fetchSnapshotNoStore(catalogPollSid);
+      if (!items) return;
+
+      applySnapshotIfChanged(catalogPollSid, items);
+    }
+
+    // primera ejecución rápida
+    tick();
+    catalogPollTimer = setInterval(tick, Math.max(900, intervalMs|0));
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!hasSucursal()) return;
+    if (document.visibilityState === "visible") startCatalogPolling(sucursalID, { intervalMs: 2500 });
+  });
+
   /* ================== Prefill sucursal/punto ================== */
   if (sucursalID) {
     $("#sucursal_autocomplete").val(localStorage.getItem("sucursalName") || "");
     $("#sucursal_id").val(sucursalID);
     loadPickBoost(sucursalID);
-    ensureCatalog(sucursalID);
+
+    // carga catálogo + inicializa firma + polling
+    ensureCatalog(sucursalID).then(() => {
+      initCatalogSignature(sucursalID);
+      startCatalogPolling(sucursalID, { intervalMs: 2500 });
+    });
   }
+
   if (savedPunto.id && savedPunto.suc && savedPunto.suc.toString() === sucursalID) {
     $("#puntopago_autocomplete").val(savedPunto.name || "");
     $("#puntopago_id").val(savedPunto.id);
   }
 
   /* ================== AC Sucursal / Punto (FIX: req.term) ================== */
-  async function fetchJSON(url){ try{ const r=await fetch(url); if(!r.ok) return null; return await r.json(); } catch { return null; } }
+  async function fetchJSON(url){ try{ const r=await fetch(url, { cache: "no-store" }); if(!r.ok) return null; return await r.json(); } catch { return null; } }
   async function fetchAny(baseUrl, paramsList) {
     for (const p of paramsList) {
       const qs = new URLSearchParams(p);
@@ -996,6 +1127,8 @@ $(function () {
       })();
     },
     onSelect: async ({ id, label }) => {
+      stopCatalogPolling();
+
       sucursalID = String(id).match(/\d+/)?.[0] || "";
       $("#sucursal_id").val(sucursalID);
       $("#sucursal_autocomplete").val(label);
@@ -1014,7 +1147,10 @@ $(function () {
       $agregar.prop("disabled", true);
 
       loadPickBoost(sucursalID);
+
       await ensureCatalog(sucursalID, { force:true });
+      initCatalogSignature(sucursalID);
+      startCatalogPolling(sucursalID, { intervalMs: 2500 });
 
       termCacheName.set(`${sucursalID}|warm|name`, []);
       termCacheCode.set(`${sucursalID}|warm|code`, []);
@@ -1061,7 +1197,7 @@ $(function () {
     sourceFn: function(req, resp){
       (async ()=>{
         const term = (req && typeof req.term === "string") ? req.term : "";
-        const d = await fetch(CLIENTE_URL + "?" + new URLSearchParams({ term }))
+        const d = await fetch(CLIENTE_URL + "?" + new URLSearchParams({ term, _ts: Date.now() }), { cache: "no-store" })
           .then(r=> r.ok ? r.json() : {results:[]})
           .catch(()=>({results:[]}));
         resp((d.results||[]).map(c=>({ id:c.id, label:c.text, value:c.text, name:c.text })));
@@ -1527,10 +1663,7 @@ $(function () {
     refreshLastAddedPidAfterRemoval(pid);
   });
 
-  /* ================== ✅ SCANNER GUARD: si está en CANTIDAD => NO escribir allí
-     - Si foco en #cantidad: COMMIT (Enter-like) del producto actual y luego el barcode va a input código
-     - Si foco en .qty-input (carrito): commit qty, y luego barcode va a input código
-  ====================================================================== */
+  /* ================== ✅ SCANNER GUARD: qty-guard => code ================== */
   function isQtyElement(el){
     if (!el) return false;
     return el === $cantidad[0] || (el.classList && el.classList.contains("qty-input"));
@@ -1570,8 +1703,8 @@ $(function () {
   }
 
   (function scannerDetectorWithQtyGuard() {
-    const MIN_CHARS = 8;   // EAN13 suele ser 13, pero 8 funciona para muchos
-    const GAP_MS = 35;     // scanner típico: < 20-30ms entre teclas
+    const MIN_CHARS = 8;
+    const GAP_MS = 35;
 
     let buf = "";
     let first = 0;
@@ -1612,7 +1745,6 @@ $(function () {
       const inQty = isQtyElement(active);
       const t = Date.now();
 
-      // terminadores típicos
       if (e.key === "Enter" || e.key === "Tab") {
         const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
         if (fastEnough && buf.length >= MIN_CHARS) {
@@ -1625,7 +1757,6 @@ $(function () {
         return;
       }
 
-      // teclas imprimibles
       if (e.key && e.key.length === 1) {
         if (originEl && active !== originEl) resetAll();
 
@@ -1648,7 +1779,6 @@ $(function () {
           }
         }
 
-        // si estamos en qty: con 2 chars rápidos ya asumimos scanner para bloquear escritura
         if (!scanning && inQty && buf.length >= 2) {
           scanning = true;
           try { if (active && typeof active.value === "string") active.value = originStartValue; } catch (_){}
@@ -1662,7 +1792,6 @@ $(function () {
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => resetAll(), GAP_MS * 6);
 
-        // si en qty ya es claramente barcode: finaliza sin esperar Enter
         if (inQty && scanning && buf.length >= MIN_CHARS) {
           e.preventDefault();
           e.stopImmediatePropagation();
@@ -1685,7 +1814,7 @@ $(function () {
     function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
 
     document.addEventListener("keydown", function (e) {
-      if (isQtyElement(document.activeElement)) return; // lo maneja el detector principal
+      if (isQtyElement(document.activeElement)) return;
       if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
       const t = Date.now();
 

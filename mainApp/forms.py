@@ -1809,7 +1809,7 @@ class GenerarVentaForm(forms.Form):
     medio_pago = forms.ChoiceField(
         choices=[
             ("nequi", "Nequi"), ("efectivo", "Efectivo"),
-            ("daviplata", "Daviplata"), ("tarjeta", "Tarjeta")
+            ("daviplata", "Daviplata"), ("tarjeta", "Tarjeta"), ("banco_caja_social", "Banco Caja Social"),
         ],
         widget=forms.HiddenInput()
     )

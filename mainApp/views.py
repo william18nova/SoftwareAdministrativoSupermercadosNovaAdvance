@@ -4619,12 +4619,16 @@ class VentasDiariasStatsView(LoginRequiredMixin, View):
       - EFECTIVO   → filtra mediopago ∈ {EFECTIVO, CASH, EF}
       - NEQUI      → filtra mediopago ∈ {NEQUI}
       - DAVIPLATA  → filtra mediopago ∈ {DAVIPLATA, DAVI}
+      - TARJETA  → filtra mediopago ∈ {TARJETA, CARD, TC, TARJETA CREDITO, TARJETA DEBITO, CREDITO, DEBITO}
+      - BANCO CAJA SOCIAL  → filtra mediopago ∈ {BANCO_CAJA_SOCIAL, BANCO CAJA SOCIAL, CAJA SOCIAL, BCS}
     """
     # Normalizaciones aceptadas (todas en mayúscula)
     METODO_ALIASES = {
         "EFECTIVO": {"EFECTIVO", "CASH", "EF"},
         "NEQUI": {"NEQUI"},
         "DAVIPLATA": {"DAVIPLATA", "DAVI", "DAVI PLATA"},
+        "TARJETA": {"TARJETA", "CARD", "TC", "TARJETA CREDITO", "TARJETA DEBITO", "CREDITO", "DEBITO"},
+        "BANCO_CAJA_SOCIAL": {"BANCO_CAJA_SOCIAL", "BANCO CAJA SOCIAL", "CAJA SOCIAL", "BCS"},
     }
 
     def get(self, request):
