@@ -966,10 +966,7 @@ $(function () {
   });
   applyPriceTemplate($inpCode, { mode: "code" });
 
-  /* ================== ✅ LIVE SNAPSHOT SYNC (precio/barcode AC) ==================
-     - No cambia formato visual: solo refresca data del cache
-     - Solo re-renderiza AC si detecta cambios en snapshot
-  ============================================================================ */
+  /* ================== ✅ LIVE SNAPSHOT SYNC (precio/barcode AC) ================== */
   const catalogSigBySucursal = new Map(); // sid -> firma
   let catalogPollTimer = null;
   let catalogPollSid = null;
@@ -998,26 +995,22 @@ $(function () {
     const newSig = buildCatalogSignature(items);
     const oldSig = catalogSigBySucursal.get(sid);
 
-    if (oldSig && oldSig === newSig) return false; // ✅ no cambió
+    if (oldSig && oldSig === newSig) return false;
 
     catalogSigBySucursal.set(sid, newSig);
 
-    // actualiza estructuras base
     catalogBySucursal.set(sid, items);
     hydrateFromCatalog(items);
     buildPreIndexFor(sid, items);
 
-    // guarda local (opcional, útil para volver rápido)
     try {
       localStorage.setItem(`catalog_${sid}`, JSON.stringify(items));
       localStorage.setItem(`catalog_${sid}_ts`, String(now()));
     } catch {}
 
-    // limpia caches de términos para que las nuevas búsquedas vean precio/barcode nuevo
     try { termCacheName.map.clear(); } catch {}
     try { termCacheCode.map.clear(); } catch {}
 
-    // si el menú está abierto, re-renderiza SOLO porque hubo cambios reales
     queueMicrotask(() => {
       try {
         const w = $inpNombre.autocomplete("widget");
@@ -1063,7 +1056,6 @@ $(function () {
       applySnapshotIfChanged(catalogPollSid, items);
     }
 
-    // primera ejecución rápida
     tick();
     catalogPollTimer = setInterval(tick, Math.max(900, intervalMs|0));
   }
@@ -1079,7 +1071,6 @@ $(function () {
     $("#sucursal_id").val(sucursalID);
     loadPickBoost(sucursalID);
 
-    // carga catálogo + inicializa firma + polling
     ensureCatalog(sucursalID).then(() => {
       initCatalogSignature(sucursalID);
       startCatalogPolling(sucursalID, { intervalMs: 2500 });
@@ -1233,7 +1224,7 @@ $(function () {
   function sanitizeDigitsKeepEmpty(el){
     const raw = String(el.value || "");
     const digits = raw.replace(/\D+/g, "");
-    el.value = digits; // puede quedar ""
+    el.value = digits;
     return digits;
   }
   function normalizeQtyOnCommit(el){
@@ -1297,7 +1288,7 @@ $(function () {
   function sanitizeRowQtyInput(el){
     const raw = String(el.value || "");
     const digits = raw.replace(/\D+/g, "");
-    el.value = digits; // puede quedar ""
+    el.value = digits;
     return digits;
   }
   function commitRowQtyInput(el){
@@ -1440,6 +1431,30 @@ $(function () {
 
   function setCashPlaceholderToTotal() { $amountIn.attr("placeholder", money(runningTotal)); }
 
+  // ✅ Guard anti doble-confirm (Enter + handlers)
+  const confirmPagoGuard = { ts: 0 };
+  function triggerConfirmPago(){
+    const t = Date.now();
+    if (t - confirmPagoGuard.ts < 250) return;
+    confirmPagoGuard.ts = t;
+    $("#confirmar-pago").trigger("click");
+  }
+
+  // ✅ helpers: Alt+1..9 (y 0=10) para seleccionar medio de pago por orden DOM
+  function getPaymentRadiosInOrder() {
+    return $modal.find("input[name='payment_method']").filter(":enabled");
+  }
+  function selectPaymentByIndex(idx0) {
+    const $radios = getPaymentRadiosInOrder();
+    if (!$radios.length) return false;
+    const $target = $radios.eq(idx0);
+    if (!$target.length) return false;
+
+    $target.prop("checked", true).trigger("change");
+    try { $modal.find(".modal-content").attr("tabindex","-1").focus(); } catch (_){}
+    return true;
+  }
+
   $("#generar-venta").off("click").on("click", () => {
     if (!productos.length) { alert("Agregue productos."); return; }
     if (!hasSucursal() || !$("#puntopago_id").val()) { alert("Seleccione sucursal y punto de pago."); return; }
@@ -1457,11 +1472,22 @@ $(function () {
   $(".close").click(() => $modal.hide());
   $(window).on("click", (e) => { if (e.target === $modal[0]) $modal.hide(); });
 
+  // ✅ Modal keydown: ESC cierra, ENTER confirma (sin Alt/Ctrl/Meta)
   $(document).on("keydown", function (e) {
     if (!$modal.is(":visible")) return;
+
     if (e.key === "Escape") {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
       $modal.hide();
+      return;
+    }
+
+    // ✅ Enter en cualquier parte del modal => confirma (cierra venta)
+    // (si viene con Alt, lo maneja el handler de Alt de abajo para evitar doble)
+    if (e.key === "Enter" && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      triggerConfirmPago();
+      return;
     }
   });
 
@@ -1486,20 +1512,59 @@ $(function () {
     $changeOut.text(change >= 0 ? `Cambio: ${money(change)}` : "");
   });
 
-  $amountIn.on("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); $("#confirmar-pago").trigger("click"); } });
+  // ✅ Enter en efectivo => confirma (usa guard)
+  $amountIn.on("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      triggerConfirmPago();
+    }
+  });
 
+  // ✅ Alt+1..9 (y 0=10) + Alt+Space + Alt+Enter dentro del modal
   $(document).on("keydown", function (e) {
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
+
+    if ($("#myModal").is(":visible")) {
+      const k = e.key;
+
+      // Alt+1..9 => seleccionar método
+      if (/^[1-9]$/.test(k)) {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        const idx0 = parseInt(k, 10) - 1;
+        selectPaymentByIndex(idx0);
+        return;
+      }
+
+      // Alt+0 => 10mo método
+      if (k === "0") {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        selectPaymentByIndex(9);
+        return;
+      }
+
+      // ✅ Alt+Enter => confirmar pago y cerrar venta
+      if (k === "Enter") {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        triggerConfirmPago();
+        return;
+      }
+    }
+
+    // Alt+Space (mantiene)
     const isAltSpace = e.altKey && !e.ctrlKey && !e.metaKey && (e.code === "Space" || e.key === " ");
     if (isAltSpace) {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-      if ($("#myModal").is(":visible")) $("#confirmar-pago").trigger("click");
+      if ($("#myModal").is(":visible")) triggerConfirmPago();
       else $("#generar-venta").trigger("click");
       return;
     }
+
+    // ✅ Alt+Enter fuera del modal => abrir modal; dentro ya se manejó arriba
     const isAltEnter = e.key === "Enter" && e.altKey && !e.ctrlKey && !e.metaKey;
     if (isAltEnter) {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-      $("#generar-venta").trigger("click");
+      if ($("#myModal").is(":visible")) triggerConfirmPago();
+      else $("#generar-venta").trigger("click");
     }
   });
 
