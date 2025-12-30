@@ -45,11 +45,14 @@ from .forms import (
     GenerarVentaForm,
     PedidoProveedorForm,
     EditarPedidoForm,
-    DevolucionForm,
     PermisoForm,
     PermisoEditarForm,
     RolPermisoAssignForm,
-    RolPermisoEditForm
+    RolPermisoEditForm,
+    DevolucionFormSet,
+    PagoMixtoFormSet,
+    ReintegroMixtoFormSet,
+    MEDIOS_PAGO,
 
 )
 from dal import autocomplete
@@ -3753,22 +3756,216 @@ class VentaDataTableView(LoginRequiredMixin, View):
             "data"            : data,
         })
 
+
+
+Q2 = Decimal("0.01")
+
 class VentaDetailView(LoginRequiredMixin, View):
-    """
-    Muestra el detalle de una venta y permite registrar devoluciones
-    y cambiar el medio de pago.
-    """
     template_name = "ver_venta.html"
 
+    # -------------------------
+    # Helpers
+    # -------------------------
+    def _venta_es_mixta(self, venta) -> bool:
+        return (venta.mediopago or "").strip().lower() == "mixto"
+
+    def _build_pagos_initial(self, venta):
+        """
+        Precarga pagos actuales desde venta_pagos (PagoVenta.monto).
+        """
+        pagos_bd = {}
+        if self._venta_es_mixta(venta):
+            rows = (
+                PagoVenta.objects
+                .filter(ventaid=venta)
+                .values("medio_pago")
+                .annotate(total=Sum("monto"))
+            )
+            pagos_bd = {
+                (r["medio_pago"] or "").strip().lower(): (r["total"] or Decimal("0.00"))
+                for r in rows
+            }
+
+        initial = []
+        for key, _label in MEDIOS_PAGO:
+            initial.append({
+                "medio_pago": key,
+                "monto": (pagos_bd.get(key, Decimal("0.00"))).quantize(Q2)
+            })
+        return initial
+
+    def _build_reintegro_initial(self, venta):
+        """Reintegro arranca en 0 para todos."""
+        return [{"medio_pago": key, "monto": Decimal("0.00")} for key, _label in MEDIOS_PAGO]
+
+    def _calcular_total_reintegro(self, detalles, dev_formset) -> Decimal:
+        """Suma (cantidad_devuelta * precio_unitario) usando cleaned_data."""
+        total = Decimal("0.00")
+        det_map = {d.pk: d for d in detalles}
+
+        for row in dev_formset.cleaned_data:
+            cant = int(row.get("devolver") or 0)
+            if cant <= 0:
+                continue
+            det = det_map.get(row["detalle_id"])
+            if not det:
+                continue
+            total += (Decimal(cant) * (det.preciounitario or Decimal("0.00")))
+
+        return total.quantize(Q2)
+
+    def _sum_formset_montos(self, formset) -> Decimal:
+        s = Decimal("0.00")
+        for row in (formset.cleaned_data or []):
+            s += (row.get("monto") or Decimal("0.00"))
+        return s.quantize(Q2)
+
+    # -------------------------
+    # Pagos mixtos: validar/guardar
+    # -------------------------
+    def _validar_pagos_mixtos(self, venta, pagos_formset):
+        """
+        Reglas:
+        - pagos_formset válido
+        - suma de montos == venta.total (TOTAL ACTUAL EN BD antes de devolución)
+        - montos no negativos
+        """
+        if not pagos_formset.is_valid():
+            return False, "Montos de pago inválidos."
+
+        total = (venta.total or Decimal("0.00")).quantize(Q2)
+        suma = self._sum_formset_montos(pagos_formset)
+
+        for row in pagos_formset.cleaned_data:
+            monto = (row.get("monto") or Decimal("0.00")).quantize(Q2)
+            if monto < 0:
+                return False, "No puedes poner montos negativos."
+
+        if suma != total:
+            return False, f"La suma de pagos ({suma}) debe ser igual al total ({total})."
+
+        return True, None
+
+    def _guardar_pagos_mixtos(self, venta, pagos_formset):
+        """
+        - Borra pagos existentes de esa venta (venta_pagos)
+        - Crea filas nuevas (solo donde monto > 0)
+        """
+        PagoVenta.objects.filter(ventaid=venta).delete()
+
+        nuevos = []
+        for row in pagos_formset.cleaned_data:
+            medio = (row.get("medio_pago") or "").strip().lower()
+            monto = (row.get("monto") or Decimal("0.00")).quantize(Q2)
+            if monto > 0:
+                nuevos.append(PagoVenta(ventaid=venta, medio_pago=medio, monto=monto))
+
+        if nuevos:
+            PagoVenta.objects.bulk_create(nuevos)
+
+    # -------------------------
+    # Reintegro mixto: validar contra lo que HAY en venta_pagos (sin tablas nuevas)
+    # -------------------------
+    def _pagado_actual_por_medio_locked(self, venta) -> dict:
+        """
+        Bloquea filas de PagoVenta para esta venta y suma por medio.
+        Esto permite validar y restar de forma segura en la misma transacción.
+        """
+        out = {k: Decimal("0.00") for k, _ in MEDIOS_PAGO}
+        qs = PagoVenta.objects.select_for_update().filter(ventaid=venta)
+
+        for p in qs:
+            medio = (p.medio_pago or "").strip().lower()
+            if medio in out:
+                out[medio] += (p.monto or Decimal("0.00"))
+
+        for k in out:
+            out[k] = out[k].quantize(Q2)
+        return out
+
+    def _validar_reintegro_mixto(self, venta, reintegro_formset, total_reintegro: Decimal):
+        """
+        Reglas:
+        - la suma de reintegros == total_reintegro (si total_reintegro > 0)
+        - cada monto <= pagado_actual_por_medio (lo que queda en venta_pagos)
+        """
+        if total_reintegro <= 0:
+            return True, None, {}
+
+        if not reintegro_formset.is_valid():
+            return False, "Montos de reintegro inválidos.", {}
+
+        disponibles = self._pagado_actual_por_medio_locked(venta)
+
+        suma = Decimal("0.00")
+        reintegro_map = {}
+
+        for row in reintegro_formset.cleaned_data:
+            metodo = (row.get("medio_pago") or "").strip().lower()
+            monto = (row.get("monto") or Decimal("0.00")).quantize(Q2)
+
+            if monto < 0:
+                return False, "No puedes poner reintegros negativos.", {}
+
+            if monto > 0:
+                if metodo not in disponibles:
+                    return False, f"Método inválido: {metodo}", {}
+                if monto > disponibles[metodo]:
+                    return False, f"El reintegro en {metodo} supera lo disponible ({disponibles[metodo]}).", {}
+                reintegro_map[metodo] = monto
+
+            suma += monto
+
+        suma = suma.quantize(Q2)
+        if suma != total_reintegro:
+            return False, f"La suma del reintegro ({suma}) debe ser igual al total a reintegrar ({total_reintegro}).", {}
+
+        return True, None, reintegro_map
+
+    def _restar_reintegro_de_pagos(self, venta, reintegro_map: dict):
+        """
+        Resta en venta_pagos EXACTAMENTE lo que el usuario puso.
+        - Se reparte restando sobre las filas existentes de ese medio.
+        - Si una fila queda en 0, se elimina.
+        """
+        for metodo, monto_restar in reintegro_map.items():
+            restante = (monto_restar or Decimal("0.00")).quantize(Q2)
+            if restante <= 0:
+                continue
+
+            qs = (
+                PagoVenta.objects
+                .select_for_update()
+                .filter(ventaid=venta, medio_pago=metodo)
+                .order_by("pagoventaid")
+            )
+
+            for p in qs:
+                if restante <= 0:
+                    break
+                actual = (p.monto or Decimal("0.00")).quantize(Q2)
+
+                if actual <= restante:
+                    restante = (restante - actual).quantize(Q2)
+                    p.delete()
+                else:
+                    p.monto = (actual - restante).quantize(Q2)
+                    p.save(update_fields=["monto"])
+                    restante = Decimal("0.00")
+
+            if restante > 0:
+                # No debería pasar si validaste bien; pero por seguridad:
+                raise ValueError(f"No hay suficiente saldo en {metodo} para restar {monto_restar}.")
+
+    # -------------------------
+    # GET
+    # -------------------------
     def get(self, request, venta_id):
         venta = get_object_or_404(
-            Venta.objects.select_related(
-                "clienteid", "empleadoid", "sucursalid", "puntopagoid"
-            ),
+            Venta.objects.select_related("clienteid", "empleadoid", "sucursalid", "puntopagoid"),
             pk=venta_id
         )
 
-        # Anotamos subtotal = cantidad * preciounitario
         detalles = (
             DetalleVenta.objects
             .filter(ventaid=venta)
@@ -3781,50 +3978,105 @@ class VentaDetailView(LoginRequiredMixin, View):
             )
         )
 
-        DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
-        formset = DevolucionFormSet(initial=[
-            {"detalle_id": d.pk, "devolver": 0} for d in detalles
-        ])
+        dev_formset = DevolucionFormSet(
+            initial=[{"detalle_id": d.pk, "devolver": 0} for d in detalles],
+            prefix="dev"
+        )
+
+        pagos_formset = PagoMixtoFormSet(
+            initial=self._build_pagos_initial(venta),
+            prefix="pagos"
+        )
+
+        reintegro_formset = ReintegroMixtoFormSet(
+            initial=self._build_reintegro_initial(venta),
+            prefix="reint"
+        )
 
         return render(request, self.template_name, {
-            "venta":   venta,
-            "filas":   zip(detalles, formset.forms),
-            "formset": formset,
+            "venta": venta,
+            "filas": zip(detalles, dev_formset.forms),
+            "dev_formset": dev_formset,
+            "pagos_formset": pagos_formset,
+            "reintegro_formset": reintegro_formset,
+            "es_mixto": self._venta_es_mixta(venta),
+            "medios_pago": MEDIOS_PAGO,
         })
 
+    # -------------------------
+    # POST
+    # -------------------------
     @transaction.atomic
     def post(self, request, venta_id):
-        venta    = get_object_or_404(Venta, pk=venta_id)
-        detalles = DetalleVenta.objects.filter(ventaid=venta)
+        venta = get_object_or_404(Venta, pk=venta_id)
+        detalles = list(DetalleVenta.objects.filter(ventaid=venta))
 
-        # ===== 1) Actualizar medio de pago SIEMPRE que venga en el POST =====
-        nuevo_mediopago = request.POST.get("mediopago")
+        accion = (request.POST.get("accion") or "").strip()
+        nuevo_mediopago = (request.POST.get("mediopago") or "").strip().lower()
 
-        # Si viene algo y es distinto a lo que hay en BD → actualizar
-        if nuevo_mediopago and nuevo_mediopago != venta.mediopago:
+        dev_formset = DevolucionFormSet(request.POST, prefix="dev")
+        pagos_formset = PagoMixtoFormSet(request.POST, prefix="pagos")
+        reintegro_formset = ReintegroMixtoFormSet(request.POST, prefix="reint")
+
+        # 0) Actualizar medio de pago si cambió
+        if nuevo_mediopago and nuevo_mediopago != (venta.mediopago or "").strip().lower():
             venta.mediopago = nuevo_mediopago
             venta.save(update_fields=["mediopago"])
             messages.success(request, "✅ Medio de pago actualizado.")
 
-        # ===== 2) Procesar devoluciones (sean o no haya cambio de mediopago) =====
-        DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
-        formset = DevolucionFormSet(request.POST)
+        # 1) Si es mixto: validar + guardar distribución de pagos (ANTES de devolver)
+        if self._venta_es_mixta(venta):
+            ok, err = self._validar_pagos_mixtos(venta, pagos_formset)
+            if not ok:
+                messages.error(request, f"⚠️ {err}")
+                return redirect(reverse_lazy("ver_venta", kwargs={"venta_id": venta_id}))
+            self._guardar_pagos_mixtos(venta, pagos_formset)
+        else:
+            # si ya no es mixto, borra pagos mixtos guardados (opcional)
+            PagoVenta.objects.filter(ventaid=venta).delete()
 
-        if formset.is_valid():
-            devoluciones = []
-            for data in formset.cleaned_data:
-                cant = data.get("devolver", 0)
-                if cant:
-                    devoluciones.append({
-                        "detalle": detalles.get(pk=data["detalle_id"]),
-                        "cantidad": cant
-                    })
+        if accion == "volver_lista":
+            return redirect(reverse_lazy("visualizar_ventas"))
 
-            if devoluciones:
-                CambioDevolucion.registrar_devolucion(venta, devoluciones)
-                messages.success(request, "✅ Devolución registrada correctamente.")
+        # 2) Validar devoluciones
+        if not dev_formset.is_valid():
+            messages.error(request, "⚠️ Revisa las cantidades a devolver.")
+            return redirect(reverse_lazy("ver_venta", kwargs={"venta_id": venta_id}))
 
-        # Siempre volvemos a la lista
+        devoluciones = []
+        det_map = {d.pk: d for d in detalles}
+        for row in dev_formset.cleaned_data:
+            cant = int(row.get("devolver") or 0)
+            if cant > 0:
+                det = det_map.get(row["detalle_id"])
+                if det:
+                    devoluciones.append({"detalle": det, "cantidad": cant})
+
+        if not devoluciones:
+            # solo guardó cambios del medio/pagos mixtos
+            return redirect(reverse_lazy("visualizar_ventas"))
+
+        total_reintegro = self._calcular_total_reintegro(detalles, dev_formset)
+
+        # 3) Si es mixto: exigir distribución del reintegro y RESTAR en venta_pagos
+        if self._venta_es_mixta(venta):
+            ok, err, reintegro_map = self._validar_reintegro_mixto(venta, reintegro_formset, total_reintegro)
+            if not ok:
+                messages.error(request, f"⚠️ {err}")
+                return redirect(reverse_lazy("ver_venta", kwargs={"venta_id": venta_id}))
+
+            # A) Ejecuta tu devolución normal (inventario / detalles / total venta)
+            #    (ajusta si tu método recibe otros params)
+            CambioDevolucion.registrar_devolucion(venta, devoluciones)
+
+            # B) Ahora resta exactamente lo que el usuario decidió devolver por cada medio
+            self._restar_reintegro_de_pagos(venta, reintegro_map)
+
+        else:
+            # No mixto: devolución normal
+            CambioDevolucion.registrar_devolucion(venta, devoluciones)
+
+        messages.success(request, "✅ Devolución registrada correctamente.")
         return redirect(reverse_lazy("visualizar_ventas"))
 
 class CambiosListView(LoginRequiredMixin, ListView):

@@ -1,128 +1,146 @@
-// static/javascript/ver_venta.js
-(function(){
+(function () {
   "use strict";
 
-  const POS_AGENT_URL   = (window.POS_AGENT_URL || "http://127.0.0.1:8787").replace(/\/+$/,'');
-  const POS_AGENT_TOKEN = (window.POS_AGENT_TOKEN || "").trim();
-
-  function getCookie(name) {
-    const m = document.cookie.match(new RegExp('(^|;)\\s*' + name + '=([^;]+)'));
-    return m ? decodeURIComponent(m[2]) : '';
+  function parseMoney(v) {
+    const s = String(v ?? "").trim().replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
   }
-  const csrftoken = getCookie("csrftoken");
+  function to2(n) { return (Math.round(n * 100) / 100).toFixed(2); }
 
-  const btn = document.getElementById("btn-imprimir-factura");
-  if (!btn) return;
+  const form = document.getElementById("venta-form");
+  const selectMedio = document.getElementById("id_mediopago");
 
-  const ventaId = btn.getAttribute("data-venta-id");
-  const urlServerPrint = (window.imprimirFacturaUrl || "").trim(); // imprime en el servidor
-  const urlTicketTexto = (window.ticketTextoUrl || "").trim();     // devuelve receipt_text
+  const bloquePagos = document.getElementById("bloque-mixto-pagos");
+  const bloqueReint = document.getElementById("bloque-mixto-reintegro");
 
-  async function agentPrintSafe(text, { timeout = 1000 } = {}) {
-    if (!POS_AGENT_TOKEN) throw new Error("SIN_TOKEN");
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), timeout);
-    try {
-      await fetch(POS_AGENT_URL + "/print", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Pos-Agent-Token": POS_AGENT_TOKEN
-        },
-        body: JSON.stringify({ text }),
-        signal: ctrl.signal
-      });
-    } finally {
-      clearTimeout(to);
-    }
+  const totalVentaEl = document.getElementById("mixto-total-venta");
+  const sumaPagosEl = document.getElementById("mixto-suma-pagos");
+  const errPagosEl = document.getElementById("mixto-error-pagos");
+
+  const reintTotalEl = document.getElementById("reintegro-total");
+  const reintSumaEl = document.getElementById("reintegro-suma");
+  const errReintEl = document.getElementById("mixto-error-reintegro");
+
+  function esMixto() {
+    return ((selectMedio?.value || "").trim().toLowerCase() === "mixto");
   }
 
-  async function agentKickSafe({ timeout = 800 } = {}) {
-    if (!POS_AGENT_TOKEN) return;
-    const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), timeout);
-    try {
-      await fetch(POS_AGENT_URL + "/kick", {
-        method: "POST",
-        headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN },
-        signal: ctrl.signal
-      });
-    } finally {
-      clearTimeout(to);
-    }
+  function sumInputsWithin(container) {
+    if (!container) return 0;
+    const inputs = container.querySelectorAll("input[name$='-monto']");
+    let s = 0;
+    inputs.forEach(i => s += parseMoney(i.value));
+    return Math.max(0, s);
   }
 
-  async function fetchTicketText() {
-    if (!urlTicketTexto || !ventaId) throw new Error("NO_URL_TICKET");
-    const body = new URLSearchParams({ venta_id: String(ventaId) });
-    const resp = await fetch(urlTicketTexto, {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": csrftoken,
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body
+  function calcTotalDevolucion() {
+    const rows = document.querySelectorAll("#tabla-detalles tbody tr");
+    let total = 0;
+
+    rows.forEach(tr => {
+      const precio = parseMoney(tr.getAttribute("data-precio"));
+      const inputDev = tr.querySelector("input[name^='dev-'][name$='-devolver']");
+      const cant = inputDev ? parseInt(inputDev.value || "0", 10) : 0;
+      if (cant > 0) total += cant * precio;
     });
-    const data = await resp.json().catch(()=>({ success:false }));
-    if (!resp.ok || !data.success || !data.receipt_text) {
-      throw new Error(data && data.error ? data.error : "Error obteniendo ticket");
-    }
-    return data.receipt_text;
+
+    return Math.max(0, total);
   }
 
-  async function serverFallbackPrint() {
-    if (!urlServerPrint || !ventaId) throw new Error("NO_URL_PRINT");
-    const body = new URLSearchParams({ venta_id: String(ventaId) });
-    const resp = await fetch(urlServerPrint, {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": csrftoken,
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body
+  function setReintegroInputsEnabled(enabled) {
+    if (!bloqueReint) return;
+    const inputs = bloqueReint.querySelectorAll("input[name$='-monto']");
+    inputs.forEach(i => {
+      i.disabled = !enabled;
+      if (!enabled) i.value = "";
     });
-    const data = await resp.json().catch(()=>({ success:false, error:"Respuesta inválida" }));
-    if (!resp.ok || !data.success) {
-      const msg = (data && data.error) ? data.error : "Error al imprimir (servidor).";
-      throw new Error(msg);
-    }
   }
 
-  async function postPrint() {
-    if (!ventaId) {
-      alert("No se pudo determinar la venta a imprimir.");
+  function validateUI() {
+    const mixto = esMixto();
+
+    if (bloquePagos) bloquePagos.style.display = mixto ? "" : "none";
+    // bloqueReint se muestra solo si mixto y hay devolución
+    if (!mixto) {
+      if (bloqueReint) bloqueReint.style.display = "none";
       return;
     }
-    btn.disabled = true;
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Imprimiendo...';
 
-    try {
-      // 1) Intento POS Agent (rápido/local)
-      if (POS_AGENT_TOKEN && urlTicketTexto) {
-        const text = await fetchTicketText();
-        await agentPrintSafe(text, { timeout: 1000 });
-        await agentKickSafe({ timeout: 800 });
-        alert("✅ Ticket enviado al POS Agent (y gaveta abierta).");
-        return;
-      }
+    const totalVenta = parseMoney(window.VENTA_TOTAL || (totalVentaEl ? totalVentaEl.textContent : "0"));
+    if (totalVentaEl) totalVentaEl.textContent = to2(totalVenta);
 
-      // 2) Fallback: impresión en servidor
-      await serverFallbackPrint();
-      alert("✅ Ticket enviado a la impresora (servidor) y gaveta abierta.");
-    } catch (e) {
-      // Si falló Agent, caemos a servidor una vez
-      try {
-        await serverFallbackPrint();
-        alert("✅ Ticket enviado a la impresora (servidor) y gaveta abierta.");
-      } catch (e2) {
-        alert("⚠️ No se pudo imprimir. " + (e2 && e2.message ? e2.message : ""));
+    const sumaPagos = sumInputsWithin(bloquePagos);
+    if (sumaPagosEl) sumaPagosEl.textContent = to2(sumaPagos);
+
+    if (errPagosEl) {
+      if (Math.abs(sumaPagos - totalVenta) > 0.009) {
+        errPagosEl.style.display = "";
+        errPagosEl.textContent = `La suma de pagos (${to2(sumaPagos)}) debe ser igual al total (${to2(totalVenta)}).`;
+      } else {
+        errPagosEl.style.display = "none";
+        errPagosEl.textContent = "";
       }
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = originalHTML;
+    }
+
+    const totalDev = calcTotalDevolucion();
+    if (reintTotalEl) reintTotalEl.textContent = to2(totalDev);
+
+    if (totalDev > 0) {
+      if (bloqueReint) bloqueReint.style.display = "";
+      setReintegroInputsEnabled(true);
+    } else {
+      if (bloqueReint) bloqueReint.style.display = "none";
+      setReintegroInputsEnabled(false);
+    }
+
+    const sumaReint = sumInputsWithin(bloqueReint);
+    if (reintSumaEl) reintSumaEl.textContent = to2(sumaReint);
+
+    if (errReintEl) {
+      if (totalDev > 0 && Math.abs(sumaReint - totalDev) > 0.009) {
+        errReintEl.style.display = "";
+        errReintEl.textContent = `La suma (${to2(sumaReint)}) debe ser igual al total a devolver (${to2(totalDev)}).`;
+      } else {
+        errReintEl.style.display = "none";
+        errReintEl.textContent = "";
+      }
     }
   }
 
-  btn.addEventListener("click", postPrint);
+  selectMedio?.addEventListener("change", validateUI);
+
+  document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (!t) return;
+
+    if (t.matches("input[name^='dev-'][name$='-devolver']")) validateUI();
+    if (t.matches("input[name$='-monto']")) validateUI();
+  });
+
+  form?.addEventListener("submit", (e) => {
+    if (!esMixto()) return;
+
+    const totalVenta = parseMoney(window.VENTA_TOTAL || "0");
+    const sumaPagos = sumInputsWithin(bloquePagos);
+
+    if (Math.abs(sumaPagos - totalVenta) > 0.009) {
+      e.preventDefault();
+      alert(`⚠️ La suma de pagos (${to2(sumaPagos)}) debe ser igual al total (${to2(totalVenta)}).`);
+      return;
+    }
+
+    const totalDev = calcTotalDevolucion();
+    if (totalDev > 0) {
+      const sumaReint = sumInputsWithin(bloqueReint);
+      if (Math.abs(sumaReint - totalDev) > 0.009) {
+        e.preventDefault();
+        alert(`⚠️ La suma de la devolución (${to2(sumaReint)}) debe ser igual al total a devolver (${to2(totalDev)}).`);
+        return;
+      }
+    }
+  });
+
+  // Init
+  validateUI();
 })();

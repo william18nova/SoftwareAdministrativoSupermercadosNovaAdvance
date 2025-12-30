@@ -11,6 +11,7 @@ from django.db.models import Exists, OuterRef, Count, Q  # Agrega esta línea
 from django.forms import formset_factory, DecimalField, DateField, HiddenInput, TextInput, DateInput
 from datetime import date
 from django.utils import timezone
+from decimal import Decimal
 
 MEDIO_PAGO_CHOICES = (
     ('nequi', 'Nequi'),
@@ -1954,25 +1955,45 @@ class LineaDevolucionForm(forms.Form):
         min_value=0, label="Cant.",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "style": "width:5em"}))
 
-DevolucionFormSet = formset_factory(LineaDevolucionForm, extra=0)
-
-
-
+MEDIOS_PAGO = (
+    ("efectivo", "Efectivo"),
+    ("nequi", "Nequi"),
+    ("daviplata", "Daviplata"),
+    ("tarjeta", "Tarjeta"),
+    ("banco_caja_social", "Banco Caja Social"),
+)
 
 class DevolucionForm(forms.Form):
-    """
-    Form simple usado en ver_venta para indicar cuántas unidades
-    se devuelven de cada DetalleVenta.
-    """
-    devolver   = forms.IntegerField(
-        min_value=0,               # 0 = no devolver
+    devolver = forms.IntegerField(
+        min_value=0,
         required=True,
         widget=forms.NumberInput(attrs={
-            "class": "form-control text-end",
+            "class": "form-control text-end devolver-input",
             "style": "width: 5rem;",
+            "min": "0",
         })
     )
     detalle_id = forms.IntegerField(widget=forms.HiddenInput())
+
+DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
+
+class PagoMixtoLineaForm(forms.Form):
+    medio_pago = forms.CharField(widget=forms.HiddenInput)
+    monto = forms.DecimalField(
+        required=False,
+        min_value=0,
+        decimal_places=2,
+        max_digits=12,
+        widget=forms.NumberInput(attrs={
+            "class": "pago-monto",
+            "step": "0.01",
+            "placeholder": "0.00",
+            "inputmode": "decimal",
+        })
+    )
+
+PagoMixtoFormSet = formset_factory(PagoMixtoLineaForm, extra=0)
+ReintegroMixtoFormSet = formset_factory(PagoMixtoLineaForm, extra=0)  # mismo shape
     
 class EditarPedidoForm(forms.Form):
     proveedor                  = forms.IntegerField(
