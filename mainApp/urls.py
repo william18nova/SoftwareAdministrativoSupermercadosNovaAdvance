@@ -244,8 +244,7 @@ urlpatterns = [
      name="sucursal_ventas_autocomplete"),
      path("autocomplete/puntopago_ventas/", views.PuntoPagoParaVentasAutocomplete.as_view(),
      name="puntopago_ventas_autocomplete"),
-     path("ventas_diarias/stats/", views.VentasDiariasStatsView.as_view(),
-     name="ventas_diarias_stats"),
+     path("ventas/diarias/stats/", views.VentasDiariasStatsView.as_view(), name="ventas_diarias_stats"),
 
 
      # --- Reporte: pedidos pagados ---

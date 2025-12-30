@@ -3,7 +3,7 @@ $(function () {
   "use strict";
   const $ = window.jQuery;
 
-  console.log("⚡ generar_venta.js — AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido + ✅ scanner: qty-guard => code + ✅ live snapshot sync (precio/barcode AC)");
+  console.log("⚡ generar_venta.js — AC ultra + snapshot L1 + live price + anti-zero + burst last-only + atajos + modal + POS Agent + submit ultrarrápido + ✅ scanner: qty-guard => code + ✅ live snapshot sync (precio/barcode AC) + ✅ pagos MIXTO + ✅ restante en vivo");
 
   /* ================== URLs inyectadas ================== */
   const SUCURSAL_URL   = window.sucursalAutocompleteUrl;
@@ -25,12 +25,16 @@ $(function () {
   const $inpNombre  = $("#producto_busqueda_nombre");
   const $inpCode    = $("#codigo_o_barras");
   const $pid        = $("#producto_id");
-  const $cantidad   = $("#cantidad");
-  const $agregar    = $("#agregar-producto");
+  const $cantidad   = $("#cantidad"); // (si no existe, no rompe)
+  const $agregar    = $("#agregar-producto"); // (si no existe, no rompe)
   const $tbody      = $("#detalle-productos tbody");
   const $totalEl    = $("#total");
   const $buscarCart = $("#buscar-detalles");
   const $btnVaciar  = $("#vaciar-carrito");
+
+  // ✅ pagos mixto
+  const $hidPagos     = $("#pagos");      // input hidden name="pagos"
+  const $hidMedioPago = $("#medio_pago"); // compat (efectivo/tarjeta/transferencia/mixto)
 
   /* ================== CSRF / Ajax ================== */
   function getCSRF() {
@@ -89,6 +93,16 @@ $(function () {
     const isPureDigits = digits.length > 0 && digits.length === compact.length;
     const isBarcodeLike = isPureDigits && digits.length >= 6;
     return { raw, digits, hasLetters, isPureDigits, isBarcodeLike };
+  }
+
+  function safeNumber(x){
+    const n = Number(x);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function parseAmt(v){
+    const n = Number(String(v||"").trim());
+    return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
   /* ================== Estado persistido ================== */
@@ -157,7 +171,11 @@ $(function () {
     $("#productos").val("[]");
     $("#cantidades").val("[]");
     setTotal(0);
-    $("#medio_pago").val("");
+
+    // ✅ limpiar pagos SIEMPRE
+    $hidMedioPago.val("");
+    $hidPagos.val("");
+
     $("#monto-recibido").val("");
     $("#cambio").text("");
     $("#myModal").hide();
@@ -174,7 +192,7 @@ $(function () {
 
   window.addEventListener("beforeunload", () => {
     try { clearCartAndTotals(); } catch (_){ }
-    try { stopCatalogPolling(); } catch (_){}
+    try { stopCatalogPolling(); } catch (_){ }
   });
 
   /* ================== Helpers: focus qty row ================== */
@@ -222,7 +240,6 @@ $(function () {
   const barcodeIndex = new Map(); // barcode -> pid
   const nameIndex    = new Map(); // name(lc) -> pid
 
-  // ✅ IMPORTANTE: limpia índices viejos si cambió nombre/barcode
   function updateCache(pid, data = {}) {
     const key = String(pid);
     const prev = productCache.get(key) || {};
@@ -671,7 +688,7 @@ $(function () {
     $inpNombre.val("");
     $inpCode.val("");
     $pid.val("");
-    $cantidad.val("1");
+    if ($cantidad && $cantidad.length) $cantidad.val("1");
 
     queueMicrotask(() => { if ($inpCode.is(":visible")) { $inpCode.focus(); $inpCode[0]?.select?.(); } });
   }
@@ -701,10 +718,11 @@ $(function () {
     if (pid != null)     $pid.val(pid);
     if (barcode != null) $inpCode.val(barcode);
 
+    // si tu página NO tiene #cantidad/#agregar-producto, esto no rompe
     if ($pid.val()) {
-      $cantidad.prop("disabled", false);
-      $agregar.prop("disabled", false);
-      queueMicrotask(()=>{ if ($cantidad.is(":visible")) { $cantidad.focus().select(); } });
+      if ($cantidad && $cantidad.length) $cantidad.prop("disabled", false);
+      if ($agregar && $agregar.length)  $agregar.prop("disabled", false);
+      queueMicrotask(()=>{ if ($cantidad && $cantidad.length && $cantidad.is(":visible")) { $cantidad.focus().select(); } });
     }
   }
 
@@ -1134,8 +1152,8 @@ $(function () {
         localStorage.removeItem("puntopagoSucursalID");
       }
 
-      $cantidad.prop("disabled", true);
-      $agregar.prop("disabled", true);
+      if ($cantidad && $cantidad.length) $cantidad.prop("disabled", true);
+      if ($agregar && $agregar.length)  $agregar.prop("disabled", true);
 
       loadPickBoost(sucursalID);
 
@@ -1220,7 +1238,7 @@ $(function () {
     } else { try { $inpCode.autocomplete("close"); } catch {} }
   });
 
-  /* ================== Cantidad principal (#cantidad): vacío permitido ================== */
+  /* ================== Cantidad principal (#cantidad): (si existe) ================== */
   function sanitizeDigitsKeepEmpty(el){
     const raw = String(el.value || "");
     const digits = raw.replace(/\D+/g, "");
@@ -1234,15 +1252,17 @@ $(function () {
     return el.value;
   }
 
-  $cantidad
-    .on("keydown", function(e){
-      const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key);
-      if (ok) return;
-      if (e.ctrlKey || e.metaKey) return;
-      if (!/^\d$/.test(e.key)) e.preventDefault();
-    })
-    .on("input", function(){ sanitizeDigitsKeepEmpty(this); })
-    .on("blur", function(){ normalizeQtyOnCommit(this); });
+  if ($cantidad && $cantidad.length) {
+    $cantidad
+      .on("keydown", function(e){
+        const ok = ["Backspace","Delete","ArrowLeft","ArrowRight","Tab","Home","End"].includes(e.key);
+        if (ok) return;
+        if (e.ctrlKey || e.metaKey) return;
+        if (!/^\d$/.test(e.key)) e.preventDefault();
+      })
+      .on("input", function(){ sanitizeDigitsKeepEmpty(this); })
+      .on("blur", function(){ normalizeQtyOnCommit(this); });
+  }
 
   /* ================== Qty instant update (carrito) ================== */
   function getBestLocalPrice(pid, $row){
@@ -1336,35 +1356,39 @@ $(function () {
     }
   });
 
-  /* ================== Botones/agregado ================== */
-  $agregar.off("click").on("click", () => {
-    const pid = $pid.val();
-    const qty = clampQty($cantidad.val());
-    $cantidad.val(String(qty));
-    if (!pid || !qty || qty < 1) return;
-    addToCartLastOnly(pid, qty);
-  });
-
-  $cantidad.off("keydown.confirm").on("keydown.confirm", function (e) {
-    if (e.key === "Enter" && !$agregar.prop("disabled")) {
-      e.preventDefault();
-
-      const committed = normalizeQtyOnCommit(this);
-      const qty = clampQty(committed);
-
+  /* ================== Botones/agregado (si existen) ================== */
+  if ($agregar && $agregar.length) {
+    $agregar.off("click").on("click", () => {
       const pid = $pid.val();
+      const qty = clampQty($cantidad.val());
+      $cantidad.val(String(qty));
       if (!pid || !qty || qty < 1) return;
-
       addToCartLastOnly(pid, qty);
+    });
+  }
 
-      this.blur();
-      queueMicrotask(() => {
-        if ($inpNombre.is(":visible")) { $inpNombre.focus(); $inpNombre[0]?.select?.(); }
-        const v = $inpNombre.val() || "";
-        if (v.length >= 1) { try { $inpNombre.autocomplete("search", v); } catch {} }
-      });
-    }
-  });
+  if ($cantidad && $cantidad.length) {
+    $cantidad.off("keydown.confirm").on("keydown.confirm", function (e) {
+      if (e.key === "Enter" && $agregar && $agregar.length && !$agregar.prop("disabled")) {
+        e.preventDefault();
+
+        const committed = normalizeQtyOnCommit(this);
+        const qty = clampQty(committed);
+
+        const pid = $pid.val();
+        if (!pid || !qty || qty < 1) return;
+
+        addToCartLastOnly(pid, qty);
+
+        this.blur();
+        queueMicrotask(() => {
+          if ($inpNombre.is(":visible")) { $inpNombre.focus(); $inpNombre[0]?.select?.(); }
+          const v = $inpNombre.val() || "";
+          if (v.length >= 1) { try { $inpNombre.autocomplete("search", v); } catch {} }
+        });
+      }
+    });
+  }
 
   $tbody.on("click", ".eliminar-producto", function () {
     const $row = $(this).closest("tr");
@@ -1380,12 +1404,19 @@ $(function () {
     refreshLastAddedPidAfterRemoval(pid);
   });
 
+  // ✅ Vaciar carrito (AHORA limpia pagos también)
   $btnVaciar.on("click", function(){
     if (!productos.length) return;
     if (!confirm("¿Vaciar todo el carrito?")) return;
-    productos.length = 0; cantidades.length = 0;
-    $tbody.empty(); setTotal(0);
+
+    productos.length = 0;
+    cantidades.length = 0;
+    $tbody.empty();
+    setTotal(0);
     lastAddedPid = null;
+
+    $hidMedioPago.val("");
+    $hidPagos.val("");
   });
 
   $buscarCart.on("keyup", function () {
@@ -1423,15 +1454,278 @@ $(function () {
     return Promise.allSettled(tasks).then(() => { setTotal(newTotal); return true; });
   }
 
-  /* ================== Modal de pago ================== */
-  const $modal     = $("#myModal");
-  const $efOptions = $("#efectivo-options");
-  const $amountIn  = $("#monto-recibido");
-  const $changeOut = $("#cambio");
+  /* ================== ✅ Modal de pago (MIXTO / NO-MIXTO) + RESTANTE ================== */
+  const $modal      = $("#myModal");
+  const $efOptions  = $("#efectivo-options");
+  const $amountIn   = $("#monto-recibido");
+  const $changeOut  = $("#cambio");
+  const $mixMode    = $("#mix-mode");         // ✅ checkbox (pago mixto)
+  const $pendingOut = $("#monto-pendiente");  // ✅ "Falta por pagar..."
 
-  function setCashPlaceholderToTotal() { $amountIn.attr("placeholder", money(runningTotal)); }
+  function isMixto(){
+    return !!($mixMode && $mixMode.length && $mixMode.prop("checked"));
+  }
 
-  // ✅ Guard anti doble-confirm (Enter + handlers)
+  function openModal(){
+    $modal.addClass("is-open").show();
+    $("body").addClass("modal-open");
+  }
+  function closeModal(){
+    $modal.removeClass("is-open").hide();
+    $("body").removeClass("modal-open");
+  }
+
+  function showMixError(msg){
+    const $e = $modal.find("#mix-error");
+    $e.text(msg || "");
+    $e.toggle(!!msg);
+  }
+
+  function ensureMixUIExists(){
+    const hasChecks = $modal.find(".pm-check").length > 0;
+    const hasAmts   = $modal.find(".pm-amt").length > 0;
+    const hasMix    = $modal.find("#mix-mode").length > 0;
+    const hasPend   = $modal.find("#monto-pendiente").length > 0;
+    if (!hasChecks || !hasAmts || !hasMix || !hasPend) {
+      console.warn("[PAGOS] Faltan elementos en el modal (pm-check/pm-amt/mix-mode/monto-pendiente). Revisa modal_venta.html.");
+    }
+  }
+
+  /* ================== ✅ FIX CRÍTICO: #mix-mode NO es un medio de pago ================== */
+  function getCheckedMedios(){
+    return $modal.find(".pm-check:checked").not("#mix-mode")
+      .map(function(){ return this.value; }).get();
+  }
+
+  /* ================== Fila por medio (mix-row) ================== */
+  function rowForCheck($check){
+    let $row = $check.closest(".mix-row");
+    if ($row.length) return $row;
+    $row = $check.closest(".pm-row, .payment-row, .form-check");
+    if ($row.length) return $row;
+    return $check.parent();
+  }
+
+  function amtInputFor(medio, $check){
+    if ($check && $check.length){
+      const $row = rowForCheck($check);
+      let $amt = $row.find(`.pm-amt[data-medio='${medio}']`).first();
+      if ($amt.length) return $amt;
+      $amt = $row.find(".pm-amt").first();
+      if ($amt.length) return $amt;
+    }
+    let $amt = $modal.find(`.pm-amt[data-medio='${medio}']`).first();
+    if ($amt.length) return $amt;
+    $amt = $modal.find(`input.pm-amt[name='monto_${medio}']`).first();
+    return $amt;
+  }
+
+  function sumMixtoSelectedAmounts({excludeMedio=null} = {}){
+    const medios = getCheckedMedios();
+    let sum = 0;
+    for (const m of medios) {
+      if (excludeMedio && String(m) === String(excludeMedio)) continue;
+      const $chk = $modal.find(`.pm-check[value='${m}']`).first();
+      sum += parseAmt(amtInputFor(m, $chk).val());
+    }
+    return sum;
+  }
+
+  function computePaidSoFar(){
+    const total = safeNumber(runningTotal);
+    const medios = getCheckedMedios();
+    if (!medios.length) return 0;
+
+    if (!isMixto()) {
+      return (medios.length === 1) ? total : 0;
+    }
+    return sumMixtoSelectedAmounts();
+  }
+
+  function refreshPendingUI(){
+    const total = safeNumber(runningTotal);
+    const paid  = safeNumber(computePaidSoFar());
+    const diff  = total - paid;
+
+    if (!$pendingOut.length) return;
+
+    if (isMixto() && paid > total && Math.abs(diff) >= 1) {
+      $pendingOut.text(`Sobra por asignar: ${money(Math.abs(diff))}`);
+      return;
+    }
+    $pendingOut.text(`Falta por pagar: ${money(Math.max(0, diff))}`);
+  }
+
+  function refreshEfectivoUI(){
+    const hasEf = getCheckedMedios().includes("efectivo");
+
+    if (isMixto()){
+      $modal.attr("data-mixto","1");
+      $efOptions.hide();
+      $amountIn.val("");
+      $changeOut.text("");
+      $amountIn.attr("placeholder", "");
+      return;
+    } else {
+      $modal.attr("data-mixto","0");
+    }
+
+    $efOptions.toggle(hasEf);
+
+    if (!hasEf){
+      $amountIn.val("");
+      $changeOut.text("");
+      $amountIn.attr("placeholder", "");
+      return;
+    }
+
+    const efMonto = safeNumber(runningTotal);
+    $amountIn.attr("placeholder", money(efMonto || 0));
+
+    const raw = ($amountIn.val() || "").trim();
+    const recibido = raw === "" ? efMonto : (parseFloat(raw) || 0);
+    const cambio = recibido - efMonto;
+
+    $changeOut.text(cambio >= 0 ? `Cambio: ${money(cambio)}` : "");
+  }
+
+  function setAmtVisibility($amt, show){
+    if (!$amt || !$amt.length) return;
+    $amt.toggle(!!show);
+    if (show) $amt.css("display", "");
+  }
+
+  function updateRowUI($check){
+    const medio = String($check.val() || "");
+    const mixto = isMixto();
+    const on    = $check.prop("checked");
+
+    const $row = rowForCheck($check);
+    const $amt = amtInputFor(medio, $check);
+
+    if (mixto){
+      if ($amt && $amt.length){
+        $row.toggleClass("show-amt", on);
+        $amt.prop("disabled", !on);
+        setAmtVisibility($amt, on);
+
+        if (!on) {
+          $amt.val("");
+        } else {
+          const total = safeNumber(runningTotal);
+          const already = sumMixtoSelectedAmounts({ excludeMedio: medio });
+          const faltante = Math.max(0, total - already);
+          if (parseAmt($amt.val()) <= 0) $amt.val(String(Math.round(faltante || 0)));
+          queueMicrotask(()=>{ try{ $amt[0]?.setSelectionRange?.(0, String($amt.val()||"").length); } catch{} });
+        }
+      } else {
+        $row.toggleClass("show-amt", false);
+      }
+      return;
+    }
+
+    $row.toggleClass("show-amt", false);
+    if ($amt && $amt.length){
+      $amt.prop("disabled", true);
+      $amt.val("");
+      setAmtVisibility($amt, false);
+    }
+  }
+
+  function applyModeRules(){
+    const mixto = isMixto();
+    $modal.attr("data-mixto", mixto ? "1" : "0");
+
+    if (!mixto){
+      const checked = getCheckedMedios();
+      if (checked.length > 1){
+        const keep = checked.includes("efectivo") ? "efectivo" : checked[0];
+        $modal.find(".pm-check").not("#mix-mode").prop("checked", false);
+        $modal.find(`.pm-check[value='${keep}']`).prop("checked", true);
+      }
+    }
+
+    $modal.find(".pm-check").not("#mix-mode").each(function(){
+      updateRowUI($(this));
+    });
+
+    refreshEfectivoUI();
+    refreshPendingUI();
+  }
+
+  // Toggle mixto
+  $modal.on("change", "#mix-mode", function(){
+    showMixError("");
+
+    if (isMixto()){
+      const medios = getCheckedMedios();
+      if (medios.length === 1){
+        const m = medios[0];
+        const $chk = $modal.find(`.pm-check[value='${m}']`).first();
+        const $amt = amtInputFor(m, $chk);
+        if ($amt.length){
+          $amt.prop("disabled", false);
+          setAmtVisibility($amt, true);
+          rowForCheck($chk).addClass("show-amt");
+          if (parseAmt($amt.val()) <= 0) $amt.val(String(Math.round(runningTotal || 0)));
+        }
+      }
+    } else {
+      $modal.find(".pm-amt").val("").prop("disabled", true).each(function(){ setAmtVisibility($(this), false); });
+      $modal.find(".mix-row, .pm-row, .payment-row").removeClass("show-amt");
+    }
+
+    applyModeRules();
+  });
+
+  function buildPagosJSONOrError(){
+    const medios = getCheckedMedios();
+    if (!medios.length) return { error: "Seleccione al menos un medio de pago." };
+
+    const total = safeNumber(runningTotal);
+    const mixto = isMixto();
+
+    if (!mixto){
+      if (medios.length !== 1) return { error: "Seleccione solo un medio de pago (o active Pago mixto)." };
+      const m = medios[0];
+
+      const pagos = [{ medio_pago: m, monto: String(Math.round(total)) }];
+
+      if (m === "efectivo"){
+        const raw = ($amountIn.val() || "").trim();
+        const recibido = raw === "" ? total : (parseFloat(raw) || 0);
+        if (recibido < total) return { error: "Monto recibido en efectivo insuficiente." };
+        if (raw === "") $amountIn.val(String(Math.round(total)));
+      }
+
+      return { pagos };
+    }
+
+    let pagos = [];
+    let suma = 0;
+
+    for (const m of medios){
+      const $chk = $modal.find(`.pm-check[value='${m}']`).first();
+      const $amt = amtInputFor(m, $chk);
+      const amt = parseAmt($amt.val());
+      if (amt <= 0) return { error: `Monto inválido para ${String(m).replaceAll("_"," ")}.` };
+      suma += amt;
+      pagos.push({ medio_pago: m, monto: String(Math.round(amt)) });
+    }
+
+    const diff = total - suma;
+    if (Math.abs(diff) >= 1) {
+      return { error: `La suma de pagos (${money(suma)}) debe ser igual al total (${money(total)}).` };
+    }
+
+    if (diff !== 0 && pagos.length) {
+      const last = pagos[pagos.length - 1];
+      last.monto = String(Math.max(0, Math.round((Number(last.monto)||0) + diff)));
+    }
+
+    return { pagos };
+  }
+
   const confirmPagoGuard = { ts: 0 };
   function triggerConfirmPago(){
     const t = Date.now();
@@ -1440,17 +1734,21 @@ $(function () {
     $("#confirmar-pago").trigger("click");
   }
 
-  // ✅ helpers: Alt+1..9 (y 0=10) para seleccionar medio de pago por orden DOM
-  function getPaymentRadiosInOrder() {
-    return $modal.find("input[name='payment_method']").filter(":enabled");
+  function getPaymentChecksInOrder(){
+    return $modal.find(".pm-check").filter(":enabled").not("#mix-mode");
   }
-  function selectPaymentByIndex(idx0) {
-    const $radios = getPaymentRadiosInOrder();
-    if (!$radios.length) return false;
-    const $target = $radios.eq(idx0);
+  function togglePaymentByIndex(idx0){
+    const $checks = getPaymentChecksInOrder();
+    if (!$checks.length) return false;
+    const $target = $checks.eq(idx0);
     if (!$target.length) return false;
 
-    $target.prop("checked", true).trigger("change");
+    const mixto = isMixto();
+    const next = !$target.prop("checked");
+
+    if (!mixto && next) $modal.find(".pm-check").not("#mix-mode").prop("checked", false);
+
+    $target.prop("checked", next).trigger("change");
     try { $modal.find(".modal-content").attr("tabindex","-1").focus(); } catch (_){}
     return true;
   }
@@ -1459,31 +1757,51 @@ $(function () {
     if (!productos.length) { alert("Agregue productos."); return; }
     if (!hasSucursal() || !$("#puntopago_id").val()) { alert("Seleccione sucursal y punto de pago."); return; }
 
+    ensureMixUIExists();
+
     repriceAllRowsAndRecalcTotal().then(() => {
-      $amountIn.val(""); $changeOut.text("");
+      showMixError("");
       $("#modal-total").text(money(runningTotal));
-      $("input[name='payment_method']").prop("checked", false);
-      $("#efectivo").prop("checked", true).trigger("change");
-      $modal.show();
-      queueMicrotask(() => { if ($amountIn.is(":visible")) { $amountIn.focus().select(); } });
+
+      // ✅ limpiar hidden de pagos ANTES de abrir modal
+      $hidPagos.val("");
+      $hidMedioPago.val("");
+
+      // reset checks/inputs
+      $modal.find(".pm-check").not("#mix-mode").prop("checked", false);
+      $modal.find(".pm-amt").val("").prop("disabled", true).each(function(){ setAmtVisibility($(this), false); });
+      $modal.find(".mix-row, .pm-row, .payment-row").removeClass("show-amt");
+
+      $amountIn.val("");
+      $changeOut.text("");
+
+      if ($mixMode.length) $mixMode.prop("checked", false);
+      $modal.attr("data-mixto","0");
+
+      // default: efectivo
+      $modal.find(".pm-check[value='efectivo']").prop("checked", true);
+
+      applyModeRules();
+      openModal();
+
+      queueMicrotask(() => {
+        if (!isMixto() && $amountIn.is(":visible")) { $amountIn.focus(); $amountIn[0]?.select?.(); }
+      });
     });
   });
 
-  $(".close").click(() => $modal.hide());
-  $(window).on("click", (e) => { if (e.target === $modal[0]) $modal.hide(); });
+  $(".close").on("click", closeModal);
+  $(window).on("click", (e) => { if (e.target === $modal[0]) closeModal(); });
 
-  // ✅ Modal keydown: ESC cierra, ENTER confirma (sin Alt/Ctrl/Meta)
   $(document).on("keydown", function (e) {
     if (!$modal.is(":visible")) return;
 
     if (e.key === "Escape") {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-      $modal.hide();
+      closeModal();
       return;
     }
 
-    // ✅ Enter en cualquier parte del modal => confirma (cierra venta)
-    // (si viene con Alt, lo maneja el handler de Alt de abajo para evitar doble)
     if (e.key === "Enter" && !e.altKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
       triggerConfirmPago();
@@ -1491,28 +1809,58 @@ $(function () {
     }
   });
 
-  $(document).on("change", "input[name='payment_method']", function () {
-    const isCash = this.value === "efectivo";
-    $efOptions.toggle(isCash);
-    $amountIn.val(""); $changeOut.text("");
-    if (isCash) { setCashPlaceholderToTotal(); queueMicrotask(() => { if ($amountIn.is(":visible")) { $amountIn.focus().select(); } }); }
-    else { $amountIn.attr("placeholder", ""); }
+  $modal.on("change", ".pm-check", function(){
+    if (this.id === "mix-mode") return;
+
+    const mixto = isMixto();
+
+    if (!mixto && this.checked){
+      $modal.find(".pm-check").not(this).not("#mix-mode").prop("checked", false);
+    }
+
+    showMixError("");
+    applyModeRules();
+
+    const medio = this.value;
+    if (mixto && this.checked){
+      const $amt = amtInputFor(medio, $(this));
+      queueMicrotask(()=>{ if ($amt.length) { $amt.focus(); $amt[0]?.select?.(); } });
+    } else if (!mixto && this.checked && medio === "efectivo") {
+      queueMicrotask(()=>{ if ($amountIn.is(":visible")) { $amountIn.focus(); $amountIn[0]?.select?.(); } });
+    }
   });
 
-  $(document).on("click", ".radio-wrap", function (e) {
-    if (e.target.tagName !== "INPUT") $(this).find("input[type=radio]").prop("checked", true).trigger("change");
-    $(this).closest(".modal-content").attr("tabindex","-1").focus();
+  $modal.on("input", ".pm-amt", function(){
+    showMixError("");
+    refreshEfectivoUI();
+    refreshPendingUI();
+  });
+
+  /* ================== ✅ CLICK EN LA FILA REAL (.mix-row) ================== */
+  $(document).on("click", ".mix-row", function (e) {
+    if (!$modal.is(":visible")) return;
+    if ($(e.target).is("input")) return;
+
+    const $chk = $(this).find(".pm-check").not("#mix-mode").first();
+    if (!$chk.length) return;
+
+    const mixto = isMixto();
+    const next = !$chk.prop("checked");
+
+    if (!mixto && next) {
+      $modal.find(".pm-check").not("#mix-mode").prop("checked", false);
+      $chk.prop("checked", true).trigger("change");
+    } else {
+      $chk.prop("checked", next).trigger("change");
+    }
+
+    try { $(this).closest(".modal-content").attr("tabindex","-1").focus(); } catch (_){}
   });
 
   $amountIn.on("input", function () {
-    const val = (this.value || "").trim();
-    const totalNum = (runningTotal || 0);
-    const received = val === "" ? totalNum : (parseFloat(val) || 0);
-    const change = received - totalNum;
-    $changeOut.text(change >= 0 ? `Cambio: ${money(change)}` : "");
+    refreshEfectivoUI();
   });
 
-  // ✅ Enter en efectivo => confirma (usa guard)
   $amountIn.on("keydown", function (e) {
     if (e.key === "Enter") {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
@@ -1520,29 +1868,24 @@ $(function () {
     }
   });
 
-  // ✅ Alt+1..9 (y 0=10) + Alt+Space + Alt+Enter dentro del modal
   $(document).on("keydown", function (e) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
 
     if ($("#myModal").is(":visible")) {
       const k = e.key;
 
-      // Alt+1..9 => seleccionar método
       if (/^[1-9]$/.test(k)) {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        const idx0 = parseInt(k, 10) - 1;
-        selectPaymentByIndex(idx0);
+        togglePaymentByIndex(parseInt(k, 10) - 1);
         return;
       }
 
-      // Alt+0 => 10mo método
       if (k === "0") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        selectPaymentByIndex(9);
+        togglePaymentByIndex(9);
         return;
       }
 
-      // ✅ Alt+Enter => confirmar pago y cerrar venta
       if (k === "Enter") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         triggerConfirmPago();
@@ -1550,7 +1893,6 @@ $(function () {
       }
     }
 
-    // Alt+Space (mantiene)
     const isAltSpace = e.altKey && !e.ctrlKey && !e.metaKey && (e.code === "Space" || e.key === " ");
     if (isAltSpace) {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
@@ -1559,13 +1901,31 @@ $(function () {
       return;
     }
 
-    // ✅ Alt+Enter fuera del modal => abrir modal; dentro ya se manejó arriba
     const isAltEnter = e.key === "Enter" && e.altKey && !e.ctrlKey && !e.metaKey;
     if (isAltEnter) {
       e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
       if ($("#myModal").is(":visible")) triggerConfirmPago();
       else $("#generar-venta").trigger("click");
     }
+  });
+
+  /* ================== CLICK CONFIRM (✅ MIXTO / NO MIXTO) ================== */
+  $(document).off("click.confirmPago").on("click.confirmPago", "#confirmar-pago", function (e) {
+    e.preventDefault();
+
+    showMixError("");
+
+    const built = buildPagosJSONOrError();
+    if (built.error) { showMixError(built.error); return; }
+
+    const pagos = built.pagos || [];
+    $hidPagos.val(JSON.stringify(pagos));
+
+    const medioCompat = (pagos.length >= 2) ? "mixto" : (pagos[0]?.medio_pago || "");
+    $hidMedioPago.val(medioCompat);
+
+    closeModal();
+    $("#venta-form").trigger("submit");
   });
 
   /* ================== Agente local helpers ================== */
@@ -1627,20 +1987,36 @@ $(function () {
     .then(async (r) => {
       if (!r || !r.success) { alert((r && r.error) || "Error"); return; }
 
-      const metodo = ($("#medio_pago").val() || "").toLowerCase();
-      const efectivo = metodo === "efectivo";
+      let pagos = [];
+      try { pagos = JSON.parse($hidPagos.val() || "[]"); } catch { pagos = []; }
+
+      const ef = (pagos || []).find(p => (p.medio_pago || "").toLowerCase() === "efectivo");
+      const efMonto = ef ? safeNumber(ef.monto) : 0;
+
       const totalNum = (runningTotal || 0);
-      const raw = ($("#monto-recibido").val() || "").trim();
-      const recibido = efectivo ? (raw === "" ? totalNum : (parseFloat(raw) || 0)) : 0;
-      const cambio = efectivo ? Math.max(0, recibido - totalNum) : 0;
+
+      let cambio = 0;
+      if (efMonto > 0 && !isMixto()) {
+        const raw = ($amountIn.val() || "").trim();
+        const recibido = raw === "" ? efMonto : (parseFloat(raw) || 0);
+        cambio = Math.max(0, recibido - efMonto);
+      }
+
+      const pagosTxt = (pagos || []).map(p => {
+        const mp = String(p.medio_pago || "").toUpperCase().replaceAll("_"," ");
+        return `- ${mp}: ${money(p.monto)}`;
+      }).join("\n");
 
       const omitirImpresion = confirm(
-        ["✅ Venta generada.",
-         `Total: ${money(totalNum)}`,
-         efectivo ? `Cambio a entregar: ${money(cambio)}` : "",
-         "", "¿Desea OMITIR la impresión de la factura?",
-         "— Aceptar: NO imprimir (solo abrir gaveta).",
-         "— Cancelar: Imprimir (y abrir gaveta)."
+        [
+          "✅ Venta generada.",
+          `Total: ${money(totalNum)}`,
+          pagosTxt ? `\nPAGOS:\n${pagosTxt}` : "",
+          (efMonto > 0 && !isMixto()) ? `\nCambio (sobre efectivo): ${money(cambio)}` : "",
+          "",
+          "¿Desea OMITIR la impresión de la factura?",
+          "— Aceptar: NO imprimir (solo abrir gaveta).",
+          "— Cancelar: Imprimir (y abrir gaveta)."
         ].filter(Boolean).join("\n")
       );
 
@@ -1658,22 +2034,6 @@ $(function () {
       setTimeout(() => { location.replace(location.href); }, 50);
     })
     .catch(() => alert("Error de red"));
-  });
-
-  /* ================== CLICK CONFIRM ================== */
-  $(document).off("click.confirmPago").on("click.confirmPago", "#confirmar-pago", function (e) {
-    e.preventDefault();
-    const m = $("input[name='payment_method']:checked").val();
-    if (!m) { alert("Seleccione medio de pago."); return; }
-    if (m === "efectivo") {
-      const raw = ($("#monto-recibido").val() || "").trim();
-      const received = raw === "" ? runningTotal : (parseFloat(raw) || 0);
-      if (raw !== "" && received < runningTotal) { alert("Monto recibido insuficiente."); return; }
-      if (raw === "") $("#monto-recibido").val(String(received));
-    }
-    $("#medio_pago").val(m);
-    $("#myModal").hide();
-    $("#venta-form").trigger("submit");
   });
 
   /* ================== Atajos Ctrl + 0..4 ================== */
@@ -1731,7 +2091,7 @@ $(function () {
   /* ================== ✅ SCANNER GUARD: qty-guard => code ================== */
   function isQtyElement(el){
     if (!el) return false;
-    return el === $cantidad[0] || (el.classList && el.classList.contains("qty-input"));
+    return ($cantidad && $cantidad.length && el === $cantidad[0]) || (el.classList && el.classList.contains("qty-input"));
   }
 
   function pushCodeIntoCodeInputAndAdd(code){
@@ -1752,11 +2112,11 @@ $(function () {
   }
 
   function commitCurrentQtyLikeEnterIfNeeded(originEl){
-    if (originEl === $cantidad[0]) {
+    if ($cantidad && $cantidad.length && originEl === $cantidad[0]) {
       const committed = normalizeQtyOnCommit($cantidad[0]);
       const qty = clampQty(committed);
       const pid = $pid.val();
-      if (pid && !$agregar.prop("disabled")) addToCartLastOnly(pid, qty);
+      if (pid && $agregar && $agregar.length && !$agregar.prop("disabled")) addToCartLastOnly(pid, qty);
       return;
     }
     if (originEl && originEl.classList && originEl.classList.contains("qty-input")) {
@@ -1871,7 +2231,6 @@ $(function () {
     }, true);
   })();
 
-  /* ================== Fallback global: scanner en cualquier campo (menos qty) ================== */
   (function globalScannerFallback() {
     const MIN_CHARS = 8, GAP_MS = 35;
     let buf="", first=0, last=0, idleTimer=null;
@@ -1907,8 +2266,8 @@ $(function () {
   })();
 
   /* ================== Init ================== */
-  $cantidad.prop("disabled", true);
-  $agregar.prop("disabled", true);
+  if ($cantidad && $cantidad.length) $cantidad.prop("disabled", true);
+  if ($agregar && $agregar.length)  $agregar.prop("disabled", true);
   if ($tbody.find("tr").length === 0) setTotal(0);
   if (!POS_AGENT_TOKEN) console.warn("[POS_AGENT] Token vacío: el agente podría rechazar (401).");
 });

@@ -1,3 +1,4 @@
+{# templates/generar_venta.html #}
 {% extends "base.html" %}
 {% load static %}
 
@@ -54,7 +55,12 @@
       <input type="hidden" id="producto_id">
       <input type="hidden" id="productos"  name="productos">
       <input type="hidden" id="cantidades" name="cantidades">
+
+      <!-- ✅ compat -->
       <input type="hidden" id="medio_pago" name="medio_pago">
+
+      <!-- ✅ NUEVO: pagos mixtos JSON -->
+      <input type="hidden" id="pagos" name="pagos">
     </form>
   </section>
 
@@ -109,7 +115,6 @@
   window.imprimirFacturaUrl             = "{% url 'imprimir_factura' %}";
   window.abrirCajaUrl                   = "{% url 'abrir_caja' %}";
   window.productoSnapshotUrl            = "{% url 'producto_snapshot' %}";
-
 </script>
 
 <!-- POS Agent -->
@@ -119,6 +124,5 @@
   if (!/^https?:\/\//.test(window.POS_AGENT_URL)) window.POS_AGENT_URL = "http://127.0.0.1:8787";
 </script>
 
-<!-- lógica -->
 <script src="{% static 'javascript/generar_venta.js' %}"></script>
 {% endblock %}

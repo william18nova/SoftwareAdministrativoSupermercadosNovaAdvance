@@ -213,26 +213,54 @@ class Cliente(models.Model):
 class Venta(models.Model):
     ventaid = models.AutoField(primary_key=True)
     fecha = models.DateField()
-    hora = models.TimeField()  # Nuevo campo
+    hora = models.TimeField()
+
     clienteid = models.ForeignKey('Cliente', on_delete=models.CASCADE, null=True, blank=True, db_column='clienteid')
     empleadoid = models.ForeignKey('Empleado', on_delete=models.CASCADE, db_column='empleadoid')
     sucursalid = models.ForeignKey('Sucursal', on_delete=models.CASCADE, db_column='sucursalid')
     puntopagoid = models.ForeignKey('PuntosPago', on_delete=models.CASCADE, db_column='puntopagoid')
+
     total = models.DecimalField(max_digits=10, decimal_places=2)
-    mediopago = models.CharField(max_length=50)  # Asegúrate de usar minúsculas aquí
+
+    # ✅ si es pago único: "efectivo", "nequi"... si es mixto: "mixto"
+    mediopago = models.CharField(max_length=50)
 
     class Meta:
         db_table = 'ventas'
 
+
 class DetalleVenta(models.Model):
     detalleventaid = models.AutoField(primary_key=True)
     ventaid = models.ForeignKey(Venta, on_delete=models.CASCADE, db_column='ventaid')
-    productoid = models.ForeignKey(Producto, on_delete=models.CASCADE, db_column='productoid')
+    productoid = models.ForeignKey('Producto', on_delete=models.CASCADE, db_column='productoid')
     cantidad = models.IntegerField()
     preciounitario = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
         db_table = 'detallesventas'
+
+
+class PagoVenta(models.Model):
+    # En tu BD es bigint y se llama "id"
+    pagoventaid = models.BigAutoField(primary_key=True, db_column="id")
+
+    # En tu BD la columna se llama "ventaid"
+    ventaid = models.ForeignKey(
+        Venta,
+        on_delete=models.CASCADE,
+        related_name="pagos",
+        db_column="ventaid"
+    )
+
+    # En tu BD la columna se llama "metodo"
+    medio_pago = models.CharField(max_length=50, db_column="metodo")
+
+    # En tu BD es numeric(12,2)
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        db_table = "venta_pagos"
+        managed = False   # 👈 importante si esa tabla NO la maneja Django con migrations
 
 class PedidoProveedor(models.Model):
     ESTADOS = [

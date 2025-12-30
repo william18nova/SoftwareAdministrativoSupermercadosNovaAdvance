@@ -1,17 +1,17 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso, PagoVenta
 from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField, Value, IntegerField, Case, When
 from django.http import JsonResponse, HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.contrib.auth import authenticate, login as auth_login
 import json
-from datetime import date
+from datetime import date, datetime
 from django.utils import timezone
 from django.contrib.auth import authenticate
 import logging
 from django.utils.dateparse import parse_date
-from django.db import transaction
+from django.db import transaction, connection
 from django.core.exceptions import FieldDoesNotExist
 from django.views.generic import DetailView
 from .forms import (
@@ -66,9 +66,10 @@ from django.utils.decorators import method_decorator
 from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
-from django.db.models.functions import Upper, Lower, StrIndex
+from django.db.models.functions import Upper, Lower, StrIndex, Trim
 import os, io, textwrap, subprocess
 from django.views.decorators.http import require_POST
+from django.conf import settings
 
 
 
@@ -2825,12 +2826,6 @@ class ClienteUpdateAJAXView(LoginRequiredMixin, UpdateView):
 
 
 class GenerarVentaView(LoginRequiredMixin, View):
-    """
-    GET  → muestra formulario
-    POST → procesa la venta (ajax) y devuelve texto listo para imprimir
-
-    Política: permite vender por encima de stock; el inventario puede quedar negativo.
-    """
     template_name = "generar_venta.html"
     success_url   = reverse_lazy("generar_venta")
 
@@ -2843,18 +2838,20 @@ class GenerarVentaView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         form = GenerarVentaForm(request.POST)
         if not form.is_valid():
+            if getattr(settings, "DEBUG", False):
+                return JsonResponse({'success': False, 'error': 'Formulario inválido.', 'details': form.errors})
             return JsonResponse({'success': False, 'error': 'Formulario inválido.'})
 
         data = form.cleaned_data
-        suc_inst = data['sucursal']     # instancia (ModelChoiceField)
-        pp_inst  = data['puntopago']    # instancia (ModelChoiceField)
+        suc_inst = data['sucursal']
+        pp_inst  = data['puntopago']
 
-        productos  = data['productos']    # lista de ids (str/int)
-        cantidades = data['cantidades']   # lista de cantidades (int/str)
+        productos  = data['productos']     # LISTA (por clean_productos)
+        cantidades = data['cantidades']    # LISTA (por clean_cantidades)
+
         if not productos:
             return JsonResponse({'success': False, 'error': 'Carrito vacío.'})
 
-        # Normalizar y alinear productos-cantidades
         try:
             prod_ids = [int(p) for p in productos]
         except (ValueError, TypeError):
@@ -2863,8 +2860,7 @@ class GenerarVentaView(LoginRequiredMixin, View):
         if len(cantidades) < len(prod_ids):
             return JsonResponse({'success': False, 'error': 'Faltan cantidades para algunos productos.'})
 
-        # Traer productos existentes
-        prods_qs = Producto.objects.filter(productoid__in=prod_ids)
+        prods_qs  = Producto.objects.filter(productoid__in=prod_ids)
         prods_map = {p.productoid: p for p in prods_qs}
 
         detalles = []
@@ -2873,16 +2869,16 @@ class GenerarVentaView(LoginRequiredMixin, View):
         for idx, pid in enumerate(prod_ids):
             prod = prods_map.get(pid)
             if not prod:
-                # Si algún producto del arreglo no existe, lo ignoramos (o podrías abortar)
                 continue
+
             try:
                 qty = int(cantidades[idx])
             except (ValueError, TypeError):
                 return JsonResponse({'success': False, 'error': f'Cantidad inválida para producto {pid}.'})
+
             if qty <= 0:
                 return JsonResponse({'success': False, 'error': f'Cantidad debe ser mayor a 0 para producto {pid}.'})
 
-            # Precio como Decimal seguro
             try:
                 precio_unit = Decimal(str(prod.precio or 0))
             except (InvalidOperation, TypeError):
@@ -2902,26 +2898,99 @@ class GenerarVentaView(LoginRequiredMixin, View):
         if not detalles:
             return JsonResponse({'success': False, 'error': 'No hay ítems válidos para vender.'})
 
-        # Crear venta y mover inventario
-        return self._crear_venta(request.user, suc_inst, pp_inst, data.get('cliente_id'), data['medio_pago'], detalles, total)
+        # ✅ pagos puede llegar como LISTA (si clean_pagos lo parsea) o como STRING JSON (hidden input)
+        pagos = data.get("pagos") or []
+        if isinstance(pagos, str):
+            try:
+                pagos = json.loads(pagos or "[]")
+            except Exception:
+                pagos = []
+
+        medio_pago_simple = (data.get("medio_pago") or "").strip().lower()
+
+        pagos_normalizados = self._normalize_payments(pagos, total, medio_pago_simple)
+        if not pagos_normalizados:
+            return JsonResponse({'success': False, 'error': 'Debe indicar el/los pagos.'})
+
+        return self._crear_venta(
+            request.user, suc_inst, pp_inst,
+            data.get('cliente_id'),
+            pagos_normalizados,
+            detalles, total
+        )
 
     # ----------------------------------------------------------------------
     def _base_context(self, form, detalles=None, total=Decimal('0')):
         return {'form': form, 'detalles': detalles or [], 'total': total}
 
     @staticmethod
-    def _build_receipt_text(venta_data, detalles, total):
+    def _to_decimal(x):
+        try:
+            return Decimal(str(x))
+        except Exception:
+            return Decimal("0")
+
+    @staticmethod
+    def _normalize_payments(pagos_list, total, medio_pago_simple=""):
+        allowed = {"nequi", "efectivo", "daviplata", "tarjeta", "banco_caja_social"}
+        total = GenerarVentaView._to_decimal(total)
+
+        # Caso 1: pagos mixtos en LISTA
+        if isinstance(pagos_list, list) and len(pagos_list) > 0:
+            acc = []
+            for it in pagos_list:
+                if not isinstance(it, dict):
+                    continue
+
+                medio = str(it.get("medio_pago", "")).strip().lower()
+                if medio not in allowed:
+                    continue
+
+                monto = GenerarVentaView._to_decimal(it.get("monto", "0"))
+                if monto <= 0:
+                    continue
+
+                acc.append({"medio_pago": medio, "monto": monto})
+
+            if not acc:
+                return []
+
+            suma = sum((p["monto"] for p in acc), Decimal("0"))
+
+            if (suma - total).copy_abs() > Decimal("0.01"):
+                return []
+
+            diff = total - suma
+            if diff != 0:
+                acc[-1]["monto"] = (acc[-1]["monto"] + diff)
+
+            return acc
+
+        # Caso 2: pago simple
+        medio = (medio_pago_simple or "").strip().lower()
+        if medio in allowed:
+            return [{"medio_pago": medio, "monto": total}]
+
+        return []
+
+    @staticmethod
+    def _build_receipt_text(venta_data, detalles, total, pagos):
         def money(n):
             try:
                 q = Decimal(n)
             except Exception:
                 q = Decimal('0')
-            # formato $1.234.567
             return f"${int(q):,}".replace(",", ".")
+
         WIDTH = 32
-        def line(txt=""): t = str(txt or ""); return t[:WIDTH]
+
+        def line(txt=""):
+            t = str(txt or "")
+            return t[:WIDTH]
+
         def lr(left, right):
-            left = str(left or ""); right = str(right or "")
+            left = str(left or "")
+            right = str(right or "")
             space = max(1, WIDTH - len(left) - len(right))
             return left + (" " * space) + right
 
@@ -2932,17 +3001,24 @@ class GenerarVentaView(LoginRequiredMixin, View):
             line("NIT: 1.005.813.837-6"),
             line("FACTURA"),
             lr("Fecha:", ahora.strftime("%Y-%m-%d %H:%M")),
-            lr("Sucursal:", venta_data.get("sucursal_nombre","")),
+            lr("Sucursal:", venta_data.get("sucursal_nombre", "")),
             "-" * WIDTH,
         ]
+
         body = []
         for d in detalles:
-            nom = str(d.get("producto",""))[:WIDTH]
+            nom = str(d.get("producto", ""))[:WIDTH]
             qty = d.get("cantidad", 1)
             pu  = d.get("precio_unitario", Decimal('0'))
             sub = d.get("subtotal", Decimal('0'))
             body.append(line(nom))
             body.append(lr(f" x{qty}  @ {money(pu)}", money(sub)))
+
+        pay_lines = ["-" * WIDTH, line("PAGOS:")]
+        for p in pagos or []:
+            mp = (p.get("medio_pago") or "").upper().replace("_", " ")
+            pay_lines.append(lr(mp[:18], money(p.get("monto", 0))))
+
         foot = [
             "-" * WIDTH,
             lr("TOTAL:", money(total)),
@@ -2950,12 +3026,13 @@ class GenerarVentaView(LoginRequiredMixin, View):
             line("¡Gracias por su compra!"),
             ""
         ]
-        return "\n".join(head + body + foot) + "\n\n\n"
+        return "\n".join(head + body + pay_lines + foot) + "\n\n\n"
 
     @staticmethod
-    def _crear_venta(user, suc_inst, pp_inst, cliente_id, medio_pago, detalles, total):
+    def _crear_venta(user, suc_inst, pp_inst, cliente_id, pagos, detalles, total):
         try:
             ahora = timezone.localtime()
+
             with transaction.atomic():
                 empleado = getattr(user, "empleado", None)
                 if empleado is None:
@@ -2963,50 +3040,65 @@ class GenerarVentaView(LoginRequiredMixin, View):
 
                 cliente_inst = Cliente.objects.filter(pk=cliente_id).first() if cliente_id else None
 
+                mediopago = "mixto" if len(pagos) >= 2 else (pagos[0]["medio_pago"] if pagos else "").lower()
+
                 venta = Venta.objects.create(
                     fecha       = ahora.date(),
                     hora        = ahora.time(),
                     clienteid   = cliente_inst,
                     empleadoid  = empleado,
-                    sucursalid  = suc_inst,   # pasar instancia, no ID
-                    puntopagoid = pp_inst,    # pasar instancia, no ID
-                    total       = total,      # Decimal
-                    mediopago   = medio_pago
+                    sucursalid  = suc_inst,
+                    puntopagoid = pp_inst,
+                    total       = total,
+                    mediopago   = mediopago
                 )
 
-                # Detalles + Inventario (permitiendo negativo)
                 for d in detalles:
                     DetalleVenta.objects.create(
                         ventaid        = venta,
                         productoid_id  = d['productoid'],
                         cantidad       = d['cantidad'],
-                        preciounitario = d['precio_unitario']  # Decimal
+                        preciounitario = d['precio_unitario']
                     )
                     inv, _ = Inventario.objects.select_for_update().get_or_create(
                         productoid_id = d['productoid'],
-                        sucursalid    = suc_inst,   # instancia consistente
+                        sucursalid    = suc_inst,
                         defaults      = {"cantidad": 0}
                     )
                     inv.cantidad = (inv.cantidad or 0) - int(d['cantidad'])
                     inv.save(update_fields=["cantidad"])
 
-                # Caja solo si es efectivo
-                if (medio_pago or "").lower() == "efectivo":
-                    pp_inst.dinerocaja = (pp_inst.dinerocaja or Decimal('0')) + total
+                # ✅ Guardar pagos desglosados (monto SIEMPRE Decimal)
+                efectivo_monto = Decimal("0")
+                for p in pagos:
+                    mp = (p.get("medio_pago") or "").lower()
+                    monto = GenerarVentaView._to_decimal(p.get("monto", 0))
+
+                    PagoVenta.objects.create(
+                        ventaid    = venta,
+                        medio_pago = mp,
+                        monto      = monto
+                    )
+
+                    if mp == "efectivo":
+                        efectivo_monto += monto
+
+                if efectivo_monto > 0:
+                    pp_inst.dinerocaja = (pp_inst.dinerocaja or Decimal('0')) + efectivo_monto
                     pp_inst.save(update_fields=["dinerocaja"])
 
             receipt_text = GenerarVentaView._build_receipt_text(
                 {"sucursal_nombre": getattr(suc_inst, 'nombre', str(suc_inst))},
-                detalles, total
+                detalles, total, pagos
             )
             return JsonResponse({'success': True, 'venta_id': venta.pk, 'receipt_text': receipt_text})
 
         except Exception as e:
-            # En desarrollo, devuelve el detalle del error para depurar más rápido
             if getattr(settings, "DEBUG", False):
                 return JsonResponse({'success': False, 'error': f'Error al crear la venta: {e!s}'})
             return JsonResponse({'success': False, 'error': 'Error al crear la venta.'})
-
+        
+        
 class ProductoSnapshotView(View):
     """
     Devuelve un snapshot compacto {id, name, price, stock, barcode} de TODOS
@@ -4555,13 +4647,53 @@ class PermisoParaRolAutocomplete(LoginRequiredMixin, View):
 
 PAGE_SIZE = 20
 
+
+class VentasDiariasStatsView(LoginRequiredMixin, View):
+    def get(self, request):
+        sid  = (request.GET.get("sucursal_id") or "").strip()
+        pid  = (request.GET.get("puntopago_id") or "").strip()
+        fraw = (request.GET.get("fecha") or "").strip()
+        modo = (request.GET.get("modo") or "TOTAL").strip().lower()
+
+        fecha = parse_date(fraw)
+        if not (sid and pid and fecha):
+            return JsonResponse({"success": False, "error": "Parámetros inválidos."}, status=400)
+
+        allowed = {"total","efectivo","nequi","daviplata","tarjeta","banco_caja_social"}
+        if modo not in allowed:
+            return JsonResponse({"success": False, "error": "Modo inválido."}, status=400)
+
+        ventas_base = Venta.objects.filter(
+            fecha=fecha,
+            sucursalid_id=sid,
+            puntopagoid_id=pid,
+        )
+
+        if modo == "total":
+            num_ventas = ventas_base.count()
+            total_vendido = ventas_base.aggregate(s=Sum("total"))["s"] or Decimal("0")
+            return JsonResponse({"success": True, "num_ventas": int(num_ventas), "total_vendido": float(total_vendido)})
+
+        # 👇 POR MEDIO: usa venta_pagos (incluye mixtas)
+        pagos_qs = PagoVenta.objects.filter(
+            ventaid__in=ventas_base,
+            medio_pago=modo  # en BD es vp.metodo
+        )
+
+        num_ventas = pagos_qs.values("ventaid_id").distinct().count()
+        total_vendido = pagos_qs.aggregate(s=Sum("monto"))["s"] or Decimal("0")
+
+        return JsonResponse({"success": True, "num_ventas": int(num_ventas), "total_vendido": float(total_vendido)})
+
+
 class VentasDiariasView(LoginRequiredMixin, View):
     template_name = "ventas_diarias.html"
 
     def get(self, request):
-        # fecha por defecto (local)
         hoy = timezone.localdate()
         return render(request, self.template_name, {"fecha_hoy": hoy.isoformat()})
+    
+    
 
 
 class SucursalParaVentasAutocomplete(LoginRequiredMixin, View):
@@ -4611,18 +4743,14 @@ class PuntoPagoParaVentasAutocomplete(LoginRequiredMixin, View):
 
 class VentasDiariasStatsView(LoginRequiredMixin, View):
     """
-    Devuelve {num_ventas, total_vendido} para (sucursal, puntopago, fecha) y modo de pago.
-    Usa Venta.mediopago (case-insensitive).
+    Devuelve {num_ventas, total_vendido} para (sucursal, puntopago, fecha) y modo.
 
-    Modos soportados desde el front:
-      - TOTAL      → no filtra por método
-      - EFECTIVO   → filtra mediopago ∈ {EFECTIVO, CASH, EF}
-      - NEQUI      → filtra mediopago ∈ {NEQUI}
-      - DAVIPLATA  → filtra mediopago ∈ {DAVIPLATA, DAVI}
-      - TARJETA  → filtra mediopago ∈ {TARJETA, CARD, TC, TARJETA CREDITO, TARJETA DEBITO, CREDITO, DEBITO}
-      - BANCO CAJA SOCIAL  → filtra mediopago ∈ {BANCO_CAJA_SOCIAL, BANCO CAJA SOCIAL, CAJA SOCIAL, BCS}
+    - TOTAL: usa tabla ventas (count ventas, sum ventas.total)
+    - Por método: usa tabla venta_pagos (count DISTINCT ventaid, sum venta_pagos.monto)
+      => Esto incluye ventas mixtas (porque quedan desglosadas en venta_pagos).
     """
-    # Normalizaciones aceptadas (todas en mayúscula)
+
+    # Aliases aceptados (en MAYÚSCULA) -> canonical que existe en venta_pagos.metodo
     METODO_ALIASES = {
         "EFECTIVO": {"EFECTIVO", "CASH", "EF"},
         "NEQUI": {"NEQUI"},
@@ -4630,6 +4758,33 @@ class VentasDiariasStatsView(LoginRequiredMixin, View):
         "TARJETA": {"TARJETA", "CARD", "TC", "TARJETA CREDITO", "TARJETA DEBITO", "CREDITO", "DEBITO"},
         "BANCO_CAJA_SOCIAL": {"BANCO_CAJA_SOCIAL", "BANCO CAJA SOCIAL", "CAJA SOCIAL", "BCS"},
     }
+
+    # Valor CANÓNICO (como lo guardas en PagoVenta.medio_pago -> columna vp.metodo)
+    METODO_CANON = {
+        "EFECTIVO": "efectivo",
+        "NEQUI": "nequi",
+        "DAVIPLATA": "daviplata",
+        "TARJETA": "tarjeta",
+        "BANCO_CAJA_SOCIAL": "banco_caja_social",
+    }
+
+    def _resolve_canonical(self, modo_upper: str):
+        """
+        Recibe modo en MAYÚSCULA y devuelve el canonical en minúscula
+        que existe en venta_pagos.metodo, o None si no coincide.
+        """
+        modo_upper = (modo_upper or "").upper().strip()
+
+        # si viene exactamente la key (ej: TARJETA o BANCO_CAJA_SOCIAL)
+        if modo_upper in self.METODO_CANON:
+            return self.METODO_CANON[modo_upper]
+
+        # si viene como alias (ej: "BANCO CAJA SOCIAL")
+        for key, aliases in self.METODO_ALIASES.items():
+            if modo_upper in aliases:
+                return self.METODO_CANON.get(key)
+
+        return None
 
     def get(self, request):
         sid  = request.GET.get("sucursal_id")
@@ -4640,8 +4795,8 @@ class VentasDiariasStatsView(LoginRequiredMixin, View):
         if not (sid and pid and f):
             return JsonResponse({"success": False, "error": "Parámetros incompletos."}, status=400)
 
-        suc = get_object_or_404(Sucursal, pk=sid)                 # pk → sucursalid
-        pp  = get_object_or_404(PuntosPago, pk=pid, sucursalid=suc)  # pk → puntopagoid
+        suc = get_object_or_404(Sucursal, pk=sid)
+        pp  = get_object_or_404(PuntosPago, pk=pid, sucursalid=suc)
 
         # fecha yyyy-mm-dd
         try:
@@ -4650,30 +4805,37 @@ class VentasDiariasStatsView(LoginRequiredMixin, View):
             return JsonResponse({"success": False, "error": "Fecha inválida."}, status=400)
 
         # Base: ventas del punto de pago en esa fecha
-        qs = Venta.objects.filter(puntopagoid=pp, fecha=fecha)
+        ventas_qs = Venta.objects.filter(puntopagoid=pp, sucursalid=suc, fecha=fecha)
 
-        # TOTAL: sin discriminar método
+        # TOTAL: cuenta ventas y suma total de ventas (correcto para simples + mixtas)
         if modo == "TOTAL":
-            agg = qs.aggregate(num=Count("ventaid"), total=Sum("total"))
+            agg = ventas_qs.aggregate(num=Count("ventaid"), total=Sum("total"))
             return JsonResponse({
                 "success": True,
                 "num_ventas": int(agg["num"] or 0),
                 "total_vendido": float(agg["total"] or 0),
             })
 
-        # Filtrado por método usando Venta.mediopago (case-insensitive)
-        met_aliases = self.METODO_ALIASES.get(modo)
-        if not met_aliases:
+        # Por método: usar venta_pagos (incluye mixtas)
+        canon = self._resolve_canonical(modo)
+        if not canon:
             return JsonResponse({"success": False, "error": "Modo de pago inválido."}, status=400)
 
-        # Normalizamos a mayúsculas para comparar sin importar el casing almacenado
-        qs_met = qs.annotate(_mp=Upper("mediopago")).filter(_mp__in=met_aliases)
-        agg = qs_met.aggregate(num=Count("ventaid"), total=Sum("total"))
+        pagos_qs = (
+            PagoVenta.objects
+            .filter(ventaid__in=ventas_qs)
+            # robusto por si en BD hay espacios/mayúsculas
+            .annotate(_mp=Lower(Trim(F("medio_pago"))))
+            .filter(_mp=canon)
+        )
+
+        num_ventas = pagos_qs.values("ventaid_id").distinct().count()
+        total_vendido = pagos_qs.aggregate(total=Sum("monto"))["total"] or Decimal("0")
 
         return JsonResponse({
             "success": True,
-            "num_ventas": int(agg["num"] or 0),
-            "total_vendido": float(agg["total"] or 0),
+            "num_ventas": int(num_ventas),
+            "total_vendido": float(total_vendido),
         })
 
 class SucursalConPedidosPagadosAutocomplete(LoginRequiredMixin, View):

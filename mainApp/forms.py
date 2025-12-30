@@ -1800,30 +1800,78 @@ class UsuarioEditarForm(forms.ModelForm):
 
 class GenerarVentaForm(forms.Form):
     cliente_id = forms.IntegerField(required=False)
-    sucursal   = forms.ModelChoiceField(queryset=Sucursal.objects.all(),  label="Sucursal")
-    puntopago  = forms.ModelChoiceField(queryset=PuntosPago.objects.all(), label="Punto de Pago")
+
+    sucursal  = forms.ModelChoiceField(queryset=Sucursal.objects.all(),  label="Sucursal")
+    puntopago = forms.ModelChoiceField(queryset=PuntosPago.objects.all(), label="Punto de Pago")
 
     productos  = forms.CharField(widget=forms.HiddenInput(), required=False)
     cantidades = forms.CharField(widget=forms.HiddenInput(), required=False)
 
+    # ✅ pago simple (compatibilidad / fallback)
     medio_pago = forms.ChoiceField(
         choices=[
-            ("nequi", "Nequi"), ("efectivo", "Efectivo"),
-            ("daviplata", "Daviplata"), ("tarjeta", "Tarjeta"), ("banco_caja_social", "Banco Caja Social"),
+            ("nequi", "Nequi"),
+            ("efectivo", "Efectivo"),
+            ("daviplata", "Daviplata"),
+            ("tarjeta", "Tarjeta"),
+            ("banco_caja_social", "Banco Caja Social"),
+            ("mixto", "Mixto"),
         ],
-        widget=forms.HiddenInput()
+        widget=forms.HiddenInput(),
+        required=False
     )
 
-    # ───── helpers JSON ─────
-    def _clean_json(self, field):
-        raw = self.cleaned_data.get(field, "[]")
-        try:
-            return json.loads(raw)
-        except Exception:
-            raise forms.ValidationError(f"{field.capitalize()} inválidos.")
+    # ✅ pagos mixtos: JSON oculto
+    pagos = forms.CharField(widget=forms.HiddenInput(), required=False)
 
-    def clean_productos(self):  return self._clean_json("productos")
-    def clean_cantidades(self): return self._clean_json("cantidades")
+    # ───── helpers JSON ─────
+    def _clean_json(self, field, default="[]"):
+        raw = self.cleaned_data.get(field, default)
+        if raw in (None, "", "null"):
+            raw = default
+        try:
+            val = json.loads(raw)
+        except Exception:
+            raise forms.ValidationError(f"{field.capitalize()} inválido.")
+        return val
+
+    def clean_productos(self):
+        val = self._clean_json("productos", default="[]")
+        if not isinstance(val, list):
+            raise forms.ValidationError("Productos inválidos.")
+        return val
+
+    def clean_cantidades(self):
+        val = self._clean_json("cantidades", default="[]")
+        if not isinstance(val, list):
+            raise forms.ValidationError("Cantidades inválidas.")
+        return val
+
+    def clean_pagos(self):
+        """
+        Espera:
+          [
+            {"medio_pago":"efectivo","monto":"10000"},
+            {"medio_pago":"nequi","monto":"5000"}
+          ]
+        Retorna SIEMPRE lista.
+        """
+        val = self._clean_json("pagos", default="[]")
+        if val in (None, ""):
+            val = []
+        if not isinstance(val, list):
+            raise forms.ValidationError("Pagos inválidos.")
+
+        cleaned = []
+        for it in val:
+            if not isinstance(it, dict):
+                raise forms.ValidationError("Pagos inválidos.")
+            medio = str(it.get("medio_pago", "")).strip().lower()
+            monto = it.get("monto", "0")
+            cleaned.append({"medio_pago": medio, "monto": monto})
+        return cleaned
+    
+    
 
 
 class PedidoProveedorForm(forms.Form):
