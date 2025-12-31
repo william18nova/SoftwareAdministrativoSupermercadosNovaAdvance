@@ -24,20 +24,6 @@
 
     <div class="mix-grid">
 
-      <!-- EFECTIVO -->
-      <div class="mix-row">
-        <label class="mix-check">
-          <input type="checkbox" class="pm-check" value="efectivo">
-          <span>Efectivo</span>
-        </label>
-        <input type="number" class="pm-amt" data-medio="efectivo" min="0" step="100" placeholder="0" disabled>
-      </div>
-
-      <div id="efectivo-options" style="display:none; margin:.6rem 0 1rem;">
-        <label for="monto-recibido">Monto recibido (solo efectivo)</label>
-        <input type="number" id="monto-recibido" min="0" step="100" placeholder="0">
-        <p id="cambio" class="cambio-text"></p>
-      </div>
 
       <!-- NEQUI -->
       <div class="mix-row">
@@ -55,6 +41,21 @@
           <span>Daviplata</span>
         </label>
         <input type="number" class="pm-amt" data-medio="daviplata" min="0" step="100" placeholder="0" disabled>
+      </div>
+
+      <!-- EFECTIVO -->
+      <div class="mix-row">
+        <label class="mix-check">
+          <input type="checkbox" class="pm-check" value="efectivo">
+          <span>Efectivo</span>
+        </label>
+        <input type="number" class="pm-amt" data-medio="efectivo" min="0" step="100" placeholder="0" disabled>
+      </div>
+
+      <div id="efectivo-options" style="display:none; margin:.6rem 0 1rem;">
+        <label for="monto-recibido">Monto recibido (solo efectivo)</label>
+        <input type="number" id="monto-recibido" min="0" step="100" placeholder="0">
+        <p id="cambio" class="cambio-text"></p>
       </div>
 
       <!-- TARJETA -->

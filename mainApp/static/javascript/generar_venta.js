@@ -1753,6 +1753,19 @@ $(function () {
     return true;
   }
 
+  /* ================== ✅ FIX: ALT+N funciona en teclados ES/LatAm usando e.code ================== */
+  function getDigitFromAltEvent(e){
+    const oe = e.originalEvent || e;
+    const code = String(oe.code || "");
+    if (/^Digit[0-9]$/.test(code))  return Number(code.replace("Digit",""));
+    if (/^Numpad[0-9]$/.test(code)) return Number(code.replace("Numpad",""));
+
+    const k = String(oe.key || "");
+    if (/^[0-9]$/.test(k)) return Number(k);
+
+    return null;
+  }
+
   $("#generar-venta").off("click").on("click", () => {
     if (!productos.length) { alert("Agregue productos."); return; }
     if (!hasSucursal() || !$("#puntopago_id").val()) { alert("Seleccione sucursal y punto de pago."); return; }
@@ -1868,25 +1881,29 @@ $(function () {
     }
   });
 
+  /* ================== ✅ Atajos ALT dentro del modal (FIX ALT+6 y demás) ================== */
   $(document).on("keydown", function (e) {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
 
     if ($("#myModal").is(":visible")) {
-      const k = e.key;
-
-      if (/^[1-9]$/.test(k)) {
+      const d = getDigitFromAltEvent(e);
+      if (d !== null) {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        togglePaymentByIndex(parseInt(k, 10) - 1);
+        
+        if (d === 6) {
+          if ($mixMode && $mixMode.length) {
+            $mixMode.prop("checked", !$mixMode.prop("checked")).trigger("change");
+            try { $modal.find(".modal-content").attr("tabindex", "-1").focus(); } catch (_){}
+          }
+          return;
+        }
+        
+        if (d === 0) togglePaymentByIndex(9);     // ALT+0 => índice 9
+        else togglePaymentByIndex(d - 1);         // ALT+1 => 0, ALT+6 => 5 ✅
         return;
       }
 
-      if (k === "0") {
-        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        togglePaymentByIndex(9);
-        return;
-      }
-
-      if (k === "Enter") {
+      if ((e.originalEvent?.key === "Enter") || e.key === "Enter") {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         triggerConfirmPago();
         return;
