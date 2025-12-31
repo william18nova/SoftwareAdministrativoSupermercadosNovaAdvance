@@ -18,6 +18,13 @@ $(function () {
       { data: "categoria" },
       { data: "codigo_de_barras" },
       { data: "iva" },
+
+      // ✅ nuevas
+      { data: "impuesto_consumo" },
+      { data: "icui" },
+      { data: "ibua" },
+      { data: "rentabilidad" },
+
       { data: "acciones", orderable: false, searchable: false }
     ],
     paging      : true,
@@ -57,12 +64,17 @@ $(function () {
         "Categoría",
         "Cód. Barras",
         "IVA",
+        "Imp. Consumo",
+        "ICUI",
+        "IBUA",
+        "Rentabilidad",
         "Acciones"
       ];
       $(row).find("td").each(function (i) {
         $(this).attr("data-label", labels[i]);
       });
-      $(row).find("td").eq(7).addClass("actions-cell");
+      // ✅ acciones ahora es la columna 11
+      $(row).find("td").eq(11).addClass("actions-cell");
     }
   });
 
@@ -137,8 +149,8 @@ $(function () {
   ---------------------------------------------------------------- */
   (function barcodeScannerDetector(){
     const CFG = {
-      minChars: 8,         // mínimo de caracteres para considerar un código
-      gapMs: 60,           // intervalo máximo entre teclas para ser “rápido”
+      minChars: 8,
+      gapMs: 60,
       finishKeys: ['Enter','Tab'],
       debug: false
     };
@@ -146,7 +158,6 @@ $(function () {
 
     function setBarcodeValue(code){
       $input.val(code);
-      // dispara búsqueda (server-side)
       $input.trigger("input");
       table.search(code).draw();
       if (CFG.debug) console.log("[scanner] code:", code);
@@ -181,14 +192,12 @@ $(function () {
     }
 
     document.addEventListener("keydown", function(e){
-      // Si hay modificadores, reseteamos (no es escáner)
       if (e.ctrlKey || e.altKey || e.metaKey) {
         reset();
         return;
       }
       const t = Date.now();
 
-      // Teclas de cierre (Enter/Tab)
       if (CFG.finishKeys.includes(e.key)){
         if (handleFinish()){
           e.preventDefault();
@@ -197,7 +206,6 @@ $(function () {
         return;
       }
 
-      // Teclas imprimibles
       if (e.key && e.key.length === 1){
         if (buf && (t - last) > CFG.gapMs) {
           buf = "";
@@ -210,18 +218,15 @@ $(function () {
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => { handleFinish(); }, CFG.gapMs * 5);
 
-        // Evita escribir en otros inputs si el foco NO está en el buscador
         if (document.activeElement !== $input[0]) {
           e.preventDefault();
           e.stopImmediatePropagation();
         }
       } else {
-        // Ignoramos Shift, pero otras teclas rompen el buffer
         if (e.key !== "Shift") reset();
       }
     }, true);
 
-    // Soporte para pegar códigos (por si acaso)
     document.addEventListener("paste", e => {
       const txt = (e.clipboardData || window.clipboardData)?.getData("text") || "";
       const val = txt.trim();

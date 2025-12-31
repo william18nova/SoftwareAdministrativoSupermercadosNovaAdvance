@@ -382,7 +382,7 @@ class CategoriaAutocompleteView(PaginatedAutocompleteMixin):
     per_page   = 10                   # ← (opcional) página de 10 resultados
 
 
-class ProductoListView(LoginRequiredMixin, TemplateView):
+class ProductoListView(LoginRequiredMixin, ListView):
     """
     Lista completa de productos sin paginación en Django.
     La paginación se hace en el cliente con DataTables.
@@ -400,7 +400,8 @@ class ProductoListView(LoginRequiredMixin, TemplateView):
             .select_related("categoria")
             .order_by(self.ordering or "nombre")
         )
-        
+
+
 class ProductoDataTableView(LoginRequiredMixin, View):
     """
     Endpoint ultra-rápido para DataTables (server-side).
@@ -410,120 +411,146 @@ class ProductoDataTableView(LoginRequiredMixin, View):
     """
 
     def get(self, request, *args, **kwargs):
-      # -------- parámetros DataTables --------
-      draw   = int(request.GET.get("draw", "1"))
-      start  = int(request.GET.get("start", "0"))
-      length = int(request.GET.get("length", "25"))
-      search_value = request.GET.get("search[value]", "").strip()
+        # -------- parámetros DataTables --------
+        draw   = int(request.GET.get("draw", "1"))
+        start  = int(request.GET.get("start", "0"))
+        length = int(request.GET.get("length", "25"))
+        search_value = request.GET.get("search[value]", "").strip()
 
-      # -------- base queryset (solo para total) --------
-      base_qs = Producto.objects.all()
-      records_total = base_qs.count()
+        # -------- base queryset (solo para total) --------
+        base_qs = Producto.objects.all()
+        records_total = base_qs.count()
 
-      qs = base_qs
+        qs = base_qs
 
-      # -------- filtro ultra-rápido --------
-      if search_value:
-          # Si parece código de barras (solo dígitos y largo >= 8):
-          if search_value.isdigit() and len(search_value) >= 8:
-              # Usa solo índice de codigo_de_barras
-              qs = qs.filter(codigo_de_barras__iexact=search_value)
-          else:
-              # Búsqueda más general, pero usando índices cuando se pueda
-              tokens = search_value.split()
-              for token in tokens:
-                  qs = qs.filter(
-                      Q(nombre__icontains=token) |
-                      Q(codigo_de_barras__icontains=token) |
-                      Q(categoria__nombre__icontains=token)
-                  )
+        # -------- filtro ultra-rápido --------
+        if search_value:
+            # Si parece código de barras (solo dígitos y largo >= 8):
+            if search_value.isdigit() and len(search_value) >= 8:
+                qs = qs.filter(codigo_de_barras__iexact=search_value)
+            else:
+                tokens = search_value.split()
+                for token in tokens:
+                    qs = qs.filter(
+                        Q(nombre__icontains=token) |
+                        Q(codigo_de_barras__icontains=token) |
+                        Q(categoria__nombre__icontains=token)
+                    )
 
-      records_filtered = qs.count()
+        records_filtered = qs.count()
 
-      # -------- ordenamiento --------
-      order_column_index = request.GET.get("order[0][column]", "1")
-      order_dir          = request.GET.get("order[0][dir]", "asc")
+        # -------- ordenamiento --------
+        order_column_index = request.GET.get("order[0][column]", "1")
+        order_dir          = request.GET.get("order[0][dir]", "asc")
 
-      columns = [
-          "productoid",           # 0
-          "nombre",               # 1
-          "descripcion",          # 2
-          "precio",               # 3
-          "categoria__nombre",    # 4
-          "codigo_de_barras",     # 5
-          "iva",                  # 6
-          # 7 = acciones (no ordena)
-      ]
+        columns = [
+            "productoid",           # 0
+            "nombre",               # 1
+            "descripcion",          # 2
+            "precio",               # 3
+            "categoria__nombre",    # 4
+            "codigo_de_barras",     # 5
+            "iva",                  # 6
 
-      try:
-          idx = int(order_column_index)
-          order_column = columns[idx]
-      except (ValueError, IndexError):
-          order_column = "nombre"
+            # ✅ nuevas
+            "impuesto_consumo",     # 7
+            "icui",                 # 8
+            "ibua",                 # 9
+            "rentabilidad",         # 10
 
-      if order_dir == "desc":
-          order_column = "-" + order_column
+            # 11 = acciones (no ordena)
+        ]
 
-      # -------- slice + values (solo columnas necesarias) --------
-      qs_page = (
-          qs.select_related("categoria")
-            .order_by(order_column)
-            .values(
-                "productoid",
-                "nombre",
-                "descripcion",
-                "precio",
-                "categoria__nombre",
-                "codigo_de_barras",
-                "iva",
-            )[start:start + length]
-      )
+        try:
+            idx = int(order_column_index)
+            order_column = columns[idx]
+        except (ValueError, IndexError):
+            order_column = "nombre"
 
-      # -------- construir respuesta --------
-      data = []
-      for p in qs_page:
-          data.append({
-              "productoid": p["productoid"],
-              "nombre": p["nombre"],
-              "descripcion": p["descripcion"] or "—",
-              "precio": f"${p['precio']:.2f}",
-              "categoria": p["categoria__nombre"] or "—",
-              "codigo_de_barras": p["codigo_de_barras"] or "—",
-              "iva": f"{p['iva']:.2f}",
-              "acciones": f"""
-                <div class="btn-container">
-                  <a href="{reverse('editar_producto', args=[p['productoid']])}"
-                     class="btn editar" title="Editar {p['nombre']}">
-                    <i class="fas fa-edit"></i>
-                  </a>
-                  <button type="button" class="btn borrar"
-                          data-url="{reverse('eliminar_producto', args=[p['productoid']])}"
-                          data-nombre="{p['nombre']}"
-                          title="Eliminar {p['nombre']}">
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
-                </div>
-              """,
-          })
+        if order_dir == "desc":
+            order_column = "-" + order_column
 
-      return JsonResponse({
-          "draw": draw,
-          "recordsTotal": records_total,
-          "recordsFiltered": records_filtered,
-          "data": data,
-      })
+        # -------- slice + values (solo columnas necesarias) --------
+        qs_page = (
+            qs.select_related("categoria")
+              .order_by(order_column)
+              .values(
+                  "productoid",
+                  "nombre",
+                  "descripcion",
+                  "precio",
+                  "categoria__nombre",
+                  "codigo_de_barras",
+                  "iva",
+
+                  # ✅ nuevas
+                  "impuesto_consumo",
+                  "icui",
+                  "ibua",
+                  "rentabilidad",
+              )[start:start + length]
+        )
+
+        # -------- construir respuesta --------
+        data = []
+        for p in qs_page:
+            impuesto_consumo = p.get("impuesto_consumo") or 0
+            icui             = p.get("icui") or 0
+            ibua             = p.get("ibua") or 0
+            rentabilidad     = p.get("rentabilidad") or 0
+
+            data.append({
+                "productoid": p["productoid"],
+                "nombre": p["nombre"],
+                "descripcion": p["descripcion"] or "—",
+                "precio": f"${p['precio']:.2f}",
+                "categoria": p["categoria__nombre"] or "—",
+                "codigo_de_barras": p["codigo_de_barras"] or "—",
+                "iva": f"{p['iva']:.2f}",
+
+                # ✅ nuevas
+                "impuesto_consumo": f"${impuesto_consumo:.2f}",
+                "icui": f"${icui:.2f}",
+                "ibua": f"${ibua:.2f}",
+                "rentabilidad": f"{rentabilidad:.2f}%",
+
+                "acciones": f"""
+                  <div class="btn-container">
+                    <a href="{reverse('editar_producto', args=[p['productoid']])}"
+                       class="btn editar" title="Editar {p['nombre']}">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <button type="button" class="btn borrar"
+                            data-url="{reverse('eliminar_producto', args=[p['productoid']])}"
+                            data-nombre="{p['nombre']}"
+                            title="Eliminar {p['nombre']}">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                """,
+            })
+
+        return JsonResponse({
+            "draw": draw,
+            "recordsTotal": records_total,
+            "recordsFiltered": records_filtered,
+            "data": data,
+        })
+
 
 @login_required
 def eliminar_producto(request, producto_id):
     producto = get_object_or_404(Producto, productoid=producto_id)
-    if request.method == 'POST':
+
+    if request.method == "POST":
         nombre_producto = producto.nombre
         producto.delete()
         messages.success(request, f'El producto "{nombre_producto}" ha sido eliminado exitosamente.')
-        return redirect('visualizar_productos')
+        return redirect("visualizar_productos")
+
     # Si no es POST, simplemente se vuelve a renderizar la página
     productos = Producto.objects.all()
-    return render(request, 'visualizar_productos.html', {'productos': productos})
+    return render(request, "visualizar_productos.html", {"productos": productos})
 
 
 class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
