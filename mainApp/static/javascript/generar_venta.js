@@ -1900,7 +1900,7 @@ $(function () {
         
         if (d === 0) togglePaymentByIndex(9);     // ALT+0 => índice 9
         else togglePaymentByIndex(d - 1);         // ALT+1 => 0, ALT+6 => 5 ✅
-        return;
+        return;   
       }
 
       if ((e.originalEvent?.key === "Enter") || e.key === "Enter") {

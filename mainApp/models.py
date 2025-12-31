@@ -31,12 +31,19 @@ class Categoria(models.Model):
 
 class Producto(models.Model):
     productoid = models.AutoField(primary_key=True)
-    nombre = models.CharField(max_length=100, unique=True, db_index=True)  # Agregar índice aquí
+    nombre = models.CharField(max_length=100, unique=True, db_index=True)
     descripcion = models.TextField(null=True, blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE, null=True, blank=True)
-    codigo_de_barras = models.CharField(max_length=100, null=True, blank=True, db_index=True)  # Agregar índice aquí
+    codigo_de_barras = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     iva = models.FloatField(default=0.0)
+
+    # NUEVOS CAMPOS (columnas nuevas en la tabla productos)
+    impuesto_consumo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    icui = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    ibua = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    
+    rentabilidad = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
 
     class Meta:
         db_table = 'productos'

@@ -827,7 +827,7 @@ class EditarHorarioCajaForm(forms.Form):
 
     
 class ProductoForm(forms.ModelForm):
-
+    
     codigo_de_barras = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -836,10 +836,73 @@ class ProductoForm(forms.ModelForm):
         })
     )
 
+    # NUEVOS CAMPOS en el form (para que aparezcan en la página)
+    impuesto_consumo = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "step": "0.01",
+            "min": "0",
+            "placeholder": "Impuesto al consumo"
+        })
+    )
+
+    icui = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "step": "0.01",
+            "min": "0",
+            "placeholder": "ICUI"
+        })
+    )
+
+    ibua = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "step": "0.01",
+            "min": "0",
+            "placeholder": "IBUA"
+        })
+    )
+    
+    rentabilidad = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_value=100,
+        max_digits=5,
+        decimal_places=2,
+        initial=Decimal("0.00"),
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "step": "0.01",
+            "min": "0",
+            "max": "100",
+            "placeholder": "Ej: 30 = 30%"
+        })
+    )
+
     class Meta:
         model  = Producto
-        fields = ["nombre", "descripcion", "precio", "categoria",
-                  "codigo_de_barras", "iva"]
+        # Ponlos al final para que en el HTML salgan después de IVA
+        fields = [
+            "nombre", "descripcion", "precio", "categoria",
+            "codigo_de_barras", "iva",
+            "impuesto_consumo", "icui", "ibua"
+        ]
 
         labels = {
             "nombre"          : "Nombre",
@@ -848,6 +911,9 @@ class ProductoForm(forms.ModelForm):
             "categoria"       : "Categoría",
             "codigo_de_barras": "Código de barras",
             "iva"             : "IVA (p. ej. 0.19)",
+            "impuesto_consumo": "Impuesto al consumo",
+            "icui"            : "ICUI",
+            "ibua"            : "IBUA",
         }
 
         widgets = {
@@ -867,7 +933,6 @@ class ProductoForm(forms.ModelForm):
                 "placeholder": "Ingresa el precio",
                 "required": "required"
             }),
-            #  campo oculto: la PK llega vía autocompletado
             "categoria": forms.HiddenInput(),
             "iva": forms.NumberInput(attrs={
                 "class": "form-control",
@@ -878,8 +943,6 @@ class ProductoForm(forms.ModelForm):
                 "required": "required"
             }),
         }
-
-    #  === VALIDATIONS ======================================================
 
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
@@ -904,6 +967,16 @@ class ProductoForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError("El código de barras ya está registrado.", code="duplicate")
         return ean
+
+    # Si vienen vacíos, guardarlos como 0.00
+    def clean_impuesto_consumo(self):
+        return self.cleaned_data.get("impuesto_consumo") or Decimal("0.00")
+
+    def clean_icui(self):
+        return self.cleaned_data.get("icui") or Decimal("0.00")
+
+    def clean_ibua(self):
+        return self.cleaned_data.get("ibua") or Decimal("0.00")
 
 
 def _s(v):
