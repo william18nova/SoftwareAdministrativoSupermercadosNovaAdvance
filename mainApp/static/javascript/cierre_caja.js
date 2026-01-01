@@ -6,17 +6,23 @@
 
   function parseMoney(str) {
     if (str == null) return 0;
-    // permite "1.000,50" o "1000.50"
-    const s = String(str).trim()
-      .replace(/\s/g, "")
-      .replace(/\./g, "")      // quita separador miles (.)
-      .replace(/,/g, ".");     // coma decimal -> punto
+    let s = String(str).trim().replace(/\s/g, "");
+    if (!s) return 0;
+
+    // Si tiene coma y punto => miles "." y decimal ","
+    if (s.includes(",") && s.includes(".")) {
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else if (s.includes(",")) {
+      // solo coma => decimal
+      s = s.replace(",", ".");
+    }
+    // solo punto => decimal con punto (no se toca)
+
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
   }
 
   function fmt(n) {
-    // formato simple 2 decimales (sin forzar símbolo)
     const num = Number.isFinite(n) ? n : 0;
     return num.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
@@ -29,7 +35,6 @@
 
   const form = $("#cierreForm");
   const tabla = $("#tablaMedios");
-
   if (!form || !tabla) return;
 
   const rows = $$(".medio-row", tabla);
@@ -39,8 +44,7 @@
   const totalEsperadoEl = $("#totalEsperado");
   const totalContadoEl  = $("#totalContado");
   const totalDiffEl     = $("#totalDiff");
-
-  const diffEfectivoEl = $("#diffEfectivo");
+  const diffEfectivoEl  = $("#diffEfectivo");
 
   function recalcular() {
     let totalEsperado = 0;
@@ -81,15 +85,10 @@
     }
   }
 
-  // listeners
   rows.forEach((tr) => {
     const inp = $(".contado", tr);
     if (!inp) return;
     inp.addEventListener("input", recalcular);
-    inp.addEventListener("blur", () => {
-      // si lo dejan vacío, mostrar 0 pero sin forzar el input (para no molestar)
-      recalcular();
-    });
   });
 
   if (efectivoInp) {
@@ -97,12 +96,11 @@
   }
 
   form.addEventListener("submit", () => {
-    // evita submit con vacíos -> 0
+    // asegura que no queden vacíos
     $$("input.inp-money", form).forEach((inp) => {
       if (!inp.value || !inp.value.trim()) inp.value = "0";
     });
   });
 
-  // init
   recalcular();
 })();

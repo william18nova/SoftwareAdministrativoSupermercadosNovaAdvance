@@ -5288,10 +5288,43 @@ class PedidosPagadosView(LoginRequiredMixin, View):
 
 
     
+MEDIOS_CIERRE_NO_EFECTIVO = [
+    "Nequi",
+    "Daviplata",
+    "Tarjeta",
+    "Caja Social",
+    "Transferencia",
+]
+
+
 def _metodo_es_efectivo(nombre: str) -> bool:
     n = (nombre or "").strip().lower()
     return n in {"efectivo", "cash"}
 
+
+def _parse_decimal_post(val) -> Decimal:
+    """
+    Convierte input tipo '1.000,50' o '1000.50' a Decimal.
+    """
+    s = (val or "").strip()
+    if not s:
+        return Decimal("0.00")
+
+    # Normaliza espacios
+    s = s.replace(" ", "")
+
+    # Si tiene coma y punto, asumimos miles "." y decimal ","
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        # solo coma => decimal
+        s = s.replace(",", ".")
+    # si solo punto => decimal con punto
+
+    try:
+        return Decimal(s)
+    except Exception:
+        return Decimal("0.00")
 
 
 def _ventas_en_rango(puntopago_id: int, dt_start, dt_end):
@@ -5321,8 +5354,9 @@ def _sumas_por_medio(ventas_qs):
     Retorna dict {metodo: Decimal(total)}.
     - Si la venta tiene registros en PagoVenta => usa esos
     - Si no tiene => usa ventas.mediopago + ventas.total
-    """
 
+    En tu modelo PagoVenta el campo es: medio_pago
+    """
     MONEY = DecimalField(max_digits=12, decimal_places=2)
 
     pagos_exists = PagoVenta.objects.filter(ventaid=OuterRef("pk"))
@@ -5337,7 +5371,7 @@ def _sumas_por_medio(ventas_qs):
     pagos = (
         PagoVenta.objects
         .filter(ventaid__in=ventas_con_pagos)
-        .values(metodo=F("medio_pago"))  # alias para que la key sea "metodo"
+        .values(metodo=F("medio_pago"))  # ✅ AQUÍ está el fix
         .annotate(
             total=Coalesce(
                 Sum("monto", output_field=MONEY),
@@ -5353,7 +5387,7 @@ def _sumas_por_medio(ventas_qs):
     # 2) Fallback: ventas sin pagos registrados => usar mediopago + total de Venta
     fallback = (
         ventas_sin_pagos
-        .values(metodo=F("mediopago"))  # alias para uniformidad
+        .values(metodo=F("mediopago"))
         .annotate(
             total=Coalesce(
                 Sum("total", output_field=MONEY),
@@ -5371,12 +5405,11 @@ def _sumas_por_medio(ventas_qs):
 
 def _validar_password_usuario(request, usuario: Usuario, raw_password: str) -> bool:
     """
-    Intenta validar contraseña del usuario.
+    Valida contraseña del usuario con:
     1) authenticate (si tu Usuario está conectado al auth backend)
-    2) check_password contra el campo contraseña/password (si guardas hashes Django)
-    3) comparación directa (solo si tu app guarda en texto plano — NO recomendado)
+    2) check_password contra hash (si guardas hashes Django)
+    3) comparación directa (último recurso)
     """
-    # 1) auth estándar
     try:
         from django.contrib.auth import authenticate
         ok = authenticate(request, username=usuario.nombreusuario, password=raw_password)
@@ -5385,11 +5418,9 @@ def _validar_password_usuario(request, usuario: Usuario, raw_password: str) -> b
     except Exception:
         pass
 
-    # 2) hashers
     try:
         from django.contrib.auth.hashers import check_password
         hashed = None
-        # Soporta nombre raro "contraseña"
         if hasattr(usuario, "contraseña"):
             hashed = getattr(usuario, "contraseña")
         elif hasattr(usuario, "contrasena"):
@@ -5406,7 +5437,6 @@ def _validar_password_usuario(request, usuario: Usuario, raw_password: str) -> b
     except Exception:
         pass
 
-    # 3) texto plano (último recurso)
     try:
         actual = None
         if hasattr(usuario, "contraseña"):
@@ -5456,16 +5486,12 @@ def cierre_caja(request):
         # Base: lo que físicamente hay (y se mantiene actualizado al cerrar turnos)
         saldo_apertura = Decimal(puntopago.dinerocaja or 0)
 
-        # (Opcional) si quieres permitir que el cajero confirme conteo inicial:
-        efectivo_apertura_in = (request.POST.get("efectivo_apertura") or "").replace(",", ".").strip()
+        # (Opcional) permitir que el cajero confirme conteo inicial:
+        efectivo_apertura_in = request.POST.get("efectivo_apertura")
         if efectivo_apertura_in:
-            try:
-                saldo_apertura = Decimal(efectivo_apertura_in)
-                # si quieres, sincroniza físicamente:
-                puntopago.dinerocaja = saldo_apertura
-                puntopago.save(update_fields=["dinerocaja"])
-            except Exception:
-                pass
+            saldo_apertura = _parse_decimal_post(efectivo_apertura_in)
+            puntopago.dinerocaja = saldo_apertura
+            puntopago.save(update_fields=["dinerocaja"])
 
         turno = TurnoCaja.objects.create(
             puntopago=puntopago,
@@ -5491,21 +5517,48 @@ def cierre_caja(request):
         ventas = _ventas_en_rango(turno.puntopago_id, turno.inicio, ahora)
         sumas = _sumas_por_medio(ventas)
 
-        # Guardar snapshot por medios (reinicia)
+        # Reinicia snapshot
         TurnoCajaMedio.objects.filter(turno=turno).delete()
 
-        esperado_total = Decimal("0")
+        # 1) Efectivo vendido (para esperado efectivo físico)
+        efectivo_vendido = Decimal("0.00")
         for metodo, total in sumas.items():
+            if _metodo_es_efectivo(metodo):
+                efectivo_vendido += (total or Decimal("0.00"))
+
+        # 2) Métodos a mostrar SIEMPRE (NO efectivo)
+        metodos_a_mostrar = list(MEDIOS_CIERRE_NO_EFECTIVO)
+
+        # Agrega otros métodos que hayan salido en ventas (no efectivo)
+        for metodo in sumas.keys():
+            if not _metodo_es_efectivo(metodo) and metodo not in metodos_a_mostrar:
+                metodos_a_mostrar.append(metodo)
+
+        # 3) Crear filas visibles con esperado (sumas o 0)
+        esperado_total_no_efectivo = Decimal("0.00")
+
+        for metodo in metodos_a_mostrar:
+            esperado = sumas.get(metodo, Decimal("0.00")) or Decimal("0.00")
             TurnoCajaMedio.objects.create(
                 turno=turno,
                 metodo=metodo,
-                esperado=total,
-                diferencia=Decimal("0"),
+                esperado=esperado,
+                contado=None,
+                diferencia=Decimal("0.00"),
             )
-            esperado_total += total
+            esperado_total_no_efectivo += esperado
+
+        # 4) Guardar fila interna de efectivo (NO se muestra)
+        TurnoCajaMedio.objects.create(
+            turno=turno,
+            metodo="Efectivo",
+            esperado=efectivo_vendido,
+            contado=None,
+            diferencia=Decimal("0.00"),
+        )
 
         turno.cierre_iniciado = ahora
-        turno.esperado_total = esperado_total
+        turno.esperado_total = esperado_total_no_efectivo  # ✅ solo medios no efectivo
         turno.estado = "CIERRE"
         turno.save(update_fields=["cierre_iniciado", "esperado_total", "estado"])
 
@@ -5521,38 +5574,41 @@ def cierre_caja(request):
             messages.error(request, "Este turno no está en estado CIERRE.")
             return redirect(f"{request.path}?turno={turno.id}")
 
-        medios = list(turno.medios.all().order_by("metodo"))
+        medios_all = list(turno.medios.all().order_by("metodo"))
+        medios_no_efectivo = [m for m in medios_all if not _metodo_es_efectivo(m.metodo)]
+        medios_efectivo = [m for m in medios_all if _metodo_es_efectivo(m.metodo)]  # solo fila interna
 
-        real_total = Decimal("0")
-        diff_total = Decimal("0")
+        real_total_no_efectivo = Decimal("0.00")
+        diff_total_no_efectivo = Decimal("0.00")
 
-        # Guardar conteos por medio
-        for m in medios:
-            raw = (request.POST.get(f"contado_{m.id}", "") or "0").replace(",", ".").strip()
-            contado = Decimal(raw or "0")
+        # Guardar conteos por medio (NO efectivo)
+        for m in medios_no_efectivo:
+            contado = _parse_decimal_post(request.POST.get(f"contado_{m.id}"))
             m.contado = contado
-            m.diferencia = contado - (m.esperado or Decimal("0"))
+            m.diferencia = contado - (m.esperado or Decimal("0.00"))
             m.save(update_fields=["contado", "diferencia"])
 
-            real_total += contado
-            diff_total += m.diferencia
+            real_total_no_efectivo += contado
+            diff_total_no_efectivo += m.diferencia
 
-        # Efectivo físico en caja
-        efectivo_real_str = (request.POST.get("efectivo_real", "") or "0").replace(",", ".").strip()
-        efectivo_real = Decimal(efectivo_real_str or "0")
+        # La fila interna de efectivo no se “cuenta” en estos totales
+        for m in medios_efectivo:
+            m.contado = None
+            m.diferencia = Decimal("0.00")
+            m.save(update_fields=["contado", "diferencia"])
 
-        # Esperado efectivo físico = apertura + ventas en efectivo (según snapshot)
-        esperado_efectivo = turno.saldo_apertura_efectivo
-        for m in medios:
-            if _metodo_es_efectivo(m.metodo):
-                esperado_efectivo += (m.esperado or Decimal("0"))
+        # Efectivo físico
+        efectivo_real = _parse_decimal_post(request.POST.get("efectivo_real"))
 
+        # Esperado efectivo físico = apertura + efectivo vendido (fila interna)
+        efectivo_vendido = sum((m.esperado or Decimal("0.00")) for m in medios_efectivo)
+        esperado_efectivo = (turno.saldo_apertura_efectivo or Decimal("0.00")) + efectivo_vendido
         diff_efectivo = efectivo_real - esperado_efectivo
 
-        # Guardar resumen y cerrar turno
+        # Guardar cierre
         turno.efectivo_real = efectivo_real
-        turno.real_total = real_total
-        turno.diferencia_total = diff_total
+        turno.real_total = real_total_no_efectivo
+        turno.diferencia_total = diff_total_no_efectivo
         turno.diferencia_efectivo = diff_efectivo
         turno.fin = timezone.now()
         turno.estado = "CERRADO"
@@ -5561,12 +5617,11 @@ def cierre_caja(request):
             "diferencia_efectivo", "fin", "estado"
         ])
 
-        # CLAVE: actualiza dinero real en caja para que el siguiente turno arranque desde lo real
+        # Actualiza dinerocaja a lo real contado (clave para el siguiente turno)
         puntopago = turno.puntopago
         puntopago.dinerocaja = efectivo_real
         puntopago.save(update_fields=["dinerocaja"])
 
-        # Mensaje final
         if diff_efectivo < 0:
             messages.warning(request, f"Cierre finalizado. FALTANTE efectivo: {abs(diff_efectivo):,.2f}")
         elif diff_efectivo > 0:
@@ -5586,14 +5641,15 @@ def cierre_caja(request):
     }
 
     if turno:
-        medios = list(turno.medios.all().order_by("metodo"))
-        context["medios"] = medios
+        medios_all = list(turno.medios.all().order_by("metodo"))
+        medios_no_efectivo = [m for m in medios_all if not _metodo_es_efectivo(m.metodo)]
+        medios_efectivo = [m for m in medios_all if _metodo_es_efectivo(m.metodo)]  # fila interna
+
+        context["medios"] = medios_no_efectivo
 
         if turno.estado == "CIERRE":
-            esperado_efectivo = turno.saldo_apertura_efectivo
-            for m in medios:
-                if _metodo_es_efectivo(m.metodo):
-                    esperado_efectivo += (m.esperado or Decimal("0"))
+            efectivo_vendido = sum((m.esperado or Decimal("0.00")) for m in medios_efectivo)
+            esperado_efectivo = (turno.saldo_apertura_efectivo or Decimal("0.00")) + efectivo_vendido
             context["esperado_efectivo"] = esperado_efectivo
 
     return render(request, "cierre_caja.html", context)

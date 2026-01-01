@@ -5,7 +5,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cierre de Caja</title>
-
   <link rel="stylesheet" href="{% static 'css/cierre_caja.css' %}">
 </head>
 
@@ -30,7 +29,6 @@
 
       <div class="content">
 
-        {# ======= MENSAJES DJANGO ======= #}
         {% if messages %}
           <div class="messages">
             {% for message in messages %}
@@ -38,7 +36,6 @@
             {% endfor %}
           </div>
         {% endif %}
-
 
         {% if not turno %}
           <form method="post" class="form">
@@ -83,7 +80,7 @@
             </div>
 
             <div class="hint">
-              Este flujo no reinicia el día con base fija: el primer turno del día arranca con lo que físicamente quedó en caja.
+              El siguiente turno arranca con lo real que quedó en caja (dinerocaja).
             </div>
           </form>
         {% endif %}
@@ -105,7 +102,6 @@
           </form>
         {% endif %}
 
-        
         {% if turno and turno.estado == "CIERRE" %}
           <div class="hint">
             Snapshot: desde <b>{{ turno.inicio }}</b> hasta <b>{{ turno.cierre_iniciado }}</b>.
@@ -122,7 +118,7 @@
                   <th>Método</th>
                   <th>Esperado</th>
                   <th>Contado (real)</th>
-                  <th>Diferencia (previa)</th>
+                  <th>Diferencia</th>
                 </tr>
               </thead>
               <tbody>
@@ -139,7 +135,7 @@
                            name="contado_{{ m.id }}"
                            inputmode="decimal"
                            placeholder="0.00"
-                           required />
+                           value="0.00" />
                   </td>
                   <td class="td-diff">
                     <span class="money diff">0.00</span>
@@ -156,7 +152,7 @@
                   </td>
                   <td class="td-contado">
                     <input class="inp-money" name="efectivo_real" id="efectivo_real"
-                           inputmode="decimal" placeholder="0.00" required />
+                           inputmode="decimal" placeholder="0.00" value="0.00" />
                   </td>
                   <td class="td-diff">
                     <b class="money diff" id="diffEfectivo">0.00</b>
@@ -176,7 +172,7 @@
               </div>
               <div class="total-card">
                 <div class="k">Diferencia (medios)</div>
-                <div class="v money" id="totalDiff">0.00</div>
+                <div class="v money diff" id="totalDiff">0.00</div>
               </div>
             </div>
 
@@ -187,12 +183,11 @@
 
             <div class="hint">
               Al finalizar: se guardan diferencias por turno y se actualiza <b>dinerocaja</b> al efectivo real contado.
-              Así el siguiente turno arranca desde lo real y no hereda descuadre como “culpa”.
+              Así el siguiente turno arranca desde lo real.
             </div>
           </form>
         {% endif %}
 
-        
         {% if turno and turno.estado == "CERRADO" %}
           <div class="hint">
             Turno cerrado: {{ turno.fin }}<br/>
