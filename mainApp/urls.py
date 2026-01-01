@@ -86,13 +86,14 @@ urlpatterns = [
 
     path('agregar_inventario/', InventarioCreateAJAXView.as_view(), name='agregar_inventario'),
     # Ruta para autocompletar Sucursales sin Inventario
-    path('autocomplete/sucursal_inventario/', SucursalSinInventarioAutocomplete.as_view(), name='sucursal_inventario_autocomplete'),
+    
+    path("sucursal_inventario/", views.sucursal_sin_inventario_autocomplete, name="sucursal_sin_inventario_autocomplete"),
     # Ruta para autocompletar Productos (por ejemplo)
     path('autocomplete/producto_inventario/', ProductoAutocomplete.as_view(), name='producto_inventario_autocomplete'),
     path('visualizar_inventarios/', InventarioListView.as_view(), name='visualizar_inventarios'),
     path('autocomplete/sucursal_con_inventario/', SucursalInventarioAutocompleteView.as_view(), name='sucursal_con_inventario_autocomplete'),
     path('editar_inventario/<int:sucursal_id>/', EditarInventarioView.as_view(), name='editar_inventario'),
-    path('autocomplete/sucursal_inventario_editar/', SucursalInventarioAutocompleteEditarView.as_view(), name='sucursal_inventario_autocomplete_editar'),
+    path('autocomplete/sucursal_inventario_editar/', SucursalInventarioAutocompleteEditarView.as_view(), name='sucursal_inventario_autocomplete'),
     path('autocomplete/producto_inventario_editar/', ProductoInventarioAutocompleteView.as_view(), name='producto_inventario_autocomplete_editar'),
     path('inventario/eliminar/<int:inventario_id>/', views.eliminar_producto_inventario_view, name='eliminar_producto_inventario'),
 
@@ -260,4 +261,6 @@ urlpatterns = [
      path("autocomplete/puntopago_con_pedidos_pagados/",
           views.PuntosPagoConPedidosPagadosAutocomplete.as_view(),
           name="puntopago_con_pedidos_pagados_autocomplete"),
+     
+     path("cierre-caja/", views.cierre_caja, name="cierre_caja"),
 ]

@@ -11,24 +11,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lista de Productos</title>
 
-  <!-- Font Awesome (ícono en título & botones) -->
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 
-  <!-- DataTables -->
   <link rel="stylesheet"
         href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css"/>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 
-  <!-- Estilos propios -->
   <link rel="stylesheet" href="{% static 'css/visualizar_productos.css' %}">
 </head>
 <body>
   <div class="container">
     <h2><i class="fas fa-box"></i> Lista de Productos</h2>
 
-    {# ---- mensajes Django ----- #}
     {% if messages %}
       <div class="messages">
         {% for message in messages %}
@@ -39,13 +35,11 @@
       </div>
     {% endif %}
 
-    {# ---- buscador externo ----- #}
     <div class="search-wrapper">
       <i class="fas fa-search"></i>
       <input id="buscador-productos" class="search-input" type="text" placeholder="Buscar…">
     </div>
 
-    {# ---- tabla (sin filas; DataTables las carga por AJAX) ----- #}
     <table id="productosTable" class="display">
       <thead>
         <tr>
@@ -53,31 +47,25 @@
           <th>Nombre</th>
           <th>Descripción</th>
           <th>Precio</th>
+          <th>Precio anterior</th>   {# ✅ NUEVO #}
           <th>Categoría</th>
           <th>Cód. Barras</th>
           <th>IVA</th>
-
-          <!-- ✅ nuevas -->
           <th>Imp. Consumo</th>
           <th>ICUI</th>
           <th>IBUA</th>
           <th>Rentabilidad</th>
-
           <th class="no-sort">Acciones</th>
         </tr>
       </thead>
-      <tbody>
-        {# vacío: las filas se cargan vía AJAX (server-side) #}
-      </tbody>
+      <tbody></tbody>
     </table>
   </div>
 
-  <!-- URL para el endpoint de datos de DataTables -->
   <script>
     window.productosDataUrl = "{% url 'productos_datatable' %}";
   </script>
 
-  <!-- JS propio -->
   <script src="{% static 'javascript/visualizar_productos.js' %}" defer></script>
 </body>
 </html>

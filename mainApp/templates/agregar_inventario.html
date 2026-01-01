@@ -82,8 +82,8 @@
 
   {# ----------  rutas para los autocompletados  ---------- #}
   <script>
-    const sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete' %}";
-    const productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete' %}";
+    window.sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete' %}";
+    window.productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete' %}";
   </script>
 
   <!-- jQuery + DataTables -->

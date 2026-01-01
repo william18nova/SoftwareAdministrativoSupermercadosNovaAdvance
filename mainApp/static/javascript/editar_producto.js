@@ -57,7 +57,7 @@
   /* ───────── util robusto: parsear JSON o mostrar texto de error ───────── */
   async function readJSONorThrow(resp){
     const ct   = resp.headers.get("content-type") || "";
-    const body = await resp.text(); // leemos una sola vez
+    const body = await resp.text();
     const isJSON = /\bapplication\/json\b/i.test(ct);
     if (!isJSON){
       const snippet = body.slice(0, 280);
@@ -66,24 +66,23 @@
     try{
       const data = JSON.parse(body);
       if (!resp.ok){
-        // Devolver el JSON pero señalando que el status no es OK
         const msg = (data && (data.detail || data.message)) ? ` ${data.detail || data.message}` : "";
         throw new Error(`Error ${resp.status}.${msg}`);
       }
       return data;
-    }catch(e){
-      // Cuando el cuerpo es HTML de error pero con content-type JSON mal seteado, o JSON corrupto
+    }catch(_e){
       throw new Error(`Respuesta JSON inválida del servidor (${resp.status}).`);
     }
   }
 
   /* ───────── Autocomplete «Categoría» (instantáneo + remoto abortable + caché) ───────── */
-  const cache = Object.create(null);        // key = term|page -> {results, has_more}
+  const cache = Object.create(null);
   let page = 1, term = "", hasMore = true, loading = false;
   let debounceTimer, ctrl = null;
-  let painted = [];                         // última lista pintada para filtro instantáneo
+  let painted = [];
 
   function drawCats(data, replace = true){
+    if (!catBox) return;
     if (replace) catBox.innerHTML = "";
     const rows = data?.results || [];
     if (rows.length){
@@ -101,6 +100,7 @@
     }
     catBox.classList.add("visible");
     hasMore = !!data?.has_more;
+
     painted = Array.from(catBox.querySelectorAll(".autocomplete-option"))
                    .map(n => ({ id:n.dataset.id, text:n.textContent }));
   }
@@ -108,12 +108,10 @@
   async function fetchCats(q, p = 1){
     const key = toKey(q, p);
 
-    // pinta desde caché al instante
     if (cache[key]) drawCats(cache[key], p === 1);
 
     try { ctrl?.abort(); } catch(_){}
     ctrl = typeof AbortController === "function" ? new AbortController() : null;
-    if (loading && !ctrl) return;
 
     loading = true;
     try {
@@ -124,12 +122,11 @@
       });
       const data = await readJSONorThrow(res);
       cache[key] = data;
-      if (q !== term) return; // el término cambió mientras esperábamos
+      if (q !== term) return;
       drawCats(data, p === 1);
     } catch (e) {
-      // Evitamos romper el flujo del usuario si el servidor retornó HTML/500
       console.error("[autocomplete categoria] ", e);
-      if (p === 1){
+      if (p === 1 && catBox){
         catBox.innerHTML = '<div class="autocomplete-no-result">No se pudieron cargar opciones</div>';
         catBox.classList.add("visible");
       }
@@ -158,7 +155,7 @@
   }
 
   catInput?.addEventListener("input", () => {
-    catHidden.value = "";
+    if (catHidden) catHidden.value = "";
     term = catInput.value.trim();
     page = 1; hasMore = true;
     localFilterInstant(term);
@@ -182,12 +179,11 @@
     const el = e.target.closest(".autocomplete-option");
     if (!el) return;
     catInput.value  = el.textContent;
-    catHidden.value = el.dataset.id;
+    if (catHidden) catHidden.value = el.dataset.id;
     catBox.classList.remove("visible");
     catBox.innerHTML = "";
     hasMore = false;
     painted = [];
-    // si el autocomplete era el último campo, guardar:
     if (isLastFocusable(catInput)) submitBtn?.click();
     else                           focusNext(catInput);
   });
@@ -217,14 +213,12 @@
     const idx  = list.indexOf(current);
     if (idx >= 0 && idx < list.length - 1){
       const nxt = list[idx+1];
-      // si el siguiente es botón, hacemos click:
       if (nxt.tagName === 'BUTTON' || (nxt.type||'').toLowerCase() === 'submit'){
         nxt.click();
       } else {
         nxt.focus(); nxt.select?.();
       }
     } else {
-      // último elemento ⇒ disparar guardar
       submitBtn?.click();
     }
   }
@@ -233,37 +227,34 @@
     if (e.key !== "Enter") return;
     const el = e.target;
 
-    // Si estamos en el autocomplete de categoría
     if (el === catInput) {
       e.preventDefault();
       const first = catBox?.querySelector(".autocomplete-option");
       if (first){
         catInput.value  = first.textContent;
-        catHidden.value = first.dataset.id;
+        if (catHidden) catHidden.value = first.dataset.id;
       }
       catBox?.classList.remove("visible");
-      catBox.innerHTML = "";
+      if (catBox) catBox.innerHTML = "";
       painted = [];
 
-      // Si es el ÚLTIMO campo ⇒ guardar, si no ⇒ avanzar
       if (isLastFocusable(catInput)) submitBtn?.click();
       else                           focusNext(catInput);
       return;
     }
 
-    // Para cualquier otro campo, ENTER = ir al siguiente (o guardar si es el último)
     if (["INPUT","SELECT","TEXTAREA"].includes(el.tagName)) {
       e.preventDefault();
       focusNext(el);
     }
   });
 
-  /* ───────── envío del formulario (robusto ante 500/HTML) ───────── */
+  /* ───────── envío del formulario ───────── */
   form?.addEventListener("submit", async ev => {
     ev.preventDefault();
     resetUI();
 
-    if (!catHidden.value) {
+    if (!catHidden?.value) {
       const fld = $("#error-id_categoria");
       show(fld, iconErr("Este campo es obligatorio."));
       fld?.classList.add("visible");
@@ -308,10 +299,16 @@
     }
   });
 
-  /* ========= Detector de pistola de códigos — no bloquea otros campos ========= */
+  /* ========= Detector de pistola de códigos — NO bloquea otros campos ========= */
   (function initBarcodeScannerDetector(){
+    // ✅ Soporta codigo_de_barras (tu caso real)
     const targetSelector =
-      '[data-barcode-target], #id_codigo_barras, input[name="codigo_barras"], input[id*="codigo_barras"], input[name*="barcode"], input[id*="barcode"], input[name*="barras"], input[id*="barras"]';
+      '[data-barcode-target],' +
+      '#id_codigo_de_barras,' +
+      'input[name="codigo_de_barras"],' +
+      'input[id*="codigo_de_barras"],' +
+      'input[name*="barcode"], input[id*="barcode"],' +
+      'input[name*="barras"], input[id*="barras"]';
 
     const CFG = {
       minChars   : 6,
@@ -328,7 +325,7 @@
       if (!el) return false;
       if (el.hasAttribute('data-barcode-target')) return true;
       const id=(el.id||'').toLowerCase(), nm=(el.name||'').toLowerCase();
-      return /barras|barcode|ean|upc/.test(id) || /barras|barcode|ean|upc/.test(nm);
+      return /barras|barcode|ean|upc|codigo_de_barras/.test(id) || /barras|barcode|ean|upc|codigo_de_barras/.test(nm);
     }
 
     function resolveTarget(){
@@ -386,8 +383,6 @@
         if (tryFinish('finishKey')){
           e.preventDefault();
           e.stopImmediatePropagation();
-        } else if (CFG.acceptCRLF && (e.key === 'Enter' || e.key === 'NumpadEnter')) {
-          // si NO fue escáner, dejamos que el Enter se comporte normal
         }
         return;
       }

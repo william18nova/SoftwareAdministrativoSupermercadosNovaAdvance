@@ -2,8 +2,6 @@
     • Autocomplete instantáneo + scroll infinito + caché
     • Muestra opciones SOLO si el input está enfocado
     • Enter: avanza, elige 1ª opción en autocomplete, y al final agrega
-    • MEJORA: filtro local “parecido” sobre todas las páginas cacheadas
-              + prefetch automático de páginas adicionales
 ------------------------------------------------------------------*/
 (() => {
   "use strict";
@@ -15,6 +13,21 @@
 
   const hasAbort = typeof window.AbortController === "function";
 
+  // ✅ URLs (robusto: funciona si están en window.* o como const global)
+  const SUCURSAL_URL =
+    (typeof window.sucursalAutocompleteUrl !== "undefined" && window.sucursalAutocompleteUrl) ? window.sucursalAutocompleteUrl :
+    (typeof sucursalAutocompleteUrl !== "undefined" && sucursalAutocompleteUrl) ? sucursalAutocompleteUrl :
+    null;
+
+  const PRODUCTO_URL =
+    (typeof window.productoAutocompleteUrl !== "undefined" && window.productoAutocompleteUrl) ? window.productoAutocompleteUrl :
+    (typeof productoAutocompleteUrl !== "undefined" && productoAutocompleteUrl) ? productoAutocompleteUrl :
+    null;
+
+  if (!SUCURSAL_URL || !PRODUCTO_URL) {
+    console.error("❌ Faltan URLs del autocomplete. Revisa sucursalAutocompleteUrl / productoAutocompleteUrl (window o global).");
+  }
+
   // Normaliza: quita acentos y pasa a minúscula
   const norm = (s) => (s || "")
     .toString()
@@ -22,14 +35,8 @@
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
-  const uniqById = (arr) => {
-    const m = new Map();
-    for (const r of arr) if (r && r.id != null && !m.has(r.id)) m.set(r.id, r);
-    return Array.from(m.values());
-  };
-
   /* ======== DataTable de la lista ======== */
-  const dataTable = $('#productos-list').DataTable({
+  const dataTable = window.jQuery('#productos-list').DataTable({
     paging    : false,
     searching : true,
     info      : false,
@@ -43,10 +50,14 @@
 
   const COL_LABELS = ["Producto", "Cantidad", "Acciones"];
   function setDataLabels($row){
-    $('td', $row).each(function(i){ this.setAttribute('data-label', COL_LABELS[i] || ""); });
+    window.jQuery('td', $row).each(function(i){
+      this.setAttribute('data-label', COL_LABELS[i] || "");
+    });
   }
-  $('#productos-list').on('draw.dt', function(){
-    $('#productos-list tbody tr').each(function(){ setDataLabels($(this)); });
+  window.jQuery('#productos-list').on('draw.dt', function(){
+    window.jQuery('#productos-list tbody tr').each(function(){
+      setDataLabels(window.jQuery(this));
+    });
   });
 
   /* ======== refs DOM ======== */
@@ -69,25 +80,38 @@
   };
 
   const state = {
-    suc : { page:1, term:'', loading:false, more:true, list:[], ctrl:null, focused:false },
-    prd : { page:1, term:'', loading:false, more:true, list:[], ctrl:null, focused:false },
+    suc : { page:1, term:'', loading:false, more:true, ctrl:null, focused:false },
+    prd : { page:1, term:'', loading:false, more:true, ctrl:null, focused:false },
     items : [] // [{ productId, productName, cantidad }]
   };
 
   /* ======== UI helpers ======== */
   const UI = {
     clearAlerts(){
-      [dom.alertOk, dom.alertErr].forEach(a=>{ if (!a) return; a.style.display='none'; a.innerHTML=''; });
+      [dom.alertOk, dom.alertErr].forEach(a=>{
+        if (!a) return;
+        a.style.display='none';
+        a.innerHTML='';
+      });
     },
-    ok(msg){ dom.alertOk.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`; dom.alertOk.style.display='block'; },
-    err(msg){ dom.alertErr.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`; dom.alertErr.style.display='block'; },
+    ok(msg){
+      dom.alertOk.innerHTML = `<i class="fas fa-check-circle"></i> ${msg}`;
+      dom.alertOk.style.display='block';
+    },
+    err(msg){
+      dom.alertErr.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+      dom.alertErr.style.display='block';
+    },
     clearFieldErrors(){
       $qsa('.field-error').forEach(d=>{ d.classList.remove('visible'); d.textContent=''; });
       $qsa('.input-error').forEach(inp=>inp.classList.remove('input-error'));
     },
     fieldError(field, msg){
       const box = $qs(`#error-id_${field}`);
-      if (box){ box.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`; box.classList.add('visible'); }
+      if (box){
+        box.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${msg}`;
+        box.classList.add('visible');
+      }
       const map = { sucursal: dom.sucInp, productoid: dom.prdInp, cantidad: dom.qtyInp };
       const input = map[field] || $qs(`#id_${field}`);
       if (input) input.classList.add('input-error');
@@ -99,27 +123,11 @@
   const cacheProducto = Object.create(null);
   const cacheKey = (term, page, extra="") => `${(term||"").trim().toLowerCase()}|${page}|${extra}`;
 
-  // Devuelve TODAS las páginas cacheadas para (term, extra), en orden de página
-  function allCachedPages(cache, term, extra=""){
-    const t = (term||"").trim().toLowerCase();
-    const out = [];
-    Object.keys(cache).forEach(k=>{
-      const [kt, kp, ke] = k.split("|");
-      if (kt === t && ke === (extra||"")){
-        const pg = parseInt(kp,10) || 1;
-        out.push({ page: pg, data: cache[k] });
-      }
-    });
-    out.sort((a,b)=>a.page-b.page);
-    return out;
-  }
-
-  /* ======== tools ======== */
-  const debounce = (fn, ms=90) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; };
-  const hideBox = el => { el.style.display = 'none'; };
-  const showBox = el => { el.style.display = 'block'; };
+  const debounce = (fn, ms=120) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; };
   const abortCtrl = c => { try{ c?.abort(); }catch(_){} };
-  const isBoxVisible = el => !!el && window.getComputedStyle(el).display !== 'none';
+
+  const hideBox = el => { if (!el) return; el.style.display='none'; };
+  const showBox = el => { if (!el) return; el.style.display='block'; };
 
   function hideAllExcept(kind){
     if (kind === 'suc'){
@@ -147,160 +155,89 @@
   }
 
   function selectFirstAndAdvance(kind){
-    if (kind === 'suc'){
-      const first = dom.sucBox.querySelector('.autocomplete-option');
-      if (isBoxVisible(dom.sucBox) && first){
-        dom.sucInp.value = first.textContent;
-        dom.sucHid.value = first.dataset.id;
-      }
-      hideBox(dom.sucBox);
-      focusNext('suc');
-    } else if (kind === 'prd'){
-      const first = dom.prdBox.querySelector('.autocomplete-option');
-      if (isBoxVisible(dom.prdBox) && first){
-        dom.prdInp.value = first.textContent;
-        dom.prdHid.value = first.dataset.id;
-      }
-      hideBox(dom.prdBox);
-      focusNext('prd');
+    const box = (kind === 'suc') ? dom.sucBox : dom.prdBox;
+    const inp = (kind === 'suc') ? dom.sucInp : dom.prdInp;
+    const hid = (kind === 'suc') ? dom.sucHid : dom.prdHid;
+
+    const first = box?.querySelector('.autocomplete-option');
+    if (first){
+      inp.value = first.textContent;
+      hid.value = first.dataset.id;
     }
+    hideBox(box);
+    focusNext(kind);
   }
 
-  /* ======== Autocomplete mejorado ======== */
   function Autocomplete(kind){
-    // Parámetros de “prefetch” para que aparezcan similares aunque no estén en la 1ª página
-    const TARGET_SUGGESTIONS = 12;   // cuántas sugerencias intentamos mostrar
-    const MAX_AUTO_PAGES     = 6;    // páginas extra a descargar automáticamente (además de la 1ª)
-
     const cfg = (kind === 'suc') ? {
       inp : dom.sucInp, hid : dom.sucHid, box : dom.sucBox,
-      state : state.suc,  cache : cacheSucursal,
-      url: (term,page)=> `${sucursalAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}`,
-      extraKey: () => "" // sin extra
+      state : state.suc, cache : cacheSucursal,
+      url: (term,page)=> `${SUCURSAL_URL}?term=${encodeURIComponent(term)}&page=${page}`,
+      extraKey: () => ""
     } : {
       inp : dom.prdInp, hid : dom.prdHid, box : dom.prdBox,
-      state : state.prd,  cache : cacheProducto,
+      state : state.prd, cache : cacheProducto,
       url: (term,page)=>{
         const excluded = state.items.length ? `&excluded=${state.items.map(i=>i.productId).join(',')}` : '';
-        return `${productoAutocompleteUrl}?term=${encodeURIComponent(term)}&page=${page}${excluded}`;
+        return `${PRODUCTO_URL}?term=${encodeURIComponent(term)}&page=${page}${excluded}`;
       },
       extraKey: () => state.items.length ? state.items.map(i=>i.productId).join(',') : ""
     };
 
-    cfg.box.style.zIndex = "9999";
+    if (!cfg.inp || !cfg.box) return;
+
     const canShow = () => cfg.state.focused && document.activeElement === cfg.inp;
 
-    // Pinta opciones en la caja
-    const drawItems = (items, replace=true) => {
+    function draw(items){
       if (!canShow()) return;
-      if (replace) cfg.box.innerHTML = "";
-      if (items.length){
-        const frag = document.createDocumentFragment();
-        items.forEach(r=>{
-          const div = document.createElement('div');
-          div.className = 'autocomplete-option';
-          div.dataset.id = r.id;
-          div.textContent = r.text;
-          frag.appendChild(div);
-        });
-        cfg.box.appendChild(frag);
-      }else{
-        cfg.box.innerHTML = '<div class="autocomplete-no-result">No se encontraron resultados</div>';
-      }
-      if (canShow()) showBox(cfg.box);
-    };
 
-    // Devuelve las mejores sugerencias usando todas las páginas cacheadas del término
-    function buildSuggestions(){
-      const t  = cfg.state.term;
-      const nt = norm(t);
-      const extra = cfg.extraKey();
+      cfg.box.innerHTML = "";
 
-      // ① Todas las páginas cacheadas del término actual
-      let pool = [];
-      for (const p of allCachedPages(cfg.cache, t, extra)){
-        if (p.data && Array.isArray(p.data.results)) pool = pool.concat(p.data.results);
-      }
-      // ② También la página vacía (populares) como “semilla”
-      const emptyKey = cacheKey("", 1, cfg.extraKey());
-      if (cfg.cache[emptyKey]?.results) pool = pool.concat(cfg.cache[emptyKey].results);
-
-      // Únicos y filtrados por “parecido”
-      pool = uniqById(pool);
-      if (!nt) return pool.slice(0, TARGET_SUGGESTIONS);
-
-      const filtered = pool.filter(r => norm(r.text).includes(nt));
-      return filtered.slice(0, TARGET_SUGGESTIONS);
-    }
-
-    // Descarga páginas extra hasta alcanzar TARGET_SUGGESTIONS o agotar páginas
-    async function autoFetchMoreIfNeeded(){
-      if (!canShow()) return;
-      let suggestions = buildSuggestions();
-      if (suggestions.length >= TARGET_SUGGESTIONS || !cfg.state.more) {
-        drawItems(suggestions, true);
+      if (!items.length){
+        cfg.box.innerHTML = `<div class="autocomplete-no-result">No se encontraron resultados</div>`;
+        showBox(cfg.box);
         return;
       }
-      // Trae más páginas automáticamente (sin scroll)
-      let fetched = 0;
-      while (suggestions.length < TARGET_SUGGESTIONS && cfg.state.more && fetched < MAX_AUTO_PAGES){
-        cfg.state.page += 1;
-        await fetchPage(cfg.state.page, {silentReplace:true});
-        fetched += 1;
-        if (!canShow()) return;
-        suggestions = buildSuggestions();
-      }
-      drawItems(suggestions, true);
+
+      const frag = document.createDocumentFragment();
+      items.forEach(r=>{
+        const div = document.createElement('div');
+        div.className = 'autocomplete-option';
+        div.dataset.id = r.id;
+        div.textContent = r.text;
+        frag.appendChild(div);
+      });
+      cfg.box.appendChild(frag);
+      showBox(cfg.box);
     }
 
-    // Filtro instantáneo con lo ya cacheado (y luego auto-prefetch si hace falta)
-    const immediateFilter = () => {
-      if (!canShow()){ hideBox(cfg.box); return; }
-      const suggestions = buildSuggestions();
-      if (suggestions.length){
-        drawItems(suggestions, true);
-      } else {
-        // Si no hay nada aún, asegura que haya al menos la página 1 del término
-        if (cfg.state.list.length) drawItems([], true);
-        else hideBox(cfg.box);
-      }
-      // Y si no alcanzamos el objetivo, intenta traer más
-      autoFetchMoreIfNeeded(); // se ejecuta en segundo plano
-    };
+    async function fetchPage(page=1){
+      const term = cfg.state.term;
+      const key = cacheKey(term, page, cfg.extraKey());
 
-    // Descarga página concreta (queda cacheada)
-    async function fetchPage(page=1, opts={}){
-      const { silentReplace=false } = opts;
-      const term  = cfg.state.term;
-      const extra = cfg.extraKey();
-      const key   = cacheKey(term, page, extra);
-
-      // Si estaba en caché, pinta al instante y sal (igualmente recargamos en segundo plano)
       if (cfg.cache[key] && canShow()){
-        const data = cfg.cache[key];
-        if (page === 1) cfg.state.list = data.results.slice(0);
-        if (!silentReplace) drawItems(buildSuggestions(), true);
+        draw(cfg.cache[key].results || []);
       }
 
-      if (hasAbort){ abortCtrl(cfg.state.ctrl); cfg.state.ctrl = new AbortController(); }
-      else { cfg.state.ctrl = null; }
+      if (hasAbort){
+        abortCtrl(cfg.state.ctrl);
+        cfg.state.ctrl = new AbortController();
+      } else cfg.state.ctrl = null;
 
       try{
         cfg.state.loading = true;
         const resp = await fetch(cfg.url(term, page), hasAbort ? { signal: cfg.state.ctrl.signal } : undefined);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
-        cfg.cache[key] = data;
 
-        // Si cambió el término mientras pedíamos, no pintes nada
         if (term !== cfg.state.term) return;
+
+        cfg.cache[key] = data;
+        cfg.state.more = !!data.has_more;
+        cfg.state.page = page;
+
         if (!canShow()) return;
-
-        if (page === 1) cfg.state.list = (data.results || []).slice(0);
-        cfg.state.more = !!(data && data.has_more);
-
-        // Pinta con las “mejores” sugerencias tras actualizar caché
-        if (!silentReplace) drawItems(buildSuggestions(), true);
+        draw((data.results || []).slice(0));
       }catch(e){
         if (e.name !== 'AbortError') console.error(e);
       }finally{
@@ -308,102 +245,65 @@
       }
     }
 
-    const kickFetch = debounce(()=>{ cfg.state.page=1; cfg.state.more=true; fetchPage(1); }, 90);
+    const kickFetch = debounce(()=> fetchPage(1), 120);
 
-    // input
     cfg.inp.addEventListener('input', ()=>{
       cfg.hid.value = '';
       cfg.state.term = cfg.inp.value;
-      immediateFilter();
       kickFetch();
     });
 
-    // focus
     cfg.inp.addEventListener('focus', ()=>{
       hideAllExcept(kind);
       cfg.state.focused = true;
       cfg.state.term = cfg.inp.value;
-
-      // Asegura tener semilla vacía (populares)
-      if (!cfg.cache[cacheKey("",1,cfg.extraKey())]) {
-        const prevTerm = cfg.state.term;
-        cfg.state.term = "";
-        cfg.state.page = 1; cfg.state.more = true;
-        fetchPage(1, {silentReplace:true}).finally(()=>{
-          cfg.state.term = prevTerm; // restaura
-        });
-      }
-
-      // Pinta con lo que haya y trae la 1ª del término
-      immediateFilter();
-      cfg.state.page = 1; cfg.state.more = true;
-      fetchPage(1).then(()=> autoFetchMoreIfNeeded());
+      fetchPage(1); // term vacío también debe traer
     });
 
-    // blur (pequeño delay para permitir click)
     cfg.inp.addEventListener('blur', ()=>{
       cfg.state.focused = false;
-      setTimeout(()=> hideBox(cfg.box), 120);
+      setTimeout(()=> hideBox(cfg.box), 140);
     });
 
-    // ESC
     cfg.inp.addEventListener('keydown', (e)=>{
-      if (e.key === 'Escape'){ cfg.state.focused = false; hideBox(cfg.box); }
+      if (e.key === 'Escape'){
+        cfg.state.focused = false;
+        hideBox(cfg.box);
+      }
     });
 
-    // ENTER → seleccionar 1ª opción y avanzar
     cfg.inp.addEventListener('keydown', (e)=>{
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      if (kind === 'suc') selectFirstAndAdvance('suc');
-      else selectFirstAndAdvance('prd');
+      selectFirstAndAdvance(kind);
     });
 
-    // infinite scroll (sigue funcionando)
-    cfg.box.addEventListener('scroll', ()=>{
-      if (!canShow()) return;
-      if (cfg.box.scrollTop + cfg.box.clientHeight >= cfg.box.scrollHeight - 4){
-        if (cfg.state.more && !cfg.state.loading){
-          cfg.state.page += 1; fetchPage(cfg.state.page);
-        }
-      }
-    });
-
-    // evitar que el blur cierre antes del click
     cfg.box.addEventListener('mousedown', e=> e.preventDefault());
 
-    // selección por click (ratón / táctil)
     cfg.box.addEventListener('click', e=>{
       const opt = e.target.closest('.autocomplete-option');
       if (!opt) return;
       cfg.inp.value = opt.textContent;
       cfg.hid.value = opt.dataset.id;
       hideBox(cfg.box);
-      if (kind === 'suc') focusNext('suc'); else focusNext('prd');
+      focusNext(kind);
     });
-
-    // click/touch fuera
-    document.addEventListener('mousedown', e=>{
-      if (!cfg.inp.contains(e.target) && !cfg.box.contains(e.target)) { cfg.state.focused = false; hideBox(cfg.box); }
-    });
-    document.addEventListener('touchstart', e=>{
-      if (!cfg.inp.contains(e.target) && !cfg.box.contains(e.target)) { cfg.state.focused = false; hideBox(cfg.box); }
-    }, {passive:true});
   }
 
   Autocomplete('suc');
   Autocomplete('prd');
 
-  /* ======== Enter en inputs normales ======== */
   dom.qtyInp.addEventListener('keydown', (e)=>{
     if (e.key === 'Enter'){ e.preventDefault(); dom.btnAdd.click(); }
   });
 
-  // Evita submits por Enter fuera del flujo
   dom.form.addEventListener('keydown', (e)=>{
     if (e.key === 'Enter' && e.target !== dom.qtyInp && e.target !== dom.sucInp && e.target !== dom.prdInp){
       e.preventDefault();
-      const key = e.target === dom.sucInp ? 'suc' : e.target === dom.prdInp ? 'prd' : e.target === dom.qtyInp ? 'qty' : null;
+      const key =
+        (e.target === dom.sucInp) ? 'suc' :
+        (e.target === dom.prdInp) ? 'prd' :
+        (e.target === dom.qtyInp) ? 'qty' : null;
       if (key) focusNext(key);
     }
   });
@@ -437,15 +337,13 @@
        </button>`
     ]).draw(false).node();
 
-    setDataLabels($(newRowNode));
+    setDataLabels(window.jQuery(newRowNode));
 
-    // Reset & focus para flujo rápido
     dom.prdInp.value=''; dom.prdHid.value='';
     dom.qtyInp.value='';
     dom.prdInp.focus();
   });
 
-  /* ======== Eliminar fila ======== */
   dom.rowsWrap.addEventListener('click', e=>{
     const btn = e.target.closest('.btn-eliminar');
     if (!btn) return;
@@ -454,16 +352,20 @@
     dataTable.row(btn.closest('tr')).remove().draw(false);
   });
 
-  /* ======== Submit ======== */
   dom.form.addEventListener('submit', async ev=>{
     ev.preventDefault();
     UI.clearAlerts(); UI.clearFieldErrors();
 
-    if (!state.items.length){ UI.err('Debe agregar al menos un producto.'); return; }
+    if (!state.items.length){
+      UI.err('Debe agregar al menos un producto.');
+      return;
+    }
 
     dataTable.rows().every(function(){
-      const [prod, qtyCell] = this.node().querySelectorAll('td');
-      const item = state.items.find(i=>i.productName === prod.textContent.trim());
+      const tds = this.node().querySelectorAll('td');
+      const prodCell = tds[0];
+      const qtyCell  = tds[1];
+      const item = state.items.find(i=>i.productName === prodCell.textContent.trim());
       const inp  = qtyCell.querySelector('.qty-input');
       if (item && inp) item.cantidad = inp.value.trim();
     });
@@ -471,14 +373,16 @@
     $id('id_inventarios_temp').value = JSON.stringify(state.items);
 
     try{
+      const csrftoken = document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1] || '';
       const resp = await fetch(dom.form.action,{
         method : 'POST',
         headers: {
-          'X-CSRFToken': document.cookie.split(';').find(c=>c.trim().startsWith('csrftoken='))?.split('=')[1] || '',
+          'X-CSRFToken': csrftoken,
           'Accept'     : 'application/json'
         },
-        body   : new FormData(dom.form)
+        body: new FormData(dom.form)
       });
+
       const data = await resp.json();
 
       if (data.success){
@@ -487,17 +391,15 @@
         state.items = [];
         dataTable.clear().draw();
 
-        // limpia caché
-        Object.keys(cacheSucursal).forEach(k=>delete cacheSucursal[k]);
-        Object.keys(cacheProducto).forEach(k=>delete cacheProducto[k]);
-
         dom.sucInp.value=''; dom.sucHid.value='';
         dom.prdInp.value=''; dom.prdHid.value='';
         hideAllExcept(null);
         dom.sucInp.focus();
-      }else{
+      } else {
         const errs = JSON.parse(data.errors || '{}');
-        Object.entries(errs).forEach(([field, arr])=>{ arr.forEach(e=>UI.fieldError(field, e.message)); });
+        Object.entries(errs).forEach(([field, arr])=>{
+          (arr || []).forEach(e=> UI.fieldError(field, e.message));
+        });
       }
     }catch(err){
       console.error(err);
@@ -505,6 +407,5 @@
     }
   });
 
-  // draw inicial por si hay filas
-  $('#productos-list').trigger('draw.dt');
+  window.jQuery('#productos-list').trigger('draw.dt');
 })();

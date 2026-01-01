@@ -5,6 +5,7 @@ from datetime import date
 from django.db import models, transaction
 from django.db.models import Q
 from django.forms import ValidationError
+from django.utils import timezone
 
 class Sucursal(models.Model):
     sucursalid = models.AutoField(primary_key=True)
@@ -44,6 +45,7 @@ class Producto(models.Model):
     ibua = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     
     rentabilidad = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    precio_anterior = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     class Meta:
         db_table = 'productos'
@@ -463,3 +465,56 @@ class RolPermiso(models.Model):
 
     def __str__(self):
         return f"{self.rol} ↔ {self.permiso}"
+    
+class TurnoCaja(models.Model):
+    ESTADOS = (
+        ("ABIERTO", "Abierto"),
+        ("CIERRE", "En cierre"),
+        ("CERRADO", "Cerrado"),
+    )
+
+    puntopago = models.ForeignKey("PuntosPago", on_delete=models.PROTECT, db_column="puntopago_id")
+    cajero = models.ForeignKey("Usuario", on_delete=models.PROTECT, db_column="cajero_id")
+
+    inicio = models.DateTimeField(default=timezone.now)
+    cierre_iniciado = models.DateTimeField(null=True, blank=True)
+    fin = models.DateTimeField(null=True, blank=True)
+
+    saldo_apertura_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    efectivo_real = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+
+    esperado_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    real_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    diferencia_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    diferencia_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    estado = models.CharField(max_length=10, choices=ESTADOS, default="ABIERTO")
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "turnos_caja"
+        indexes = [
+            models.Index(fields=["puntopago", "estado"]),
+            models.Index(fields=["puntopago", "inicio"]),
+        ]
+
+    def __str__(self):
+        return f"TurnoCaja #{self.id} - caja:{self.puntopago_id} - cajero:{self.cajero_id} - {self.estado}"
+
+
+class TurnoCajaMedio(models.Model):
+    turno = models.ForeignKey(TurnoCaja, on_delete=models.CASCADE, related_name="medios", db_column="turno_id")
+    metodo = models.CharField(max_length=50)
+    esperado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    contado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    diferencia = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = "turno_caja_medios"
+        constraints = [
+            models.UniqueConstraint(fields=["turno", "metodo"], name="turno_caja_medios_unique")
+        ]
+
+    def __str__(self):
+        return f"{self.turno_id} - {self.metodo}"

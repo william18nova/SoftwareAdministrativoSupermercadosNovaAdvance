@@ -1,9 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso, PagoVenta
+from .models import Usuario, Sucursal, Categoria, Producto, Inventario, Proveedor, PreciosProveedor, PuntosPago, Rol, Empleado, HorariosNegocio, HorarioCaja, Cliente, Venta, DetalleVenta, PedidoProveedor, DetallePedidoProveedor, CambioDevolucion, Permiso, RolPermiso, PagoVenta, TurnoCaja, TurnoCajaMedio
 from django.db.models import Count, Sum, Exists, OuterRef, Q, F, ExpressionWrapper, DecimalField, Value, IntegerField, Case, When
-from django.http import JsonResponse, HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.contrib.auth import authenticate, login as auth_login
 import json
 from datetime import date, datetime
@@ -69,14 +69,40 @@ from django.utils.decorators import method_decorator
 from django.utils.html import escape
 from django.db.models import Subquery
 from django.core.paginator import Paginator
-from django.db.models.functions import Upper, Lower, StrIndex, Trim
+from django.db.models.functions import Lower, StrIndex, Trim, Coalesce
 import os, io, textwrap, subprocess
 from django.views.decorators.http import require_POST
 from django.conf import settings
 
 
 
+
 logger = logging.getLogger(__name__)
+
+class DenyRolesMixin:
+    """
+    Bloquea acceso si el usuario tiene alguno de los roles en deny_roles.
+    Asume que el user tiene FK user.rolid y rol tiene campo .nombre
+    """
+    deny_roles = []                 # ej: ["CajeroY"]
+    redirect_url = "home"           # o la que quieras
+    forbid_instead_of_redirect = False
+
+    def dispatch(self, request, *args, **kwargs):
+        user = request.user
+        rol_nombre = ""
+        try:
+            rol_nombre = (getattr(getattr(user, "rolid", None), "nombre", "") or "").strip()
+        except Exception:
+            rol_nombre = ""
+
+        if rol_nombre in (self.deny_roles or []):
+            if self.forbid_instead_of_redirect:
+                return HttpResponseForbidden("No tienes permiso para acceder a esta página.")
+            messages.error(request, "⛔ No tienes permiso para acceder a esa página.")
+            return redirect(self.redirect_url)
+
+        return super().dispatch(request, *args, **kwargs)
 
 # ---------- mixin reutilizable para autocompletados ----------
 class PaginatedAutocompleteMixin(LoginRequiredMixin, View):
@@ -382,19 +408,11 @@ class CategoriaAutocompleteView(PaginatedAutocompleteMixin):
     per_page   = 10                   # ← (opcional) página de 10 resultados
 
 
-class ProductoListView(LoginRequiredMixin, ListView):
-    """
-    Lista completa de productos sin paginación en Django.
-    La paginación se hace en el cliente con DataTables.
-    """
-    model = Producto
+class ProductoListView(LoginRequiredMixin, TemplateView):
     template_name = "visualizar_productos.html"
-    context_object_name = "productos"
-    ordering = "nombre"         # se ordena alfabéticamente en el servidor
-    paginate_by = None          # 🔴 sin paginación del lado servidor
+    ordering = "nombre"
 
     def get_queryset(self):
-        # Evita N+1 y ordena
         return (
             Producto.objects
             .select_related("categoria")
@@ -403,154 +421,129 @@ class ProductoListView(LoginRequiredMixin, ListView):
 
 
 class ProductoDataTableView(LoginRequiredMixin, View):
-    """
-    Endpoint ultra-rápido para DataTables (server-side).
-    - Usa values() para evitar instanciar modelos completos.
-    - Aprovecha índices en nombre y código de barras.
-    - Modo 'scanner' cuando el término es numérico largo.
-    """
 
     def get(self, request, *args, **kwargs):
-        # -------- parámetros DataTables --------
-        draw   = int(request.GET.get("draw", "1"))
-        start  = int(request.GET.get("start", "0"))
-        length = int(request.GET.get("length", "25"))
-        search_value = request.GET.get("search[value]", "").strip()
+      draw   = int(request.GET.get("draw", "1"))
+      start  = int(request.GET.get("start", "0"))
+      length = int(request.GET.get("length", "25"))
+      search_value = request.GET.get("search[value]", "").strip()
 
-        # -------- base queryset (solo para total) --------
-        base_qs = Producto.objects.all()
-        records_total = base_qs.count()
+      base_qs = Producto.objects.all()
+      records_total = base_qs.count()
 
-        qs = base_qs
+      qs = base_qs
 
-        # -------- filtro ultra-rápido --------
-        if search_value:
-            # Si parece código de barras (solo dígitos y largo >= 8):
-            if search_value.isdigit() and len(search_value) >= 8:
-                qs = qs.filter(codigo_de_barras__iexact=search_value)
-            else:
-                tokens = search_value.split()
-                for token in tokens:
-                    qs = qs.filter(
-                        Q(nombre__icontains=token) |
-                        Q(codigo_de_barras__icontains=token) |
-                        Q(categoria__nombre__icontains=token)
-                    )
+      if search_value:
+          if search_value.isdigit() and len(search_value) >= 8:
+              qs = qs.filter(codigo_de_barras__iexact=search_value)
+          else:
+              tokens = search_value.split()
+              for token in tokens:
+                  qs = qs.filter(
+                      Q(nombre__icontains=token) |
+                      Q(codigo_de_barras__icontains=token) |
+                      Q(categoria__nombre__icontains=token)
+                  )
 
-        records_filtered = qs.count()
+      records_filtered = qs.count()
 
-        # -------- ordenamiento --------
-        order_column_index = request.GET.get("order[0][column]", "1")
-        order_dir          = request.GET.get("order[0][dir]", "asc")
+      order_column_index = request.GET.get("order[0][column]", "1")
+      order_dir          = request.GET.get("order[0][dir]", "asc")
 
-        columns = [
-            "productoid",           # 0
-            "nombre",               # 1
-            "descripcion",          # 2
-            "precio",               # 3
-            "categoria__nombre",    # 4
-            "codigo_de_barras",     # 5
-            "iva",                  # 6
+      columns = [
+          "productoid",           # 0
+          "nombre",               # 1
+          "descripcion",          # 2
+          "precio",               # 3
+          "precio_anterior",      # 4 ✅
+          "categoria__nombre",    # 5
+          "codigo_de_barras",     # 6
+          "iva",                  # 7
+          "impuesto_consumo",     # 8
+          "icui",                 # 9
+          "ibua",                 # 10
+          "rentabilidad",         # 11
+          # 12 = acciones
+      ]
 
-            # ✅ nuevas
-            "impuesto_consumo",     # 7
-            "icui",                 # 8
-            "ibua",                 # 9
-            "rentabilidad",         # 10
+      try:
+          idx = int(order_column_index)
+          order_column = columns[idx]
+      except (ValueError, IndexError):
+          order_column = "nombre"
 
-            # 11 = acciones (no ordena)
-        ]
+      if order_dir == "desc":
+          order_column = "-" + order_column
 
-        try:
-            idx = int(order_column_index)
-            order_column = columns[idx]
-        except (ValueError, IndexError):
-            order_column = "nombre"
+      qs_page = (
+          qs.select_related("categoria")
+            .order_by(order_column)
+            .values(
+                "productoid",
+                "nombre",
+                "descripcion",
+                "precio",
+                "precio_anterior",     # ✅
+                "categoria__nombre",
+                "codigo_de_barras",
+                "iva",
+                "impuesto_consumo",
+                "icui",
+                "ibua",
+                "rentabilidad",
+            )[start:start + length]
+      )
 
-        if order_dir == "desc":
-            order_column = "-" + order_column
+      data = []
+      for p in qs_page:
+          precio_anterior = p["precio_anterior"]
+          data.append({
+              "productoid": p["productoid"],
+              "nombre": p["nombre"],
+              "descripcion": p["descripcion"] or "—",
+              "precio": f"${p['precio']:.2f}",
+              "precio_anterior": f"${precio_anterior:.2f}" if precio_anterior is not None else "—",
+              "categoria": p["categoria__nombre"] or "—",
+              "codigo_de_barras": p["codigo_de_barras"] or "—",
+              "iva": f"{p['iva']:.2f}",
+              "impuesto_consumo": f"${p['impuesto_consumo']:.2f}",
+              "icui": f"${p['icui']:.2f}",
+              "ibua": f"${p['ibua']:.2f}",
+              "rentabilidad": f"{p['rentabilidad']:.2f}%",
+              "acciones": f"""
+                <div class="btn-container">
+                  <a href="{reverse('editar_producto', args=[p['productoid']])}"
+                     class="btn editar" title="Editar {p['nombre']}">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <button type="button" class="btn borrar"
+                          data-url="{reverse('eliminar_producto', args=[p['productoid']])}"
+                          data-nombre="{p['nombre']}"
+                          title="Eliminar {p['nombre']}">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              """,
+          })
 
-        # -------- slice + values (solo columnas necesarias) --------
-        qs_page = (
-            qs.select_related("categoria")
-              .order_by(order_column)
-              .values(
-                  "productoid",
-                  "nombre",
-                  "descripcion",
-                  "precio",
-                  "categoria__nombre",
-                  "codigo_de_barras",
-                  "iva",
-
-                  # ✅ nuevas
-                  "impuesto_consumo",
-                  "icui",
-                  "ibua",
-                  "rentabilidad",
-              )[start:start + length]
-        )
-
-        # -------- construir respuesta --------
-        data = []
-        for p in qs_page:
-            impuesto_consumo = p.get("impuesto_consumo") or 0
-            icui             = p.get("icui") or 0
-            ibua             = p.get("ibua") or 0
-            rentabilidad     = p.get("rentabilidad") or 0
-
-            data.append({
-                "productoid": p["productoid"],
-                "nombre": p["nombre"],
-                "descripcion": p["descripcion"] or "—",
-                "precio": f"${p['precio']:.2f}",
-                "categoria": p["categoria__nombre"] or "—",
-                "codigo_de_barras": p["codigo_de_barras"] or "—",
-                "iva": f"{p['iva']:.2f}",
-
-                # ✅ nuevas
-                "impuesto_consumo": f"${impuesto_consumo:.2f}",
-                "icui": f"${icui:.2f}",
-                "ibua": f"${ibua:.2f}",
-                "rentabilidad": f"{rentabilidad:.2f}%",
-
-                "acciones": f"""
-                  <div class="btn-container">
-                    <a href="{reverse('editar_producto', args=[p['productoid']])}"
-                       class="btn editar" title="Editar {p['nombre']}">
-                      <i class="fas fa-edit"></i>
-                    </a>
-                    <button type="button" class="btn borrar"
-                            data-url="{reverse('eliminar_producto', args=[p['productoid']])}"
-                            data-nombre="{p['nombre']}"
-                            title="Eliminar {p['nombre']}">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
-                  </div>
-                """,
-            })
-
-        return JsonResponse({
-            "draw": draw,
-            "recordsTotal": records_total,
-            "recordsFiltered": records_filtered,
-            "data": data,
-        })
+      return JsonResponse({
+          "draw": draw,
+          "recordsTotal": records_total,
+          "recordsFiltered": records_filtered,
+          "data": data,
+      })
 
 
 @login_required
 def eliminar_producto(request, producto_id):
     producto = get_object_or_404(Producto, productoid=producto_id)
-
-    if request.method == "POST":
+    if request.method == 'POST':
         nombre_producto = producto.nombre
         producto.delete()
         messages.success(request, f'El producto "{nombre_producto}" ha sido eliminado exitosamente.')
-        return redirect("visualizar_productos")
-
-    # Si no es POST, simplemente se vuelve a renderizar la página
+        return redirect('visualizar_productos')
     productos = Producto.objects.all()
-    return render(request, "visualizar_productos.html", {"productos": productos})
+    return render(request, 'visualizar_productos.html', {'productos': productos})
 
 
 class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
@@ -562,28 +555,32 @@ class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
     model         = Producto
     form_class    = ProductoEditarForm
     template_name = "editar_producto.html"
-    pk_url_kwarg  = "producto_id"      #  /productos/editar/<producto_id>/
+    pk_url_kwarg  = "producto_id"
 
-    # -------------------- POST OK --------------------
     def form_valid(self, form):
-        producto = form.save()
+        # precio actual en BD (antes del cambio)
+        old_obj = self.get_object()
+        old_precio = old_obj.precio
 
-        # AJAX
+        # No guardamos aún para poder inyectar precio_anterior si aplica
+        producto = form.save(commit=False)
+
+        # ✅ regla: solo actualiza precio_anterior si cambió el precio
+        if producto.precio != old_precio:
+            producto.precio_anterior = old_precio
+
+        producto.save()
+
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({
-                "success"     : True,
+                "success": True,
                 "redirect_url": reverse("visualizar_productos"),
-                "nombre"      : producto.nombre,
+                "nombre": producto.nombre,
             })
 
-        # Navegación normal
-        messages.success(
-            self.request,
-            f'Producto «{producto.nombre}» actualizado correctamente.'
-        )
+        messages.success(self.request, f'Producto «{producto.nombre}» actualizado correctamente.')
         return super().form_valid(form)
 
-    # ------------------ POST con errores -------------
     def form_invalid(self, form):
         if self.request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse(
@@ -592,7 +589,6 @@ class ProductoUpdateAJAXView(LoginRequiredMixin, UpdateView):
             )
         return super().form_invalid(form)
 
-    # --------------------- redirect ------------------
     def get_success_url(self):
         return reverse_lazy("visualizar_productos")
 
@@ -700,15 +696,71 @@ class InventarioCreateAJAXView(LoginRequiredMixin, View):
 
 
 # ---------- autocompletado ①: sucursales sin inventario ----------
+@method_decorator(login_required, name="dispatch")
 class SucursalSinInventarioAutocomplete(PaginatedAutocompleteMixin):
     model = Sucursal
 
-    def extra_filter(self, qs, request):
-        return (
-            qs.annotate(inv_count=Count("inventario"))
-              .filter(inv_count=0)
+    def get_queryset(self, request):
+        term = (request.GET.get("term") or "").strip()
+
+        qs = Sucursal.objects.all()
+
+        # filtro por término (opcional, para que al escribir busque)
+        if term:
+            qs = qs.filter(
+                Q(nombre__icontains=term) |
+                Q(direccion__icontains=term)
+            )
+
+        # SOLO sucursales SIN inventario
+        qs = qs.annotate(
+            tiene_inv=Exists(
+                Inventario.objects.filter(sucursalid=OuterRef("pk"))
+            )
+        ).filter(tiene_inv=False)
+
+        return qs.order_by("nombre")
+
+
+def sucursal_sin_inventario_autocomplete(request):
+    term = (request.GET.get("term") or "").strip()
+    page = int(request.GET.get("page") or 1)
+    page_size = 10
+
+    # ✅ NO depende del related_name. "Sucursal" PK real: sucursalid
+    inv_qs = Inventario.objects.filter(sucursalid=OuterRef("pk"))
+
+    qs = (
+        Sucursal.objects
+        .annotate(_has_inv=Exists(inv_qs))
+        .filter(_has_inv=False)
+    )
+
+    # ✅ permitir term vacío
+    if term:
+        qs = qs.filter(
+            Q(nombre__icontains=term) |
+            Q(direccion__icontains=term)
         )
 
+    # ✅ orden correcto (usa pk o sucursalid)
+    qs = qs.order_by("nombre", "sucursalid")
+
+    total = qs.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    results = []
+    for s in qs[start:end]:
+        results.append({
+            "id": s.pk,          # Django pk = sucursalid en tu caso
+            "text": s.nombre
+        })
+
+    return JsonResponse({
+        "results": results,
+        "has_more": end < total
+    })
 
 # ---------- autocompletado ②: productos (excluye IDs recibidos) ----------
 class ProductoAutocomplete(PaginatedAutocompleteMixin):
@@ -3645,7 +3697,7 @@ class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
         return JsonResponse({"results": results, "has_more": total > self.per_page})
 
 
-class VentaListView(LoginRequiredMixin, TemplateView):
+class VentaListView( LoginRequiredMixin, TemplateView):
     """
     Todas las ventas con la MÁS RECIENTE primero.
     """
@@ -4927,7 +4979,7 @@ class PermisoParaRolAutocomplete(LoginRequiredMixin, View):
 PAGE_SIZE = 20
 
 
-class VentasDiariasStatsView(LoginRequiredMixin, View):
+class VentasDiariasStatsView(DenyRolesMixin, LoginRequiredMixin, View):
     def get(self, request):
         sid  = (request.GET.get("sucursal_id") or "").strip()
         pid  = (request.GET.get("puntopago_id") or "").strip()
@@ -5231,3 +5283,317 @@ class PedidosPagadosView(LoginRequiredMixin, View):
             "cantidad": int(cantidad),
             "total": f"{total:.2f}"
         })
+        
+
+
+
+    
+def _metodo_es_efectivo(nombre: str) -> bool:
+    n = (nombre or "").strip().lower()
+    return n in {"efectivo", "cash"}
+
+
+
+def _ventas_en_rango(puntopago_id: int, dt_start, dt_end):
+    """
+    Filtra por fecha (date) y hora (time) en ventas.
+    Soporta cruce de medianoche.
+    """
+    start_d = dt_start.date()
+    end_d = dt_end.date()
+    start_t = dt_start.time()
+    end_t = dt_end.time()
+
+    qs = Venta.objects.filter(puntopagoid=puntopago_id)
+
+    if start_d == end_d:
+        return qs.filter(fecha=start_d, hora__gte=start_t, hora__lte=end_t)
+
+    return qs.filter(
+        Q(fecha=start_d, hora__gte=start_t) |
+        Q(fecha=end_d, hora__lte=end_t) |
+        Q(fecha__gt=start_d, fecha__lt=end_d)
+    )
+
+
+def _sumas_por_medio(ventas_qs):
+    """
+    Retorna dict {metodo: Decimal(total)}.
+    - Si la venta tiene registros en PagoVenta => usa esos
+    - Si no tiene => usa ventas.mediopago + ventas.total
+    """
+
+    MONEY = DecimalField(max_digits=12, decimal_places=2)
+
+    pagos_exists = PagoVenta.objects.filter(ventaid=OuterRef("pk"))
+    ventas = ventas_qs.annotate(tiene_pagos=Exists(pagos_exists))
+
+    ventas_con_pagos = ventas.filter(tiene_pagos=True)
+    ventas_sin_pagos = ventas.filter(tiene_pagos=False)
+
+    out = {}
+
+    # 1) Ventas que sí tienen PagoVenta
+    pagos = (
+        PagoVenta.objects
+        .filter(ventaid__in=ventas_con_pagos)
+        .values(metodo=F("medio_pago"))  # alias para que la key sea "metodo"
+        .annotate(
+            total=Coalesce(
+                Sum("monto", output_field=MONEY),
+                Value(Decimal("0.00"), output_field=MONEY),
+            )
+        )
+    )
+
+    for row in pagos:
+        metodo = row["metodo"] or "Sin especificar"
+        out[metodo] = out.get(metodo, Decimal("0.00")) + (row["total"] or Decimal("0.00"))
+
+    # 2) Fallback: ventas sin pagos registrados => usar mediopago + total de Venta
+    fallback = (
+        ventas_sin_pagos
+        .values(metodo=F("mediopago"))  # alias para uniformidad
+        .annotate(
+            total=Coalesce(
+                Sum("total", output_field=MONEY),
+                Value(Decimal("0.00"), output_field=MONEY),
+            )
+        )
+    )
+
+    for row in fallback:
+        metodo = row["metodo"] or "Sin especificar"
+        out[metodo] = out.get(metodo, Decimal("0.00")) + (row["total"] or Decimal("0.00"))
+
+    return out
+
+
+def _validar_password_usuario(request, usuario: Usuario, raw_password: str) -> bool:
+    """
+    Intenta validar contraseña del usuario.
+    1) authenticate (si tu Usuario está conectado al auth backend)
+    2) check_password contra el campo contraseña/password (si guardas hashes Django)
+    3) comparación directa (solo si tu app guarda en texto plano — NO recomendado)
+    """
+    # 1) auth estándar
+    try:
+        from django.contrib.auth import authenticate
+        ok = authenticate(request, username=usuario.nombreusuario, password=raw_password)
+        if ok is not None:
+            return True
+    except Exception:
+        pass
+
+    # 2) hashers
+    try:
+        from django.contrib.auth.hashers import check_password
+        hashed = None
+        # Soporta nombre raro "contraseña"
+        if hasattr(usuario, "contraseña"):
+            hashed = getattr(usuario, "contraseña")
+        elif hasattr(usuario, "contrasena"):
+            hashed = getattr(usuario, "contrasena")
+        elif hasattr(usuario, "password"):
+            hashed = getattr(usuario, "password")
+
+        if hashed:
+            try:
+                if check_password(raw_password, hashed):
+                    return True
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 3) texto plano (último recurso)
+    try:
+        actual = None
+        if hasattr(usuario, "contraseña"):
+            actual = getattr(usuario, "contraseña")
+        elif hasattr(usuario, "contrasena"):
+            actual = getattr(usuario, "contrasena")
+        elif hasattr(usuario, "password"):
+            actual = getattr(usuario, "password")
+        return (actual == raw_password)
+    except Exception:
+        return False
+
+
+@login_required
+@transaction.atomic
+def cierre_caja(request):
+    puntospagos = PuntosPago.objects.all().order_by("nombre")
+    usuarios = Usuario.objects.all().order_by("nombreusuario")
+
+    turno = None
+    turno_id = request.GET.get("turno")
+    if turno_id:
+        turno = get_object_or_404(TurnoCaja, pk=turno_id)
+
+    action = request.POST.get("action")
+
+    # =========================
+    # 1) INICIAR TURNO
+    # =========================
+    if action == "iniciar_turno":
+        puntopago_id = int(request.POST.get("puntopago_id"))
+        usuario_id = int(request.POST.get("usuario_id"))
+        password = request.POST.get("password", "")
+
+        puntopago = get_object_or_404(PuntosPago, pk=puntopago_id)
+        cajero = get_object_or_404(Usuario, pk=usuario_id)
+
+        if not _validar_password_usuario(request, cajero, password):
+            messages.error(request, "Contraseña incorrecta para ese usuario.")
+            return redirect("cierre_caja")
+
+        # Evitar 2 turnos simultáneos en la misma caja
+        if TurnoCaja.objects.filter(puntopago=puntopago, estado__in=["ABIERTO", "CIERRE"]).exists():
+            messages.error(request, "Ya existe un turno abierto o en cierre para esta caja.")
+            return redirect("cierre_caja")
+
+        # Base: lo que físicamente hay (y se mantiene actualizado al cerrar turnos)
+        saldo_apertura = Decimal(puntopago.dinerocaja or 0)
+
+        # (Opcional) si quieres permitir que el cajero confirme conteo inicial:
+        efectivo_apertura_in = (request.POST.get("efectivo_apertura") or "").replace(",", ".").strip()
+        if efectivo_apertura_in:
+            try:
+                saldo_apertura = Decimal(efectivo_apertura_in)
+                # si quieres, sincroniza físicamente:
+                puntopago.dinerocaja = saldo_apertura
+                puntopago.save(update_fields=["dinerocaja"])
+            except Exception:
+                pass
+
+        turno = TurnoCaja.objects.create(
+            puntopago=puntopago,
+            cajero=cajero,
+            inicio=timezone.now(),
+            saldo_apertura_efectivo=saldo_apertura,
+            estado="ABIERTO",
+        )
+
+        messages.success(request, "Turno iniciado correctamente.")
+        return redirect(f"{request.path}?turno={turno.id}")
+
+    # =========================
+    # 2) INICIAR CIERRE (snapshot)
+    # =========================
+    if action == "iniciar_cierre":
+        turno = get_object_or_404(TurnoCaja, pk=int(request.POST.get("turno_id")))
+        if turno.estado != "ABIERTO":
+            messages.error(request, "Este turno no está en estado ABIERTO.")
+            return redirect(f"{request.path}?turno={turno.id}")
+
+        ahora = timezone.now()
+        ventas = _ventas_en_rango(turno.puntopago_id, turno.inicio, ahora)
+        sumas = _sumas_por_medio(ventas)
+
+        # Guardar snapshot por medios (reinicia)
+        TurnoCajaMedio.objects.filter(turno=turno).delete()
+
+        esperado_total = Decimal("0")
+        for metodo, total in sumas.items():
+            TurnoCajaMedio.objects.create(
+                turno=turno,
+                metodo=metodo,
+                esperado=total,
+                diferencia=Decimal("0"),
+            )
+            esperado_total += total
+
+        turno.cierre_iniciado = ahora
+        turno.esperado_total = esperado_total
+        turno.estado = "CIERRE"
+        turno.save(update_fields=["cierre_iniciado", "esperado_total", "estado"])
+
+        messages.success(request, "Cierre iniciado. Ahora realiza el conteo real.")
+        return redirect(f"{request.path}?turno={turno.id}")
+
+    # =========================
+    # 3) FINALIZAR CIERRE
+    # =========================
+    if action == "finalizar_cierre":
+        turno = get_object_or_404(TurnoCaja, pk=int(request.POST.get("turno_id")))
+        if turno.estado != "CIERRE":
+            messages.error(request, "Este turno no está en estado CIERRE.")
+            return redirect(f"{request.path}?turno={turno.id}")
+
+        medios = list(turno.medios.all().order_by("metodo"))
+
+        real_total = Decimal("0")
+        diff_total = Decimal("0")
+
+        # Guardar conteos por medio
+        for m in medios:
+            raw = (request.POST.get(f"contado_{m.id}", "") or "0").replace(",", ".").strip()
+            contado = Decimal(raw or "0")
+            m.contado = contado
+            m.diferencia = contado - (m.esperado or Decimal("0"))
+            m.save(update_fields=["contado", "diferencia"])
+
+            real_total += contado
+            diff_total += m.diferencia
+
+        # Efectivo físico en caja
+        efectivo_real_str = (request.POST.get("efectivo_real", "") or "0").replace(",", ".").strip()
+        efectivo_real = Decimal(efectivo_real_str or "0")
+
+        # Esperado efectivo físico = apertura + ventas en efectivo (según snapshot)
+        esperado_efectivo = turno.saldo_apertura_efectivo
+        for m in medios:
+            if _metodo_es_efectivo(m.metodo):
+                esperado_efectivo += (m.esperado or Decimal("0"))
+
+        diff_efectivo = efectivo_real - esperado_efectivo
+
+        # Guardar resumen y cerrar turno
+        turno.efectivo_real = efectivo_real
+        turno.real_total = real_total
+        turno.diferencia_total = diff_total
+        turno.diferencia_efectivo = diff_efectivo
+        turno.fin = timezone.now()
+        turno.estado = "CERRADO"
+        turno.save(update_fields=[
+            "efectivo_real", "real_total", "diferencia_total",
+            "diferencia_efectivo", "fin", "estado"
+        ])
+
+        # CLAVE: actualiza dinero real en caja para que el siguiente turno arranque desde lo real
+        puntopago = turno.puntopago
+        puntopago.dinerocaja = efectivo_real
+        puntopago.save(update_fields=["dinerocaja"])
+
+        # Mensaje final
+        if diff_efectivo < 0:
+            messages.warning(request, f"Cierre finalizado. FALTANTE efectivo: {abs(diff_efectivo):,.2f}")
+        elif diff_efectivo > 0:
+            messages.warning(request, f"Cierre finalizado. SOBRANTE efectivo: {diff_efectivo:,.2f}")
+        else:
+            messages.success(request, "Cierre finalizado. Efectivo cuadrado.")
+
+        return redirect("cierre_caja")
+
+    # =========================
+    # RENDER
+    # =========================
+    context = {
+        "puntospagos": puntospagos,
+        "usuarios": usuarios,
+        "turno": turno,
+    }
+
+    if turno:
+        medios = list(turno.medios.all().order_by("metodo"))
+        context["medios"] = medios
+
+        if turno.estado == "CIERRE":
+            esperado_efectivo = turno.saldo_apertura_efectivo
+            for m in medios:
+                if _metodo_es_efectivo(m.metodo):
+                    esperado_efectivo += (m.esperado or Decimal("0"))
+            context["esperado_efectivo"] = esperado_efectivo
+
+    return render(request, "cierre_caja.html", context)

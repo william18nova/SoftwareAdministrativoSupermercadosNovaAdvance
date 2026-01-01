@@ -984,16 +984,9 @@ def _s(v):
     return (v or "").strip()
 
 class ProductoEditarForm(forms.ModelForm):
-    """
-    Formulario único para crear / editar productos.
-    El autocompletado de categoría se maneja con:
-      • id_categoria_autocomplete  → solo texto visible
-      • categoria (HiddenInput)    → PK real que se envía
-    """
-
-    # ---------- campo técnico (hidden) ----------
+    
     categoria = forms.ModelChoiceField(
-        queryset=Categoria.objects.none(),      # se llena en __init__
+        queryset=Categoria.objects.none(),
         widget=forms.HiddenInput(),
         required=True,
         label="Categoría",
@@ -1004,65 +997,95 @@ class ProductoEditarForm(forms.ModelForm):
         fields = (
             "nombre",
             "descripcion",
+
             "precio",
-            "categoria",            # hidden – lo llena el JS
+            "precio_anterior",      # ✅ NUEVO (solo lectura)
+
+            "categoria",
             "codigo_de_barras",
             "iva",
+
+            "impuesto_consumo",
+            "icui",
+            "ibua",
+            "rentabilidad",
         )
+
         labels = {
             "nombre"          : "Nombre",
             "descripcion"     : "Descripción",
             "precio"          : "Precio",
+            "precio_anterior" : "Precio anterior",   # ✅
+
             "codigo_de_barras": "Código de barras",
             "iva"             : "IVA (0 – 1)",
+
+            "impuesto_consumo": "Impuesto al consumo",
+            "icui"            : "ICUI",
+            "ibua"            : "IBUA",
+            "rentabilidad"    : "Rentabilidad (%)",
         }
+
         widgets = {
             "nombre": forms.TextInput(attrs={
-                "class"      : "form-control",
-                "placeholder": "Nombre del producto",
-                "required"   : True,
+                "class": "form-control", "placeholder": "Nombre del producto", "required": True,
             }),
             "descripcion": forms.TextInput(attrs={
-                "class"      : "form-control",
-                "placeholder": "Descripción (opcional)",
+                "class": "form-control", "placeholder": "Descripción (opcional)",
             }),
+
             "precio": forms.NumberInput(attrs={
-                "class"      : "form-control",
-                "step"       : "0.01",
-                "min"        : "0",
-                "placeholder": "Precio",
-                "required"   : True,
+                "class": "form-control", "step": "0.01", "min": "0",
+                "placeholder": "Precio", "required": True,
             }),
+
+            # ✅ SOLO LECTURA (disabled)
+            "precio_anterior": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01",
+                "placeholder": "Se llena automáticamente cuando cambia el precio",
+                "disabled": True,
+            }),
+
             "codigo_de_barras": forms.TextInput(attrs={
-                "class"      : "form-control",
-                "placeholder": "EAN / código de barras",
+                "class": "form-control", "placeholder": "EAN / código de barras",
             }),
             "iva": forms.NumberInput(attrs={
-                "class"      : "form-control",
-                "step"       : "0.01",
-                "min"        : "0",
-                "max"        : "1",
-                "placeholder": "IVA (ej. 0.19)",
-                "required"   : True,
+                "class": "form-control", "step": "0.01", "min": "0", "max": "1",
+                "placeholder": "IVA (ej. 0.19)", "required": True,
+            }),
+
+            "impuesto_consumo": forms.NumberInput(attrs={
+                "class": "form-control", "step": "0.01", "min": "0",
+                "placeholder": "Impuesto al consumo (valor $)",
+            }),
+            "icui": forms.NumberInput(attrs={
+                "class": "form-control", "step": "0.01", "min": "0",
+                "placeholder": "ICUI (valor $)",
+            }),
+            "ibua": forms.NumberInput(attrs={
+                "class": "form-control", "step": "0.01", "min": "0",
+                "placeholder": "IBUA (valor $)",
+            }),
+            "rentabilidad": forms.NumberInput(attrs={
+                "class": "form-control", "step": "0.01", "min": "0", "max": "100",
+                "placeholder": "Ej: 30 = 30%",
             }),
         }
 
-    # ---------------------- init ----------------------
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # queryset completo (o filtra a gusto)
-        self.fields["categoria"].queryset = Categoria.objects.all()
 
-        # guardamos la PK para validaciones de duplicados
+        self.fields["categoria"].queryset = Categoria.objects.all()
         self._pk = self.instance.pk
 
-        # si estamos editando, enviamos el nombre de la categoría al template
         if self.instance.pk and self.instance.categoria:
-            self.initial["id_categoria_autocomplete_initial"] = (
-                self.instance.categoria.nombre
-            )
+            self.initial["id_categoria_autocomplete_initial"] = self.instance.categoria.nombre
 
-    # ------------------ validaciones ------------------
+        # ✅ Mostrar 0.00 si viene null en BD
+        if self.instance.pk and self.instance.precio_anterior is None:
+            self.initial["precio_anterior"] = Decimal("0.00")
+
     def clean_nombre(self):
         nombre = _s(self.cleaned_data.get("nombre"))
         if not nombre:
@@ -1084,6 +1107,25 @@ class ProductoEditarForm(forms.ModelForm):
         if qs.exists():
             raise ValidationError("El código de barras ya está registrado.", code="duplicate")
         return ean
+
+    def clean_impuesto_consumo(self):
+        v = self.cleaned_data.get("impuesto_consumo")
+        return v if v is not None else Decimal("0.00")
+
+    def clean_icui(self):
+        v = self.cleaned_data.get("icui")
+        return v if v is not None else Decimal("0.00")
+
+    def clean_ibua(self):
+        v = self.cleaned_data.get("ibua")
+        return v if v is not None else Decimal("0.00")
+
+    def clean_rentabilidad(self):
+        v = self.cleaned_data.get("rentabilidad")
+        v = v if v is not None else Decimal("0.00")
+        if v < 0 or v > 100:
+            raise ValidationError("La rentabilidad debe estar entre 0 y 100.")
+        return v
 
     
     
