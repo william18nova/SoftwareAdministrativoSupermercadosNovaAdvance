@@ -105,7 +105,7 @@ class DenyRolesMixin:
         return super().dispatch(request, *args, **kwargs)
 
 # ---------- mixin reutilizable para autocompletados ----------
-class PaginatedAutocompleteMixin(LoginRequiredMixin, View):
+class PaginatedAutocompleteMixin( View):
     """
     Mixin genérico para autocompletados paginados.
     Las sub-clases solo declaran `model`, `text_field`, `id_field` y
@@ -1966,7 +1966,7 @@ def eliminar_rol_view(request, rol_id):
     return JsonResponse({'success': False, 'message': 'Error al eliminar el rol.'})
 
 
-class UsuarioCreateAJAXView(LoginRequiredMixin, FormView):
+class UsuarioCreateAJAXView( FormView):
     template_name = "agregar_usuario.html"
     form_class    = UsuarioForm
     success_url   = reverse_lazy("visualizar_usuarios")   # ajusta la URL si existe
