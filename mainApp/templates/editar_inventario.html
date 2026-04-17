@@ -103,7 +103,7 @@
   {# ---------- URLs para JS ---------- #}
   <script>
     /* sin parámetros extra; el ID actual va en otra constante */
-    const sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete_editar' %}";
+    const sucursalAutocompleteUrl = "{% url 'sucursal_inventario_autocomplete' %}";
     const currentSucursalId       = "{{ sucursal.pk }}";
 
     const productoAutocompleteUrl = "{% url 'producto_inventario_autocomplete_editar' %}";
