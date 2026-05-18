@@ -2004,48 +2004,24 @@ $(function () {
     .then(async (r) => {
       if (!r || !r.success) { alert((r && r.error) || "Error"); return; }
 
-      let pagos = [];
-      try { pagos = JSON.parse($hidPagos.val() || "[]"); } catch { pagos = []; }
-
-      const ef = (pagos || []).find(p => (p.medio_pago || "").toLowerCase() === "efectivo");
-      const efMonto = ef ? safeNumber(ef.monto) : 0;
-
-      const totalNum = (runningTotal || 0);
-
-      let cambio = 0;
-      if (efMonto > 0 && !isMixto()) {
-        const raw = ($amountIn.val() || "").trim();
-        const recibido = raw === "" ? efMonto : (parseFloat(raw) || 0);
-        cambio = Math.max(0, recibido - efMonto);
-      }
-
-      const pagosTxt = (pagos || []).map(p => {
-        const mp = String(p.medio_pago || "").toUpperCase().replaceAll("_"," ");
-        return `- ${mp}: ${money(p.monto)}`;
-      }).join("\n");
+      clearCartAndTotals();
 
       const omitirImpresion = confirm(
         [
-          "✅ Venta generada.",
-          `Total: ${money(totalNum)}`,
-          pagosTxt ? `\nPAGOS:\n${pagosTxt}` : "",
-          (efMonto > 0 && !isMixto()) ? `\nCambio (sobre efectivo): ${money(cambio)}` : "",
+          "Venta generada.",
           "",
-          "¿Desea OMITIR la impresión de la factura?",
-          "— Aceptar: NO imprimir (solo abrir gaveta).",
-          "— Cancelar: Imprimir (y abrir gaveta)."
-        ].filter(Boolean).join("\n")
+          "Desea OMITIR la impresion de la factura?",
+          "",
+          "Aceptar: no imprimir, solo abrir gaveta.",
+          "Cancelar: imprimir factura y abrir gaveta."
+        ].join("\n")
       );
 
-      clearCartAndTotals();
-
       try {
-        if (omitirImpresion) {
-          await agentKickSafe({ timeout: 600 });
-        } else {
+        if (!omitirImpresion) {
           await agentPrintSafe(r.receipt_text || "Factura\n\n", { timeout: 800 });
-          await agentKickSafe({ timeout: 600 });
         }
+        await agentKickSafe({ timeout: 600 });
       } catch (_) {}
 
       setTimeout(() => { location.replace(location.href); }, 50);
