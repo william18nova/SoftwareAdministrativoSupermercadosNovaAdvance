@@ -5817,8 +5817,11 @@ class GenerarVentaView(LoginRequiredMixin, View):
             else:
                 efectivo_recibido = Decimal("0")
 
-            # Esta decisión controla hardware; se consulta fresca para que un
-            # cambio Windows/Linux se aplique incluso entre distintos workers.
+            # Esta decisión controla el formato de impresión; se consulta fresca
+            # para que un cambio Windows/Linux o pequena/grande se aplique incluso
+            # entre distintos workers. La impresión automática se ejecuta en el
+            # POS Agent local desde el navegador; este backend solo devuelve el
+            # texto y el perfil seleccionado.
             print_profile = get_print_profile(pp_inst, fresh=True)
 
             try:
@@ -6574,7 +6577,9 @@ class TicketTextoView(LoginRequiredMixin, View):
 @method_decorator(require_POST, name="dispatch")
 class ImprimirFacturaView(LoginRequiredMixin, View):
     """
-    Imprime por USB/CUPS cuando el punto de pago está configurado para Linux.
+    Fallback de impresión directa por USB/CUPS cuando Django corre en un Linux
+    con acceso real a la impresora. La venta automática del POS web usa el
+    agente local del navegador y no depende de esta vista en PythonAnywhere.
     """
     def post(self, request, *args, **kwargs):
         venta_id = request.POST.get("venta_id")

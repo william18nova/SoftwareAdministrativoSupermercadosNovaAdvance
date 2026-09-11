@@ -27,7 +27,6 @@ $(function () {
   /* ================== Agente local ================== */
   const POS_AGENT_URL   = (window.POS_AGENT_URL || "http://127.0.0.1:8787").replace(/\/+$/,'');
   const POS_AGENT_TOKEN = (window.POS_AGENT_TOKEN || "").trim();
-  const IMPRIMIR_FACTURA_URL = String(window.imprimirFacturaUrl || "").trim();
 
   /* ================== Selectores ================== */
   const $inpCliente = $("#cliente_busqueda");
@@ -5655,41 +5654,79 @@ $(function () {
     };
   }
 
-  async function printViaLinuxServer(ventaId, paperSize, { openDrawer = false, printToken = "" } = {}) {
-    if (!IMPRIMIR_FACTURA_URL) {
-      throw new Error("La ruta de impresion Linux no esta configurada.");
-    }
-    if (!ventaId) {
-      throw new Error("No se recibio el ID de la venta para imprimir.");
+  // =========================================================
+  // LINUX LEGACY POS AGENT
+  // Mantiene el protocolo que ya funcionaba antes:
+  //   POST 127.0.0.1:8787/print
+  //   X-Pos-Agent-Token
+  //   JSON: { text: "..." }
+  // El tamaño (pequena/grande) ya viene aplicado al receipt_text
+  // por Django mediante el perfil del punto de pago.
+  // =========================================================
+  async function agentPrintLinux(text, { timeout = 2000 } = {}) {
+    if (!POS_AGENT_TOKEN) {
+      throw new Error("No hay POS_AGENT_TOKEN configurado para el cliente Linux.");
     }
 
-    const csrf = getCSRF()
-      || document.querySelector("input[name='csrfmiddlewaretoken']")?.value
-      || "";
-    const body = new URLSearchParams({
-      csrfmiddlewaretoken: csrf,
-      venta_id: String(ventaId),
-      paper_size: normalizePrintPaperSize(paperSize),
-      open_drawer: openDrawer ? "1" : "0"
-    });
-    if (printToken) body.set("print_token", String(printToken));
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeout);
 
-    const response = await fetch(IMPRIMIR_FACTURA_URL, {
-      method: "POST",
-      credentials: "same-origin",
-      keepalive: true,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "X-CSRFToken": csrf,
-        "X-Requested-With": "XMLHttpRequest"
-      },
-      body
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || "No se pudo imprimir la factura en Linux.");
+    try {
+      const response = await fetch(POS_AGENT_URL + "/print", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Pos-Agent-Token": POS_AGENT_TOKEN
+        },
+        body: JSON.stringify({ text: String(text || "") }),
+        signal: ctrl.signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`El POS Agent Linux respondió HTTP ${response.status}.`);
+      }
+
+      return true;
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        throw new Error("El POS Agent Linux no respondió a tiempo.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
-    return data;
+  }
+
+  async function agentKickLinux({ timeout = 1500 } = {}) {
+    if (!POS_AGENT_TOKEN) {
+      throw new Error("No hay POS_AGENT_TOKEN configurado para abrir la gaveta en Linux.");
+    }
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeout);
+
+    try {
+      const response = await fetch(POS_AGENT_URL + "/kick", {
+        method: "POST",
+        headers: {
+          "X-Pos-Agent-Token": POS_AGENT_TOKEN
+        },
+        signal: ctrl.signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`El POS Agent Linux respondió HTTP ${response.status} al abrir la gaveta.`);
+      }
+
+      return true;
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        throw new Error("El POS Agent Linux no respondió al intentar abrir la gaveta.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   let posAgentUltraReady = !!FAST_POS_ULTRA_FORCE;
@@ -5970,14 +6007,27 @@ Total: ${money(total)}${changeMessage}${specialMessage}${nequiMessage}`;
       );
 
       if (printOperatingSystem === "linux") {
-        const printJob = printViaLinuxServer(r.venta_id, printPaperSize, {
-          openDrawer: shouldKickCashDrawer && !!r.print_token,
-          printToken: r.print_token || ""
-        });
+        // Linux usa el mismo cliente local que funcionaba antes.
+        // NO llama /ventas/imprimir/ en PythonAnywhere.
+        // r.receipt_text ya viene formateado a 32 chars (pequena) o 48 chars (grande).
+        // Se envía SIN agregar comandos/campos nuevos para mantener compatibilidad
+        // exacta con el agente Linux antiguo.
+        const linuxReceiptText = r.receipt_text || "Factura\n\n";
+        const printJob = (async () => {
+          await agentPrintLinux(linuxReceiptText, { timeout: 2000 });
+
+          // Igual que en el flujo viejo: imprimir primero y abrir la gaveta después.
+          if (shouldKickCashDrawer) {
+            await agentKickLinux({ timeout: 1500 });
+          }
+
+          return true;
+        })();
+
         printJobs.push(printJob);
         printJob.catch((error) => {
-          // La venta ya fue confirmada: un fallo de impresion nunca debe
-          // provocar que se envie nuevamente el formulario de venta.
+          // La venta ya fue confirmada: un fallo de impresión nunca debe
+          // provocar que se envíe nuevamente el formulario de venta.
           console.error("[IMPRESION_LINUX]", error);
           window.setTimeout(() => {
             showFastSaleToast(
