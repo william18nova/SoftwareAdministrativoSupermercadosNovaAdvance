@@ -18,7 +18,24 @@ from .services.feature_flags import (
 WEB_MASTER_ROLE_NAMES = {"web_master", "webmaster"}
 ADMIN_ROLE_NAMES = {"admin", "administrador", "administradora", "supervisor"}
 PUBLIC_URL_NAMES = {"login", "logout", "visor_barcode", "visor_barcode_buscar", "visor_barcode_lookup", "macrodroid_nequi_webhook", "telegram_webhook"}
-ALWAYS_ALLOWED_URL_NAMES = {"home", "registrar_egreso", "mi_horario", "mi_horario_datos", "visor_cajero", "visor_cajero_buscar"}
+ALWAYS_ALLOWED_URL_NAMES = {
+    "home",
+    "registrar_egreso",
+    "mi_horario",
+    "mi_horario_datos",
+    "visor_cajero",
+    "visor_cajero_buscar",
+
+    # Ventas: cualquier usuario autenticado puede consultar e imprimir.
+    "visualizar_ventas",
+    "ventas_datatable",
+    "ver_venta",
+    "ticket_texto",
+    "imprimir_factura",
+
+    # Se usa desde el filtro de producto del listado de ventas.
+    "producto_autocomplete_global",
+}
 WEB_MASTER_ONLY_URL_NAMES = {
     "ventas_no_realizadas",
     "claves_descuento_merk2888",

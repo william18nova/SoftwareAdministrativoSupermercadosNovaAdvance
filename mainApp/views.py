@@ -6485,24 +6485,13 @@ SALE_PRINT_TOKEN_MAX_AGE_SECONDS = 5 * 60
 
 
 def _user_can_print_venta(user, venta: Venta) -> bool:
-    """Limita el acceso directo por ID para el rol Cajero a su sucursal."""
-    if not getattr(user, "is_authenticated", False):
-        return False
-    role = str(
-        getattr(getattr(user, "rolid", None), "nombre", "") or ""
-    ).strip().lower()
-    if role != "cajero":
-        # Los demás roles ya fueron autorizados por el middleware de permisos.
-        return True
-    user_branch_id = _cajero_sucursal_id(user)
-    sale_branch_id = getattr(venta, "sucursalid_id", None)
-    if sale_branch_id is None:
-        sale_branch_id = getattr(getattr(venta, "sucursalid", None), "pk", None)
-    return bool(
-        user_branch_id
-        and sale_branch_id
-        and str(user_branch_id) == str(sale_branch_id)
-    )
+    """
+    Cualquier usuario autenticado puede consultar e imprimir cualquier venta.
+
+    La autorización para MODIFICAR una venta, cambiar medios de pago o registrar
+    devoluciones sigue controlada aparte por `ventas_cambios`.
+    """
+    return bool(getattr(user, "is_authenticated", False))
 
 
 def _build_sale_print_token(venta, user, profile, receipt_text: str) -> str:
@@ -7877,25 +7866,20 @@ class VentaDetailView(LoginRequiredMixin, DenyRolesMixin, View):
         return role_name == "cajero"
 
     def _can_view_venta(self, user) -> bool:
-        return user_has_permission(user, self.view_permission)
+        # Cualquier usuario autenticado puede consultar una factura.
+        return bool(getattr(user, "is_authenticated", False))
 
     def _can_edit_venta(self, user) -> bool:
+        # Modificar pagos / realizar cambios y devoluciones sigue protegido.
         from .permissions import user_can_change_sale
         return user_can_change_sale(user)
 
     def _can_print_venta(self, user, venta=None) -> bool:
-        if self._is_cajero_role(user):
-            return venta is None or _user_can_print_venta(user, venta)
-        allowed = (
-            self._can_view_venta(user)
-            or self._can_edit_venta(user)
-            or user_has_permission(user, self.print_permission)
-        )
-        return allowed
+        # Cualquier usuario autenticado puede imprimir cualquier factura.
+        return bool(getattr(user, "is_authenticated", False))
 
     def _is_print_only(self, user, venta=None) -> bool:
-        if self._is_cajero_role(user) and self._can_print_venta(user, venta):
-            return True
+        # Quien no tenga ventas_cambios puede ver e imprimir, pero no modificar.
         return self._can_print_venta(user, venta) and not self._can_edit_venta(user)
 
     def dispatch(self, request, *args, **kwargs):
