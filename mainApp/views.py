@@ -7870,7 +7870,7 @@ class VentaDetailView(LoginRequiredMixin, DenyRolesMixin, View):
         return bool(getattr(user, "is_authenticated", False))
 
     def _can_edit_venta(self, user) -> bool:
-        # Modificar pagos / realizar cambios y devoluciones sigue protegido.
+        # Cualquier usuario autenticado y activo puede generar cambios/devoluciones.
         from .permissions import user_can_change_sale
         return user_can_change_sale(user)
 
@@ -7879,7 +7879,7 @@ class VentaDetailView(LoginRequiredMixin, DenyRolesMixin, View):
         return bool(getattr(user, "is_authenticated", False))
 
     def _is_print_only(self, user, venta=None) -> bool:
-        # Quien no tenga ventas_cambios puede ver e imprimir, pero no modificar.
+        # Solo una cuenta no activa/no autorizada quedaría en modo solo lectura.
         return self._can_print_venta(user, venta) and not self._can_edit_venta(user)
 
     def dispatch(self, request, *args, **kwargs):

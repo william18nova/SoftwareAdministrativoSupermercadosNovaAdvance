@@ -34,7 +34,7 @@ ALWAYS_ALLOWED_URL_NAMES = {
     "imprimir_factura",
 
     # Se usa desde el filtro de producto del listado de ventas.
-    "producto_autocomplete_global",
+    "producto_autocomplete_global",    "visualizar_cambios",
 }
 WEB_MASTER_ONLY_URL_NAMES = {
     "ventas_no_realizadas",
@@ -1320,12 +1320,15 @@ def user_has_permission(user, code: Optional[str]) -> bool:
 
 
 def user_can_change_sale(user) -> bool:
-    """Misma política para cambios/devoluciones web y Telegram."""
-    if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
-        return False
-    role = str(getattr(getattr(user, "rolid", None), "nombre", "") or "").strip().lower()
-    # El rol Cajero conserva acceso solo de consulta/impresión de facturas.
-    return role != "cajero" and user_has_permission(user, "ventas_cambios")
+    """
+    Cualquier usuario autenticado y activo puede generar cambios/devoluciones.
+
+    La consulta e impresión ya están abiertas a cualquier usuario autenticado.
+    """
+    return bool(
+        getattr(user, "is_authenticated", False)
+        and getattr(user, "is_active", False)
+    )
 
 
 def route_permission_for_url_name(url_name: Optional[str]) -> Optional[str]:
