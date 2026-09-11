@@ -6805,43 +6805,21 @@ Cambio: ${money(cambio)}` : "";
   }
 
   (function scannerDetectorWithQtyGuard() {
+    // Mismo criterio del lector físico que funcionaba en la versión anterior:
+    // - mínimo 8 dígitos
+    // - máximo ~35 ms entre teclas
+    // - termina con Enter o Tab
     const MIN_CHARS = 8;
-    const GAP_MS = 80;
+    const GAP_MS = 35;
 
     let buf = "";
     let first = 0;
     let last = 0;
     let idleTimer = null;
-    let finalizeTimer = null;
 
     let scanning = false;
     let originEl = null;
     let originStartValue = "";
-
-    function isCodeInput(el) {
-      return !!($inpCode && $inpCode.length && el === $inpCode[0]);
-    }
-
-    function restoreOriginIfNeeded() {
-      if (!originEl || isCodeInput(originEl)) return;
-      try {
-        if (typeof originEl.value === "string") originEl.value = originStartValue;
-      } catch (_) {}
-    }
-
-    function focusCodeInputWith(value, { search = false } = {}) {
-      const clean = onlyDigits(value);
-      if (!clean || !$inpCode || !$inpCode.length || !$inpCode.is(":visible")) return;
-
-      try { if (document.activeElement !== $inpCode[0]) $inpCode.focus(); } catch (_) {}
-      try { $inpCode.val(clean); } catch (_) {}
-      try { $inpCode[0]?.setSelectionRange?.(clean.length, clean.length); } catch (_) {}
-
-      // Mientras entra la ráfaga solo llenamos el input. Al finalizar sí se resuelve/agrega.
-      if (search) {
-        try { $inpCode.autocomplete("search", clean); } catch (_) {}
-      }
-    }
 
     function resetAll(){
       buf = "";
@@ -6850,167 +6828,243 @@ Cambio: ${money(cambio)}` : "";
       scanning = false;
       originEl = null;
       originStartValue = "";
-      if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
-      if (finalizeTimer) { clearTimeout(finalizeTimer); finalizeTimer = null; }
+
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    }
+
+    function restoreOriginIfNeeded(){
+      if (!originEl) return;
+
+      // Si el escáner empezó mientras el cursor estaba en otro input,
+      // restauramos lo que había antes para no dejar parte del código allí.
+      if ($inpCode && $inpCode.length && originEl === $inpCode[0]) return;
+
+      try {
+        if (typeof originEl.value === "string") {
+          originEl.value = originStartValue;
+        }
+      } catch (_) {}
     }
 
     function finalize(code){
-      const c = onlyDigits(code || "");
-      if (!c) { resetAll(); return; }
+      const clean = onlyDigits(code);
+
+      if (!clean || clean.length < MIN_CHARS) {
+        resetAll();
+        return;
+      }
 
       const wasQty = isQtyElement(originEl);
 
+      restoreOriginIfNeeded();
+
+      // Si el lector comenzó cuando el foco estaba en cantidad,
+      // conserva la cantidad que tenía antes del escaneo.
       if (wasQty) {
-        restoreOriginIfNeeded();
         commitCurrentQtyLikeEnterIfNeeded(originEl);
-      } else {
-        restoreOriginIfNeeded();
       }
 
-      focusCodeInputWith(c, { search: false });
-      pushCodeIntoCodeInputAndAdd(c);
+      // Reutiliza TODO el flujo moderno del archivo:
+      // checksum, anti-duplicados, cache exacta, backend y carrito.
+      pushCodeIntoCodeInputAndAdd(clean);
+
       resetAll();
     }
 
-    function scheduleAutoFinalize(){
-      if (finalizeTimer) clearTimeout(finalizeTimer);
-      // Algunos escáneres no mandan Enter/Tab. Finalizamos rápido al terminar la ráfaga.
-      finalizeTimer = setTimeout(() => {
-        if (scanning && buf.length >= MIN_CHARS) finalize(buf);
-        else resetAll();
-      }, GAP_MS * 4);
-    }
-
     document.addEventListener("keydown", function (e) {
-      // ✅ si el modal está abierto, NO uses este detector (lo maneja el guard del modal)
-      if (isModalOpen()) { resetAll(); return; }
+      // Dentro del modal el escaneo tiene su propio guard y no debe agregar productos.
+      if (isModalOpen()) {
+        resetAll();
+        return;
+      }
 
-      // ✅ Algunos lectores emiten Alt/NumLock/CapsLock/Pause y otros como artefacto
-      // del modo emulación (ALT+NumPad toggle). Ignorar sin tocar el buffer.
-      if (SCANNER_ARTIFACT_KEYS.has(e.key)) return;
-
-      // Solo reseteamos en atajos reales (Ctrl+algo / Meta+algo), no en Alt
-      if (e.ctrlKey || e.metaKey) { resetAll(); return; }
+      // Igual que el detector anterior que funcionaba:
+      // combinaciones de teclado reales cancelan la detección.
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        resetAll();
+        return;
+      }
 
       const active = document.activeElement;
       const inQty = isQtyElement(active);
-      if (isClienteBusquedaElement(active)) { resetAll(); return; }
       const t = Date.now();
 
+      // La lectura solo se confirma cuando el lector manda Enter o Tab.
       if (e.key === "Enter" || e.key === "Tab") {
-        const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
+        const fastEnough =
+          buf &&
+          (t - first) < buf.length * (GAP_MS + 5) &&
+          (t - last) < GAP_MS * 3;
+
         if (fastEnough && buf.length >= MIN_CHARS) {
           e.preventDefault();
           e.stopImmediatePropagation();
           finalize(buf);
           return;
         }
+
         resetAll();
         return;
       }
 
       if (e.key && e.key.length === 1) {
-        const char = e.key;
-        const isDigit = /^\d$/.test(char);
+        // Los códigos de barras que usa este POS son numéricos.
+        if (!/^\d$/.test(e.key)) {
+          resetAll();
+          return;
+        }
 
-        // El lector de códigos de barras en caja debe redirigir principalmente dígitos.
-        // Si llega texto/letras, se deja que los autocompletes manuales trabajen normal.
-        if (!isDigit) { resetAll(); return; }
-
-        if (originEl && active !== originEl && !scanning) resetAll();
+        if (originEl && active !== originEl) {
+          resetAll();
+        }
 
         if (!buf) {
           originEl = active;
-          originStartValue = (active && typeof active.value === "string") ? active.value : "";
+          originStartValue =
+            (active && typeof active.value === "string")
+              ? active.value
+              : "";
+
           first = t;
           last = t;
-          buf = char;
+          buf = e.key;
         } else {
+          // Si pasó demasiado tiempo entre caracteres, ya no es la misma lectura.
           if ((t - last) > GAP_MS) {
             resetAll();
+
             originEl = active;
-            originStartValue = (active && typeof active.value === "string") ? active.value : "";
+            originStartValue =
+              (active && typeof active.value === "string")
+                ? active.value
+                : "";
+
             first = t;
             last = t;
-            buf = char;
+            buf = e.key;
           } else {
-            buf += char;
+            buf += e.key;
             last = t;
           }
         }
 
-        // ✅ Restauración del comportamiento perdido:
-        // Apenas detectamos una ráfaga de escáner, movemos el foco al autocomplete de código
-        // y lo vamos llenando aunque el foco original estuviera en cliente, nombre, cantidad, tabla, etc.
-        if (!scanning && buf.length >= 2 && (last - first) <= GAP_MS + 8) {
+        // Protección del campo cantidad:
+        // desde el segundo dígito rápido sabemos que probablemente es el lector.
+        if (!scanning && inQty && buf.length >= 2) {
           scanning = true;
-          restoreOriginIfNeeded();
-          focusCodeInputWith(buf, { search: false });
+
+          try {
+            if (active && typeof active.value === "string") {
+              active.value = originStartValue;
+            }
+          } catch (_) {}
         }
 
-        if (scanning) {
+        // Evita que el código termine escrito como una cantidad enorme.
+        if (scanning && inQty) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          focusCodeInputWith(buf, { search: false });
-          scheduleAutoFinalize();
         }
 
         if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => resetAll(), GAP_MS * 8);
 
-        if (scanning && buf.length >= MIN_CHARS && inQty) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          finalize(buf);
-          return;
-        }
+        // Si la ráfaga se corta, descartamos el buffer.
+        // NO auto-finalizamos: esperamos Enter/Tab para no truncar EAN-13.
+        idleTimer = setTimeout(
+          () => resetAll(),
+          GAP_MS * 6
+        );
 
         return;
       }
 
-      if (e.key !== "Shift") resetAll();
+      if (e.key !== "Shift") {
+        resetAll();
+      }
     }, true);
   })();
 
   (function globalScannerFallback() {
-    const MIN_CHARS = 8, GAP_MS = 80;
-    let buf="", first=0, last=0, idleTimer=null;
+    // Fallback global con el mismo comportamiento del código anterior.
+    const MIN_CHARS = 8;
+    const GAP_MS = 35;
 
-    function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
+    let buf = "";
+    let first = 0;
+    let last = 0;
+    let idleTimer = null;
+
+    function reset(){
+      buf = "";
+      first = 0;
+      last = 0;
+
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    }
 
     document.addEventListener("keydown", function (e) {
-      // ✅ si el modal está abierto, NO uses este fallback (lo maneja el guard del modal)
-      if (isModalOpen()) { reset(); return; }
+      if (isModalOpen()) {
+        reset();
+        return;
+      }
 
-      const active = document.activeElement;
-      if (isQtyElement(active) || isClienteBusquedaElement(active)) { reset(); return; }
+      // El detector principal maneja especialmente los inputs de cantidad.
+      if (isQtyElement(document.activeElement)) return;
 
-      // ✅ Ignorar teclas artefacto de lectores genéricos (Alt, NumLock, CapsLock, etc).
-      if (SCANNER_ARTIFACT_KEYS.has(e.key)) return;
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        reset();
+        return;
+      }
 
-      // Solo reseteamos en atajos reales (Ctrl+algo / Meta+algo)
-      if (e.ctrlKey || e.metaKey) { reset(); return; }
       const t = Date.now();
 
       if (e.key === "Enter" || e.key === "Tab") {
-        const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
+        const fastEnough =
+          buf &&
+          (t - first) < buf.length * (GAP_MS + 5) &&
+          (t - last) < GAP_MS * 3;
+
         if (fastEnough && buf.length >= MIN_CHARS) {
-          e.preventDefault(); e.stopImmediatePropagation();
-          const code = buf; reset();
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          const code = buf;
+          reset();
+
           pushCodeIntoCodeInputAndAdd(code);
           return;
         }
-        reset(); return;
+
+        reset();
+        return;
       }
 
       if (e.key && e.key.length === 1) {
-        if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
+        if (!/^\d$/.test(e.key)) {
+          reset();
+          return;
+        }
+
+        if (buf && (t - last) > GAP_MS) {
+          buf = "";
+          first = t;
+        }
+
         if (!buf) first = t;
-        buf += e.key; last = t;
+
+        buf += e.key;
+        last = t;
+
         if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(reset, GAP_MS*5);
-      } else {
-        if (e.key !== "Shift") reset();
+        idleTimer = setTimeout(reset, GAP_MS * 5);
+      } else if (e.key !== "Shift") {
+        reset();
       }
     }, true);
   })();
