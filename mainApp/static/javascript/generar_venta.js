@@ -57,19 +57,6 @@ $(function () {
   const $buscarCart = $("#buscar-detalles");
   const $btnVaciar  = $("#vaciar-carrito");
 
-  /* ================== Estado lector USB ================== */
-  // candidate=true desde la primera tecla de una posible ráfaga.
-  // active=true cuando ya confirmamos que las teclas llegan a velocidad de scanner.
-  const usbScannerState = {
-    candidate: false,
-    active: false,
-    suppressInputUntil: 0,
-  };
-
-  function isUsbScannerInputSuppressed(){
-    return usbScannerState.candidate || usbScannerState.active || Date.now() < usbScannerState.suppressInputUntil;
-  }
-
   // ✅ pagos mixto
   const $hidPagos     = $("#pagos");      // hidden input name="pagos"
   const $hidMedioPago = $("#medio_pago"); // compat (efectivo/tarjeta/transferencia/mixto)
@@ -2082,7 +2069,11 @@ $(function () {
 
     productCache.set(key, rec);
 
-    if (rec.barcode) addBarcodePidIndex(rec.barcode, key);
+    if (rec.barcode) {
+      addBarcodePidIndex(rec.barcode, key);
+      // Compatibilidad exacta del flujo viejo: barcode -> último pid cacheado.
+      barcodeIndex.set(String(rec.barcode), key);
+    }
     if (rec.nombre)  nameIndex.set(String(rec.nombre).toLowerCase(), key);
 
     return rec;
@@ -2903,6 +2894,26 @@ $(function () {
     });
   }
 
+  /* ================== BARCODE LEGACY: agregado igual al commit viejo ================== */
+  const barcodeLegacyAddGuard = { pid: null, ts: 0 };
+  const barcodeLegacyBurst = { timer: null, last: null, windowMs: 60 };
+
+  function addBarcodeLegacyLastOnly(pid, qty = 1) {
+    if (!pid || !qty || qty < 1) return;
+    barcodeLegacyBurst.last = { pid: String(pid), qty: Number(qty) || 1 };
+    if (barcodeLegacyBurst.timer) clearTimeout(barcodeLegacyBurst.timer);
+    barcodeLegacyBurst.timer = setTimeout(() => {
+      barcodeLegacyBurst.timer = null;
+      const { pid: p, qty: q } = barcodeLegacyBurst.last || {};
+      if (!p || !q || q < 1) return;
+      const ts = now();
+      if (String(barcodeLegacyAddGuard.pid) === String(p) && (ts - barcodeLegacyAddGuard.ts) < 250) return;
+      barcodeLegacyAddGuard.pid = String(p);
+      barcodeLegacyAddGuard.ts = ts;
+      addToCart(p, q);
+    }, barcodeLegacyBurst.windowMs);
+  }
+
   /* ================== Resolutores rápidos ================== */
   // ✅ BARCODE GUARD: este resolver SOLO devuelve un pid si el producto resultante
   //    tiene EXACTAMENTE el mismo código de barras que se le pidió resolver.
@@ -3126,15 +3137,45 @@ $(function () {
     if (enableInstantSearch) {
       let raf = null;
       $inp.on("input", function(){
-        // El lector USB se procesa por un camino exclusivo. Mientras entra su ráfaga,
-        // #codigo_o_barras NO debe disparar autocomplete ni autopick con códigos parciales.
-        if ($inpCode && $inpCode.length && $inp[0] === $inpCode[0] && isUsbScannerInputSuppressed()) {
-          try { $inp.autocomplete("close"); } catch {}
-          return;
-        }
-
         // ✅ marcar tipeo real del usuario para gating del autopick
         lastUserInputTS.set($inp[0], now());
+        const v = this.value || "";
+        if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(()=> $inp.autocomplete("search", v));
+      });
+    }
+
+    blockNavOpenWhenEmpty($inp, openIfEmpty ? 0 : minChars);
+  }
+
+  function createBarcodeACLegacy({ $inp, sourceFn, onSelect, openIfEmpty=false, enableInstantSearch=true, minChars=1 }) {
+    attachAltEnterBypass($inp[0]);
+    $inp.autocomplete({
+      minLength: minChars,
+      delay: 0,
+      autoFocus: true,
+      appendTo: "body",
+      position:{ my:"left top+6", at:"left bottom", collision:"flipfit" },
+      source: sourceFn,
+      open(){ $inp.autocomplete("widget").css("z-index", 3000); },
+      select(_e, ui){
+        if ($inp.data("skipAcSelectOnce")) { $inp.data("skipAcSelectOnce", false); return false; }
+        if (!ui || !ui.item) return false;
+        onSelect?.(ui.item);
+        return false;
+      }
+    });
+
+    $inp.on("focus", function(){
+      const v = this.value || "";
+      if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
+      $inp.autocomplete("search", v);
+    });
+
+    if (enableInstantSearch) {
+      let raf = null;
+      $inp.on("input", function(){
         const v = this.value || "";
         if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
         if (raf) cancelAnimationFrame(raf);
@@ -3212,27 +3253,7 @@ $(function () {
     }));
   }, 45);
 
-  const netSearchCode = throttleAsync(async (term, signal) => {
-    const info = classifyQuery(term);
-    if (info.isBarcodeLike) {
-      const dBar = await fetch(AC_BARRAS_URL + "?" + new URLSearchParams({
-        term: info.digits,
-        sucursal_id: sucursalID,
-        limit: 25,
-        exact: "1",
-        _ts: Date.now()
-      }), { signal, cache: "no-store" })
-        .then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]}));
-
-      return (dBar.results || []).map(p => ({
-        id: p.id,
-        name: (p.text || p.nombre || ""),
-        barcode: (p.barcode || p.codigo_de_barras || ""),
-        price: p.precio,
-        stock: p.stock
-      }));
-    }
-
+  const netSearchCode = throttle(async (term, signal) => {
     const [dCod, dBar] = await Promise.all([
       fetch(AC_CODIGO_URL + "?" + new URLSearchParams({ term, sucursal_id: sucursalID, limit: 25, _ts: Date.now() }), { signal, cache: "no-store" })
         .then(r=> r && r.ok ? r.json() : {results:[]}).catch(()=>({results:[]})),
@@ -3255,6 +3276,8 @@ $(function () {
     return net;
   }, 45);
 
+
+
   const netSearchId = throttleAsync(async (term, signal) => {
     const t = onlyDigits(term);
     if (!t || !PRODUCTO_ID_URL) return [];
@@ -3276,50 +3299,20 @@ $(function () {
   let inflightIdAC   = null;
   let autoPickGuardTS = 0;
 
-  function maybeAutoPickBarcode(term, items, $input){
+  function maybeAutoPickBarcode(term, items){
     const info = classifyQuery(term);
     if (!info.isBarcodeLike || !hasSucursal() || !Array.isArray(items) || items.length !== 1) return;
-    if (isBarcodeAutocompleteSuppressed(info.digits)) return;
-    if (isBarcodeResolveActive(info.digits)) return;
-
-    // ✅ FIX escaneo: solo auto-agregar si el CÓDIGO DE BARRAS del candidato coincide
-    //    EXACTAMENTE con los dígitos escaneados. Esto evita que un match parcial
-    //    (substring/prefijo) o una coincidencia accidental con un ID de producto
-    //    agregue el producto equivocado al carrito.
-    //    Si no es match exacto, dejamos que el menú de sugerencias se muestre.
-    const item = items[0];
-    const itemDigits = onlyDigits(String(item.barcode || ""));
-    if (!itemDigits || itemDigits !== info.digits) return;
-
-    // ✅ FIX agregado fantasma:
-    //  1) Solo permitir autopick si el input que originó la búsqueda existe y
-    //     todavía tiene el foco (si el usuario ya se movió a otro campo, no
-    //     agregamos un producto a sus espaldas).
-    //  2) Solo permitir autopick si hubo un evento de tipeo real (input) en ese
-    //     campo dentro de AUTO_PICK_RECENCY_MS. Esto evita que un focus, un
-    //     re-search interno o una respuesta de red tardía dispare un agregado
-    //     "unos instantes después".
-    const inputEl = ($input && $input.length) ? $input[0] : null;
-    if (!inputEl) return;
-    if (document.activeElement !== inputEl) return;
-    const lastInputTS = Number(lastUserInputTS.get(inputEl) || 0);
-    if (!lastInputTS || (now() - lastInputTS) > AUTO_PICK_RECENCY_MS) return;
-
     const ts = Date.now();
     if (ts - autoPickGuardTS < 250) return;
-    if (String(lastAddGuard.pid) === String(item.id) && (ts - lastAddGuard.ts) < 1200) return;
     autoPickGuardTS = ts;
 
-    const added = addProductFromAutocomplete(item, {
-      source: "barcode-autopick",
-      $input: $inpCode,
-      term,
-      barcode: item.barcode || info.digits,
-    });
-    if (!added) return;
-
+    const item = items[0];
+    updateCache(item.id, { nombre:item.name, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
+    setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode || item.label });
+    bumpPick(item.id);
     try { $inpCode.autocomplete("close"); } catch {}
     try { $inpNombre.autocomplete("close"); } catch {}
+    addBarcodeLegacyLastOnly(item.id, 1);
   }
 
   function toACItems(raw, {labelMode="name"} = {}) {
@@ -3593,8 +3586,6 @@ $(function () {
   }
 
   function sourceSmartFactory({ cacheLRU, labelMode }) {
-    // ✅ Determinar el input que originó esta búsqueda para gating de autopick
-    const $sourceInput = (labelMode === "code") ? $inpCode : $inpNombre;
     return function(req, resp){
       (async ()=>{
         const term = (req.term||"").trim();
@@ -3602,26 +3593,21 @@ $(function () {
         if (!qU || !hasSucursal()) { resp([]); return; }
 
         const info = classifyQuery(term);
-        const strictBarcodeLookup = info.isBarcodeLike;
         const cacheKey = `${sucursalID}|smart|${labelMode}|${qU}|${info.digits}`;
-        if (!strictBarcodeLookup) {
-          const cached = cacheLRU.get(cacheKey);
-          if (cached) { resp(cached); maybeAutoPickBarcode(term, cached, $sourceInput); return; }
-        }
+        const cached = cacheLRU.get(cacheKey);
+        if (cached) { resp(cached); maybeAutoPickBarcode(term, cached); return; }
 
         const idx = preIndex.get(sucursalID);
         let locals = [];
-        if (idx && !strictBarcodeLookup) {
-          const rawLocal = (labelMode === "code" && info.isBarcodeLike)
-            ? rankCodeLocal(term, idx, 40)
-            : buildLocalSmart(term, idx, 40);
+        if (idx) {
+          const rawLocal = buildLocalSmart(term, idx, 40);
           locals = toACItems(rawLocal, { labelMode });
           for (const it of locals) updateCache(it.id, { nombre:it.name, barcode:it.barcode, precio_unitario:it.price, cantidad_disponible:it.stock });
         }
 
         resp(locals);
-        if (!strictBarcodeLookup) cacheLRU.set(cacheKey, locals);
-        maybeAutoPickBarcode(term, locals, $sourceInput);
+        cacheLRU.set(cacheKey, locals);
+        maybeAutoPickBarcode(term, locals);
 
         try {
           const useCode = info.isBarcodeLike;
@@ -3634,17 +3620,7 @@ $(function () {
           const netRaw = useCode ? await netSearchCode(term, signal) : await netSearchName(term, signal);
           if (!Array.isArray(netRaw) || !netRaw.length) return;
 
-          let netItems = toACItems(netRaw, { labelMode });
-          if (strictBarcodeLookup) {
-            netItems = uniqueExactBarcodeItemsForTerm(term, netItems);
-            if (!netItems.length) {
-              const current = (labelMode === "code")
-                ? normalizeUnits(String($inpCode.val()||""))
-                : normalizeUnits(String($inpNombre.val()||""));
-              if (current === qU) resp([]);
-              return;
-            }
-          }
+          const netItems = toACItems(netRaw, { labelMode });
           for (const it of netItems) updateCache(it.id, { nombre:it.name, barcode:it.barcode, precio_unitario:it.price, cantidad_disponible:it.stock });
 
           const seen = new Set(locals.map(x=>String(x.id)+"::"+(x.barcode||"")));
@@ -3655,7 +3631,7 @@ $(function () {
             if (merged.length >= 40) break;
           }
 
-          if (!strictBarcodeLookup) cacheLRU.set(cacheKey, merged);
+          cacheLRU.set(cacheKey, merged);
 
           const current = (labelMode === "code")
             ? normalizeUnits(String($inpCode.val()||""))
@@ -3663,15 +3639,14 @@ $(function () {
 
           if (current === qU) {
             resp(merged);
-            // El gating dentro de maybeAutoPickBarcode (foco + recencia) impide
-            // que esta llamada diferida agregue un producto si el usuario ya
-            // se movió de campo o dejó de tipear.
-            maybeAutoPickBarcode(term, merged, $sourceInput);
+            maybeAutoPickBarcode(term, merged);
           }
         } catch {}
       })();
     };
   }
+
+
 
   function sourceIdFactory(){
     return function(req, resp){
@@ -3735,16 +3710,16 @@ $(function () {
   });
   applyPriceTemplate($inpNombre, { mode: "name" });
 
-  createAC({
+  createBarcodeACLegacy({
     $inp: $inpCode,
     minChars: 1,
     openIfEmpty: false,
     sourceFn: sourceSmartFactory({ cacheLRU: termCacheCode, labelMode: "code" }),
-    onEnterFallback: (term) => pickProductForEnter(term, "code"),
-    enterTermKey: productEnterKey("code"),
-    preferEnterFallback: (term) => classifyQuery(term).isBarcodeLike,
     onSelect: (item) => {
-      addProductFromAutocomplete(item, { source: "code-ac", $input: $inpCode, barcode: item.barcode || "" });
+      updateCache(item.id, { nombre:item.name, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
+      setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode || item.label });
+      bumpPick(item.id);
+      addBarcodeLegacyLastOnly(item.id, 1);
     }
   });
   applyPriceTemplate($inpCode, { mode: "code" });
@@ -4272,34 +4247,20 @@ $(function () {
   });
 
   $inpCode.on("input", function(){
-    // Durante una lectura USB no interpretar prefijos parciales como productos.
-    if (isUsbScannerInputSuppressed()) {
-      try { $inpCode.autocomplete("close"); } catch {}
-      return;
-    }
-
     const v=$.trim(this.value);
     if (v) {
       const digits = onlyDigits(v);
       if (/^\d{6,}$/.test(digits)) {
         const pid = barcodeIndex.get(digits);
-        if (pid) setProductFields({
-          nombre:productCache.get(String(pid))?.nombre,
-          pid,
-          barcode:digits,
-          focusQty:false
-        });
+        if (pid) setProductFields({ nombre:productCache.get(String(pid))?.nombre, pid, barcode:digits });
       } else {
         const rec = productCache.get(String(v));
-        if (rec) setProductFields({
-          nombre:rec.nombre,
-          pid:v,
-          barcode:rec.barcode,
-          focusQty:false
-        });
+        if (rec) setProductFields({ nombre:rec.nombre, pid:v, barcode:rec.barcode });
       }
     } else { try { $inpCode.autocomplete("close"); } catch {} }
   });
+
+
 
   /* ================== Cantidad principal (#cantidad): (si existe) ================== */
   function normalizeQtyOnCommit(el){
@@ -6304,37 +6265,7 @@ Cambio: ${money(cambio)}` : "";
     });
 
     if (!hasSucursal()) return;
-    resolveByBarcode(clean).then(pid => { if (pid) addToCartLastOnly(pid, 1); });
-  }
-
-  // Camino EXCLUSIVO del lector físico USB/Bluetooth tipo teclado.
-  // No dispara autocomplete: recibe el código completo y lo resuelve una sola vez.
-  function pushUsbScannerCodeAndAdd(code){
-    const clean = onlyDigits(code);
-    if (!clean) return;
-
-    usbScannerState.candidate = false;
-    usbScannerState.active = false;
-    usbScannerState.suppressInputUntil = Date.now() + 120;
-
-    try { $inpCode.autocomplete("close"); } catch (_){}
-    try { $inpNombre.autocomplete("close"); } catch (_){}
-    try { if ($inpId && $inpId.length) $inpId.autocomplete("close"); } catch (_){}
-
-    // Mostrar el código completo solo cuando la lectura ya terminó.
-    $inpCode.val(clean);
-
-    if (!hasSucursal()) return;
-
-    resolveByBarcode(clean).then(pid => {
-      if (!pid) {
-        if (typeof flashScanError === "function") {
-          flashScanError("Codigo de barras no encontrado: " + clean);
-        }
-        return;
-      }
-      addToCartLastOnly(pid, 1);
-    });
+    resolveByBarcode(clean).then(pid => { if (pid) addBarcodeLegacyLastOnly(pid, 1); });
   }
 
   /* =======================================================================================
@@ -6747,7 +6678,7 @@ Cambio: ${money(cambio)}` : "";
       const committed = normalizeQtyOnCommit($cantidad[0]);
       const qty = clampQty(committed);
       const pid = $pid.val();
-      if (pid && $agregar && $agregar.length && !$agregar.prop("disabled")) addToCartLastOnly(pid, qty);
+      if (pid && $agregar && $agregar.length && !$agregar.prop("disabled")) addBarcodeLegacyLastOnly(pid, qty);
       return;
     }
     if (originEl && originEl.classList && originEl.classList.contains("qty-input")) {
@@ -6778,40 +6709,23 @@ Cambio: ${money(cambio)}` : "";
       scanning = false;
       originEl = null;
       originStartValue = "";
-      usbScannerState.candidate = false;
-      usbScannerState.active = false;
       if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     }
 
-    function restoreOrigin(){
-      if (!originEl) return;
-      try {
-        if (typeof originEl.value === "string") originEl.value = originStartValue;
-      } catch (_) {}
-    }
-
     function finalize(code){
-      const clean = onlyDigits(code);
-      if (!clean || clean.length < MIN_CHARS) { resetAll(); return; }
-
+      const c = String(code || "");
       const wasQty = isQtyElement(originEl);
-      restoreOrigin();
 
       if (wasQty) {
+        try { if (originEl) originEl.value = originStartValue; } catch (_){}
         commitCurrentQtyLikeEnterIfNeeded(originEl);
       }
 
-      // Evita que el .val() final sea interpretado por handlers de input/autocomplete.
-      usbScannerState.candidate = false;
-      usbScannerState.active = false;
-      usbScannerState.suppressInputUntil = Date.now() + 120;
-
-      pushUsbScannerCodeAndAdd(clean);
+      pushCodeIntoCodeInputAndAdd(c);
       resetAll();
     }
 
     document.addEventListener("keydown", function (e) {
-      if (isModalOpen()) { resetAll(); return; }
       if (e.ctrlKey || e.altKey || e.metaKey) { resetAll(); return; }
 
       const active = document.activeElement;
@@ -6831,9 +6745,6 @@ Cambio: ${money(cambio)}` : "";
       }
 
       if (e.key && e.key.length === 1) {
-        // El POS usa códigos numéricos. Letras se dejan para escritura normal.
-        if (!/^\d$/.test(e.key)) { resetAll(); return; }
-
         if (originEl && active !== originEl) resetAll();
 
         if (!buf) {
@@ -6842,46 +6753,39 @@ Cambio: ${money(cambio)}` : "";
           first = t;
           last = t;
           buf = e.key;
-
-          // Se marca candidato ANTES de que el navegador dispare el evento input.
-          usbScannerState.candidate = true;
-        } else if ((t - last) > GAP_MS) {
-          resetAll();
-          originEl = active;
-          originStartValue = (active && typeof active.value === "string") ? active.value : "";
-          first = t;
-          last = t;
-          buf = e.key;
-          usbScannerState.candidate = true;
         } else {
-          buf += e.key;
-          last = t;
+          if ((t - last) > GAP_MS) {
+            resetAll();
+            originEl = active;
+            originStartValue = (active && typeof active.value === "string") ? active.value : "";
+            first = t; last = t;
+            buf = e.key;
+          } else {
+            buf += e.key;
+            last = t;
+          }
         }
 
-        // Con dos dígitos suficientemente rápidos confirmamos la ráfaga de scanner.
-        if (!scanning && buf.length >= 2 && (last - first) <= GAP_MS + 8) {
+        if (!scanning && inQty && buf.length >= 2) {
           scanning = true;
-          usbScannerState.active = true;
-          restoreOrigin();
-          try { $inpCode.autocomplete("close"); } catch (_){}
+          try { if (active && typeof active.value === "string") active.value = originStartValue; } catch (_){}
         }
 
-        if (scanning) {
-          // Desde aquí ningún dígito del scanner debe escribirse en inputs ni disparar autocomplete.
+        if (scanning && inQty) {
           e.preventDefault();
           e.stopImmediatePropagation();
-        }
-
-        // Si el foco estaba en cantidad, protegerla también desde el segundo dígito.
-        if (scanning && inQty) {
-          try { if (active && typeof active.value === "string") active.value = originStartValue; } catch (_){}
         }
 
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => resetAll(), GAP_MS * 6);
 
-        // IMPORTANTE: no finalizar al llegar a 8 caracteres.
-        // Esperamos Enter/Tab para recibir completos EAN-8, UPC-A y EAN-13.
+        if (inQty && scanning && buf.length >= MIN_CHARS) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          finalize(buf);
+          return;
+        }
+
         return;
       }
 
@@ -6893,17 +6797,10 @@ Cambio: ${money(cambio)}` : "";
     const MIN_CHARS = 8, GAP_MS = 35;
     let buf="", first=0, last=0, idleTimer=null;
 
-    function reset(){
-      buf=""; first=0; last=0;
-      if (!usbScannerState.active) usbScannerState.candidate = false;
-      if(idleTimer){clearTimeout(idleTimer); idleTimer=null;}
-    }
+    function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
 
     document.addEventListener("keydown", function (e) {
-      // El detector principal ya ve todos los keydown en capture. Este fallback se conserva
-      // como respaldo, pero nunca compite cuando el principal ya confirmó una ráfaga.
-      if (usbScannerState.active || isQtyElement(document.activeElement)) return;
-      if (isModalOpen()) { reset(); return; }
+      if (isQtyElement(document.activeElement)) return;
       if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
       const t = Date.now();
 
@@ -6912,20 +6809,20 @@ Cambio: ${money(cambio)}` : "";
         if (fastEnough && buf.length >= MIN_CHARS) {
           e.preventDefault(); e.stopImmediatePropagation();
           const code = buf; reset();
-          pushUsbScannerCodeAndAdd(code);
+          pushCodeIntoCodeInputAndAdd(code);
           return;
         }
         reset(); return;
       }
 
-      if (e.key && e.key.length === 1 && /^\d$/.test(e.key)) {
+      if (e.key && e.key.length === 1) {
         if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
         if (!buf) first = t;
         buf += e.key; last = t;
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(reset, GAP_MS*5);
-      } else if (e.key !== "Shift") {
-        reset();
+      } else {
+        if (e.key !== "Shift") reset();
       }
     }, true);
   })();
