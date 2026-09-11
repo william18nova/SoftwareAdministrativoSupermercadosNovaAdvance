@@ -322,11 +322,19 @@
 
 <!-- POS Agent -->
 <script>
-  window.POS_AGENT_URL   = "{{ POS_AGENT_URL|default:'http://127.0.0.1:8787'|escapejs }}".trim();
+  window.POS_AGENT_URL = "{{ POS_AGENT_URL|default:'http://127.0.0.1:8787'|escapejs }}".trim();
+
+  // Token del agente Windows (se conserva como estaba)
   window.POS_AGENT_TOKEN = "{{ POS_AGENT_TOKEN|default:''|escapejs }}".trim();
-  if (!/^https?:\/\//.test(window.POS_AGENT_URL)) window.POS_AGENT_URL = "http://127.0.0.1:8787";
+
+  // Token independiente del agente Linux
+  window.POS_AGENT_TOKEN_LINUX = "{{ POS_AGENT_TOKEN_LINUX|default:''|escapejs }}".trim();
+
+  if (!/^https?:\/\//.test(window.POS_AGENT_URL)) {
+    window.POS_AGENT_URL = "http://127.0.0.1:8787";
+  }
 </script>
 
 <script src="{% static 'javascript/sale_draft_lifecycle.js' %}?v=1"></script>
-<script src="{% static 'javascript/generar_venta.js' %}?v=42"></script>
+<script src="{% static 'javascript/generar_venta.js' %}?v=43"></script>
 {% endblock %}

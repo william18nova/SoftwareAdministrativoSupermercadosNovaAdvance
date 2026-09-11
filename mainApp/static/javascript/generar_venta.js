@@ -25,8 +25,19 @@ $(function () {
   const CARRITO_LIMPIO_AUDIT_DISABLED = CARRITO_AUDIT_ROLE === "web master" || CARRITO_AUDIT_ROLE === "webmaster";
 
   /* ================== Agente local ================== */
-  const POS_AGENT_URL   = (window.POS_AGENT_URL || "http://127.0.0.1:8787").replace(/\/+$/,'');
-  const POS_AGENT_TOKEN = (window.POS_AGENT_TOKEN || "").trim();
+  const POS_AGENT_URL = (
+    window.POS_AGENT_URL || "http://127.0.0.1:8787"
+  ).replace(/\/+$/, "");
+
+  // Windows conserva el token histórico.
+  const POS_AGENT_TOKEN = String(
+    window.POS_AGENT_TOKEN || ""
+  ).trim();
+
+  // Linux usa un token independiente.
+  const POS_AGENT_TOKEN_LINUX = String(
+    window.POS_AGENT_TOKEN_LINUX || ""
+  ).trim();
 
   /* ================== Selectores ================== */
   const $inpCliente = $("#cliente_busqueda");
@@ -5664,8 +5675,8 @@ $(function () {
   // por Django mediante el perfil del punto de pago.
   // =========================================================
   async function agentPrintLinux(text, { timeout = 2000 } = {}) {
-    if (!POS_AGENT_TOKEN) {
-      throw new Error("No hay POS_AGENT_TOKEN configurado para el cliente Linux.");
+    if (!POS_AGENT_TOKEN_LINUX) {
+      throw new Error("No hay POS_AGENT_TOKEN_LINUX configurado para el cliente Linux.");
     }
 
     const ctrl = new AbortController();
@@ -5676,7 +5687,7 @@ $(function () {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Pos-Agent-Token": POS_AGENT_TOKEN
+          "X-Pos-Agent-Token": POS_AGENT_TOKEN_LINUX
         },
         body: JSON.stringify({ text: String(text || "") }),
         signal: ctrl.signal
@@ -5698,8 +5709,8 @@ $(function () {
   }
 
   async function agentKickLinux({ timeout = 1500 } = {}) {
-    if (!POS_AGENT_TOKEN) {
-      throw new Error("No hay POS_AGENT_TOKEN configurado para abrir la gaveta en Linux.");
+    if (!POS_AGENT_TOKEN_LINUX) {
+      throw new Error("No hay POS_AGENT_TOKEN_LINUX configurado para abrir la gaveta en Linux.");
     }
 
     const ctrl = new AbortController();
@@ -5709,7 +5720,7 @@ $(function () {
       const response = await fetch(POS_AGENT_URL + "/kick", {
         method: "POST",
         headers: {
-          "X-Pos-Agent-Token": POS_AGENT_TOKEN
+          "X-Pos-Agent-Token": POS_AGENT_TOKEN_LINUX
         },
         signal: ctrl.signal
       });
@@ -7082,5 +7093,10 @@ Cambio: ${money(cambio)}` : "";
       updateSaleDraftStatus(message, "error");
     }
   });
-  if (!POS_AGENT_TOKEN) console.warn("[POS_AGENT] Token vacío: el agente podría rechazar (401).");
+  if (!POS_AGENT_TOKEN) {
+    console.warn("[POS_AGENT][WINDOWS] POS_AGENT_TOKEN vacío: el agente Windows podría rechazar (401).");
+  }
+  if (!POS_AGENT_TOKEN_LINUX) {
+    console.warn("[POS_AGENT][LINUX] POS_AGENT_TOKEN_LINUX vacío: el agente Linux podría rechazar (401).");
+  }
 });

@@ -5182,6 +5182,24 @@ class GenerarVentaView(LoginRequiredMixin, View):
                 method["code"]: method["label"] for method in methods
             },
             'nequi_payment_method_enabled': NEQUI_PAYMENT_CODE in active_codes,
+
+            # POS Agent local: valores inyectados a generar_venta.html.
+            # Windows conserva POS_AGENT_TOKEN y Linux usa su token independiente.
+            'POS_AGENT_URL': getattr(
+                settings,
+                'POS_AGENT_URL',
+                'http://127.0.0.1:8787',
+            ),
+            'POS_AGENT_TOKEN': getattr(
+                settings,
+                'POS_AGENT_TOKEN',
+                '',
+            ),
+            'POS_AGENT_TOKEN_LINUX': getattr(
+                settings,
+                'POS_AGENT_TOKEN_LINUX',
+                '',
+            ),
         }
 
     @staticmethod

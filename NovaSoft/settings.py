@@ -171,6 +171,12 @@ POS_AGENT_TOKEN = os.getenv(
     "BmFclqQdWkKjArLIYvakHG426BuLDUtJA0zVG5DJOgjZTWSEVa_i0hxiyXskSHUi"
 )
 
+POS_AGENT_URL = os.getenv("POS_AGENT_URL", "http://127.0.0.1:8787")
+POS_AGENT_TOKEN_LINUX = os.getenv(
+    "POS_AGENT_TOKEN_LINUX",
+    "7f3d9a8c2e1b4d6f9a0c3e5f7b1d2c4e6a8f0b2d4c6e8a0f1b3d5f7a9c1e3d5"
+)
+
 # Token privado que MacroDroid debe enviar en X-Macrodroid-Token.
 MACRODROID_NEQUI_TOKEN = os.getenv("MACRODROID_NEQUI_TOKEN", "")
 
