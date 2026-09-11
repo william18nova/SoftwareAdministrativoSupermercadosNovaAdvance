@@ -57,6 +57,19 @@ $(function () {
   const $buscarCart = $("#buscar-detalles");
   const $btnVaciar  = $("#vaciar-carrito");
 
+  /* ================== Estado lector USB ================== */
+  // candidate=true desde la primera tecla de una posible ráfaga.
+  // active=true cuando ya confirmamos que las teclas llegan a velocidad de scanner.
+  const usbScannerState = {
+    candidate: false,
+    active: false,
+    suppressInputUntil: 0,
+  };
+
+  function isUsbScannerInputSuppressed(){
+    return usbScannerState.candidate || usbScannerState.active || Date.now() < usbScannerState.suppressInputUntil;
+  }
+
   // ✅ pagos mixto
   const $hidPagos     = $("#pagos");      // hidden input name="pagos"
   const $hidMedioPago = $("#medio_pago"); // compat (efectivo/tarjeta/transferencia/mixto)
@@ -3113,6 +3126,13 @@ $(function () {
     if (enableInstantSearch) {
       let raf = null;
       $inp.on("input", function(){
+        // El lector USB se procesa por un camino exclusivo. Mientras entra su ráfaga,
+        // #codigo_o_barras NO debe disparar autocomplete ni autopick con códigos parciales.
+        if ($inpCode && $inpCode.length && $inp[0] === $inpCode[0] && isUsbScannerInputSuppressed()) {
+          try { $inp.autocomplete("close"); } catch {}
+          return;
+        }
+
         // ✅ marcar tipeo real del usuario para gating del autopick
         lastUserInputTS.set($inp[0], now());
         const v = this.value || "";
@@ -4252,15 +4272,31 @@ $(function () {
   });
 
   $inpCode.on("input", function(){
+    // Durante una lectura USB no interpretar prefijos parciales como productos.
+    if (isUsbScannerInputSuppressed()) {
+      try { $inpCode.autocomplete("close"); } catch {}
+      return;
+    }
+
     const v=$.trim(this.value);
     if (v) {
       const digits = onlyDigits(v);
       if (/^\d{6,}$/.test(digits)) {
         const pid = barcodeIndex.get(digits);
-        if (pid) setProductFields({ nombre:productCache.get(String(pid))?.nombre, pid, barcode:digits });
+        if (pid) setProductFields({
+          nombre:productCache.get(String(pid))?.nombre,
+          pid,
+          barcode:digits,
+          focusQty:false
+        });
       } else {
         const rec = productCache.get(String(v));
-        if (rec) setProductFields({ nombre:rec.nombre, pid:v, barcode:rec.barcode });
+        if (rec) setProductFields({
+          nombre:rec.nombre,
+          pid:v,
+          barcode:rec.barcode,
+          focusQty:false
+        });
       }
     } else { try { $inpCode.autocomplete("close"); } catch {} }
   });
@@ -6271,6 +6307,36 @@ Cambio: ${money(cambio)}` : "";
     resolveByBarcode(clean).then(pid => { if (pid) addToCartLastOnly(pid, 1); });
   }
 
+  // Camino EXCLUSIVO del lector físico USB/Bluetooth tipo teclado.
+  // No dispara autocomplete: recibe el código completo y lo resuelve una sola vez.
+  function pushUsbScannerCodeAndAdd(code){
+    const clean = onlyDigits(code);
+    if (!clean) return;
+
+    usbScannerState.candidate = false;
+    usbScannerState.active = false;
+    usbScannerState.suppressInputUntil = Date.now() + 120;
+
+    try { $inpCode.autocomplete("close"); } catch (_){}
+    try { $inpNombre.autocomplete("close"); } catch (_){}
+    try { if ($inpId && $inpId.length) $inpId.autocomplete("close"); } catch (_){}
+
+    // Mostrar el código completo solo cuando la lectura ya terminó.
+    $inpCode.val(clean);
+
+    if (!hasSucursal()) return;
+
+    resolveByBarcode(clean).then(pid => {
+      if (!pid) {
+        if (typeof flashScanError === "function") {
+          flashScanError("Codigo de barras no encontrado: " + clean);
+        }
+        return;
+      }
+      addToCartLastOnly(pid, 1);
+    });
+  }
+
   /* =======================================================================================
      ✅ ESCÁNER CÁMARA UNIVERSAL (BarcodeDetector + ZXing fallback) — iPhone/Safari OK
      ======================================================================================= */
@@ -6712,23 +6778,40 @@ Cambio: ${money(cambio)}` : "";
       scanning = false;
       originEl = null;
       originStartValue = "";
+      usbScannerState.candidate = false;
+      usbScannerState.active = false;
       if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     }
 
+    function restoreOrigin(){
+      if (!originEl) return;
+      try {
+        if (typeof originEl.value === "string") originEl.value = originStartValue;
+      } catch (_) {}
+    }
+
     function finalize(code){
-      const c = String(code || "");
+      const clean = onlyDigits(code);
+      if (!clean || clean.length < MIN_CHARS) { resetAll(); return; }
+
       const wasQty = isQtyElement(originEl);
+      restoreOrigin();
 
       if (wasQty) {
-        try { if (originEl) originEl.value = originStartValue; } catch (_){}
         commitCurrentQtyLikeEnterIfNeeded(originEl);
       }
 
-      pushCodeIntoCodeInputAndAdd(c);
+      // Evita que el .val() final sea interpretado por handlers de input/autocomplete.
+      usbScannerState.candidate = false;
+      usbScannerState.active = false;
+      usbScannerState.suppressInputUntil = Date.now() + 120;
+
+      pushUsbScannerCodeAndAdd(clean);
       resetAll();
     }
 
     document.addEventListener("keydown", function (e) {
+      if (isModalOpen()) { resetAll(); return; }
       if (e.ctrlKey || e.altKey || e.metaKey) { resetAll(); return; }
 
       const active = document.activeElement;
@@ -6748,6 +6831,9 @@ Cambio: ${money(cambio)}` : "";
       }
 
       if (e.key && e.key.length === 1) {
+        // El POS usa códigos numéricos. Letras se dejan para escritura normal.
+        if (!/^\d$/.test(e.key)) { resetAll(); return; }
+
         if (originEl && active !== originEl) resetAll();
 
         if (!buf) {
@@ -6756,39 +6842,46 @@ Cambio: ${money(cambio)}` : "";
           first = t;
           last = t;
           buf = e.key;
+
+          // Se marca candidato ANTES de que el navegador dispare el evento input.
+          usbScannerState.candidate = true;
+        } else if ((t - last) > GAP_MS) {
+          resetAll();
+          originEl = active;
+          originStartValue = (active && typeof active.value === "string") ? active.value : "";
+          first = t;
+          last = t;
+          buf = e.key;
+          usbScannerState.candidate = true;
         } else {
-          if ((t - last) > GAP_MS) {
-            resetAll();
-            originEl = active;
-            originStartValue = (active && typeof active.value === "string") ? active.value : "";
-            first = t; last = t;
-            buf = e.key;
-          } else {
-            buf += e.key;
-            last = t;
-          }
+          buf += e.key;
+          last = t;
         }
 
-        if (!scanning && inQty && buf.length >= 2) {
+        // Con dos dígitos suficientemente rápidos confirmamos la ráfaga de scanner.
+        if (!scanning && buf.length >= 2 && (last - first) <= GAP_MS + 8) {
           scanning = true;
-          try { if (active && typeof active.value === "string") active.value = originStartValue; } catch (_){}
+          usbScannerState.active = true;
+          restoreOrigin();
+          try { $inpCode.autocomplete("close"); } catch (_){}
         }
 
-        if (scanning && inQty) {
+        if (scanning) {
+          // Desde aquí ningún dígito del scanner debe escribirse en inputs ni disparar autocomplete.
           e.preventDefault();
           e.stopImmediatePropagation();
+        }
+
+        // Si el foco estaba en cantidad, protegerla también desde el segundo dígito.
+        if (scanning && inQty) {
+          try { if (active && typeof active.value === "string") active.value = originStartValue; } catch (_){}
         }
 
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => resetAll(), GAP_MS * 6);
 
-        if (inQty && scanning && buf.length >= MIN_CHARS) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          finalize(buf);
-          return;
-        }
-
+        // IMPORTANTE: no finalizar al llegar a 8 caracteres.
+        // Esperamos Enter/Tab para recibir completos EAN-8, UPC-A y EAN-13.
         return;
       }
 
@@ -6800,10 +6893,17 @@ Cambio: ${money(cambio)}` : "";
     const MIN_CHARS = 8, GAP_MS = 35;
     let buf="", first=0, last=0, idleTimer=null;
 
-    function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
+    function reset(){
+      buf=""; first=0; last=0;
+      if (!usbScannerState.active) usbScannerState.candidate = false;
+      if(idleTimer){clearTimeout(idleTimer); idleTimer=null;}
+    }
 
     document.addEventListener("keydown", function (e) {
-      if (isQtyElement(document.activeElement)) return;
+      // El detector principal ya ve todos los keydown en capture. Este fallback se conserva
+      // como respaldo, pero nunca compite cuando el principal ya confirmó una ráfaga.
+      if (usbScannerState.active || isQtyElement(document.activeElement)) return;
+      if (isModalOpen()) { reset(); return; }
       if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
       const t = Date.now();
 
@@ -6812,20 +6912,20 @@ Cambio: ${money(cambio)}` : "";
         if (fastEnough && buf.length >= MIN_CHARS) {
           e.preventDefault(); e.stopImmediatePropagation();
           const code = buf; reset();
-          pushCodeIntoCodeInputAndAdd(code);
+          pushUsbScannerCodeAndAdd(code);
           return;
         }
         reset(); return;
       }
 
-      if (e.key && e.key.length === 1) {
+      if (e.key && e.key.length === 1 && /^\d$/.test(e.key)) {
         if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
         if (!buf) first = t;
         buf += e.key; last = t;
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(reset, GAP_MS*5);
-      } else {
-        if (e.key !== "Shift") reset();
+      } else if (e.key !== "Shift") {
+        reset();
       }
     }, true);
   })();
