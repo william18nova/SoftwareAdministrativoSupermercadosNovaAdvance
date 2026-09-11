@@ -5992,43 +5992,121 @@ Total: ${money(total)}${changeMessage}${specialMessage}${nequiMessage}`;
         ? Math.max(0, recibidoEfectivo - totalNum)
         : 0;
 
-      // ✅ Mandar factura y, solo si hay valor por cobrar, abrir el cajón.
-      // En modo ultra usa /print-fast y /kick-fast con text/plain + sendBeacon/XHR, sin Promises ni headers personalizados.
+      // ==========================================================
+      // CONFIRMACIÓN DE IMPRESIÓN
+      // ==========================================================
+      // Se conserva el comportamiento histórico:
+      // - Aceptar  => NO imprimir factura.
+      // - Cancelar => imprimir factura.
+      // Si hubo pago en efectivo, la gaveta se abre en ambos casos.
+      const pagosTxt = (pagos || []).map((p) => {
+        const mp = String(p.medio_pago || "")
+          .toUpperCase()
+          .replaceAll("_", " ");
+        return `- ${mp}: ${money(p.monto)}`;
+      }).join("\n");
+
+      const omitirImpresion = confirm(
+        [
+          "✅ Venta generada.",
+          `Total: ${money(totalNum)}`,
+          pagosTxt ? `\nPAGOS:\n${pagosTxt}` : "",
+          (ef && !esMixto) ? `\nCambio (sobre efectivo): ${money(cambio)}` : "",
+          "",
+          "¿Desea OMITIR la impresión de la factura?",
+          "— Aceptar: NO imprimir (solo abrir gaveta si corresponde).",
+          "— Cancelar: Imprimir factura (y abrir gaveta si corresponde)."
+        ].filter(Boolean).join("\n")
+      );
+
       let printJobs = [];
-      const printOperatingSystem = normalizePrintOperatingSystem(r.print_operating_system);
-      const printPaperSize = normalizePrintPaperSize(r.print_paper_size);
-      const printAutoCut = normalizePrintAutoCut(r.print_auto_cut);
-      const feedLines = printPaperSize === "pequena" ? 4 : 13;
-      const receiptText = (r.receipt_text || "Factura\n\n") + "\n".repeat(feedLines);
+
+      const printOperatingSystem =
+        normalizePrintOperatingSystem(r.print_operating_system);
+
+      const printPaperSize =
+        normalizePrintPaperSize(r.print_paper_size);
+
+      const printAutoCut =
+        normalizePrintAutoCut(r.print_auto_cut);
+
+      const feedLines =
+        printPaperSize === "pequena" ? 4 : 13;
+
+      const receiptText =
+        (r.receipt_text || "Factura\n\n") + "\n".repeat(feedLines);
+
       const shouldKickCashDrawer = (
         totalNum > 0
         && !!ef
         && safeNumber(ef.monto) > 0
       );
 
-      if (printOperatingSystem === "linux") {
-        // Linux usa el mismo cliente local que funcionaba antes.
-        // NO llama /ventas/imprimir/ en PythonAnywhere.
-        // r.receipt_text ya viene formateado a 32 chars (pequena) o 48 chars (grande).
-        // Se envía SIN agregar comandos/campos nuevos para mantener compatibilidad
-        // exacta con el agente Linux antiguo.
-        const linuxReceiptText = r.receipt_text || "Factura\n\n";
-        const printJob = (async () => {
-          await agentPrintLinux(linuxReceiptText, { timeout: 2000 });
+      // ==========================================================
+      // ACEPTAR => OMITIR IMPRESIÓN
+      // ==========================================================
+      if (omitirImpresion) {
 
-          // Igual que en el flujo viejo: imprimir primero y abrir la gaveta después.
+        if (shouldKickCashDrawer) {
+          if (printOperatingSystem === "linux") {
+            printJobs.push(
+              agentKickLinux({ timeout: 1500 })
+            );
+          } else if (FAST_PRINT_FIRE_AND_FORGET) {
+            const useUltra =
+              FAST_POS_ULTRA_ENABLED
+              && (FAST_POS_ULTRA_FORCE || posAgentUltraReady);
+
+            if (useUltra) {
+              agentKickUltra();
+            } else {
+              printJobs.push(agentKickFast());
+              agentDetectUltraFast();
+            }
+          } else {
+            printJobs.push(
+              agentKickSafe({ timeout: 300 })
+            );
+          }
+        }
+
+      // ==========================================================
+      // CANCELAR => IMPRIMIR FACTURA
+      // ==========================================================
+      } else if (printOperatingSystem === "linux") {
+
+        // Linux usa el cliente local histórico:
+        // navegador -> 127.0.0.1:8787/print -> impresora.
+        //
+        // Se envía r.receipt_text tal como lo genera Django para conservar
+        // compatibilidad con el agente Linux antiguo. El tamaño (pequena/grande)
+        // ya viene aplicado por el backend.
+        const linuxReceiptText =
+          r.receipt_text || "Factura\n\n";
+
+        const printJob = (async () => {
+          await agentPrintLinux(
+            linuxReceiptText,
+            { timeout: 2000 }
+          );
+
           if (shouldKickCashDrawer) {
-            await agentKickLinux({ timeout: 1500 });
+            await agentKickLinux({
+              timeout: 1500
+            });
           }
 
           return true;
         })();
 
         printJobs.push(printJob);
+
         printJob.catch((error) => {
-          // La venta ya fue confirmada: un fallo de impresión nunca debe
-          // provocar que se envíe nuevamente el formulario de venta.
-          console.error("[IMPRESION_LINUX]", error);
+          console.error(
+            "[IMPRESION_LINUX]",
+            error
+          );
+
           window.setTimeout(() => {
             showFastSaleToast(
               `Venta #${r.venta_id} registrada, pero no se pudo imprimir: ${error?.message || "error desconocido"}`,
@@ -6036,33 +6114,66 @@ Total: ${money(total)}${changeMessage}${specialMessage}${nequiMessage}`;
             );
           }, 0);
         });
+
       } else if (FAST_PRINT_FIRE_AND_FORGET) {
-        const useUltra = FAST_POS_ULTRA_ENABLED && (FAST_POS_ULTRA_FORCE || posAgentUltraReady);
+
+        // Windows: conserva el flujo POS Agent actual.
+        const useUltra =
+          FAST_POS_ULTRA_ENABLED
+          && (FAST_POS_ULTRA_FORCE || posAgentUltraReady);
 
         if (useUltra) {
-          agentPrintUltra(receiptText, { autoCut: printAutoCut });
-          if (shouldKickCashDrawer) agentKickUltra();
-        } else {
-          const printJob = agentPrintFast(receiptText, { autoCut: printAutoCut });
-          printJobs.push(printJob);
-          if (shouldKickCashDrawer) printJobs.push(agentKickFast());
+          agentPrintUltra(
+            receiptText,
+            { autoCut: printAutoCut }
+          );
 
-          // ✅ Si aún no se detectó el modo ultra, deja la detección corriendo para la próxima venta.
+          if (shouldKickCashDrawer) {
+            agentKickUltra();
+          }
+        } else {
+          const printJob = agentPrintFast(
+            receiptText,
+            { autoCut: printAutoCut }
+          );
+
+          printJobs.push(printJob);
+
+          if (shouldKickCashDrawer) {
+            printJobs.push(agentKickFast());
+          }
+
           agentDetectUltraFast();
         }
+
       } else {
-        printJobs = [agentPrintSafe(receiptText, {
-          timeout: 650,
-          autoCut: printAutoCut,
-        })];
+
+        // Windows: fallback seguro.
+        printJobs = [
+          agentPrintSafe(
+            receiptText,
+            {
+              timeout: 650,
+              autoCut: printAutoCut
+            }
+          )
+        ];
+
         if (shouldKickCashDrawer) {
-          printJobs.push(agentKickSafe({ timeout: 300 }));
+          printJobs.push(
+            agentKickSafe({ timeout: 300 })
+          );
         }
       }
 
       if (printJobs.length) {
         if (FAST_SALE_PRINT_WAIT_MS > 0) {
-          try { await settleWithDeadline(printJobs, FAST_SALE_PRINT_WAIT_MS); } catch (_) {}
+          try {
+            await settleWithDeadline(
+              printJobs,
+              FAST_SALE_PRINT_WAIT_MS
+            );
+          } catch (_) {}
         } else {
           Promise.allSettled(printJobs).catch(() => {});
         }
@@ -6081,25 +6192,10 @@ Cambio: ${money(cambio)}` : "";
         if ($submitBtn.length) $submitBtn.prop("disabled", false);
       };
 
-      // ✅ Máxima velocidad percibida:
-      // 1) /print ya fue iniciado arriba.
-      // 2) Se muestra el alert con cambio en el primer tick libre.
-      // 3) La limpieza se hace al cerrar el alert, porque mientras el alert está abierto no se puede vender.
-      if (FAST_SALE_SUCCESS_ALERT && FAST_ALERT_BEFORE_RESET) {
-        saleSubmitting = false;
-        confirmSubmitting = false;
-        if ($submitBtn.length) $submitBtn.prop("disabled", false);
-        setTimeout(() => {
-          try { alert(okMsg); }
-          finally { finishSaleUi(); }
-        }, 0);
-      } else if (FAST_SALE_SUCCESS_ALERT) {
-        finishSaleUi();
-        setTimeout(() => alert(okMsg), 0);
-      } else {
-        finishSaleUi();
-        showFastSaleToast(okMsg);
-      }
+      // El confirm de impresión mostrado arriba ya informa que la venta fue
+      // registrada, el total, los pagos y el cambio. Evitamos un segundo alert.
+      finishSaleUi();
+      showFastSaleToast(okMsg, 2500);
     })
     .catch(() => {
       saleSubmitting = false;
