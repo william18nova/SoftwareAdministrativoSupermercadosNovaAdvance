@@ -276,13 +276,22 @@
   });
 
   /* =========================================================================
-     IMPRESION SEGUN EL PERFIL AUTORITATIVO DEL SERVIDOR
-     - Windows: POS Agent local, kick + print en paralelo.
-     - Linux: endpoint Django/CUPS; nunca duplica print/kick en el agente.
+     IMPRESIÓN SEGÚN EL PERFIL AUTORITATIVO DEL SERVIDOR
+     - Windows: POS Agent local con POS_AGENT_TOKEN.
+     - Linux: POS Agent local legacy con POS_AGENT_TOKEN_LINUX.
+     - PythonAnywhere NO intenta imprimir por USB/CUPS en esta reimpresión.
      ========================================================================= */
-  const POS_AGENT_URL   = (window.POS_AGENT_URL || "http://127.0.0.1:8787").replace(/\/+$/,'');
-  const POS_AGENT_TOKEN = (window.POS_AGENT_TOKEN || "").trim();
-  const IMPRIMIR_FACTURA_URL = String(window.imprimirFacturaUrl || "").trim();
+  const POS_AGENT_URL = (
+    window.POS_AGENT_URL || "http://127.0.0.1:8787"
+  ).replace(/\/+$/, "");
+
+  const POS_AGENT_TOKEN = String(
+    window.POS_AGENT_TOKEN || ""
+  ).trim();
+
+  const POS_AGENT_TOKEN_LINUX = String(
+    window.POS_AGENT_TOKEN_LINUX || ""
+  ).trim();
 
   function normalizePrintOperatingSystem(value) {
     return String(value || "").trim().toLowerCase() === "linux"
@@ -302,16 +311,22 @@
     if (value === undefined || value === null || value === "") return true;
     if (typeof value === "boolean") return value;
     return ["1", "true", "yes", "on"].includes(
-      String(value).trim().toLowerCase(),
+      String(value).trim().toLowerCase()
     );
   }
 
-  function buildPosAgentPrintPayload(text, autoCut = true) {
+  // Windows conserva el payload actual con soporte de corte.
+  function buildWindowsPrintPayload(text, autoCut = true) {
     const shouldCut = normalizePrintAutoCut(autoCut);
     let printableText = String(text || "");
-    if (shouldCut && !printableText.endsWith(ESCPOS_FULL_CUT_COMMAND)) {
+
+    if (
+      shouldCut &&
+      !printableText.endsWith(ESCPOS_FULL_CUT_COMMAND)
+    ) {
       printableText += ESCPOS_FULL_CUT_COMMAND;
     }
+
     return {
       text: printableText,
       cut: shouldCut,
@@ -319,156 +334,215 @@
     };
   }
 
-  async function agentPrintSafe(text, { timeout = 700, autoCut = true } = {}) {
+  async function agentPrintWindows(
+    text,
+    { timeout = 850, autoCut = true } = {}
+  ) {
     if (!POS_AGENT_TOKEN) {
-      throw new Error("POS Agent no configurado (token vacio).");
+      throw new Error(
+        "POS Agent Windows no configurado (POS_AGENT_TOKEN vacío)."
+      );
     }
+
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeout);
+    const timer = setTimeout(() => ctrl.abort(), timeout);
+
     try {
-      const response = await fetch(POS_AGENT_URL + "/print", {
-        method: "POST",
-        keepalive: true,
-        headers: { "Content-Type": "application/json", "X-Pos-Agent-Token": POS_AGENT_TOKEN },
-        body: JSON.stringify(buildPosAgentPrintPayload(text, autoCut)),
-        signal: ctrl.signal
-      });
+      const response = await fetch(
+        POS_AGENT_URL + "/print",
+        {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Pos-Agent-Token": POS_AGENT_TOKEN,
+          },
+          body: JSON.stringify(
+            buildWindowsPrintPayload(text, autoCut)
+          ),
+          signal: ctrl.signal,
+        }
+      );
+
       if (!response.ok) {
-        throw new Error(`El POS Agent rechazo la impresion (HTTP ${response.status}).`);
+        throw new Error(
+          `El POS Agent Windows rechazó la impresión (HTTP ${response.status}).`
+        );
       }
+
+      return true;
     } catch (error) {
       if (error?.name === "AbortError") {
-        throw new Error("El POS Agent no respondio a tiempo al imprimir.");
+        throw new Error(
+          "El POS Agent Windows no respondió a tiempo al imprimir."
+        );
       }
       throw error;
+    } finally {
+      clearTimeout(timer);
     }
-    finally { clearTimeout(t); }
   }
 
-  async function agentKickSafe({ timeout = 450 } = {}) {
-    if (!POS_AGENT_TOKEN) {
-      throw new Error("POS Agent no configurado (token vacio).");
+  // Linux usa EXACTAMENTE el protocolo legacy que ya funcionaba:
+  // POST /print
+  // X-Pos-Agent-Token: POS_AGENT_TOKEN_LINUX
+  // JSON: { text: "..." }
+  async function agentPrintLinux(
+    text,
+    { timeout = 2000 } = {}
+  ) {
+    if (!POS_AGENT_TOKEN_LINUX) {
+      throw new Error(
+        "POS Agent Linux no configurado (POS_AGENT_TOKEN_LINUX vacío)."
+      );
     }
+
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeout);
+    const timer = setTimeout(() => ctrl.abort(), timeout);
+
     try {
-      const response = await fetch(POS_AGENT_URL + "/kick", {
-        method: "POST",
-        keepalive: true,
-        headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN },
-        signal: ctrl.signal
-      });
+      const response = await fetch(
+        POS_AGENT_URL + "/print",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Pos-Agent-Token": POS_AGENT_TOKEN_LINUX,
+          },
+          body: JSON.stringify({
+            text: String(text || ""),
+          }),
+          signal: ctrl.signal,
+        }
+      );
+
       if (!response.ok) {
-        throw new Error(`El POS Agent rechazo la apertura de caja (HTTP ${response.status}).`);
+        throw new Error(
+          `El POS Agent Linux rechazó la impresión (HTTP ${response.status}).`
+        );
       }
+
+      return true;
     } catch (error) {
       if (error?.name === "AbortError") {
-        throw new Error("El POS Agent no respondio a tiempo al abrir la caja.");
+        throw new Error(
+          "El POS Agent Linux no respondió a tiempo al imprimir."
+        );
       }
       throw error;
+    } finally {
+      clearTimeout(timer);
     }
-    finally { clearTimeout(t); }
   }
 
-  // Warmup del agente al cargar la página (igual que generar_venta)
-  (function agentWarmup(){
-    if (!POS_AGENT_TOKEN) return;
+  // Warmup independiente. Un fallo aquí no bloquea la página.
+  function warmupPosAgent(token) {
+    if (!token) return;
     fetch(POS_AGENT_URL + "/ping", {
       method: "GET",
       keepalive: true,
-      headers: { "X-Pos-Agent-Token": POS_AGENT_TOKEN }
-    }).catch(()=>{});
-  })();
-
-  async function printViaLinuxServer(ventaId, paperSize, { openDrawer = false } = {}) {
-    if (!IMPRIMIR_FACTURA_URL) {
-      throw new Error("La ruta de impresion Linux no esta configurada.");
-    }
-
-    const csrf = getCSRFToken();
-    const body = new URLSearchParams({
-      csrfmiddlewaretoken: csrf,
-      venta_id: String(ventaId),
-      paper_size: normalizePrintPaperSize(paperSize),
-      open_drawer: openDrawer ? "1" : "0"
-    });
-    const response = await fetch(IMPRIMIR_FACTURA_URL, {
-      method: "POST",
-      credentials: "same-origin",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "X-CSRFToken": csrf,
-        "X-Requested-With": "XMLHttpRequest"
+        "X-Pos-Agent-Token": token,
       },
-      body
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.success) {
-      throw new Error(data.error || "No se pudo imprimir la factura en Linux.");
-    }
-    return data;
+    }).catch(() => {});
   }
+
+  (function agentWarmup() {
+    warmupPosAgent(POS_AGENT_TOKEN);
+    if (POS_AGENT_TOKEN_LINUX !== POS_AGENT_TOKEN) {
+      warmupPosAgent(POS_AGENT_TOKEN_LINUX);
+    }
+  })();
 
   async function fetchTicketText(ventaId) {
     const csrf = getCSRFToken();
     const fd = new FormData();
+
     fd.append("csrfmiddlewaretoken", csrf);
     fd.append("venta_id", String(ventaId));
 
-    const r = await fetch(window.ticketTextoUrl, {
-      method: "POST",
-      headers: { "X-Requested-With": "XMLHttpRequest" },
-      body: fd
-    });
+    const response = await fetch(
+      window.ticketTextoUrl,
+      {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        body: fd,
+      }
+    );
 
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok || !data.success) {
-      throw new Error(data.error || "No se pudo generar el texto del ticket.");
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.error || "No se pudo generar el texto del ticket."
+      );
     }
+
     return {
       receiptText: String(data.receipt_text || ""),
-      operatingSystem: normalizePrintOperatingSystem(data.print_operating_system),
-      paperSize: normalizePrintPaperSize(data.print_paper_size),
-      autoCut: normalizePrintAutoCut(data.print_auto_cut)
+      operatingSystem: normalizePrintOperatingSystem(
+        data.print_operating_system
+      ),
+      paperSize: normalizePrintPaperSize(
+        data.print_paper_size
+      ),
+      autoCut: normalizePrintAutoCut(
+        data.print_auto_cut
+      ),
     };
   }
 
-  btnPrint?.addEventListener("click", async (e) => {
-    e.preventDefault();
+  btnPrint?.addEventListener("click", async (event) => {
+    event.preventDefault();
 
-    const ventaId = btnPrint.getAttribute("data-venta-id");
+    const ventaId =
+      btnPrint.getAttribute("data-venta-id");
 
     try {
       btnPrint.disabled = true;
-      if (!ventaId) throw new Error("No encontré el ID de la venta.");
 
-      // 1) Pedir el texto del ticket al servidor
+      if (!ventaId) {
+        throw new Error(
+          "No encontré el ID de la venta."
+        );
+      }
+
+      // Django solo genera el ticket y devuelve el perfil del punto de pago.
       const ticket = await fetchTicketText(ventaId);
 
-      // 2) Linux imprime desde Django/CUPS. El endpoint también controla la
-      // gaveta, por lo que aquí no se llama /print ni /kick del POS Agent.
+      // El ancho ya viene aplicado por Django al receipt_text.
+      // Solo agregamos alimentación final según el tamaño configurado.
+      const feedLines =
+        ticket.paperSize === "pequena" ? 4 : 13;
+
+      const receiptText =
+        (ticket.receiptText || "Factura\n\n") +
+        "\n".repeat(feedLines);
+
       if (ticket.operatingSystem === "linux") {
-        await printViaLinuxServer(ventaId, ticket.paperSize, {
-          openDrawer: false
-        });
-        return;
+        // Linux imprime en EL EQUIPO LOCAL, nunca mediante CUPS de PythonAnywhere.
+        await agentPrintLinux(
+          receiptText,
+          { timeout: 2000 }
+        );
+      } else {
+        // Windows mantiene su flujo actual y su corte automático.
+        await agentPrintWindows(
+          receiptText,
+          {
+            timeout: 850,
+            autoCut: ticket.autoCut,
+          }
+        );
       }
-
-      if (!POS_AGENT_TOKEN) {
-        throw new Error("POS Agent no configurado (token vacío). Configura POS_AGENT_TOKEN para imprimir.");
-      }
-
-      // 3) La reimpresión no abre la gaveta. El papel pequeño usa una cola
-      // corta para no desperdiciar rollo; el perfil grande conserva la actual.
-      const feedLines = ticket.paperSize === "pequena" ? 4 : 13;
-      const receiptText = (ticket.receiptText || "Factura\n\n") + "\n".repeat(feedLines);
-      await agentPrintSafe(receiptText, {
-        timeout: 850,
-        autoCut: ticket.autoCut,
-      });
 
     } catch (err) {
-      alert("⚠️ " + (err?.message || "Error al imprimir."));
+      alert(
+        "⚠️ " +
+        (err?.message || "Error al imprimir.")
+      );
       console.error(err);
     } finally {
       btnPrint.disabled = false;

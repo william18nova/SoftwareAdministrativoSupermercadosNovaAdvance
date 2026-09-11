@@ -8463,6 +8463,24 @@ class VentaDetailView(LoginRequiredMixin, DenyRolesMixin, View):
             "venta_solicitud_cambio_whatsapp_url": solicitud_whatsapp_url,
             "autorizacion_merk2888": autorizacion_merk2888,
             "beneficio_merk2888": bool(autorizacion_merk2888),
+
+            # POS Agent local para reimpresión desde ver_venta.html.
+            "POS_AGENT_URL": getattr(
+                settings,
+                "POS_AGENT_URL",
+                "http://127.0.0.1:8787",
+            ),
+            "POS_AGENT_TOKEN": getattr(
+                settings,
+                "POS_AGENT_TOKEN",
+                "",
+            ),
+            "POS_AGENT_TOKEN_LINUX": getattr(
+                settings,
+                "POS_AGENT_TOKEN_LINUX",
+                "",
+            ),
+
             **nequi_status,
         })
 
