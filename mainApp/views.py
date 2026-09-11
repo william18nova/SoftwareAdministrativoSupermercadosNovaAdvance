@@ -6308,9 +6308,11 @@ def _send_to_printer(
     punto_pago=None,
 ) -> tuple[bool, str]:
     """
-    Intenta enviar a /dev/usb/lp0; si no existe, intenta CUPS (lp raw).
-    Devuelve (ok, error_message).
+    Linux:
+    - Pequeña (58mm): usa exactamente el método antiguo que ya funciona.
+    - Grande (80mm): usa la configuración nueva y configurable.
     """
+
     try:
         profile = resolve_print_profile(SISTEMA_LINUX, paper_size)
     except ValueError:
@@ -6318,64 +6320,144 @@ def _send_to_printer(
 
     point_id = getattr(punto_pago, "pk", punto_pago)
     point_suffix = str(point_id).strip() if point_id not in (None, "") else ""
-    device = (
-        os.environ.get(f"PRINTER_DEVICE_{point_suffix}")
-        if point_suffix.isdigit()
-        else None
-    ) or os.environ.get("PRINTER_DEVICE", "/dev/usb/lp0")
 
-    # 1) /dev/usb/lp0
+    # ==========================================================
+    # DISPOSITIVO USB
+    # ==========================================================
+
+    # Para 58mm usamos primero exactamente la configuración antigua.
+    if profile.tamano_factura == TAMANO_PEQUENA:
+        device = os.environ.get("PRINTER_DEVICE", "/dev/usb/lp0")
+    else:
+        # Para 80mm mantenemos la configuración nueva por punto de pago.
+        device = (
+            os.environ.get(f"PRINTER_DEVICE_{point_suffix}")
+            if point_suffix.isdigit()
+            else None
+        ) or os.environ.get("PRINTER_DEVICE", "/dev/usb/lp0")
+
     try:
         if os.path.exists(device):
             with open(device, "wb") as f:
                 f.write(payload)
+
             return True, ""
+
     except Exception:
-        logger.exception("No se pudo escribir el ticket en %s", device)
+        logger.exception(
+            "No se pudo escribir el ticket en %s",
+            device,
+        )
         last_err = "el dispositivo USB no está disponible"
+
     else:
         last_err = "lp0 no encontrado"
 
-    # 2) CUPS RAW
+    # ==========================================================
+    # LINUX PEQUEÑA 58mm
+    # MISMO MÉTODO DEL CÓDIGO ANTIGUO
+    # ==========================================================
+
+    if profile.tamano_factura == TAMANO_PEQUENA:
+        try:
+            # Exactamente la variable que utilizaba el código viejo.
+            printer = os.environ.get("PRINTER", "")
+
+            cmd = [
+                "lp",
+                "-o",
+                "media=Custom.58x3276mm",
+                "-o",
+                "raw",
+            ]
+
+            if printer:
+                cmd.extend(["-d", printer])
+
+            # IMPORTANTE:
+            # Sin timeout, igual que el código que ya funcionaba.
+            subprocess.run(
+                cmd,
+                input=payload,
+                check=True,
+            )
+
+            return True, ""
+
+        except Exception as e:
+            logger.exception(
+                "No se pudo imprimir factura Linux pequeña mediante CUPS."
+            )
+
+            return False, (
+                f"{last_err} ; "
+                f"CUPS error: {e}"
+            )
+
+    # ==========================================================
+    # LINUX GRANDE 80mm
+    # NUEVA CONFIGURACIÓN
+    # ==========================================================
+
     try:
         printer = (
             os.environ.get(f"PRINTER_{point_suffix}")
             if point_suffix.isdigit()
             else None
         ) or os.environ.get("PRINTER", "")
-        if profile.tamano_factura == TAMANO_PEQUENA:
-            media = os.environ.get("CUPS_MEDIA_SMALL", profile.cups_media)
-        else:
-            media = os.environ.get(
-                "CUPS_MEDIA_LARGE",
-                os.environ.get("CUPS_MEDIA", profile.cups_media),
-            )
-        cmd = ["lp", "-o", f"media={media}", "-o", "raw"]
+
+        media = os.environ.get(
+            "CUPS_MEDIA_LARGE",
+            os.environ.get(
+                "CUPS_MEDIA",
+                profile.cups_media,
+            ),
+        )
+
+        cmd = [
+            "lp",
+            "-o",
+            f"media={media}",
+            "-o",
+            "raw",
+        ]
+
         if printer:
             cmd.extend(["-d", printer])
-        raw_timeout = os.environ.get("PRINTER_COMMAND_TIMEOUT_SECONDS", "8")
+
+        raw_timeout = os.environ.get(
+            "PRINTER_COMMAND_TIMEOUT_SECONDS",
+            "8",
+        )
+
         try:
-            command_timeout = max(1.0, min(float(raw_timeout), 30.0))
+            command_timeout = max(
+                1.0,
+                min(float(raw_timeout), 30.0),
+            )
         except (TypeError, ValueError):
             command_timeout = 8.0
+
         subprocess.run(
             cmd,
             input=payload,
             check=True,
             timeout=command_timeout,
         )
+
         return True, ""
+
     except Exception:
         logger.exception(
             "No se pudo imprimir mediante CUPS (%s, %s)",
             profile.tamano_factura,
             profile.cups_media,
         )
+
         return False, (
             "No se pudo acceder a la impresora Linux: "
             f"{last_err} y CUPS no completó el trabajo."
         )
-
 
 SALE_PRINT_TOKEN_SALT = "mainApp.sale-print.v1"
 SALE_PRINT_TOKEN_MAX_AGE_SECONDS = 5 * 60
