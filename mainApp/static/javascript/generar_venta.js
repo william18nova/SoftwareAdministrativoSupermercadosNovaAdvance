@@ -6788,6 +6788,99 @@ Cambio: ${money(cambio)}` : "";
     }
   });
 
+
+  /* =======================================================================================
+     LECTOR USB LEGACY — comportamiento de la versión que funcionaba mejor en caja
+     ---------------------------------------------------------------------------------------
+     IMPORTANTE:
+     - Este camino es SOLO para el lector físico USB/Bluetooth tipo teclado.
+     - No usa checksum, locks de barcode, resolve estricto ni validación final de cache.
+     - Cámara y autocomplete siguen usando el flujo moderno y sus protecciones.
+     ======================================================================================= */
+  function resolveByBarcodeUsbLegacy(code) {
+    const clean = onlyDigits(code);
+    if (!clean) return Promise.resolve(null);
+
+    // Igual que el código antiguo: primero intenta resolver desde el índice local.
+    const cachedPid = barcodeIndex.get(clean);
+    if (cachedPid) {
+      const rec = productCache.get(String(cachedPid)) || {};
+      setProductFields({
+        nombre: rec.nombre,
+        pid: cachedPid,
+        barcode: clean,
+        focusQty: false,
+      });
+      return Promise.resolve(cachedPid);
+    }
+
+    // Si no está localmente, consulta el endpoint original por código de barras.
+    const params = {
+      codigo_de_barras: clean,
+      sucursal_id: sucursalID,
+      _ts: Date.now(),
+    };
+
+    return asNativePromise($.getJSON(POR_COD_URL, params))
+      .then((r) => {
+        if (!r || !r.exists) return null;
+
+        const p = r.producto || {};
+        if (!p.id) return null;
+
+        updateCache(p.id, {
+          nombre: p.nombre,
+          barcode: p.codigo_de_barras,
+          precio_unitario: p.precio,
+          cantidad_disponible: p.stock,
+        });
+
+        setProductFields({
+          nombre: p.nombre,
+          pid: p.id,
+          barcode: p.codigo_de_barras || clean,
+          focusQty: false,
+        });
+
+        return p.id;
+      })
+      .catch(() => null);
+  }
+
+  function pushUsbScannerCodeLegacy(code) {
+    // Mientras el modal de pago esté abierto no se agregan productos.
+    // El guard específico del modal sigue funcionando por separado.
+    if (isModalOpen()) {
+      blockModalConfirmFor(900);
+      return;
+    }
+
+    const clean = onlyDigits(code);
+    if (!clean) return;
+
+    // Comportamiento visual de la versión anterior.
+    $inpCode.val(clean);
+
+    try { $inpCode.autocomplete('close'); } catch (_) {}
+    try { $inpNombre.autocomplete('close'); } catch (_) {}
+    try { if ($inpId && $inpId.length) $inpId.autocomplete('close'); } catch (_) {}
+
+    queueMicrotask(() => {
+      if ($inpCode && $inpCode.length && $inpCode.is(':visible')) {
+        $inpCode.focus();
+        $inpCode[0]?.select?.();
+      }
+    });
+
+    if (!hasSucursal()) return;
+
+    // Camino directo: barcode -> producto -> carrito.
+    // Deliberadamente no pasa por checksum/anti-misread/locks modernos.
+    resolveByBarcodeUsbLegacy(clean).then((pid) => {
+      if (pid) addToCartLastOnly(pid, 1);
+    });
+  }
+
   function commitCurrentQtyLikeEnterIfNeeded(originEl){
     if ($cantidad && $cantidad.length && originEl === $cantidad[0]) {
       const committed = normalizeQtyOnCommit($cantidad[0]);
@@ -6805,84 +6898,57 @@ Cambio: ${money(cambio)}` : "";
   }
 
   (function scannerDetectorWithQtyGuard() {
-    // Mismo criterio del lector físico que funcionaba en la versión anterior:
-    // - mínimo 8 dígitos
-    // - máximo ~35 ms entre teclas
-    // - termina con Enter o Tab
+    // Configuración exacta del lector físico de la versión anterior.
     const MIN_CHARS = 8;
     const GAP_MS = 35;
 
-    let buf = "";
+    let buf = '';
     let first = 0;
     let last = 0;
     let idleTimer = null;
 
     let scanning = false;
     let originEl = null;
-    let originStartValue = "";
+    let originStartValue = '';
 
     function resetAll(){
-      buf = "";
+      buf = '';
       first = 0;
       last = 0;
       scanning = false;
       originEl = null;
-      originStartValue = "";
-
+      originStartValue = '';
       if (idleTimer) {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
     }
 
-    function restoreOriginIfNeeded(){
-      if (!originEl) return;
-
-      // Si el escáner empezó mientras el cursor estaba en otro input,
-      // restauramos lo que había antes para no dejar parte del código allí.
-      if ($inpCode && $inpCode.length && originEl === $inpCode[0]) return;
-
-      try {
-        if (typeof originEl.value === "string") {
-          originEl.value = originStartValue;
-        }
-      } catch (_) {}
-    }
-
     function finalize(code){
-      const clean = onlyDigits(code);
-
-      if (!clean || clean.length < MIN_CHARS) {
-        resetAll();
-        return;
-      }
-
+      const c = String(code || '');
       const wasQty = isQtyElement(originEl);
 
-      restoreOriginIfNeeded();
-
-      // Si el lector comenzó cuando el foco estaba en cantidad,
-      // conserva la cantidad que tenía antes del escaneo.
       if (wasQty) {
+        try {
+          if (originEl) originEl.value = originStartValue;
+        } catch (_) {}
+
         commitCurrentQtyLikeEnterIfNeeded(originEl);
       }
 
-      // Reutiliza TODO el flujo moderno del archivo:
-      // checksum, anti-duplicados, cache exacta, backend y carrito.
-      pushCodeIntoCodeInputAndAdd(clean);
-
+      pushUsbScannerCodeLegacy(c);
       resetAll();
     }
 
-    document.addEventListener("keydown", function (e) {
-      // Dentro del modal el escaneo tiene su propio guard y no debe agregar productos.
+    document.addEventListener('keydown', function (e) {
+      // El modal tiene su propio guard para que el Enter del scanner
+      // nunca confirme accidentalmente un pago.
       if (isModalOpen()) {
         resetAll();
         return;
       }
 
-      // Igual que el detector anterior que funcionaba:
-      // combinaciones de teclado reales cancelan la detección.
+      // Comportamiento antiguo: combinaciones modificadoras cancelan la captura.
       if (e.ctrlKey || e.altKey || e.metaKey) {
         resetAll();
         return;
@@ -6892,8 +6958,7 @@ Cambio: ${money(cambio)}` : "";
       const inQty = isQtyElement(active);
       const t = Date.now();
 
-      // La lectura solo se confirma cuando el lector manda Enter o Tab.
-      if (e.key === "Enter" || e.key === "Tab") {
+      if (e.key === 'Enter' || e.key === 'Tab') {
         const fastEnough =
           buf &&
           (t - first) < buf.length * (GAP_MS + 5) &&
@@ -6911,12 +6976,6 @@ Cambio: ${money(cambio)}` : "";
       }
 
       if (e.key && e.key.length === 1) {
-        // Los códigos de barras que usa este POS son numéricos.
-        if (!/^\d$/.test(e.key)) {
-          resetAll();
-          return;
-        }
-
         if (originEl && active !== originEl) {
           resetAll();
         }
@@ -6924,23 +6983,22 @@ Cambio: ${money(cambio)}` : "";
         if (!buf) {
           originEl = active;
           originStartValue =
-            (active && typeof active.value === "string")
+            (active && typeof active.value === 'string')
               ? active.value
-              : "";
+              : '';
 
           first = t;
           last = t;
           buf = e.key;
         } else {
-          // Si pasó demasiado tiempo entre caracteres, ya no es la misma lectura.
           if ((t - last) > GAP_MS) {
             resetAll();
 
             originEl = active;
             originStartValue =
-              (active && typeof active.value === "string")
+              (active && typeof active.value === 'string')
                 ? active.value
-                : "";
+                : '';
 
             first = t;
             last = t;
@@ -6951,54 +7009,54 @@ Cambio: ${money(cambio)}` : "";
           }
         }
 
-        // Protección del campo cantidad:
-        // desde el segundo dígito rápido sabemos que probablemente es el lector.
+        // Igual que el código que usaba el cliente:
+        // protege cantidad a partir del segundo carácter rápido.
         if (!scanning && inQty && buf.length >= 2) {
           scanning = true;
-
           try {
-            if (active && typeof active.value === "string") {
+            if (active && typeof active.value === 'string') {
               active.value = originStartValue;
             }
           } catch (_) {}
         }
 
-        // Evita que el código termine escrito como una cantidad enorme.
         if (scanning && inQty) {
           e.preventDefault();
           e.stopImmediatePropagation();
         }
 
         if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => resetAll(), GAP_MS * 6);
 
-        // Si la ráfaga se corta, descartamos el buffer.
-        // NO auto-finalizamos: esperamos Enter/Tab para no truncar EAN-13.
-        idleTimer = setTimeout(
-          () => resetAll(),
-          GAP_MS * 6
-        );
+        // Se conserva el comportamiento original que el cliente reportó
+        // como más rápido cuando el foco está en cantidad.
+        if (inQty && scanning && buf.length >= MIN_CHARS) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          finalize(buf);
+          return;
+        }
 
         return;
       }
 
-      if (e.key !== "Shift") {
+      if (e.key !== 'Shift') {
         resetAll();
       }
     }, true);
   })();
 
   (function globalScannerFallback() {
-    // Fallback global con el mismo comportamiento del código anterior.
     const MIN_CHARS = 8;
     const GAP_MS = 35;
 
-    let buf = "";
+    let buf = '';
     let first = 0;
     let last = 0;
     let idleTimer = null;
 
     function reset(){
-      buf = "";
+      buf = '';
       first = 0;
       last = 0;
 
@@ -7008,13 +7066,13 @@ Cambio: ${money(cambio)}` : "";
       }
     }
 
-    document.addEventListener("keydown", function (e) {
+    document.addEventListener('keydown', function (e) {
       if (isModalOpen()) {
         reset();
         return;
       }
 
-      // El detector principal maneja especialmente los inputs de cantidad.
+      // El detector anterior se ocupa de cantidad.
       if (isQtyElement(document.activeElement)) return;
 
       if (e.ctrlKey || e.altKey || e.metaKey) {
@@ -7024,7 +7082,7 @@ Cambio: ${money(cambio)}` : "";
 
       const t = Date.now();
 
-      if (e.key === "Enter" || e.key === "Tab") {
+      if (e.key === 'Enter' || e.key === 'Tab') {
         const fastEnough =
           buf &&
           (t - first) < buf.length * (GAP_MS + 5) &&
@@ -7036,8 +7094,7 @@ Cambio: ${money(cambio)}` : "";
 
           const code = buf;
           reset();
-
-          pushCodeIntoCodeInputAndAdd(code);
+          pushUsbScannerCodeLegacy(code);
           return;
         }
 
@@ -7046,13 +7103,8 @@ Cambio: ${money(cambio)}` : "";
       }
 
       if (e.key && e.key.length === 1) {
-        if (!/^\d$/.test(e.key)) {
-          reset();
-          return;
-        }
-
         if (buf && (t - last) > GAP_MS) {
-          buf = "";
+          buf = '';
           first = t;
         }
 
@@ -7063,8 +7115,8 @@ Cambio: ${money(cambio)}` : "";
 
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(reset, GAP_MS * 5);
-      } else if (e.key !== "Shift") {
-        reset();
+      } else {
+        if (e.key !== 'Shift') reset();
       }
     }, true);
   })();
