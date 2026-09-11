@@ -5,18 +5,20 @@ from .models import CambioDevolucion
 
 @admin.register(CambioDevolucion)
 class CambioDevolucionAdmin(admin.ModelAdmin):
-    list_display  = (
+    list_display = (
         "cambioid",
-        "venta",
-        "fecha",
+        "venta_ref",        # ✅ en vez de "venta"
+        "productoid",
+        "cantidad",
         "tipo",
         "estado",
-        "total_afectado",        # 👈  ahora sí existe
+        "fecha",
     )
-    list_filter   = ("estado", "tipo", "fecha")
-    search_fields = ("venta__ventaid",)
+    list_select_related = ("ventaid", "productoid", "detalle_id")
+    search_fields = ("cambioid", "tipo", "estado", "motivo", "ventaid__ventaid")
+    list_filter = ("tipo", "estado", "fecha")
 
-    # ------- columna calculada -------
-    @admin.display(description="Total afectado")
-    def total_afectado(self, obj):
+    @admin.display(description="Venta")
+    def venta_ref(self, obj):
+        return obj.ventaid_id  # o: return obj.ventaid.ventaid si no es null
         return obj.cantidad * obj.detalle.preciounitario

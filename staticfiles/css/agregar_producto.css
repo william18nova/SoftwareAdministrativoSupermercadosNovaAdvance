@@ -131,6 +131,7 @@ input:focus, select:focus{
   background:color-mix(in srgb,var(--ok) 18%, #ffffff);
   color:#064e1a; border-color:color-mix(in srgb,var(--ok) 40%, #ffffff);
   display:flex; align-items:center; justify-content:center; gap:8px;
+  margin-bottom: 15px;
 }
 .alert-error{
   background:rgba(255,77,95,.14); color:var(--err); border-color:rgba(255,140,150,.55);

@@ -1,0 +1,381 @@
+{# templates/turno_caja.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Turno de caja{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <link rel="stylesheet" href="{% static 'css/turno_caja.css' %}?v=18">
+{% endblock %}
+
+{% block content %}
+  <div class="tc-wrap{% if close_page %} tc-wrap--closing{% endif %}">
+    <div class="tc-card">
+      <h2><i class="fa-solid fa-cash-register"></i> Turno de caja</h2>
+
+      <!-- Toast container (no bloquea UI) -->
+      <div id="tc-toasts" class="tc-toasts" aria-live="polite" aria-atomic="true"></div>
+
+      <!-- ============================== STEP 1 ============================== -->
+      {% if not close_page %}
+      <section id="stepStart" class="tc-section" aria-labelledby="stepStartTitle">
+        <div class="tc-section-title">
+          <span class="badge badge-info" aria-hidden="true">1</span>
+          <div>
+            <div class="tt" id="stepStartTitle">Iniciar turno</div>
+            <div class="st">Selecciona punto de pago, cajero y base inicial.</div>
+          </div>
+        </div>
+
+        <form id="formStart" class="tc-grid" autocomplete="off" novalidate>
+          {% csrf_token %}
+
+          <label class="tc-label" for="pp_ac">Punto de pago <span class="req" aria-hidden="true">*</span></label>
+          <div class="tc-field">
+            <i class="fa-solid fa-computer" aria-hidden="true"></i>
+            <input id="pp_ac"
+                   class="tc-input"
+                   placeholder="Buscar punto de pago…"
+                   autocomplete="off"
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="false"
+                   aria-controls="pp_box"
+                   required>
+            <input type="hidden" id="pp_id">
+            <div id="pp_box" class="ac-box" role="listbox"></div>
+            <i class="tc-check" data-target="pp_id" aria-hidden="true"></i>
+          </div>
+
+          <label class="tc-label" for="cajero_ac">Cajero <span class="req" aria-hidden="true">*</span></label>
+          <div class="tc-field">
+            <i class="fa-solid fa-user" aria-hidden="true"></i>
+            <input id="cajero_ac"
+                   name="username"
+                   class="tc-input"
+                   placeholder="Buscar cajero…"
+                   autocomplete="username"
+                   value="{{ request.user.nombreusuario }}"
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="false"
+                   aria-controls="cajero_box"
+                   required>
+            <input type="hidden" id="cajero_id" value="{{ request.user.pk }}">
+            <div id="cajero_box" class="ac-box" role="listbox"></div>
+            <i class="tc-check" data-target="cajero_id" aria-hidden="true"></i>
+          </div>
+
+          <label class="tc-label" for="password">Contraseña <span class="req" aria-hidden="true">*</span></label>
+          <div class="tc-field">
+            <i class="fa-solid fa-key" aria-hidden="true"></i>
+            <input id="password"
+                   name="password"
+                   class="tc-input"
+                   type="password"
+                   placeholder="••••••••"
+                   autocomplete="current-password"
+                   required>
+            <button type="button" id="togglePass" class="tc-eye" tabindex="-1" aria-label="Mostrar/ocultar contraseña">
+              <i class="fa-solid fa-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+
+          <label class="tc-label" for="base">Base (efectivo)</label>
+          <div class="tc-field">
+            <i class="fa-solid fa-coins" aria-hidden="true"></i>
+            <input id="base"
+                   class="tc-input no-spin"
+                   type="number"
+                   step="0.01"
+                   min="0"
+                   inputmode="decimal"
+                   placeholder="0.00">
+          </div>
+
+          <div class="tc-actions tc-grid-span">
+            <button id="btnIniciar"
+                    class="btn btn-primary"
+                    type="submit"
+                    title="Crea o recupera el turno para el cajero seleccionado">
+              <span class="btn-label">
+                <i class="fa-solid fa-play" aria-hidden="true"></i> Iniciar turno
+              </span>
+              <span class="btn-spin" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ============================== STEP 2 ============================== -->
+      <section id="stepOpen" class="tc-section" style="display:none;" aria-labelledby="stepOpenTitle">
+        <div class="tc-section-title">
+          <span class="badge badge-ok" aria-hidden="true">2</span>
+          <div>
+            <div class="tt" id="stepOpenTitle">Turno abierto</div>
+            <div class="st">Cuando vayas a cerrar, presiona “Iniciar cierre”.</div>
+          </div>
+          <div class="right">
+            <span id="estadoBadge" class="pill pill-open">ABIERTO</span>
+          </div>
+        </div>
+
+        <div class="tc-info">
+          <div class="info-row"><span>Punto de pago:</span> <b id="infoPP">—</b></div>
+          <div class="info-row"><span>Cajero:</span> <b id="infoCajero">—</b></div>
+          <div class="info-row"><span>Inicio:</span> <b id="infoInicio">—</b></div>
+          <div class="info-row"><span>Base:</span> <b id="infoBase">—</b></div>
+          <div class="info-row info-row-wide"><span>Duración:</span> <b id="infoDuracion">—</b></div>
+        </div>
+
+        <div class="tc-actions">
+          <button id="btnIniciarCierre"
+                  class="btn btn-warn"
+                  type="button"
+                  title="Cambia el turno a estado CIERRE para hacer el cuadre">
+            <span class="btn-label">
+              <i class="fa-solid fa-lock" aria-hidden="true"></i> Iniciar cierre
+            </span>
+            <span class="btn-spin" aria-hidden="true"></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================== STEP 3 ============================== -->
+      {% endif %}
+      {% if close_page %}
+      <section id="stepClose" class="tc-section" style="display:none;" aria-labelledby="stepCloseTitle">
+        {% csrf_token %}
+        <div class="tc-section-title tc-close-header">
+          <span class="badge badge-info" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+          <div>
+            <div class="tt" id="stepCloseTitle">Cierre de turno</div>
+            <div class="st">Primero los pagos de caja, después el efectivo y los otros medios.</div>
+          </div>
+          <div class="right">
+            <span id="estadoBadge2" class="pill pill-close">CIERRE</span>
+          </div>
+        </div>
+
+        <div class="tc-info tc-info-compact">
+          <div class="info-row"><span>Punto de pago:</span> <b id="infoPP2">—</b></div>
+          <div class="info-row"><span>Cajero:</span> <b id="infoCajero2">—</b></div>
+          <div class="info-row"><span>Base:</span> <b id="infoBase2">—</b></div>
+          <div class="info-row"><span>Cierre iniciado:</span> <b id="infoCierre">—</b></div>
+        </div>
+
+        <ol class="tc-close-progress" aria-label="Pasos del cierre">
+          <li data-close-step="payments" aria-current="step"><span aria-hidden="true">1</span> Pagos de caja</li>
+          <li data-close-step="cash"><span aria-hidden="true">2</span> Contar efectivo</li>
+          <li data-close-step="media"><span aria-hidden="true">3</span> Otros medios</li>
+        </ol>
+        <p class="tc-close-forward-note"><i class="fa-solid fa-lock" aria-hidden="true"></i> Revisa cada paso antes de confirmar. Después de avanzar no podrás volver atrás ni cambiar esos valores.</p>
+
+        {% if close_page == "payments" %}
+        <div id="closePaymentsStep" class="tc-close-step" aria-labelledby="closePaymentsTitle">
+          <header class="tc-step-heading">
+            <span class="tc-step-icon" aria-hidden="true"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+            <div><p class="tc-step-eyebrow">Paso 1 de 3</p><h3 id="closePaymentsTitle">Facturas y compañeros</h3></div>
+          </header>
+          <p class="tc-step-intro">¿Cuánto dinero de la caja usaste para pagar facturas o compañeros? Si vas a pagarle a un compañero, aparta primero el dinero e inclúyelo en este valor.</p>
+          <div id="closePaidInvoices" class="tc-grid tc-grid-compact tc-close-block">
+          <label class="tc-label" for="facturas_pagadas">Facturas y pagos a compañeros</label>
+          <div class="tc-field">
+            <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i>
+            <input id="facturas_pagadas"
+                   name="facturas_pagadas"
+                   class="tc-input no-spin"
+                   type="number"
+                   step="0.01"
+                   min="0"
+                   inputmode="decimal"
+                   value="0"
+                   placeholder="0.00"
+                   aria-describedby="facturas_pagadas_help">
+          </div>
+          <p id="facturas_pagadas_help" class="tc-invoice-help">
+            Solo efectivo de este turno: lo que ya pagaste y lo que apartaste para pagarle a un compañero. Si no hubo pagos, deja 0. No incluyas pagos por Nequi o tarjeta, ni retiros PTM.
+          </p>
+          </div>
+          <div class="tc-actions tc-close-actions">
+            <span class="tc-next-hint">Siguiente: contar billetes y monedas</span>
+            <button id="btnPaymentsNext" class="btn btn-primary" type="button">
+              Confirmar pagos y continuar <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+
+        {% else %}
+        <input id="facturas_pagadas" type="hidden" value="0">
+        {% endif %}
+        {% if close_page == "cash" %}
+        <div id="closeCashStep" class="tc-close-step" style="display:none;" aria-labelledby="closeCashTitle">
+          <header class="tc-step-heading">
+            <span class="tc-step-icon" aria-hidden="true"><i class="fa-solid fa-money-bills"></i></span>
+            <div><p class="tc-step-eyebrow">Paso 2 de 3</p><h3 id="closeCashTitle">Conteo de efectivo</h3></div>
+          </header>
+          <p class="tc-step-intro">Indica la cantidad de cada billete y moneda. El total se calcula automáticamente.</p>
+          <div class="tc-cash-warning" role="note" aria-labelledby="closeCashWarningTitle">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            <div>
+              <strong id="closeCashWarningTitle" tabindex="-1">No cuentes el dinero que ya pagaste o que vas a pagarle a un compañero.</strong>
+              <p>Déjalo registrado en el paso 1 y separado del conteo. Cuenta solo los billetes y monedas que quedan para entregar en caja, incluida la base.</p>
+            </div>
+          </div>
+          <div class="tc-close-subtitle">
+            <i class="fa-solid fa-money-bills" aria-hidden="true"></i>
+            Conteo de efectivo por denominación
+          </div>
+          <div class="tc-denom-grid" id="closeDenomInputs"></div>
+
+          <div class="tc-metrics tc-metrics-2">
+            <div class="metric">
+              <div class="metric-label">Total efectivo contado</div>
+              <div id="closeCashTotal" class="metric-value">$0</div>
+            </div>
+          </div>
+
+          <div class="tc-actions tc-close-actions">
+            <span class="tc-next-hint">Siguiente: otros medios de pago y PTM</span>
+            <button id="btnCashNext"
+                    class="btn btn-primary"
+                    type="button"
+                    title="Continuar a medios de pago">
+              <span class="btn-label">
+                Confirmar conteo y continuar <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {% endif %}
+        {% if close_page == "media" %}
+        <div id="closeMediaStep" class="tc-close-step" style="display:none;" aria-labelledby="closeMediaTitle">
+          <header class="tc-step-heading">
+            <span class="tc-step-icon" aria-hidden="true"><i class="fa-solid fa-credit-card"></i></span>
+            <div><p class="tc-step-eyebrow">Paso 3 de 3</p><h3 id="closeMediaTitle">Otros medios y PTM</h3></div>
+          </header>
+          <p class="tc-step-intro">Revisa los demás medios de pago y cuenta las transacciones PTM. El efectivo ya está confirmado.</p>
+
+        <div class="tc-grid tc-grid-compact tc-close-block" id="closePTM">
+          <label class="tc-label" for="ptm_transacciones">Transacciones PTM</label>
+          <div class="tc-field">
+            <i class="fa-solid fa-receipt" aria-hidden="true"></i>
+            <input class="tc-input no-spin" id="ptm_transacciones" name="ptm_transacciones" form="formClose"
+                   type="number" min="0" max="99999999" step="1" inputmode="numeric" value="0" placeholder="0"
+                   aria-describedby="ptm_conteo_help">
+          </div>
+          <p class="tc-invoice-help" id="ptm_conteo_help">Si dejas el campo vacío, se toma como 0. Cuenta los comprobantes de retiros y recargas/pagos de este turno. El número debe coincidir con el registro. PTM ya se suma o resta del efectivo esperado; no lo agregues otra vez a facturas pagadas.</p>
+        </div>
+
+        <form id="formClose" class="tc-grid tc-grid-compact tc-close-block" autocomplete="off" novalidate>
+          <label class="tc-label" for="efectivo_entregado">Efectivo contado</label>
+          <div class="tc-field">
+            <i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i>
+            <input id="efectivo_entregado"
+                   class="tc-input no-spin"
+                   type="number"
+                   step="0.01"
+                   min="0"
+                   inputmode="decimal"
+                   placeholder="0.00"
+                   readonly>
+          </div>
+
+        </form>
+
+        <div class="tc-table-wrap">
+          <table class="tc-table" id="tablaMedios">
+            <thead>
+              <tr>
+                <th>Medio</th>
+                <th class="num">Valor registrado</th>
+              </tr>
+            </thead>
+            <tbody id="mediosBody"></tbody>
+          </table>
+        </div>
+
+        <div class="tc-metrics tc-metrics-2">
+          <div class="metric">
+            <div class="metric-label">Ventas reconocidas</div>
+            <div id="mVentas" class="metric-value">—</div>
+          </div>
+        </div>
+
+        <div class="tc-actions tc-close-actions">
+          <span class="tc-next-hint">Último paso: revisa y confirma el cierre</span>
+          <button id="btnCerrar"
+                  class="btn btn-primary"
+                  type="button"
+                  title="Cierra el turno y guarda el cuadre">
+            <span class="btn-label">
+              Revisar y cerrar turno <i class="fa-solid fa-check" aria-hidden="true"></i>
+            </span>
+            <span class="btn-spin" aria-hidden="true"></span>
+          </button>
+        </div>
+        </div>
+        {% else %}
+        <input id="efectivo_entregado" type="hidden" value="0">
+        {% endif %}
+      </section>
+      {% endif %}
+      <noscript><p class="tc-close-forward-note">Activa JavaScript para continuar con el turno y conservar el orden del cierre.</p></noscript>
+    </div>
+  </div>
+
+  <!-- ============== Modal de confirmación reutilizable ============== -->
+  <div id="tc-confirm" class="tc-modal" role="dialog" aria-modal="true" aria-labelledby="tc-confirm-title" aria-describedby="tc-confirm-msg tc-confirm-note" hidden>
+    <div class="tc-modal-backdrop" data-close aria-hidden="true"></div>
+    <div class="tc-modal-card" tabindex="-1">
+      <button class="tc-modal-close" type="button" data-close aria-label="Cancelar confirmación">×</button>
+      <div class="tc-modal-icon" aria-hidden="true">?</div>
+      <p class="tc-step-eyebrow">Revisa antes de continuar</p>
+      <h3 id="tc-confirm-title" class="tc-modal-title">¿Confirmar?</h3>
+      <p id="tc-confirm-msg" class="tc-modal-msg">¿Estás seguro?</p>
+      <dl id="tc-confirm-details" class="tc-confirm-details" hidden></dl>
+      <p id="tc-confirm-note" class="tc-modal-note" hidden></p>
+      <div class="tc-modal-actions">
+        <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+        <button type="button" class="btn btn-primary" id="tc-confirm-ok">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== Modal de resumen final ============== -->
+  <div id="tc-summary" class="tc-modal" role="dialog" aria-modal="true" aria-labelledby="tc-summary-title" hidden>
+    <div class="tc-modal-backdrop" data-close aria-hidden="true"></div>
+    <div class="tc-modal-card" tabindex="-1">
+      <div class="tc-modal-icon tc-modal-icon--success" aria-hidden="true">✓</div>
+      <h3 id="tc-summary-title" class="tc-modal-title">
+        <i class="fa-solid fa-circle-check" aria-hidden="true"></i> Turno cerrado
+      </h3>
+      <div id="tc-summary-body" class="tc-modal-msg tc-modal-summary"></div>
+      <div class="tc-modal-actions">
+        <button type="button" class="btn btn-primary" data-close>Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  {{ turno_activo_inicial|json_script:"turno-activo-inicial" }}
+  <script>
+    const PP_AC_URL      = "{% url 'turno_caja_puntopago_ac' %}";
+    const CAJERO_AC_URL  = "{% url 'turno_caja_cajero_ac' %}";
+
+    const API_RECUPERAR  = "{% url 'turno_recuperar_o_iniciar' %}";
+    const API_INI_CIERRE = "{% url 'turno_caja_iniciar_cierre' %}";
+    const API_CERRAR     = "{% url 'turno_caja_cerrar' %}";
+    window.TURNO_CIERRE_PAGINAS = {
+      page: "{{ close_page|default:''|escapejs }}",
+      home: "{% url 'turno_caja' %}",
+      payments: "{% url 'turno_caja_cierre_pagos' turno_id=0 %}",
+      cash: "{% url 'turno_caja_cierre_efectivo' turno_id=0 %}",
+      media: "{% url 'turno_caja_cierre_medios' turno_id=0 %}"
+    };
+  </script>
+
+  <script defer src="{% static 'javascript/turno_caja.js' %}?v=25"></script>
+{% endblock %}

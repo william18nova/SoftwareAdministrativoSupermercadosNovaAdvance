@@ -1,8 +1,82 @@
 # mainApp/context_processors.py
 from django.conf import settings
+from django.core.cache import cache
+from .permissions import build_nav_menu
+from .services.feature_flags import FEATURE_REGISTRY, is_feature_enabled
+
+SESSION_USER_CACHE_SECONDS = 300
+
+
+def _first_token(value):
+    parts = str(value or "").strip().split()
+    return parts[0] if parts else ""
+
+
+def _session_user_payload(user):
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "nav_session_name": "",
+            "nav_session_username": "",
+            "nav_session_initials": "",
+        }
+
+    cache_key = f"mainapp:nav-session-user:{getattr(user, 'pk', 'anon')}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    username = (
+        getattr(user, "nombreusuario", "")
+        or getattr(user, "username", "")
+        or str(user)
+    )
+
+    empleado = None
+    try:
+        empleado = getattr(user, "empleado", None)
+    except Exception:
+        empleado = None
+
+    first_name = _first_token(getattr(empleado, "nombre", "")) if empleado else ""
+    first_last = _first_token(getattr(empleado, "apellido", "")) if empleado else ""
+    display_name = " ".join(part for part in [first_name, first_last] if part).strip()
+    if not display_name:
+        display_name = username
+
+    initials_source = display_name or username
+    initials = "".join(part[:1] for part in initials_source.split()[:2]).upper()
+    if not initials:
+        initials = (username[:2] or "U").upper()
+
+    payload = {
+        "nav_session_name": display_name,
+        "nav_session_username": username,
+        "nav_session_initials": initials,
+    }
+    cache.set(cache_key, payload, SESSION_USER_CACHE_SECONDS)
+    return payload
+
 
 def pos_agent(request):
     return {
         "POS_AGENT_URL": getattr(settings, "POS_AGENT_URL", "http://127.0.0.1:8787"),
         "POS_AGENT_TOKEN": getattr(settings, "POS_AGENT_TOKEN", ""),
+        "INVENTARIO_AGENT_URL": getattr(settings, "INVENTARIO_AGENT_URL", "http://127.0.0.1:8788"),
+        "INVENTARIO_AGENT_TOKEN": getattr(settings, "INVENTARIO_AGENT_TOKEN", ""),
+    }
+
+
+def permissions_nav(request):
+    user = getattr(request, "user", None)
+    system_features = {
+        key: is_feature_enabled(key)
+        for key in FEATURE_REGISTRY
+    }
+    return {
+        "nav_menu": build_nav_menu(
+            user,
+            getattr(request, "path", ""),
+        ),
+        "system_features": system_features,
+        **_session_user_payload(user),
     }

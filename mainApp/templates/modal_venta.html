@@ -16,65 +16,95 @@
       <span id="monto-pendiente">Falta por pagar: $ 0,00</span>
     </div>
 
-    <p style="margin:.6rem 0 1rem; opacity:.9">
+    <div id="employee-discount-auth" class="employee-discount-auth" style="display:none;">
+      <div>
+        <strong>Descuento de empleado</strong>
+        <span id="employee-discount-summary">Se aplicara 10% cuando el trabajador autorice esta compra.</span>
+      </div>
+      <label for="employee-password-input">Contrasena del empleado comprador</label>
+      <input
+        type="password"
+        id="employee-password-input"
+        autocomplete="current-password"
+        placeholder="El trabajador escribe su contrasena"
+      >
+      <small>El cajero no puede usar su propio documento para autofacturarse.</small>
+    </div>
+
+    <div id="merk2888-discount-auth"
+         class="employee-discount-auth merk2888-discount-auth"
+         style="display:none;">
+      <div>
+        <strong>Beneficio especial merk2888</strong>
+        <span id="merk2888-discount-summary">
+          Esta compra tendrá 100% de descuento cuando se valide una clave vigente de un solo uso.
+        </span>
+      </div>
+      <label for="merk2888-password-input">Clave de un solo uso</label>
+      <input
+        type="password"
+        id="merk2888-password-input"
+        inputmode="numeric"
+        maxlength="8"
+        pattern="[0-9]{8}"
+        autocomplete="one-time-code"
+        placeholder="Escribe los 8 dígitos"
+      >
+      <small>La clave se consume solamente cuando la venta queda registrada.</small>
+    </div>
+
+    <p class="payment-help" style="margin:.6rem 0 1rem; opacity:.9">
       ✅ Si marcas <b>Pago mixto</b>, puedes seleccionar varios medios y escribir el monto de cada uno (la suma debe dar el total).
       <br>
       ➜ Si <b>NO</b> marcas Pago mixto, selecciona <b>solo un</b> medio y se tomará el <b>total completo</b> automáticamente.
     </p>
 
-    <div class="mix-grid">
-
-
-      <!-- NEQUI -->
-      <div class="mix-row">
+    <div class="mix-grid" data-payment-method-list>
+      {% for method in payment_methods %}
+      <div class="mix-row"
+           data-payment-method="{{ method.code }}"
+           data-payment-method-cash="{{ method.is_cash|yesno:'1,0' }}">
         <label class="mix-check">
-          <input type="checkbox" class="pm-check" value="nequi">
-          <span>Nequi</span>
+          <input type="checkbox"
+                 class="pm-check"
+                 value="{{ method.code }}"
+                 aria-label="Pagar con {{ method.label }}">
+          <span>{{ method.label }}</span>
         </label>
-        <input type="number" class="pm-amt" data-medio="nequi" min="0" step="100" placeholder="0" disabled>
+        <input type="number"
+               class="pm-amt"
+               data-medio="{{ method.code }}"
+               min="0"
+               step="0.01"
+               inputmode="decimal"
+               placeholder="0"
+               autocomplete="off"
+               aria-label="Monto pagado con {{ method.label }}"
+               disabled>
       </div>
 
-      <!-- DAVIPLATA -->
-      <div class="mix-row">
-        <label class="mix-check">
-          <input type="checkbox" class="pm-check" value="daviplata">
-          <span>Daviplata</span>
-        </label>
-        <input type="number" class="pm-amt" data-medio="daviplata" min="0" step="100" placeholder="0" disabled>
-      </div>
-
-      <!-- EFECTIVO -->
-      <div class="mix-row">
-        <label class="mix-check">
-          <input type="checkbox" class="pm-check" value="efectivo">
-          <span>Efectivo</span>
-        </label>
-        <input type="number" class="pm-amt" data-medio="efectivo" min="0" step="100" placeholder="0" disabled>
-      </div>
-
-      <div id="efectivo-options" style="display:none; margin:.6rem 0 1rem;">
-        <label for="monto-recibido">Monto recibido (solo efectivo)</label>
-        <input type="number" id="monto-recibido" min="0" step="100" placeholder="0">
+      {% if method.is_cash %}
+      <!-- Este bloque pertenece al medio que afecta la caja fisica. -->
+      <div id="efectivo-options" data-cash-payment-code="{{ method.code }}">
+        <label for="monto-recibido">Monto recibido (solo {{ method.label|lower }})</label>
+        <input type="number"
+               id="monto-recibido"
+               min="0"
+               step="0.01"
+               inputmode="decimal"
+               placeholder="0"
+               autocomplete="off">
         <p id="cambio" class="cambio-text"></p>
       </div>
-
-      <!-- TARJETA -->
-      <div class="mix-row">
-        <label class="mix-check">
-          <input type="checkbox" class="pm-check" value="tarjeta">
-          <span>Tarjeta</span>
-        </label>
-        <input type="number" class="pm-amt" data-medio="tarjeta" min="0" step="100" placeholder="0" disabled>
-      </div>
-
-      <!-- BANCO CAJA SOCIAL -->
-      <div class="mix-row">
-        <label class="mix-check">
-          <input type="checkbox" class="pm-check" value="banco_caja_social">
-          <span>Banco Caja Social</span>
-        </label>
-        <input type="number" class="pm-amt" data-medio="banco_caja_social" min="0" step="100" placeholder="0" disabled>
-      </div>
+      {% endif %}
+      {% empty %}
+      {# Respaldo seguro mientras se aplica la migracion del catalogo. #}
+      <div class="mix-row"><label class="mix-check"><input type="checkbox" class="pm-check" value="nequi"><span>Nequi</span></label><input type="number" class="pm-amt" data-medio="nequi" min="0" step="0.01" inputmode="decimal" placeholder="0" autocomplete="off" disabled></div>
+      <div class="mix-row"><label class="mix-check"><input type="checkbox" class="pm-check" value="daviplata"><span>Daviplata</span></label><input type="number" class="pm-amt" data-medio="daviplata" min="0" step="0.01" inputmode="decimal" placeholder="0" autocomplete="off" disabled></div>
+      <div class="mix-row"><label class="mix-check"><input type="checkbox" class="pm-check" value="efectivo"><span>Efectivo</span></label><input type="number" class="pm-amt" data-medio="efectivo" min="0" step="0.01" inputmode="decimal" placeholder="0" autocomplete="off" disabled></div>
+      <div id="efectivo-options" data-cash-payment-code="efectivo"><label for="monto-recibido">Monto recibido (solo efectivo)</label><input type="number" id="monto-recibido" min="0" step="0.01" inputmode="decimal" placeholder="0" autocomplete="off"><p id="cambio" class="cambio-text"></p></div>
+      <div class="mix-row"><label class="mix-check"><input type="checkbox" class="pm-check" value="tarjeta"><span>Tarjeta / Banco Caja Social</span></label><input type="number" class="pm-amt" data-medio="tarjeta" min="0" step="0.01" inputmode="decimal" placeholder="0" autocomplete="off" disabled></div>
+      {% endfor %}
 
       <!-- ✅ PAGO MIXTO (SIEMPRE ÚLTIMO) -->
       <div class="mix-row" style="margin-top:.8rem; border-top:1px solid rgba(255,255,255,.15); padding-top:.8rem;">
@@ -89,9 +119,50 @@
 
     </div>
 
+    {% if system_features.nequi_api_recepcion %}
+      {% if payment_methods %}
+        {% for method in payment_methods %}
+          {% if method.code == "nequi" and method.active %}
+    <div id="nequi-payment-panel" class="nequi-payment-panel" hidden>
+      <div class="nequi-payment-head">
+        <div>
+          <strong>Pagos recibidos por Nequi disponibles</strong>
+          <small>Selecciona el pago recibido que corresponde a esta venta. Tambien puedes cerrar sin asociar uno.</small>
+        </div>
+        <button type="button" id="nequi-refresh-payments" class="nequi-mini-btn nequi-live-refresh">
+          <span aria-hidden="true"></span>
+          Actualizar
+        </button>
+      </div>
+      <div id="nequi-selected-payment" class="nequi-selected-payment" hidden></div>
+      <div id="nequi-payment-list" class="nequi-payment-list"></div>
+      <small id="nequi-payment-status" class="nequi-payment-status">Cargando pagos recibidos...</small>
+    </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+    {# Compatibilidad previa a la migracion: Nequi sigue disponible por defecto. #}
+    <div id="nequi-payment-panel" class="nequi-payment-panel" hidden>
+      <div class="nequi-payment-head">
+        <div>
+          <strong>Pagos recibidos por Nequi disponibles</strong>
+          <small>Selecciona el pago recibido que corresponde a esta venta. Tambien puedes cerrar sin asociar uno.</small>
+        </div>
+        <button type="button" id="nequi-refresh-payments" class="nequi-mini-btn nequi-live-refresh">
+          <span aria-hidden="true"></span>
+          Actualizar
+        </button>
+      </div>
+      <div id="nequi-selected-payment" class="nequi-selected-payment" hidden></div>
+      <div id="nequi-payment-list" class="nequi-payment-list"></div>
+      <small id="nequi-payment-status" class="nequi-payment-status">Cargando pagos recibidos...</small>
+    </div>
+      {% endif %}
+    {% endif %}
+
     <div style="margin-top:.8rem">
-      <div id="mix-error" style="display:none; color:#ff6b6b; font-weight:600; margin-bottom:.6rem;"></div>
-      <button id="confirmar-pago" class="btn-confirmar">CONFIRMAR PAGO</button>
+      <div id="mix-error"></div>
+      <button type="button" id="confirmar-pago" class="btn-confirmar">CONFIRMAR PAGO</button>
     </div>
   </div>
 </div>

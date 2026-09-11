@@ -71,11 +71,9 @@
   catInput.addEventListener("input", e=>{
     term = e.target.value.trim(); page=1; more=true; catHidden.value="";
     if (!term){
-      // si se borra todo, muestra la primera página (lista completa) para feedback
       kickFetch(true);
       return;
     }
-    // respuesta local instantánea (filtrado sobre lo ya pintado)
     const list = Array.from(catResult.querySelectorAll(".autocomplete-option"))
       .map(n => ({id:n.dataset.id, text:n.textContent}));
     if (list.length){
@@ -204,7 +202,7 @@
     });
   }
 
-  /* ========= 4) Detector global de pistola (robusto, inspirado en generar_venta.js) ========= */
+  /* ========= 4) Detector global de pistola (robusto y NO bloquea otros inputs) ========= */
   (function barcodeScannerDetector(){
     const CFG = {
       candidates: [
@@ -221,7 +219,12 @@
       debug: false
     };
 
-    const isInput = el => el && el.tagName === 'INPUT' && !el.readOnly && !el.disabled;
+    const POSITIVE_TYPES = new Set(['text','search','url','tel','email','password','number']);
+    const isTextInput = el =>
+      el && el.tagName === 'INPUT' && !el.disabled && !el.readOnly &&
+      (POSITIVE_TYPES.has((el.type||'').toLowerCase()) || (el.type||'').trim()==='');
+    const isEditable = el => !!el && (isTextInput(el) || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
     const looksBarcode = el => {
       const id=(el?.id||'').toLowerCase(), nm=(el?.name||'').toLowerCase();
       return el?.hasAttribute?.('data-barcode-target') ||
@@ -231,10 +234,10 @@
 
     function resolveTarget(){
       const ae = document.activeElement;
-      if (isInput(ae) && looksBarcode(ae)) return ae;
+      if (isTextInput(ae) && looksBarcode(ae)) return ae;
       for (const sel of CFG.candidates){
         const el = document.querySelector(sel);
-        if (isInput(el)) return el;
+        if (isTextInput(el)) return el;
       }
       return null;
     }
@@ -262,10 +265,10 @@
       return false;
     };
 
-    function handleFinish(byKey=false){
+    function handleFinish(){
       const span = last - first;
       const fastEnough = buf && span < buf.length * (CFG.gapMs + 10);
-      if (CFG.debug) console.log('[scanner] finish', {buf, len:buf.length, span, byKey, fastEnough});
+      if (CFG.debug) console.log('[scanner] finish', {buf, len:buf.length, span, fastEnough});
       if (fastEnough && buf.length >= CFG.minChars){
         const code = buf; reset();
         setBarcodeValue(code);
@@ -278,14 +281,21 @@
     document.addEventListener('keydown', function (e){
       if (e.ctrlKey || e.altKey || e.metaKey) { reset(); return; }
 
-      const t = Date.now();
+      const ae = document.activeElement;
+      const typingInOtherField = isEditable(ae) && !looksBarcode(ae); // <— clave: si escribes en otro campo, NO interceptar
 
       if (CFG.finishKeys.includes(e.key)){
-        if (handleFinish(true)){ e.preventDefault(); e.stopImmediatePropagation(); }
+        if (!typingInOtherField && handleFinish()){
+          e.preventDefault(); e.stopImmediatePropagation();
+        }
         return;
       }
 
       if (isCharKey(e)){
+        // Si el usuario está escribiendo en cualquier input/textarea NO de barras, no toques nada
+        if (typingInOtherField){ reset(); return; }
+
+        const t = Date.now();
         if (buf && (t - last) > CFG.gapMs) { buf = ''; first = t; }
         if (!buf) first = t;
 
@@ -304,11 +314,11 @@
         buf += ch; last = t;
 
         if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(()=>{ handleFinish(false); }, CFG.gapMs * 5);
+        idleTimer = setTimeout(()=>{ handleFinish(); }, CFG.gapMs * 5);
 
-        // si el foco no está en el input de barras, evita “ensuciar” otros campos
-        const target = resolveTarget();
-        if (document.activeElement !== target) {
+        // Evita que el "tecleo fantasma" ensucie la página sólo cuando NO estás en un campo editable
+        const targetBarcode = resolveTarget();
+        if (!isEditable(ae) || (targetBarcode && ae !== targetBarcode)){
           e.preventDefault();
           e.stopImmediatePropagation();
         }
@@ -318,9 +328,11 @@
     }, true);
 
     document.addEventListener('paste', (e)=>{
+      const ae = document.activeElement;
+      const typingInOtherField = isEditable(ae) && !looksBarcode(ae);
       const txt = (e.clipboardData||window.clipboardData)?.getData('text') || '';
       const val = (txt||'').trim();
-      if (val && val.length >= CFG.minChars) {
+      if (!typingInOtherField && val && val.length >= CFG.minChars) {
         e.preventDefault();
         setBarcodeValue(val);
       }

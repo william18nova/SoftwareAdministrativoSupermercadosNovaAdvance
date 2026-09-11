@@ -1,16 +1,8 @@
 /* =========================================================
    ✅ MODAL “Pagos (puede ser mixto)” — ULTRA estético (Nova)
-   - Centrado real + animación
-   - Glassmorphism premium + borde iluminado
-   - Banner Total tipo “chip”
-   - Filas (mix-row) como tarjetas interactivas
-   - Sección efectivo como card elegante
-   - ❌ Sin scroll (ni lateral ni vertical)
-   - ✅ Por encima del navbar (z-index máximo)
-   - ✅ Bloqueo de scroll automático con :has() + fallback modal-open
-   - ✅ Reglas Pago Mixto:
-       - NO mixto: solo 1 check, input solo efectivo (fijo = total)
-       - Mixto: varios checks, input en seleccionados (arriba/abajo sin bug)
+   - Desktop: ✅ scroll vertical en el BACKDROP (#myModal)
+   - Mobile:  ✅ 1 SOLO SCROLL (backdrop #myModal)
+   - Page scroll bloqueado (body/html)
    ========================================================= */
 
 :root{
@@ -39,7 +31,7 @@
 }
 
 /* =========================================================
-   ✅ BLOQUEO SCROLL AUTOMÁTICO DEL DOCUMENTO (sin JS)
+   ✅ BLOQUEO SCROLL DEL DOCUMENTO (sin JS) + fallback
    ========================================================= */
 html:has(#myModal.modal[style*="display: block"]),
 body:has(#myModal.modal[style*="display: block"]),
@@ -48,20 +40,18 @@ body:has(#myModal.modal.is-open){
   overflow: hidden !important;
 }
 
-/* fallback por si prefieres con JS: body.classList.add("modal-open") */
 body.modal-open{
   overflow: hidden !important;
 }
 
 /* =========================================================
-   ✅ MODAL BACKDROP + CENTRADO (siempre sobre navbar)
+   ✅ MODAL BACKDROP
+   ✅ Desktop/Mobile: el scroll VIVE AQUÍ (no en la card)
    ========================================================= */
 #myModal.modal{
   display:none;
   position:fixed;
   inset:0;
-
-  /* 🔥 por encima de TODO (navbar, dropdowns, etc.) */
   z-index: 2147483647 !important;
 
   background:
@@ -73,39 +63,50 @@ body.modal-open{
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 
-  align-items:center;
-  justify-content:center;
-  padding: 18px;
+  /* 🔥 CLAVE: que el backdrop sí tenga altura y sí scrollee */
+  height: 100vh;
+  max-height: 100vh;
 
-  /* ❌ sin barras */
-  overflow: hidden !important;
+  /* 🔥 CLAVE: NO FLEX en desktop (evita “captura” rara del overflow) */
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
 
-  /* animación */
+  /* Espacio para que el card no pegue arriba/abajo */
+  padding: 22px 18px;
+
+  /* evita “arrastre” al body (aunque esté locked) */
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+
+  /* estabilidad del layout cuando aparece scrollbar */
+  scrollbar-gutter: stable;
+
   opacity: 0;
   transition: opacity .18s var(--na-ease);
 }
 
-/* abierto: show() => display:block */
-#myModal.modal[style*="display: block"]{
-  display:flex !important;
-  opacity: 1;
-}
+/* abierto */
+#myModal.modal[style*="display: block"],
 #myModal.modal.is-open{
-  display:flex !important;
+  display:block !important; /* 🔥 block + overflow auto = scroll seguro */
   opacity: 1;
 }
 
 /* =========================================================
-   ✅ CONTENEDOR (sin scroll interno)
+   ✅ CONTENEDOR (CARD)
+   - Se centra con margin auto
+   - NO scrollea (evita doble scroll)
    ========================================================= */
 #myModal .modal-content{
   width: min(580px, 94vw);
-  margin: 0;
 
-  /* ❌ sin scroll vertical/lateral interno */
+  /* Centrado horizontal + top-aligned (y el backdrop scrollea) */
+  margin: 0 auto;
+
+  /* ✅ NO scroll en la card */
   max-height: none !important;
-  overflow: hidden !important;
-  overflow-x: hidden !important;
+  overflow: visible !important;
 
   padding: 18px 18px 16px;
   border-radius: var(--na-radius);
@@ -129,7 +130,7 @@ body.modal-open{
   transform: translateY(0) scale(1);
 }
 
-/* Asegura que nada se salga por ancho (causa scroll lateral) */
+/* Anti overflow lateral global dentro del modal */
 #myModal *,
 #myModal *::before,
 #myModal *::after{
@@ -137,7 +138,6 @@ body.modal-open{
   max-width: 100%;
 }
 
-/* refuerzo anti-scroll lateral */
 #myModal .mix-grid,
 #myModal .mix-row,
 #myModal .radio-wrap{
@@ -147,7 +147,8 @@ body.modal-open{
 /* Halo / borde iluminado */
 #myModal .modal-content::before{
   content:"";
-  position:absolute; inset:-1px;
+  position:absolute;
+  inset:-1px;
   border-radius: var(--na-radius);
   pointer-events:none;
   background: linear-gradient(180deg, rgba(255,255,255,.26), rgba(255,255,255,.04));
@@ -255,6 +256,58 @@ body.modal-open{
   color: rgba(255,255,255,.94);
 }
 
+#myModal .employee-discount-auth{
+  margin: 10px 0 12px;
+  padding: 13px 14px;
+  border-radius: var(--na-radius2);
+  background: rgba(40,167,69,.15);
+  border: 1px solid rgba(40,167,69,.34);
+  box-shadow: 0 12px 24px rgba(0,0,0,.16);
+}
+#myModal .employee-discount-auth strong,
+#myModal .employee-discount-auth span,
+#myModal .employee-discount-auth label,
+#myModal .employee-discount-auth small{
+  display:block;
+}
+#myModal .merk2888-discount-auth{
+  background:rgba(124,58,237,.18);
+  border-color:rgba(167,139,250,.48);
+}
+#myModal .employee-discount-auth strong{
+  font-weight:950;
+  margin-bottom:4px;
+}
+#myModal .employee-discount-auth span{
+  color:rgba(255,255,255,.88);
+  font-size:13px;
+  margin-bottom:10px;
+}
+#myModal .employee-discount-auth label{
+  font-weight:900;
+  margin-bottom:7px;
+}
+#myModal .employee-discount-auth input{
+  width:100%;
+  height:44px;
+  padding:11px 12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.30);
+  background:rgba(255,255,255,.96);
+  color:#0b1220;
+  outline:none;
+  box-shadow:0 12px 24px rgba(0,0,0,.14);
+}
+#myModal .employee-discount-auth input:focus{
+  border-color:rgba(77,166,255,.85);
+  box-shadow:0 0 0 3px rgba(77,166,255,.18), 0 12px 24px rgba(0,0,0,.14);
+}
+#myModal .employee-discount-auth small{
+  margin-top:7px;
+  color:rgba(255,255,255,.76);
+  font-size:12px;
+}
+
 /* =========================================================
    ✅ TEXTO GUÍA
    ========================================================= */
@@ -269,21 +322,14 @@ body.modal-open{
 }
 
 /* =========================================================
-   ✅ GRID / SEPARACIÓN
+   ✅ FILAS (TARJETAS) DE MÉTODOS
    ========================================================= */
 #myModal .mix-grid{ display:block; }
 
-/* =========================================================
-   ✅ FILAS (TARJETAS) DE MÉTODOS
-   - Soporta .mix-row o .radio-wrap (por si tu HTML usa ese)
-   ========================================================= */
 #myModal .mix-row,
 #myModal .radio-wrap{
   display:grid;
-
-  /* ✅ por defecto NO reservamos espacio para input */
   grid-template-columns: 1fr !important;
-
   gap: 12px;
   align-items:center;
 
@@ -304,13 +350,11 @@ body.modal-open{
   border-color: rgba(255,255,255,.16);
 }
 
-/* ✅ Solo cuando debe mostrarse el input */
 #myModal .mix-row.show-amt,
 #myModal .radio-wrap.show-amt{
   grid-template-columns: 1fr 190px !important;
 }
 
-/* Label + checkbox */
 #myModal .mix-check{
   display:flex;
   align-items:center;
@@ -322,8 +366,6 @@ body.modal-open{
   letter-spacing: .1px;
   text-shadow: 0 8px 18px rgba(0,0,0,.22);
 }
-
-/* Checkbox */
 #myModal .mix-check input[type="checkbox"]{
   width: 18px;
   height: 18px;
@@ -333,12 +375,10 @@ body.modal-open{
 }
 
 /* =========================================================
-   ✅ INPUT MONTO (FIX MIXTO: que SIEMPRE se vea si está activo)
+   ✅ INPUT MONTO
    ========================================================= */
 #myModal .pm-amt{
-  /* por defecto oculto */
   display:none;
-
   width: 100% !important;
   min-width: 0 !important;
   height: 42px;
@@ -355,18 +395,14 @@ body.modal-open{
   transition: box-shadow .14s var(--na-ease), border-color .14s var(--na-ease), transform .14s var(--na-ease);
 }
 
-/* cuando JS pone .show-amt */
 #myModal .mix-row.show-amt .pm-amt,
 #myModal .radio-wrap.show-amt .pm-amt{
   display:block;
 }
-
-/* ✅ Fallback: si el input está habilitado (mixto + check), que se vea sí o sí */
 #myModal .pm-amt:not(:disabled){
   display:block !important;
 }
 
-/* ✅ Si hay soporte :has, ajusta columnas automáticamente sin depender de .show-amt */
 @supports selector(.mix-row:has(.pm-amt)){
   #myModal .mix-row:has(.pm-amt:not(:disabled)),
   #myModal .radio-wrap:has(.pm-amt:not(:disabled)){
@@ -380,8 +416,6 @@ body.modal-open{
   box-shadow: 0 0 0 3px rgba(77,166,255,.18), 0 12px 24px rgba(0,0,0,.14);
   transform: translateY(-1px);
 }
-
-/* Disabled (no-mixto) */
 #myModal .pm-amt:disabled{
   opacity: .92;
   cursor: not-allowed;
@@ -396,7 +430,6 @@ body.modal-open{
 }
 #myModal input[type="number"]{ -moz-appearance:textfield; }
 
-/* Resaltado al marcar (si hay soporte :has) */
 #myModal .mix-row:has(.pm-check:checked),
 #myModal .radio-wrap:has(.pm-check:checked){
   background: linear-gradient(180deg, rgba(77,166,255,.18), rgba(255,255,255,.06));
@@ -450,16 +483,175 @@ body.modal-open{
   text-shadow: 0 10px 22px rgba(0,0,0,.22);
 }
 
-/* ✅ fuerza extra: en mixto NUNCA mostrar efectivo-options aunque alguien lo ponga inline */
 #myModal.modal[data-mixto="1"] #efectivo-options{
   display:none !important;
+}
+
+/* =========================================================
+   Nequi: lista de envios recibidos
+   ========================================================= */
+#myModal .nequi-payment-panel{
+  margin: 12px 0 10px;
+  padding: 13px 13px;
+  border-radius: 18px;
+  background: rgba(25,195,125,.10);
+  border: 1px solid rgba(25,195,125,.28);
+  box-shadow: 0 16px 30px rgba(0,0,0,.16);
+}
+#myModal .nequi-payment-panel[hidden]{ display:none !important; }
+#myModal .nequi-payment-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+#myModal .nequi-payment-head strong,
+#myModal .nequi-payment-head small{ display:block; }
+#myModal .nequi-payment-head strong{ font-weight:950; }
+#myModal .nequi-payment-head small,
+#myModal .nequi-payment-status{
+  color:rgba(255,255,255,.78);
+  font-size:12px;
+  line-height:1.35;
+}
+#myModal .nequi-mini-btn{
+  flex:0 0 auto;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  padding:8px 11px;
+  background:rgba(255,255,255,.10);
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+#myModal .nequi-live-refresh{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+}
+#myModal .nequi-live-refresh span{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#19c37d;
+  box-shadow:0 0 0 4px rgba(25,195,125,.16);
+  animation:nequiLivePulse 1.25s ease-in-out infinite;
+}
+@keyframes nequiLivePulse{
+  0%,100%{ transform:scale(1); opacity:1; }
+  50%{ transform:scale(.72); opacity:.65; }
+}
+#myModal .nequi-payment-list{
+  display:grid;
+  gap:8px;
+  max-height:260px;
+  overflow-y:auto;
+  padding-right:2px;
+}
+#myModal .nequi-payment-item{
+  width:100%;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:16px;
+  padding:11px 12px;
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  text-align:left;
+  cursor:pointer;
+  box-shadow:0 10px 20px rgba(0,0,0,.12);
+}
+#myModal .nequi-payment-item:hover,
+#myModal .nequi-payment-item.is-selected{
+  border-color:rgba(25,195,125,.58);
+  background:rgba(25,195,125,.16);
+}
+#myModal .nequi-payment-item.is-new{
+  border-color:rgba(45,212,191,.78);
+  background:rgba(45,212,191,.18);
+  animation:nequiNewPaymentPulse 1.15s ease-in-out 3;
+}
+@keyframes nequiNewPaymentPulse{
+  0%,100%{ box-shadow:0 10px 20px rgba(0,0,0,.12); }
+  45%{ box-shadow:0 0 0 4px rgba(45,212,191,.22), 0 16px 30px rgba(0,0,0,.18); }
+}
+#myModal .nequi-payment-item.is-low{
+  border-color:rgba(251,191,36,.46);
+  background:rgba(251,191,36,.12);
+}
+#myModal .nequi-payment-item-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+#myModal .nequi-payment-badge{
+  flex:0 0 auto;
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  padding:5px 8px;
+  background:rgba(255,255,255,.12);
+  color:rgba(255,255,255,.9) !important;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+}
+#myModal .nequi-payment-item.is-low .nequi-payment-badge{
+  background:rgba(251,191,36,.20);
+  color:#ffe8a3 !important;
+}
+#myModal .nequi-payment-meta{
+  margin-top:4px;
+}
+#myModal .nequi-payment-item strong,
+#myModal .nequi-selected-payment strong{
+  display:block;
+  font-size:18px;
+  font-weight:950;
+}
+#myModal .nequi-payment-item span,
+#myModal .nequi-payment-item small,
+#myModal .nequi-selected-payment small{
+  display:block;
+  color:rgba(255,255,255,.78);
+  line-height:1.35;
+}
+#myModal .nequi-selected-payment{
+  margin:0 0 9px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(77,166,255,.15);
+  border:1px solid rgba(77,166,255,.28);
+}
+#myModal .nequi-selected-payment.is-low{
+  background:rgba(251,191,36,.14);
+  border-color:rgba(251,191,36,.34);
+}
+#myModal .nequi-selected-payment button{
+  margin-top:8px;
+  border:0;
+  border-radius:999px;
+  padding:7px 10px;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+#myModal .nequi-empty{
+  border:1px dashed rgba(255,255,255,.22);
+  border-radius:16px;
+  padding:14px;
+  color:rgba(255,255,255,.78);
+  text-align:center;
+  font-weight:800;
 }
 
 /* =========================================================
    ✅ ERROR MIX
    ========================================================= */
 #myModal #mix-error{
-  display:none; /* JS lo muestra con texto */
+  display:none;
   border-radius: 14px;
   padding: 10px 12px;
   background: rgba(255,77,109,.12);
@@ -506,23 +698,38 @@ body.modal-open{
 }
 
 /* =========================================================
-   ✅ RESPONSIVE (evita desbordes en móvil)
+   ✅ MOBILE: se mantiene 1 SOLO SCROLL (backdrop)
    ========================================================= */
-@media (max-width: 520px){
+@media (max-width: 600px){
+  #myModal.modal{
+    padding: 12px 10px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
   #myModal .modal-content{
-    width: min(560px, 96vw);
+    width: min(580px, 96vw);
+    margin: 0 auto;
     padding: 16px 14px 14px;
     border-radius: 18px;
   }
 
-  /* en móvil, siempre una columna */
+  /* Anti-scroll horizontal extremo */
+  #myModal,
+  #myModal *{
+    overflow-x: hidden !important;
+  }
+
+  /* En móvil: montos debajo del label (1 columna) */
   #myModal .mix-row.show-amt,
   #myModal .radio-wrap.show-amt{
     grid-template-columns: 1fr !important;
     gap: 10px;
   }
 
-  /* fallback móvil si :has está activo */
   @supports selector(.mix-row:has(.pm-amt)){
     #myModal .mix-row:has(.pm-amt:not(:disabled)),
     #myModal .radio-wrap:has(.pm-amt:not(:disabled)){
@@ -534,12 +741,14 @@ body.modal-open{
   #myModal .pm-amt{ height: 44px; }
 }
 
-/* Accesibilidad: menos animación */
+/* =========================================================
+   ✅ ACCESIBILIDAD / SISTEMA
+   ========================================================= */
 @media (prefers-reduced-motion: reduce){
-  #myModal .modal-content { transition:none; }
+  #myModal .modal-content{ transition:none; }
+  #myModal.modal{ transition:none; }
 }
 
-/* Alto contraste del sistema */
 @media (forced-colors: active){
   #myModal.modal{ background: rgba(0,0,0,.6); }
   #myModal .modal-content{

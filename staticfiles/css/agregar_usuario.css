@@ -1,5 +1,7 @@
-/*  static/css/agregar_usuario.css — estética unificada con “agregar_empleado” */
+/*  static/css/agregar_usuario.css — estética unificada con “agregar_empleado”
+   + centrado perfecto del contenedor en escritorio y móvil */
 
+/* Fuente */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
 /* Tokens */
@@ -49,7 +51,7 @@ body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12
 /* ── CONTENEDOR (centrado) ───────────────────────────── */
 .container-usuario{
   width:min(95vw, 560px);
-  margin-inline:auto !important;
+  margin-inline:auto !important;                 /* centro horizontal */
   margin-top:clamp(8px,2.5vh,20px);
   margin-bottom:clamp(18px,4vh,28px);
 
@@ -63,6 +65,38 @@ body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12
   float:none; clear:both;
 }
 
+/* ✅ Centrado perfecto en ESCRITORIO (vertical y horizontal) */
+@media (min-width:1024px){
+  /* si la página no tiene wrapper especial, usa flex en body */
+  body:has(.container-usuario){
+    min-height:100svh;
+    display:flex;
+    flex-direction:column;
+  }
+  body:has(.container-usuario) .container-usuario{
+    margin-block:auto;                 /* centra verticalmente */
+    left:auto !important; transform:none !important;
+  }
+}
+/* Soporte para wrappers como .page-wrap/.content */
+@supports selector(:has(*)){
+  .page-wrap:has(.container-usuario),
+  .content:has(.container-usuario),
+  .wrapper:has(.container-usuario){
+    min-height:100svh;
+    display:grid;
+    place-items:center;                /* centro en ambos ejes */
+    padding-block:clamp(18px,6vh,56px);
+  }
+  .page-wrap:has(.container-usuario) .container-usuario,
+  .content:has(.container-usuario) .container-usuario,
+  .wrapper:has(.container-usuario) .container-usuario{
+    margin:0 !important;               /* evita doble margen dentro del grid */
+    left:auto; transform:none;
+  }
+}
+
+/* Móvil: fallback por si no hay :has() */
 @media (max-width: 900px){
   .container-usuario{
     position:relative;

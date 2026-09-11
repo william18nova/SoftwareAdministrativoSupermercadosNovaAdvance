@@ -1,5 +1,7 @@
 /* ========================================================================
-   Agregar Inventario — Nova Advance Design (centrado + responsive)
+   Agregar / Editar Inventario — Nova Advance Design
+   ✅ Autocomplete móvil (jQuery UI appendTo body)
+   ✅ Scanner overlay con visor + cuadro de precisión
 ======================================================================== */
 
 /* Fuente */
@@ -32,19 +34,24 @@
   --btn-shadow: 0 12px 28px rgba(77,166,255,.45), inset 0 0 0 1px rgba(255,255,255,.22);
 }
 
-/* Fondo */
+/* Reset */
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
 body{
   font-family:var(--font); color:var(--text);
-  min-height:100svh; overflow:auto;
+  min-height:100svh;
+  overflow:auto;
   padding:clamp(20px,4vw,32px);
   background:
     radial-gradient(1400px 800px at 10% 20%, rgba(77,166,255,.35), transparent 60%),
     radial-gradient(1200px 700px at 85% 85%, rgba(77,166,255,.25), transparent 60%),
     linear-gradient(135deg,var(--bg-1),var(--bg-2));
 }
-body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12px);z-index:-1}
+body::before{
+  content:""; position:fixed; inset:0;
+  background:inherit; filter:blur(12px);
+  z-index:-1;
+}
 
 /* Contenedor */
 .container-inventario{
@@ -58,6 +65,7 @@ body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12
   box-shadow:var(--glass-sh);
   padding:clamp(26px,4vw,38px);
   text-align:center;
+  overflow:visible;
 }
 
 /* Encabezado */
@@ -69,31 +77,44 @@ body::before{content:"";position:fixed;inset:0;background:inherit;filter:blur(12
   filter:drop-shadow(0 6px 16px rgba(77,166,255,.35));
 }
 h2{
-  font-size:clamp(24px,3.6vw,32px); font-weight:800; text-align:center;
-  margin-bottom:6px; text-shadow:0 6px 16px rgba(0,0,0,.22);
+  font-size:clamp(24px,3.6vw,32px);
+  font-weight:800;
+  margin-bottom:12px;
+  text-shadow:0 6px 16px rgba(0,0,0,.22);
 }
-.obligatorio-texto{
-  font-size:14px; color:var(--text-muted);
-  font-style:italic; text-align:center; margin-bottom:20px;
-}
-
-/* Formularios (acotado al formulario para no afectar inputs de la tabla) */
-.form-group-precio{margin-bottom:18px;text-align:left;position:relative}
-.form-group-precio label{display:block;margin-bottom:6px;font-weight:700;color:var(--text)}
 .required{color:var(--brand)}
+
+/* Formularios */
+.form-group-precio{
+  margin-bottom:18px;
+  text-align:left;
+  position:relative;
+}
+.form-group-precio label{
+  display:block;
+  margin-bottom:6px;
+  font-weight:700;
+  color:var(--text);
+}
 
 .container-inventario .form-group-precio input[type="text"],
 .container-inventario .form-group-precio input[type="number"]{
-  width:100%; height:44px; padding:0 12px;
+  width:100%;
+  height:44px;
+  padding:0 12px;
   border-radius:var(--radius-sm);
   border:1px solid var(--input-brd);
-  background:var(--input-bg); color:var(--text);
-  font-size:15.5px; outline:none; transition:var(--transition);
+  background:var(--input-bg);
+  color:var(--text);
+  font-size:15.5px;
+  outline:none;
+  transition:var(--transition);
 }
 .container-inventario .form-group-precio input::placeholder{color:var(--text-muted);}
 .container-inventario .form-group-precio input:hover{background:var(--input-hov); transform:translateY(-1px);}
 .container-inventario .form-group-precio input:focus{
-  background:var(--input-hov); border-color:var(--ring);
+  background:var(--input-hov);
+  border-color:var(--ring);
   box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
 }
 .input-error{
@@ -101,128 +122,597 @@ h2{
   box-shadow:0 0 0 3px color-mix(in srgb, var(--err) 28%, transparent) !important;
 }
 
-/* Autocomplete */
-.autocomplete-results{
-  position:absolute; top:calc(100% + 6px); left:0; right:0;
-  max-height:240px; overflow-y:auto;
-  background:#fff; border:1px solid var(--slate-200);
-  border-radius:var(--radius-sm);
-  box-shadow:0 16px 30px rgba(0,0,0,.16);
-  z-index:30; display:none;
+/* ✅ jQuery UI Autocomplete (visible en móvil siempre) */
+.ui-autocomplete{
+  z-index: 9999999 !important;
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--slate-200);
+  box-shadow: 0 18px 38px rgba(0,0,0,.18);
 }
-.autocomplete-option{padding:10px 12px; font-size:15px; cursor:pointer; color:#0b1220}
-.autocomplete-option:hover{background:#eaf3ff;}
-.autocomplete-no-result{padding:10px 12px; font-size:14px; color:#64748b}
+.ui-menu-item-wrapper{
+  padding: 10px 12px !important;
+  font-size: 15px;
+}
+.ui-state-active,
+.ui-menu-item-wrapper.ui-state-active{
+  background:#eaf3ff !important;
+  border:none !important;
+  margin:0 !important;
+  color:#0b1220 !important;
+}
 
 /* Botones */
 .btn-agregar-precio,.btn-guardar-precio{
-  width:100%; height:46px; border:none; border-radius:var(--radius-sm);
-  background:var(--btn-grad); color:#fff;
-  font-weight:800; font-size:16px; letter-spacing:.2px;
-  cursor:pointer; margin-top:10px;
+  width:100%;
+  height:46px;
+  border:none;
+  border-radius:var(--radius-sm);
+  background:var(--btn-grad);
+  color:#fff;
+  font-weight:800;
+  font-size:16px;
+  letter-spacing:.2px;
+  cursor:pointer;
+  margin-top:10px;
   box-shadow:var(--btn-shadow);
   transition:transform .2s, filter .22s, box-shadow .22s, background .22s;
 }
 .btn-agregar-precio:hover,.btn-guardar-precio:hover{
-  background:var(--btn-grad-hov); transform:translateY(-1px);
+  background:var(--btn-grad-hov);
+  transform:translateY(-1px);
   filter:saturate(1.06);
 }
 .btn-agregar-precio:active,.btn-guardar-precio:active{transform:none}
 
 /* Alertas */
 .alert{
-  display:none; padding:12px 14px; border-radius:var(--radius-sm);
-  font-size:14px; margin-bottom:14px; border:1px solid transparent; text-align:center;
+  display:none;
+  padding:12px 14px;
+  border-radius:var(--radius-sm);
+  font-size:14px;
+  margin-bottom:14px;
+  border:1px solid transparent;
+  text-align:center;
 }
-.alert-success{ background:color-mix(in srgb,var(--ok) 18%, #ffffff); color:#064e1a; border-color:color-mix(in srgb,var(--ok) 40%, #ffffff); }
-.alert-error{ background:rgba(255,77,95,.14); color:var(--err); border-color:rgba(255,140,150,.55); }
-
-.field-error{font-size:13.5px;color:var(--err);margin-top:6px;display:none;}
+.alert-success{
+  background:color-mix(in srgb,var(--ok) 18%, #ffffff);
+  color:#064e1a;
+  border-color:color-mix(in srgb,var(--ok) 40%, #ffffff);
+}
+.alert-error{
+  background:rgba(255,77,95,.14);
+  color:var(--err);
+  border-color:rgba(255,140,150,.55);
+}
+.field-error{
+  font-size:13.5px;
+  color:var(--err);
+  margin-top:6px;
+  display:none;
+}
 .field-error.visible{display:block;}
 
 /* DataTable */
 .table-wrap{margin:20px 0}
 table.dataTable{
-  width:100%!important; border-collapse:separate; border-spacing:0;
-  background:#fff; border-radius:12px; overflow:hidden;
+  width:100%!important;
+  border-collapse:separate;
+  border-spacing:0;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
   box-shadow:0 6px 18px rgba(0,0,0,.12);
   font-size:15px;
 }
 table.dataTable thead{
-  background:linear-gradient(180deg,#3563b8,#2a4f9a); color:#fff;
+  background:linear-gradient(180deg,#3563b8,#2a4f9a);
+  color:#fff;
 }
 table.dataTable thead th{
-  padding:12px; font-weight:700; text-align:center;
+  padding:12px;
+  font-weight:700;
+  text-align:center;
 }
 table.dataTable tbody td{
-  padding:10px; color:#0b1220; text-align:center;
+  padding:10px;
+  color:#0b1220;
+  text-align:center;
 }
-table.dataTable tbody tr:nth-child(even){background:#f7fbff;}
-table.dataTable tbody tr:hover{background:#eef5ff;}
-
-/* Inputs dentro de tabla (forzar texto oscuro sobre fondo blanco) */
 .qty-input{
-  width:80px; padding:6px;
+  width:90px;
+  padding:6px;
   border:1px solid var(--slate-200);
-  border-radius:8px; text-align:center;
-  background:#fff; color:#0b1220 !important;
-  caret-color:#0b1220;
+  border-radius:8px;
+  text-align:center;
+  background:#fff;
+  color:#0b1220 !important;
 }
-.qty-input::placeholder{ color:#475569; }
-
 .btn-eliminar{
-  width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;
-  background:#e74c3c; color:#fff; border:none; border-radius:8px;
-  cursor:pointer; transition:var(--transition);
+  width:34px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:#e74c3c;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  transition:var(--transition);
 }
 .btn-eliminar:hover{ background:#c0392b; }
 
-/* Buscador DataTables (sin lupa) */
-.dataTables_wrapper .dataTables_filter{ margin:12px 0; text-align:left; }
-.dataTables_wrapper .dataTables_filter:before{ display:none !important; }
-.dataTables_wrapper .dataTables_filter input{
-  height:42px !important; padding:0 14px !important;
-  border-radius:999px !important;
-  border:1px solid var(--input-brd) !important;
-  background:var(--input-bg) !important; color:var(--text) !important;
-  outline:none !important; font-size:15px;
+/* Barras + botón cámara */
+.barcode-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin: 10px 0;
 }
-.dataTables_wrapper .dataTables_filter input::placeholder{ color:var(--text-muted); }
+.btn-scan{
+  width:46px;
+  height:46px;
+  border:none;
+  border-radius:12px;
+  background:var(--btn-grad);
+  color:#fff;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:var(--btn-shadow);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.btn-scan:hover{ background:var(--btn-grad-hov); transform:translateY(-1px); }
+
+/* ✅ Scanner overlay + visor */
+.scanner-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.62);
+  z-index:99999999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.scanner-card{
+  width:min(520px, 100%);
+  background:rgba(15,26,45,.92);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:16px;
+  box-shadow:0 20px 60px rgba(0,0,0,.45);
+  overflow:hidden;
+  backdrop-filter: blur(10px);
+}
+.scanner-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px;
+  border-bottom:1px solid rgba(255,255,255,.10);
+}
+.scanner-title{
+  color:#fff;
+  font-weight:800;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.scanner-close{
+  width:38px;
+  height:38px;
+  border:none;
+  border-radius:12px;
+  background:rgba(255,255,255,.10);
+  color:#fff;
+  cursor:pointer;
+}
+.scanner-viewport{
+  position:relative;
+  width:100%;
+  aspect-ratio: 3 / 4;
+  background:#000;
+}
+#barcodeVideo{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+/* ✅ cuadro visible para apuntar */
+.scanner-frame{
+  position:absolute;
+  left:12%;
+  right:12%;
+  top:28%;
+  bottom:28%;
+  border:2px solid rgba(77,166,255,.95);
+  border-radius:14px;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.25);
+  pointer-events:none;
+}
+.scanner-hint{
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:10px;
+  text-align:center;
+  font-size:13px;
+  color:rgba(255,255,255,.88);
+  text-shadow:0 2px 10px rgba(0,0,0,.55);
+  pointer-events:none;
+}
+.scanner-actions{
+  padding:12px 14px;
+  display:flex;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+}
+.scanner-btn{
+  border:none;
+  border-radius:12px;
+  padding:10px 12px;
+  background:rgba(255,255,255,.10);
+  color:#fff;
+  cursor:pointer;
+}
+.scanner-status{
+  color:rgba(255,255,255,.85);
+  font-size:13.5px;
+}
 
 /* Responsive */
 @media(max-width:768px){
+  html, body{ overflow-x:hidden; }
   .container-inventario{
     width: calc(100vw - 24px);
     max-width: 600px;
-    margin:0 auto !important;
-    position:relative;
-    left:50%; transform:translateX(-50%);
+    margin: 0 auto !important;
     padding:22px 16px;
+    position:relative;
+    left:auto;
+    transform:none;
   }
-  html, body{ overflow-x:hidden; }
   h2{ font-size:22px; }
   .btn-agregar-precio,.btn-guardar-precio{font-size:15px}
+
   table.dataTable thead{display:none;}
   table.dataTable tbody tr{
-    display:block; margin-bottom:15px; border:1px solid var(--slate-200);
-    border-radius:12px; background:#fff;
+    display:block;
+    margin-bottom:15px;
+    border:1px solid var(--slate-200);
+    border-radius:12px;
+    background:#fff;
   }
   table.dataTable tbody td{
-    display:flex; justify-content:space-between; align-items:center;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
     gap:10px;
-    padding:10px 12px; font-size:13px; border-bottom:1px solid var(--slate-100);
+    padding:10px 12px;
+    font-size:13px;
+    border-bottom:1px solid var(--slate-100);
     text-align:left;
   }
   table.dataTable tbody td:last-child{border-bottom:none;}
-  table.dataTable tbody td::before{
-    content:attr(data-label); font-weight:800; color:#2a4f9a; margin-right:10px;
-  }
-  .actions-cell{justify-content:flex-start;}
-  /* asegurar que el input sea legible también en móvil */
-  .qty-input{ background:#fff; color:#0b1220 !important; }
 }
 
 /* Reduce motion */
 @media (prefers-reduced-motion:reduce){
   .btn-agregar-precio,.btn-guardar-precio{ transition:none !important; }
+  .btn-scan{ transition:none !important; }
+}
+
+/* ========================================================================
+   Alta de inventario — apariencia clásica
+   Conserva la tarjeta original; sólo adapta los componentes funcionales
+   nuevos (autocomplete vanilla y tabla sin dependencia de DataTables).
+======================================================================== */
+.container-inventario.inventory-create-page [hidden]{display:none!important}
+.container-inventario.inventory-create-page .sr-only{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  border:0!important;
+}
+.container-inventario.inventory-create-page{
+  width:min(95vw,600px);
+  margin-inline:auto;
+  margin-block:clamp(12px,5vh,32px);
+  padding:clamp(26px,4vw,38px);
+  color:var(--text);
+  background:var(--glass-bg);
+  border:1px solid var(--glass-brd);
+  border-radius:var(--radius);
+  box-shadow:var(--glass-sh);
+  text-align:center;
+  overflow:visible;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+.container-inventario.inventory-create-page .obligatorio-texto{
+  margin:0 0 22px;
+  color:var(--text-muted);
+  font-size:13px;
+  font-style:italic;
+}
+.container-inventario.inventory-create-page .required{color:var(--brand)}
+
+.container-inventario.inventory-create-page .alert{
+  display:none;
+  width:100%;
+  margin:0 0 14px;
+  padding:12px 14px;
+  border:1px solid transparent;
+  border-radius:var(--radius-sm);
+  font-size:14px;
+  line-height:1.45;
+  text-align:center;
+}
+.container-inventario.inventory-create-page .alert:not([hidden]),
+.container-inventario.inventory-create-page .alert.is-visible{display:block}
+.container-inventario.inventory-create-page .alert i{margin:0 6px 0 0}
+.container-inventario.inventory-create-page .alert-success{
+  color:#064e1a;
+  background:color-mix(in srgb,var(--ok) 18%,#fff);
+  border-color:color-mix(in srgb,var(--ok) 40%,#fff);
+}
+.container-inventario.inventory-create-page .alert-error{
+  color:#ffdce1;
+  background:rgba(255,77,95,.17);
+  border-color:rgba(255,140,150,.55);
+}
+.container-inventario.inventory-create-page .alert-info{
+  color:#e5f3ff;
+  background:rgba(77,166,255,.17);
+  border-color:rgba(139,204,255,.42);
+}
+.container-inventario.inventory-create-page .alert-warning{
+  color:#fff0c2;
+  background:rgba(153,105,15,.25);
+  border-color:rgba(255,200,87,.48);
+}
+.container-inventario.inventory-create-page .alert a{color:inherit;font-weight:800}
+.container-inventario.inventory-create-page .alert-action{
+  margin-left:8px;
+  border:0;
+  border-bottom:1px solid currentColor;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.container-inventario.inventory-create-page .form-group-precio{margin-bottom:18px}
+.container-inventario.inventory-create-page .field-error{
+  display:none;
+  min-height:0;
+  margin-top:6px;
+  color:#ff8996;
+  font-size:13.5px;
+  font-weight:700;
+  line-height:1.35;
+}
+.container-inventario.inventory-create-page .field-error.visible{
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+}
+.container-inventario.inventory-create-page .input-error{
+  border-color:var(--err)!important;
+  background:rgba(255,77,95,.12)!important;
+  box-shadow:0 0 0 3px rgba(255,77,95,.22)!important;
+}
+
+.container-inventario.inventory-create-page .autocomplete-anchor{position:relative}
+.container-inventario.inventory-create-page .autocomplete-results{
+  position:absolute;
+  top:calc(100% + 6px);
+  right:0;
+  left:0;
+  z-index:120;
+  max-height:240px;
+  padding:5px;
+  overflow-y:auto;
+  border:1px solid var(--slate-200);
+  border-radius:var(--radius-sm);
+  background:#fff;
+  color:#0b1220;
+  box-shadow:0 16px 30px rgba(0,0,0,.22);
+  text-align:left;
+}
+.container-inventario.inventory-create-page .autocomplete-option{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  min-height:46px;
+  padding:8px 10px;
+  gap:9px;
+  border-radius:9px;
+  color:#0b1220;
+  cursor:pointer;
+}
+.container-inventario.inventory-create-page .autocomplete-option:hover,
+.container-inventario.inventory-create-page .autocomplete-option.is-active{
+  color:#0b4f8c;
+  background:#eaf3ff;
+}
+.container-inventario.inventory-create-page .autocomplete-option__icon{
+  display:grid;
+  width:30px;
+  height:30px;
+  place-items:center;
+  border-radius:8px;
+  background:#eaf3ff;
+  color:#318bd8;
+}
+.container-inventario.inventory-create-page .autocomplete-option__copy{min-width:0}
+.container-inventario.inventory-create-page .autocomplete-option__title{
+  display:block;
+  overflow:hidden;
+  font-size:13.5px;
+  font-weight:800;
+  line-height:1.3;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.container-inventario.inventory-create-page .autocomplete-option__meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:3px 9px;
+  margin-top:2px;
+  color:#647b92;
+  font-size:10.5px;
+}
+.container-inventario.inventory-create-page .autocomplete-option__hint{display:none}
+.container-inventario.inventory-create-page .autocomplete-state{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:54px;
+  padding:10px;
+  color:#647b92;
+  font-size:12px;
+  text-align:center;
+}
+.container-inventario.inventory-create-page .autocomplete-state--error{
+  flex-direction:column;
+  color:#a12f43;
+}
+.container-inventario.inventory-create-page .autocomplete-retry{
+  padding:6px 10px;
+  border:1px solid #e4a8b2;
+  border-radius:8px;
+  background:#fff5f6;
+  color:#8d2739;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+.container-inventario.inventory-create-page .autocomplete-load-more{
+  padding:7px;
+  color:#6c8298;
+  font-size:10.5px;
+  text-align:center;
+}
+
+.container-inventario.inventory-create-page .table-wrap{
+  display:block;
+  margin:20px 0;
+  overflow:visible;
+}
+.container-inventario.inventory-create-page table.dataTable{
+  display:table;
+  width:100%!important;
+  min-width:0;
+  border-collapse:separate;
+  border-spacing:0;
+}
+.container-inventario.inventory-create-page .inventory-product-cell{display:block}
+.container-inventario.inventory-create-page .inventory-product-cell__icon,
+.container-inventario.inventory-create-page .inventory-product-cell small{display:none}
+.container-inventario.inventory-create-page .inventory-product-cell strong{
+  color:#0b1220;
+  font-size:14px;
+  font-weight:600;
+  white-space:normal;
+}
+.container-inventario.inventory-create-page .inventory-row-quantity{
+  display:block;
+  width:90px;
+  height:34px;
+  margin:0 auto;
+  padding:6px;
+  border:1px solid var(--slate-200);
+  border-radius:8px;
+  background:#fff;
+  color:#0b1220;
+  font-size:14px;
+  font-weight:600;
+  text-align:center;
+}
+.container-inventario.inventory-create-page .inventory-remove-button{
+  display:inline-flex;
+  width:34px;
+  height:34px;
+  margin:0;
+  align-items:center;
+  justify-content:center;
+  border:0;
+  border-radius:8px;
+  background:#e74c3c;
+  color:#fff;
+  cursor:pointer;
+}
+.container-inventario.inventory-create-page .inventory-remove-button:hover{background:#c0392b}
+.container-inventario.inventory-create-page .inventory-empty-row td,
+.container-inventario.inventory-create-page .inventory-no-match td{
+  padding:18px 12px;
+  color:#64748b;
+  text-align:center;
+}
+.container-inventario.inventory-create-page .btn-agregar-precio:disabled,
+.container-inventario.inventory-create-page .btn-guardar-precio:disabled{
+  cursor:not-allowed;
+  opacity:.5;
+  filter:saturate(.65);
+  box-shadow:none;
+}
+
+@media(max-width:768px){
+  .container-inventario.inventory-create-page{
+    position:relative;
+    left:50%;
+    width:calc(100vw - 24px);
+    max-width:600px;
+    margin:0 auto!important;
+    padding:22px 16px;
+    transform:translateX(-50%);
+  }
+  .container-inventario.inventory-create-page table.dataTable{display:block;background:transparent;box-shadow:none}
+  .container-inventario.inventory-create-page table.dataTable tbody{display:block}
+  .container-inventario.inventory-create-page table.dataTable tbody tr{
+    display:block;
+    margin-bottom:12px;
+    overflow:hidden;
+    border:1px solid var(--slate-200);
+    border-radius:12px;
+    background:#fff;
+  }
+  .container-inventario.inventory-create-page table.dataTable tbody td{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    text-align:right;
+  }
+  .container-inventario.inventory-create-page table.dataTable tbody td::before{
+    content:attr(data-label);
+    flex:0 0 auto;
+    color:#2a4f9a;
+    font-weight:800;
+    text-align:left;
+  }
+  .container-inventario.inventory-create-page .inventory-product-cell{text-align:right}
+  .container-inventario.inventory-create-page .inventory-row-quantity{margin-left:auto}
+  .container-inventario.inventory-create-page .inventory-empty-row td,
+  .container-inventario.inventory-create-page .inventory-no-match td{
+    display:block;
+    text-align:center;
+  }
+  .container-inventario.inventory-create-page .inventory-empty-row td::before,
+  .container-inventario.inventory-create-page .inventory-no-match td::before{display:none}
 }

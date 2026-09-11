@@ -1,10 +1,10 @@
-/*  agregar_punto_pago.css — Nova Advance Design (match Agregar Pedido)
-   ─────────────────────────────────────────────────────────────────── */
+/*  agregar_punto_pago.css — Nova Advance Design (match Agregar Precio/Proveedor)
+   ─────────────────────────────────────────────────────────────────────────── */
 
 /* Fuente */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
-/* Tokens (mismos del diseño de pedidos/home) */
+/* Tokens */
 :root{
   --bg-1:#153060; --bg-2:#20497d;
   --brand:#4da6ff; --brand-2:#3d8cff;
@@ -79,7 +79,7 @@ h2{
   font-style:italic; margin-bottom:22px;
 }
 
-/* Formulario — inputs look login */
+/* Formulario */
 .form-group-punto-pago{ margin-bottom:18px; position:relative; }
 .form-group-punto-pago label{ display:block; font-weight:700; color:var(--text); margin:0 0 6px; }
 
@@ -99,7 +99,7 @@ input:focus{
   box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent);
 }
 
-/* Autocomplete */
+/* Autocomplete (si lo usas) */
 .autocomplete-results{
   position:absolute; top:calc(100% + 6px); left:0; right:0;
   max-height:260px; overflow-y:auto; background:#fff;
@@ -172,7 +172,7 @@ table.dataTable tbody td{
 }
 table.dataTable tbody tr:nth-child(even){ background:#f9fbff; }
 
-/* Orden */
+/* Orden (caret con FA) */
 table.dataTable thead th.sorting::after,
 table.dataTable thead th.sorting_asc::after,
 table.dataTable thead th.sorting_desc::after{
@@ -182,44 +182,85 @@ table.dataTable thead th.sorting::after      { content:"\f0dc"; }
 table.dataTable thead th.sorting_asc::after  { content:"\f106"; }
 table.dataTable thead th.sorting_desc::after { content:"\f107"; }
 
-/* Buscador */
-.dataTables_filter{ margin-bottom:10px; }
-.dataTables_filter label{ font-weight:700; color:#2a4f9a; }
-.dataTables_filter input{
-  height:40px; padding:0 12px;
-  border:1px solid var(--slate-200);
-  border-radius:10px; background:#fff; color:#0b1220;
+/* ===== Buscador DataTables (mejorado) ===== */
+.dataTables_wrapper .dataTables_filter{
+  display:flex; align-items:center; justify-content:flex-end;
+  gap:8px; margin:10px 0;
+}
+.dataTables_wrapper .dataTables_filter label{
+  display:flex; align-items:center; gap:8px;
+  color:var(--text) !important; font-weight:700;
+}
+.dataTables_wrapper .dataTables_filter:before{ display:none !important; }
+.dataTables_wrapper .dataTables_filter input{
+  width:clamp(220px, 26vw, 340px);
+  height:40px !important;
+  padding:0 12px 0 36px !important;
+  border-radius:999px !important;
+  background:var(--input-bg)
+             url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d8e8ff'%3E%3Cpath d='M11 4a7 7 0 105.196 12.196l4.651 4.651 1.414-1.414-4.651-4.651A7 7 0 0011 4zm0 2a5 5 0 110 10 5 5 0 010-10z'/%3E%3C/svg%3E")
+             no-repeat 12px center/16px 16px !important;
+  border:1px solid var(--input-brd) !important;
+  color:var(--text) !important; outline:none !important;
+}
+.dataTables_wrapper .dataTables_filter input::placeholder{ color:var(--text-muted); }
+.dataTables_wrapper .dataTables_filter input:hover{ background-color:var(--input-hov) !important; }
+.dataTables_wrapper .dataTables_filter input:focus{
+  border-color:var(--ring) !important;
+  box-shadow:0 0 0 3px color-mix(in srgb, var(--ring) 50%, transparent) !important;
 }
 
-/* Botón eliminar */
-.btn-eliminar{
-  background:#e74c3c; color:#fff; border:none; border-radius:8px;
-  width:30px; height:30px; padding:0;
+/* 🔥 limpiar fondos de wrapper */
+div.dataTables_wrapper,
+div.dataTables_wrapper.no-footer{
+  background:transparent !important; border:none !important; box-shadow:none !important;
+}
+
+/* Paginación (chip) */
+.dataTables_wrapper .dataTables_paginate{ text-align:center; margin-top:12px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button{
+  background:transparent !important; border:none !important; box-shadow:none !important;
+  color:var(--text) !important; font-weight:700 !important;
+  padding:6px 12px !important; margin:0 10px !important; border-radius:0 !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button:not(.current):hover{
+  text-decoration:underline; background:transparent !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled{
+  opacity:.55 !important; cursor:default !important; text-decoration:none !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover{
   display:inline-flex; align-items:center; justify-content:center;
-  cursor:pointer; transition:.18s;
+  min-width:34px; height:34px; padding:0 !important;
+  border-radius:999px !important; background:#ffffff !important; color:#0b1220 !important;
+  border:1px solid rgba(0,0,0,.04) !important;
+  box-shadow:0 0 0 4px rgba(77,166,255,.36), 0 6px 16px rgba(0,0,0,.15) !important;
 }
-.btn-eliminar i{ pointer-events:none; }
-.btn-eliminar:hover{ background:#c0392b; transform:translateY(-1px); }
 
-/* ===== Fix: inputs dentro de la tabla (ej. Dinero en Caja) ===== */
-table.dataTable tbody td input[type="text"],
-table.dataTable tbody td input[type="number"],
-table.dataTable tbody td .dt-input,
-.table-container-punto-pago td input {
-  background:#ffffff !important;
-  color:#0b1220 !important;
+/* Botón eliminar (coincide con otros módulos) */
+.btn-eliminar{
+  -webkit-appearance:none; appearance:none;
+  display:inline-flex; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:10px;
+  background:linear-gradient(180deg,#ff6a5f,#e74c3c 70%);
+  color:#fff !important; border:1px solid rgba(0,0,0,.06);
+  box-shadow:0 8px 18px rgba(231,76,60,.35), inset 0 0 0 1px rgba(255,255,255,.22);
+  cursor:pointer; padding:0; line-height:1; text-decoration:none;
+  transition:transform .18s, box-shadow .22s, filter .22s;
+}
+.btn-eliminar:hover{
+  filter:saturate(1.05); transform:translateY(-1px);
+  box-shadow:0 10px 22px rgba(231,76,60,.45), inset 0 0 0 1px rgba(255,255,255,.26);
+}
+.btn-eliminar:active{ transform:translateY(0); }
+.btn-eliminar i{ pointer-events:none; font-size:14px; }
+
+/* Inputs dentro de tabla (si hay ediciones) */
+.table-container-punto-pago td input{
+  background:#ffffff !important; color:#0b1220 !important;
   border:1px solid var(--slate-200) !important;
-  box-shadow:none !important;
-  border-radius:10px;
-  height:36px;
-  padding:6px 10px;
-}
-table.dataTable tbody td input::placeholder {
-  color:#64748b !important;
-}
-table.dataTable tbody td:nth-child(3){ text-align:right; }
-@media (max-width:480px){
-  table.dataTable tbody td:nth-child(3){ justify-content:space-between; }
+  border-radius:10px; height:36px; padding:6px 10px;
 }
 
 /* Responsive */
@@ -230,6 +271,8 @@ table.dataTable tbody td:nth-child(3){ text-align:right; }
     position:relative; left:50%; transform:translateX(-50%);
     margin:0 auto !important;
   }
+  /* buscador más angosto en móvil */
+  .dataTables_wrapper .dataTables_filter input{ width:clamp(180px, 48vw, 260px); }
 }
 @supports selector(:has(*)){
   @media (max-width:768px){

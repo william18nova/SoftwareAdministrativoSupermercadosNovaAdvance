@@ -6,9 +6,9 @@
 
 {% block extra_head %}
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
-  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css"/>
-  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
-  <link rel="stylesheet" href="{% static 'css/modal_venta.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/jquery-ui/jquery-ui-1.13.2.min.css' %}?v=1"/>
+  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}?v=26">
+  <link rel="stylesheet" href="{% static 'css/modal_venta.css' %}?v=19">
 {% endblock %}
 
 {% block content %}
@@ -17,50 +17,152 @@
   <!-- IZQUIERDA -->
   <section class="panel panel-left">
     <h1>Generar Venta</h1>
+    <div class="venta-mode-notice is-info">
+      <a href="{% url 'operaciones_ptm' %}?tipo=retiro" target="_blank" rel="noopener">PTM RETIROS ↗</a>
+      · <a href="{% url 'operaciones_ptm' %}?tipo=recarga" target="_blank" rel="noopener">PTM RECARGA O PAGOS ↗</a>
+      <small>Operaciones de efectivo, separadas del carrito.</small>
+    </div>
 
-    <form id="venta-form" action="{% url 'generar_venta' %}" method="post">
+    {% if config_error %}
+      <div class="venta-mode-notice is-error" role="alert">
+        {{ config_error }}
+      </div>
+    {% elif turno_requerido and not turno_activo %}
+      <div class="venta-mode-notice is-error" role="alert">
+        Debes iniciar un turno de caja para poder generar ventas.
+      </div>
+    {% elif not turno_requerido %}
+      <div class="venta-mode-notice is-info" role="status">
+        <strong>Modo sin turnos:</strong> venderás desde tu sucursal asignada.
+        Selecciona el punto de pago antes de finalizar la venta.
+      </div>
+    {% endif %}
+
+    <form id="venta-form" action="{% url 'generar_venta' %}" method="post" novalidate>
       {% csrf_token %}
 
+      <!-- Cliente -->
       <div class="form-group">
         <label for="cliente_busqueda">Cliente</label>
-        <input type="text" id="cliente_busqueda" placeholder="Buscar por nombre o cédula">
+        <input
+          type="text"
+          id="cliente_busqueda"
+          placeholder="Buscar por nombre o cédula"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
         <input type="hidden" id="cliente_id" name="cliente_id">
       </div>
 
+      <!-- Sucursal (LOCKED) -->
       <div class="form-group">
         <label for="sucursal_autocomplete">Sucursal <span class="req">*</span></label>
-        <input type="text" id="sucursal_autocomplete" placeholder="Buscar…" required aria-required="true">
-        <input type="hidden" id="sucursal_id" name="sucursal">
+        <input
+          type="text"
+          id="sucursal_autocomplete"
+          placeholder="Sucursal asignada"
+          required aria-required="true"
+          autocomplete="off"
+          value="{{ sucursal_nombre|default:'' }}"
+          readonly aria-readonly="true"
+          data-locked="1"
+          tabindex="-1"
+        >
+        <input type="hidden" id="sucursal_id" name="sucursal" value="{{ form.initial.sucursal|default:'' }}">
       </div>
 
+      <!-- Punto de pago (LOCKED) -->
       <div class="form-group">
         <label for="puntopago_autocomplete">Punto de Pago <span class="req">*</span></label>
-        <input type="text" id="puntopago_autocomplete" placeholder="Buscar…" required aria-required="true">
-        <input type="hidden" id="puntopago_id" name="puntopago">
+        <input
+          type="text"
+          id="puntopago_autocomplete"
+          placeholder="{% if turno_requerido %}Caja del turno{% else %}Selecciona un punto de pago{% endif %}"
+          required aria-required="true"
+          autocomplete="off"
+          value="{{ puntopago_nombre|default:'' }}"
+          {% if turno_requerido %}
+          readonly aria-readonly="true"
+          data-locked="1"
+          tabindex="-1"
+          {% endif %}
+        >
+        <input type="hidden" id="puntopago_id" name="puntopago" value="{{ form.initial.puntopago|default:'' }}">
       </div>
 
+      <hr class="sep">
+
+      <!-- Producto por nombre -->
       <div class="form-group">
         <label for="producto_busqueda_nombre">Producto</label>
-        <input type="text" id="producto_busqueda_nombre" placeholder="Buscar por nombre" autocomplete="off">
+        <input
+          type="text"
+          id="producto_busqueda_nombre"
+          placeholder="Buscar por nombre"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
       </div>
 
+      <!-- Código / Barras -->
       <div class="form-group">
         <label for="codigo_o_barras">Código / Barras</label>
-        <input type="text" id="codigo_o_barras" placeholder="Escribe o escanea…" autocomplete="off">
-        <button type="button" id="btnEscanear" class="btn-escanear">Escanear</button>
+
+        <div class="row-inline">
+          <input
+            type="text"
+            id="codigo_o_barras"
+            placeholder="Escribe o escanea…"
+            autocomplete="off"
+            inputmode="numeric"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+          >
+
+          <button type="button" id="btn-scan-cam" class="btn btn-secondary btn-escanear">
+            <i class="fa-solid fa-camera"></i> Escanear
+          </button>
+        </div>
+
+        <small class="hint">Tip: Alt+7 abre la cámara. En iPhone usa Safari con HTTPS.</small>
       </div>
-      <div id="interactive" class="viewport"></div>
 
-      <!-- ocultos -->
+      <!-- Producto (ID) -->
+      <div class="form-group">
+        <label for="producto_busqueda_id">Producto (ID)</label>
+        <div class="row-inline">
+          <input
+            type="text"
+            id="producto_busqueda_id"
+            placeholder="Buscar por ID (productoid)..."
+            inputmode="numeric"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+          >
+        </div>
+        <small class="hint">Atajos: Ctrl+1 nombre • Ctrl+2 código • Ctrl+4 qty</small>
+      </div>
+
+      <!-- ocultos que el JS llena -->
       <input type="hidden" id="producto_id">
-      <input type="hidden" id="productos"  name="productos">
-      <input type="hidden" id="cantidades" name="cantidades">
 
-      <!-- ✅ compat -->
-      <input type="hidden" id="medio_pago" name="medio_pago">
+      <input type="hidden" id="productos"  name="productos"  value="[]">
+      <input type="hidden" id="cantidades" name="cantidades" value="[]">
 
-      <!-- ✅ NUEVO: pagos mixtos JSON -->
-      <input type="hidden" id="pagos" name="pagos">
+      <!-- pagos -->
+      <input type="hidden" id="medio_pago" name="medio_pago" value="">
+      <input type="hidden" id="pagos" name="pagos" value="">
+      <input type="hidden" id="efectivo_recibido" name="efectivo_recibido" value="">
+      <input type="hidden" id="empleado_password" name="empleado_password" value="">
+      <input type="hidden" id="codigo_descuento_merk2888" name="codigo_descuento_merk2888" value="">
+      <input type="hidden" id="nequi_notificacion_id" name="nequi_notificacion_id" value="">
     </form>
   </section>
 
@@ -69,12 +171,43 @@
     <header class="right-header">
       <div class="right-title">
         <h2>Detalles de la Venta</h2>
-        <h3 class="total-line">Total: <span id="total" class="total-color">{{ total|default:"$ 0,00" }}</span></h3>
+        <div class="bag-quick-actions" aria-label="Agregar bolsas">
+          <button type="button" class="btn btn-secondary btn-agregar-bolsa" data-bolsa-id="7318">
+            <i class="fa-solid fa-bag-shopping"></i> Bolsa grande
+          </button>
+          <button type="button" class="btn btn-secondary btn-agregar-bolsa" data-bolsa-id="8001">
+            <i class="fa-solid fa-bag-shopping"></i> Bolsa de cuero de vaca
+          </button>
+        </div>
+        <small id="promo-bolsas-info" class="hint promo-bolsas-status">
+          Promo bolsas: por cada $11.000 en productos distintos a bolsas, llevas hasta 2 bolsas grandes o 1 bolsa de cuero de vaca gratis.
+        </small>
+        <h3 class="total-line">
+          Total: <span id="total" class="total-color">{{ total|default:"$ 0" }}</span>
+        </h3>
       </div>
 
       <div class="right-actions">
-        <button type="button" class="btn btn-primary" id="generar-venta">Generar Venta</button>
-        <input type="text" id="buscar-detalles" placeholder="Buscar en el carrito…">
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="generar-venta"
+          data-server-enabled="{% if venta_habilitada %}1{% else %}0{% endif %}"
+          {% if not venta_habilitada %}disabled aria-disabled="true"{% endif %}
+        >
+          <i class="fa-solid fa-receipt"></i> Generar Venta
+        </button>
+
+        <input
+          type="text"
+          id="buscar-detalles"
+          placeholder="Buscar en el carrito…"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+        >
+
         <button type="button" class="btn btn-vaciar" id="vaciar-carrito">
           <i class="fas fa-trash-can"></i> Vaciar carrito
         </button>
@@ -84,23 +217,79 @@
     <div class="table-wrap">
       <table id="detalle-productos" class="table">
         <thead>
-        <tr>
-          <th>Producto</th><th>Cant.</th><th>Precio U.</th><th>Subtotal</th><th>Acc.</th>
-        </tr>
+          <tr>
+            <th>Producto</th>
+            <th>Cant.</th>
+            <th>Precio U.</th>
+            <th>Subtotal</th>
+            <th class="text-center">Acc.</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
+    </div>
+
+    <div class="right-footer">
+      <small id="venta-draft-save-status" class="hint venta-draft-save-status" aria-live="polite">
+        El carrito se guarda automáticamente durante 24 horas en este equipo.
+      </small>
+      <button
+        type="button"
+        id="venta-draft-retry-validation"
+        class="venta-draft-retry-validation"
+        hidden
+      >
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i> Revalidar venta recuperada
+      </button>
+      <small class="hint">
+        Enter en el modal confirma pago • Alt+Espacio abre/confirmar • Alt+7 cámara
+      </small>
     </div>
   </section>
 
 </div>
 
+<p id="venta-carrito-audit-notice" class="venta-carrito-audit-notice"
+   role="status" aria-live="polite" aria-atomic="true" hidden>
+  <span id="venta-carrito-audit-message"></span>
+</p>
+
+<aside id="venta-draft-center" class="venta-draft-center" aria-label="Gestor de ventas pendientes" hidden>
+  <button
+    type="button"
+    id="venta-draft-toggle"
+    class="venta-draft-toggle"
+    aria-expanded="false"
+    aria-controls="venta-draft-panel"
+  >
+    <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+    <span>Ventas pendientes</span>
+    <span id="venta-draft-count" class="venta-draft-count">0</span>
+  </button>
+
+  <section id="venta-draft-panel" class="venta-draft-panel" aria-label="Ventas pendientes" hidden>
+    <header class="venta-draft-panel-header">
+      <div>
+        <strong>Ventas pendientes</strong>
+        <small>Ventas cuya pestaña se cerró, guardadas hasta 24 horas. Al recuperar salen de esta lista.</small>
+      </div>
+      <button type="button" id="venta-draft-close" class="venta-draft-close" aria-label="Cerrar ventas pendientes">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </header>
+    <div id="venta-draft-list" class="venta-draft-list" role="list"></div>
+    <button type="button" id="venta-draft-new" class="venta-draft-continue">
+      <i class="fa-solid fa-cart-plus" aria-hidden="true"></i> Seguir facturando
+    </button>
+  </section>
+</aside>
+<span id="venta-draft-live" class="venta-draft-live" role="status" aria-live="polite"></span>
+
 {% include "modal_venta.html" %}
 
 <!-- libs -->
-<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="{% static 'vendor/jquery/jquery-3.6.4.min.js' %}?v=1"></script>
+<script src="{% static 'vendor/jquery-ui/jquery-ui-1.13.2.min.js' %}?v=1"></script>
 
 <!-- endpoints -->
 <script>
@@ -110,11 +299,25 @@
   window.productoAutocompleteUrl        = "{% url 'producto_autocomplete' %}";
   window.productoAutocompleteCodigoUrl  = "{% url 'producto_autocomplete_codigo' %}";
   window.productoAutocompleteBarrasUrl  = "{% url 'producto_autocomplete_barras' %}";
+  window.productoAutocompleteIdUrl      = "{% url 'producto_autocomplete_id' %}";
+  window.productoSnapshotUrl            = "{% url 'producto_snapshot' %}";
+
   window.verificarProductoUrl           = "{% url 'verificar_producto' %}";
   window.buscarProductoPorCodigoUrl     = "{% url 'buscar_producto_por_codigo' %}";
+
   window.imprimirFacturaUrl             = "{% url 'imprimir_factura' %}";
   window.abrirCajaUrl                   = "{% url 'abrir_caja' %}";
-  window.productoSnapshotUrl            = "{% url 'producto_snapshot' %}";
+  window.carritoLimpioAuditUrl          = "{% url 'venta_carrito_limpio_audit' %}";
+  window.carritoAuditRoleName           = "{{ request.user.rolid.nombre|default:''|escapejs }}";
+  window.nequiApiEnabled                  = {% if system_features.nequi_api_recepcion and nequi_payment_method_enabled %}true{% else %}false{% endif %};
+  window.nequiNotificacionesDisponiblesUrl = {% if system_features.nequi_api_recepcion and nequi_payment_method_enabled %}"{% url 'nequi_notificaciones_disponibles' %}"{% else %}""{% endif %};
+  window.turnoCajaRequerido              = {% if turno_requerido %}true{% else %}false{% endif %};
+  window.ventaSucursalIdServidor         = "{{ form.initial.sucursal|default:''|escapejs }}";
+  window.ventaPuntoPagoIdServidor        = "{{ form.initial.puntopago|default:''|escapejs }}";
+  window.ventaSucursalNombreServidor     = "{{ sucursal_nombre|default:''|escapejs }}";
+  window.ventaPuntoPagoNombreServidor    = "{{ puntopago_nombre|default:''|escapejs }}";
+  window.ventaUsuarioId                  = "{{ request.user.pk|default:''|escapejs }}";
+  window.ventaTurnoId                    = "{{ turno_id|default:'sin_turno'|escapejs }}";
 </script>
 
 <!-- POS Agent -->
@@ -124,5 +327,6 @@
   if (!/^https?:\/\//.test(window.POS_AGENT_URL)) window.POS_AGENT_URL = "http://127.0.0.1:8787";
 </script>
 
-<script src="{% static 'javascript/generar_venta.js' %}"></script>
+<script src="{% static 'javascript/sale_draft_lifecycle.js' %}?v=1"></script>
+<script src="{% static 'javascript/generar_venta.js' %}?v=42"></script>
 {% endblock %}

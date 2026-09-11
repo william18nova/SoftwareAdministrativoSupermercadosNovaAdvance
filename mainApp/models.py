@@ -2,10 +2,21 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from decimal import Decimal
 from datetime import date
+from uuid import uuid4
 from django.db import models, transaction
 from django.db.models import Q
 from django.forms import ValidationError
 from django.utils import timezone
+from django.db.models import F
+from django.db.models.functions import Lower, Trim
+import unicodedata
+
+
+def normalizar_nombre_concepto_egreso(value):
+    """Conserva tildes, compacta espacios y almacena el concepto en mayúscula."""
+
+    text = unicodedata.normalize("NFKC", str(value or ""))
+    return " ".join(text.split()).upper()
 
 class Sucursal(models.Model):
     sucursalid = models.AutoField(primary_key=True)
@@ -31,11 +42,16 @@ class Categoria(models.Model):
         return self.nombre
 
 class Producto(models.Model):
+    tipo_ptm = models.CharField(
+        max_length=10, null=True, blank=True, unique=True,
+        choices=[("retiro", "PTM RETIROS"), ("recarga", "PTM RECARGA O PAGOS")],
+        editable=False,
+    )
     productoid = models.AutoField(primary_key=True)
     nombre = models.CharField(max_length=100, unique=True, db_index=True)
     descripcion = models.TextField(null=True, blank=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
-    categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE, null=True, blank=True)
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
     codigo_de_barras = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     iva = models.FloatField(default=0.0)
 
@@ -67,6 +83,12 @@ class Inventario(models.Model):
 
     class Meta:
         db_table = 'inventario'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sucursalid', 'productoid'],
+                name='uniq_inventario_sucursal_producto',
+            ),
+        ]
 
     def __str__(self):
         return f"Inventario de {self.productoid.nombre} en {self.sucursalid.nombre}"
@@ -179,6 +201,40 @@ class Empleado(models.Model):
     class Meta:
         db_table = 'empleados'
 
+    def save(self, *args, **kwargs):
+        """Guarda el empleado y garantiza su perfil de cliente en una transacción."""
+        with transaction.atomic():
+            previous_document = None
+            if self.pk:
+                previous_document = (
+                    type(self).objects
+                    .select_for_update()
+                    .filter(pk=self.pk)
+                    .values_list("numerodocumento", flat=True)
+                    .first()
+                )
+
+            result = super().save(*args, **kwargs)
+
+            persisted_employee = (
+                type(self).objects
+                .only(
+                    "empleadoid",
+                    "numerodocumento",
+                    "nombre",
+                    "apellido",
+                    "telefono",
+                    "email",
+                )
+                .get(pk=self.pk)
+            )
+            from .services.employee_client import sync_employee_client
+            sync_employee_client(
+                persisted_employee,
+                previous_document=previous_document,
+            )
+            return result
+
     def __str__(self):
         return f'{self.nombre} {self.apellido}'
     
@@ -217,7 +273,7 @@ class Cliente(models.Model):
         db_table = 'clientes'
 
     def __str__(self):
-        return f'{self.nombre} {self.apellido}'
+        return f'{self.nombre} {self.apellido}'.strip()
 
 
 class Venta(models.Model):
@@ -251,26 +307,257 @@ class DetalleVenta(models.Model):
 
 
 class PagoVenta(models.Model):
-    # En tu BD es bigint y se llama "id"
-    pagoventaid = models.BigAutoField(primary_key=True, db_column="id")
+    id = models.BigAutoField(primary_key=True)
 
-    # En tu BD la columna se llama "ventaid"
     ventaid = models.ForeignKey(
         Venta,
         on_delete=models.CASCADE,
+        db_column="ventaid",
         related_name="pagos",
-        db_column="ventaid"
     )
 
-    # En tu BD la columna se llama "metodo"
-    medio_pago = models.CharField(max_length=50, db_column="metodo")
+    # 👇 OJO: en la BD la columna se llama "metodo"
+    medio_pago = models.CharField(
+        max_length=50,
+        db_column="metodo",
+    )
 
-    # En tu BD es numeric(12,2)
     monto = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:
         db_table = "venta_pagos"
-        managed = False   # 👈 importante si esa tabla NO la maneja Django con migrations
+
+    def __str__(self):
+        return f"Venta {self.ventaid_id} - {self.medio_pago} - {self.monto}"
+
+
+class ClienteEspecial(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    cliente = models.OneToOneField(
+        Cliente,
+        on_delete=models.PROTECT,
+        related_name="perfil_especial",
+    )
+    clave = models.CharField(max_length=50, unique=True, default="merk2888")
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "clientes_especiales"
+        ordering = ["clave"]
+
+    def __str__(self):
+        return f"{self.clave}: {self.cliente}"
+
+
+class AutorizacionDescuentoEspecial(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    cliente_especial = models.ForeignKey(
+        ClienteEspecial,
+        on_delete=models.PROTECT,
+        related_name="autorizaciones",
+    )
+    selector = models.CharField(max_length=64, unique=True, editable=False)
+    referencia = models.CharField(max_length=32, unique=True, editable=False)
+    solicitud_id = models.CharField(max_length=64, unique=True, editable=False)
+    secreto_hash = models.CharField(max_length=128, editable=False)
+
+    generada_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="descuentos_especiales_generados",
+    )
+    generada_por_nombre = models.CharField(max_length=160)
+    generada_en = models.DateTimeField(default=timezone.now, db_index=True)
+    expira_en = models.DateTimeField(db_index=True)
+
+    revocada_en = models.DateTimeField(null=True, blank=True)
+    revocada_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="descuentos_especiales_revocados",
+    )
+    revocada_por_nombre = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
+    )
+    usada_en = models.DateTimeField(null=True, blank=True)
+    bloqueada_en = models.DateTimeField(null=True, blank=True)
+    intentos_fallidos = models.PositiveSmallIntegerField(default=0)
+    ultimo_intento_fallido_en = models.DateTimeField(null=True, blank=True)
+    ultimo_intento_fallido_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="intentos_descuento_especial_fallidos",
+    )
+    ultimo_intento_fallido_por_nombre = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
+    )
+    ultimo_intento_fallido_ip = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+    )
+
+    usada_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="descuentos_especiales_usados",
+    )
+    usada_por_nombre = models.CharField(max_length=160, blank=True, default="")
+    venta = models.OneToOneField(
+        Venta,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="autorizacion_descuento_especial",
+    )
+    turno = models.ForeignKey(
+        "TurnoCaja",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="autorizaciones_descuento_especial",
+    )
+    sucursal = models.ForeignKey(
+        Sucursal,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="autorizaciones_descuento_especial",
+    )
+    subtotal_aplicado = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    descuento_aplicado = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "autorizaciones_descuento_especial"
+        ordering = ["-generada_en", "-id"]
+        indexes = [
+            models.Index(
+                fields=[
+                    "cliente_especial",
+                    "usada_en",
+                    "revocada_en",
+                    "bloqueada_en",
+                ],
+                name="ade_estado_cliente_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cliente_especial"],
+                condition=Q(
+                    usada_en__isnull=True,
+                    revocada_en__isnull=True,
+                    bloqueada_en__isnull=True,
+                ),
+                name="uniq_ade_activa_cliente",
+            ),
+            models.CheckConstraint(
+                condition=Q(intentos_fallidos__gte=0)
+                & Q(intentos_fallidos__lte=5),
+                name="ade_intentos_0_5_check",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(usada_en__isnull=True, venta__isnull=True)
+                    | Q(usada_en__isnull=False, venta__isnull=False)
+                ),
+                name="ade_uso_venta_check",
+            ),
+            models.CheckConstraint(
+                condition=Q(descuento_aplicado__isnull=True)
+                | Q(descuento_aplicado__gte=0),
+                name="ade_descuento_no_neg_check",
+            ),
+            models.CheckConstraint(
+                condition=Q(subtotal_aplicado__isnull=True)
+                | Q(subtotal_aplicado__gte=0),
+                name="ade_subtotal_no_neg_check",
+            ),
+        ]
+
+    @property
+    def estado(self):
+        if self.usada_en:
+            return "usada"
+        if self.revocada_en:
+            return "revocada"
+        if self.bloqueada_en:
+            return "bloqueada"
+        if self.expira_en <= timezone.now():
+            return "expirada"
+        return "activa"
+
+    def __str__(self):
+        return f"{self.referencia} ({self.estado})"
+
+
+class VentaCarritoAudit(models.Model):
+    EVENTO_LIMPIADO = "carrito_limpiado"
+
+    auditoriaid = models.BigAutoField(primary_key=True, db_column="auditoriaid")
+    evento = models.CharField(max_length=40, default=EVENTO_LIMPIADO)
+    motivo = models.CharField(max_length=80, blank=True, default="")
+
+    usuarioid = models.PositiveIntegerField(null=True, blank=True, db_column="usuarioid")
+    usuario_nombre = models.CharField(max_length=160, blank=True, default="")
+
+    sucursalid = models.PositiveIntegerField(null=True, blank=True, db_column="sucursalid")
+    sucursal_nombre = models.CharField(max_length=120, blank=True, default="")
+
+    puntopagoid = models.PositiveIntegerField(null=True, blank=True, db_column="puntopagoid")
+    puntopago_nombre = models.CharField(max_length=120, blank=True, default="")
+
+    turnoid = models.PositiveIntegerField(null=True, blank=True, db_column="turnoid")
+
+    clienteid = models.PositiveIntegerField(null=True, blank=True, db_column="clienteid")
+    cliente_nombre = models.CharField(max_length=180, blank=True, default="")
+
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    descuento = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    total = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    cantidad_productos = models.PositiveIntegerField(default=0)
+    cantidad_unidades = models.DecimalField(max_digits=14, decimal_places=3, default=Decimal("0.000"))
+    productos = models.JSONField(default=list, blank=True)
+
+    user_agent = models.TextField(blank=True, default="")
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    creado_en = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        db_table = "ventas_carrito_auditoria"
+        ordering = ["-creado_en", "-auditoriaid"]
+        indexes = [
+            models.Index(fields=["creado_en"], name="vca_creado_idx"),
+            models.Index(fields=["usuarioid", "creado_en"], name="vca_usuario_fecha_idx"),
+            models.Index(fields=["sucursalid", "creado_en"], name="vca_sucursal_fecha_idx"),
+            models.Index(fields=["motivo", "creado_en"], name="vca_motivo_fecha_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.evento} #{self.auditoriaid} - {self.usuario_nombre or self.usuarioid}"
+
 
 class PedidoProveedor(models.Model):
     ESTADOS = [
@@ -335,90 +622,7 @@ class DetallePedidoProveedor(models.Model):
     def __str__(self):
         return f"Detalle {self.detallepedidoid} - {self.productoid.nombre}"
     
-class CambioDevolucion(models.Model):
-    """Cada fila representa un producto devuelto o cambiado."""
-    cambioid = models.AutoField(primary_key=True)
 
-    venta = models.ForeignKey(
-        Venta,
-        on_delete=models.CASCADE,
-        related_name="cambios",
-        db_column="ventaid",          # ya corregido
-    )
-    detalle = models.ForeignKey(
-        DetalleVenta,
-        on_delete=models.CASCADE,
-        db_column="detalle_id",       # ya corregido
-    )
-    # ⬇⬇⬇  NUEVO: indica a Django el nombre exacto
-    productoid = models.ForeignKey(
-        Producto,
-        on_delete=models.PROTECT,
-        db_column="productoid"
-    )
-
-    cantidad = models.PositiveIntegerField()
-    tipo     = models.CharField(max_length=50,
-                                choices=[("Cambio", "Cambio"),
-                                         ("Devolucion", "Devolucion")])
-    estado   = models.CharField(max_length=50, default="Completado")
-    fecha    = models.DateField(default=date.today)
-    motivo   = models.TextField(blank=True)
-
-    class Meta:
-        db_table = "cambiosdevoluciones"
-        verbose_name = "Cambio / devolución"
-        verbose_name_plural = "Cambios / devoluciones"
-
-    def __str__(self):
-        return f"{self.tipo} • {self.productoid} ({self.cantidad})"
-
-    # ----------  LÓGICA DE NEGOCIO  ----------
-    @staticmethod
-    @transaction.atomic
-    def registrar_devolucion(venta: "Venta", devoluciones: list[dict]):
-        """
-        • devoluciones = [{"detalle": DetalleVenta, "cantidad": int}, …]
-        • Crea registros, ajusta inventario, resta total.
-        """
-        total_a_restar = Decimal("0")
-
-        for item in devoluciones:
-            det     = item["detalle"]
-            cant    = item["cantidad"]
-
-            if cant <= 0:
-                continue
-            if cant > det.cantidad:
-                raise ValidationError("No puedes devolver más de lo comprado.")
-
-            CambioDevolucion.objects.create(
-                venta      = venta,
-                detalle    = det,
-                productoid = det.productoid,
-                cantidad   = cant,
-                tipo       = "Devolucion",
-            )
-
-            # línea de venta
-            det.cantidad -= cant
-            det.save(update_fields=["cantidad"])
-
-            # inventario (sucursal de la venta)
-            inv, _ = Inventario.objects.select_for_update().get_or_create(
-                        sucursalid = venta.sucursalid,
-                        productoid = det.productoid,
-                        defaults   = {"cantidad": 0})
-            inv.cantidad += cant
-            inv.save(update_fields=["cantidad"])
-
-            # acumular total
-            total_a_restar += det.preciounitario * cant
-
-        # total venta
-        if total_a_restar:
-            venta.total -= total_a_restar
-            venta.save(update_fields=["total"])
             
 class Permiso(models.Model):
     """
@@ -434,6 +638,12 @@ class Permiso(models.Model):
         verbose_name = "permiso"
         verbose_name_plural = "permisos"
         ordering = ["nombre"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower(Trim("nombre")),
+                name="ux_permisos_nombre_ci",
+            ),
+        ]
 
     def __str__(self):
         return self.nombre
@@ -465,56 +675,1137 @@ class RolPermiso(models.Model):
 
     def __str__(self):
         return f"{self.rol} ↔ {self.permiso}"
-    
-class TurnoCaja(models.Model):
-    ESTADOS = (
-        ("ABIERTO", "Abierto"),
-        ("CIERRE", "En cierre"),
-        ("CERRADO", "Cerrado"),
+
+
+class UsuarioPermiso(models.Model):
+    id = models.BigAutoField(primary_key=True, db_column="id")
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        db_column="usuarioid",
+        related_name="permisos_directos",
+    )
+    permiso = models.ForeignKey(
+        Permiso,
+        on_delete=models.CASCADE,
+        db_column="permisoid",
+        related_name="usuarios_permisos",
+    )
+    permitido = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "usuariospermisos"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["usuario", "permiso"],
+                name="ux_usuariospermisos_usuario_perm",
+            )
+        ]
+
+    def __str__(self):
+        estado = "permitido" if self.permitido else "bloqueado"
+        return f"{self.usuario} - {self.permiso} ({estado})"
+
+
+class ConfiguracionFuncionalidad(models.Model):
+    """Estado global de una funcionalidad soportada por el sistema."""
+
+    clave = models.CharField(max_length=80, primary_key=True)
+    habilitada = models.BooleanField(default=True)
+    version = models.PositiveBigIntegerField(default=1)
+    actualizada_en = models.DateTimeField(auto_now=True)
+    actualizada_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="funcionalidades_actualizadas",
+    )
+    actualizada_por_nombre = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
     )
 
-    puntopago = models.ForeignKey("PuntosPago", on_delete=models.PROTECT, db_column="puntopago_id")
-    cajero = models.ForeignKey("Usuario", on_delete=models.PROTECT, db_column="cajero_id")
+    class Meta:
+        db_table = "configuracion_funcionalidades"
+        ordering = ["clave"]
 
-    inicio = models.DateTimeField(default=timezone.now)
-    cierre_iniciado = models.DateTimeField(null=True, blank=True)
-    fin = models.DateTimeField(null=True, blank=True)
+    def __str__(self):
+        estado = "habilitada" if self.habilitada else "deshabilitada"
+        return f"{self.clave}: {estado}"
 
-    saldo_apertura_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    efectivo_real = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
-    esperado_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    real_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    diferencia_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+class ConfiguracionImpresion(models.Model):
+    """Perfil de impresión asignado a un punto de pago."""
 
-    diferencia_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    SISTEMA_WINDOWS = "windows"
+    SISTEMA_LINUX = "linux"
+    SISTEMAS_OPERATIVOS = (
+        (SISTEMA_WINDOWS, "Windows"),
+        (SISTEMA_LINUX, "Linux"),
+    )
 
-    estado = models.CharField(max_length=10, choices=ESTADOS, default="ABIERTO")
+    TAMANO_GRANDE = "grande"
+    TAMANO_PEQUENA = "pequena"
+    TAMANOS_FACTURA = (
+        (TAMANO_GRANDE, "Grande (80 mm)"),
+        (TAMANO_PEQUENA, "Pequeña (58 mm)"),
+    )
+
+    punto_pago = models.OneToOneField(
+        PuntosPago,
+        on_delete=models.CASCADE,
+        db_column="puntopagoid",
+        related_name="configuracion_impresion",
+    )
+    sistema_operativo = models.CharField(
+        max_length=10,
+        choices=SISTEMAS_OPERATIVOS,
+        default=SISTEMA_WINDOWS,
+    )
+    tamano_factura = models.CharField(
+        max_length=10,
+        choices=TAMANOS_FACTURA,
+        default=TAMANO_GRANDE,
+    )
+    corte_automatico = models.BooleanField(default=True)
+    version = models.PositiveBigIntegerField(default=1)
+    actualizada_en = models.DateTimeField(auto_now=True)
+    actualizada_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="configuraciones_impresion_actualizadas",
+    )
+    actualizada_por_nombre = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
+    )
+
+    class Meta:
+        db_table = "configuracion_impresion"
+        ordering = ["punto_pago_id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(sistema_operativo__in=["windows", "linux"]),
+                name="config_impresion_so_valido",
+            ),
+            models.CheckConstraint(
+                condition=Q(tamano_factura__in=["grande", "pequena"]),
+                name="config_impresion_tamano_valido",
+            ),
+            models.CheckConstraint(
+                condition=Q(version__gte=1),
+                name="config_impresion_version_positiva",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.punto_pago}: {self.get_sistema_operativo_display()} / "
+            f"{self.get_tamano_factura_display()}"
+        )
+
+
+class MetodoPago(models.Model):
+    """Catálogo administrable de medios disponibles para nuevos movimientos."""
+
+    codigo = models.CharField(max_length=50, primary_key=True)
+    nombre = models.CharField(max_length=80)
+    activo = models.BooleanField(default=True, db_index=True)
+    es_efectivo = models.BooleanField(default=False)
+    es_sistema = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=100)
+    version = models.PositiveBigIntegerField(default=1)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    actualizado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="metodos_pago_actualizados",
+    )
+    actualizado_por_nombre = models.CharField(
+        max_length=160,
+        blank=True,
+        default="",
+    )
+
+    class Meta:
+        db_table = "metodos_pago"
+        ordering = ["orden", "nombre", "codigo"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(version__gte=1),
+                name="metodo_pago_version_positiva",
+            ),
+            models.UniqueConstraint(
+                fields=["es_efectivo"],
+                condition=Q(es_efectivo=True),
+                name="metodo_pago_un_solo_efectivo",
+            ),
+        ]
+
+    def __str__(self):
+        estado = "activo" if self.activo else "inactivo"
+        return f"{self.nombre} ({self.codigo}) · {estado}"
+
+
+class ConceptoEgreso(models.Model):
+    """Catálogo reutilizable de aquello que se paga desde el negocio."""
+
+    conceptoid = models.BigAutoField(primary_key=True, db_column="conceptoid")
+    nombre = models.CharField(max_length=160, unique=True)
+    creado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="creado_por_id",
+        related_name="conceptos_egreso_creados",
+    )
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = "turnos_caja"
-        indexes = [
-            models.Index(fields=["puntopago", "estado"]),
-            models.Index(fields=["puntopago", "inicio"]),
+        db_table = "conceptos_egreso"
+        ordering = ["nombre"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(nombre=""),
+                name="concepto_egreso_nombre_no_vacio",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.nombre = normalizar_nombre_concepto_egreso(self.nombre)
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nombre
+
+
+class Egreso(models.Model):
+    """Salida de dinero auditada por concepto, medio, fecha y usuario."""
+
+    egresoid = models.BigAutoField(primary_key=True, db_column="egresoid")
+    concepto = models.ForeignKey(
+        ConceptoEgreso,
+        on_delete=models.PROTECT,
+        db_column="conceptoid",
+        related_name="egresos",
+    )
+    monto = models.DecimalField(max_digits=14, decimal_places=2)
+    medio_pago = models.CharField(max_length=50, db_column="medio_pago", db_index=True)
+    registrado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="registrado_por_id",
+        related_name="egresos_registrados",
+    )
+    registrado_por_nombre = models.CharField(max_length=160)
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "egresos"
+        ordering = ["-creado_en", "-egresoid"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(monto__gt=0),
+                name="egreso_monto_positivo",
+            ),
         ]
 
     def __str__(self):
-        return f"TurnoCaja #{self.id} - caja:{self.puntopago_id} - cajero:{self.cajero_id} - {self.estado}"
+        return f"{self.concepto} - {self.medio_pago} - {self.monto}"
+
+
+class TurnoEmpleado(models.Model):
+    """Planificación laboral; independiente de aperturas/cierres de caja."""
+
+    empleado = models.ForeignKey(Empleado, on_delete=models.PROTECT, related_name="turnos_planificados")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name="turnos_empleados")
+    inicio = models.DateTimeField(db_index=True)
+    fin = models.DateTimeField()
+    notas = models.CharField(max_length=300, blank=True, default="")
+    cancelado = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
+    creado_por = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name="horarios_creados")
+    actualizado_por = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name="horarios_actualizados")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "turnos_empleados"
+        ordering = ["inicio", "pk"]
+        indexes = [models.Index(fields=["empleado", "inicio", "fin"], name="turno_emp_intervalo_idx")]
+        constraints = [
+            models.CheckConstraint(condition=Q(fin__gt=F("inicio")), name="turno_emp_fin_posterior"),
+            models.CheckConstraint(condition=Q(version__gte=1), name="turno_emp_version_positiva"),
+        ]
+
+    def __str__(self):
+        return f"{self.empleado} · {self.inicio}"
+
+
+class CambioTurnoEmpleado(models.Model):
+    turno = models.ForeignKey(TurnoEmpleado, on_delete=models.PROTECT, related_name="cambios")
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True)
+    usuario_nombre = models.CharField(max_length=160)
+    operacion = models.CharField(max_length=10)
+    origen = models.CharField(max_length=10)
+    solicitud_id = models.UUIDField(unique=True)
+    peticion = models.JSONField(default=dict)
+    anterior = models.JSONField(default=dict)
+    nuevo = models.JSONField(default=dict)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "cambios_turnos_empleados"
+        ordering = ["-creado_en", "-pk"]
+
+
+class RotacionEmpleado(models.Model):
+    """Ciclo semanal repetitivo, sin materializar infinitas jornadas."""
+
+    nombre = models.CharField(max_length=120)
+    inicio = models.DateField()
+    patron = models.JSONField(default=list)
+    version = models.PositiveIntegerField(default=1)
+    creado_por = models.ForeignKey(Usuario, null=True, on_delete=models.SET_NULL)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "rotaciones_empleados"
+
+
+class MiembroRotacionEmpleado(models.Model):
+    """Conserva referencias reales incluso tras cambiar una asignación."""
+
+    rotacion = models.ForeignKey(RotacionEmpleado, on_delete=models.PROTECT, related_name="miembros")
+    empleado = models.ForeignKey(Empleado, on_delete=models.PROTECT)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT)
+
+    class Meta:
+        db_table = "miembros_rotaciones_empleados"
+        constraints = [models.UniqueConstraint(fields=["rotacion", "empleado", "sucursal"], name="rotacion_miembro_sucursal_uniq")]
+
+
+class CambioRotacionEmpleado(models.Model):
+    rotacion = models.ForeignKey(RotacionEmpleado, on_delete=models.PROTECT, related_name="cambios")
+    clave = models.PositiveIntegerField(default=0)
+    fecha_base = models.DateField()
+    alcance = models.CharField(max_length=12)
+    datos = models.JSONField(default=dict)
+    usuario = models.ForeignKey(Usuario, null=True, on_delete=models.SET_NULL)
+    usuario_nombre = models.CharField(max_length=160)
+    origen = models.CharField(max_length=10)
+    solicitud_id = models.UUIDField(unique=True)
+    peticion = models.JSONField(default=dict)
+    anterior = models.JSONField(default=dict)
+    nuevo = models.JSONField(default=dict)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "cambios_rotaciones_empleados"
+        indexes = [models.Index(fields=["rotacion", "clave", "fecha_base"], name="rotacion_cambio_fecha_idx")]
+        ordering = ["pk"]
+
+
+class TelegramUsuario(models.Model):
+    """Identidad de Telegram vinculada a un usuario real del sistema."""
+
+    id = models.BigAutoField(primary_key=True)
+    usuario = models.OneToOneField(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="telegram_perfil",
+    )
+    telegram_user_id = models.BigIntegerField(unique=True)
+    telegram_chat_id = models.BigIntegerField(unique=True)
+    telegram_username = models.CharField(max_length=80, blank=True, default="")
+    nombre_telegram = models.CharField(max_length=160, blank=True, default="")
+    activo = models.BooleanField(default=True, db_index=True)
+    vinculado_en = models.DateTimeField(auto_now_add=True)
+    ultimo_uso_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "telegram_usuarios"
+        ordering = ["usuario__nombreusuario"]
+
+    def __str__(self):
+        return f"{self.usuario} ↔ Telegram {self.telegram_user_id}"
+
+
+class TelegramCodigoVinculacion(models.Model):
+    """Código de un solo uso para enlazar Telegram sin exponer contraseñas."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="codigos_vinculacion_telegram",
+    )
+    codigo_hash = models.CharField(max_length=64, unique=True)
+    vence_en = models.DateTimeField(db_index=True)
+    usado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    creado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="codigos_telegram_creados",
+    )
+
+    class Meta:
+        db_table = "telegram_codigos_vinculacion"
+        ordering = ["-creado_en"]
+
+    def __str__(self):
+        return f"Código Telegram para {self.usuario}"
+
+
+class TelegramActualizacion(models.Model):
+    """Bandeja idempotente de mensajes recibidos por el webhook."""
+
+    ESTADOS = (
+        ("PENDIENTE", "Pendiente"),
+        ("PROCESANDO", "Procesando"),
+        ("PROCESADO", "Procesado"),
+        ("IGNORADO", "Ignorado"),
+        ("ERROR", "Error"),
+    )
+    TIPOS = (
+        ("TEXTO", "Texto"),
+        ("VOZ", "Voz"),
+        ("CALLBACK", "Botón"),
+        ("OTRO", "Otro"),
+    )
+
+    update_id = models.BigIntegerField(primary_key=True)
+    telegram_user_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    telegram_chat_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    telegram_username = models.CharField(max_length=80, blank=True, default="")
+    nombre_telegram = models.CharField(max_length=160, blank=True, default="")
+    chat_type = models.CharField(max_length=20, blank=True, default="")
+    tipo = models.CharField(max_length=12, choices=TIPOS, default="OTRO")
+    texto = models.TextField(blank=True, default="")
+    voice_file_id = models.CharField(max_length=255, blank=True, default="")
+    voice_file_size = models.PositiveBigIntegerField(null=True, blank=True)
+    callback_query_id = models.CharField(max_length=160, blank=True, default="")
+    estado = models.CharField(
+        max_length=12,
+        choices=ESTADOS,
+        default="PENDIENTE",
+        db_index=True,
+    )
+    intentos = models.PositiveSmallIntegerField(default=0)
+    intencion = models.CharField(max_length=80, blank=True, default="")
+    transcripcion = models.TextField(blank=True, default="")
+    transcripcion_estado = models.JSONField(default=dict, blank=True)
+    reintentar_en = models.DateTimeField(null=True, blank=True)
+    respuesta = models.TextField(blank=True, default="")
+    error = models.TextField(blank=True, default="")
+    recibido_en = models.DateTimeField(auto_now_add=True, db_index=True)
+    iniciado_en = models.DateTimeField(null=True, blank=True)
+    procesado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "telegram_actualizaciones"
+        ordering = ["recibido_en", "update_id"]
+
+    def __str__(self):
+        return f"Telegram update {self.update_id}: {self.estado}"
+
+
+class TelegramAccionPendiente(models.Model):
+    """Acción propuesta por la IA que requiere confirmación humana."""
+
+    ESTADOS = (
+        ("PENDIENTE", "Pendiente"),
+        ("CONFIRMADA", "Confirmada"),
+        ("CANCELADA", "Cancelada"),
+        ("EXPIRADA", "Expirada"),
+        ("ERROR", "Error"),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    telegram_usuario = models.ForeignKey(
+        TelegramUsuario,
+        on_delete=models.CASCADE,
+        related_name="acciones_pendientes",
+    )
+    actualizacion = models.ForeignKey(
+        TelegramActualizacion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="acciones_propuestas",
+    )
+    accion = models.CharField(max_length=80)
+    argumentos = models.JSONField(default=dict)
+    resumen = models.CharField(max_length=500)
+    estado = models.CharField(
+        max_length=12,
+        choices=ESTADOS,
+        default="PENDIENTE",
+        db_index=True,
+    )
+    vence_en = models.DateTimeField(db_index=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    resuelto_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "telegram_acciones_pendientes"
+        ordering = ["-creado_en"]
+
+    def __str__(self):
+        return f"{self.accion}: {self.estado}"
+
+
+class TelegramAuditoria(models.Model):
+    """Registro durable de las herramientas consultadas o ejecutadas."""
+
+    id = models.BigAutoField(primary_key=True)
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditoria_telegram",
+    )
+    telegram_user_id = models.BigIntegerField(null=True, blank=True)
+    telegram_chat_id = models.BigIntegerField(null=True, blank=True)
+    accion = models.CharField(max_length=80, db_index=True)
+    argumentos = models.JSONField(default=dict, blank=True)
+    exitoso = models.BooleanField(default=True, db_index=True)
+    detalle = models.TextField(blank=True, default="")
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "telegram_auditoria"
+        ordering = ["-creado_en", "-id"]
+
+    def __str__(self):
+        return f"{self.accion}: {'OK' if self.exitoso else 'ERROR'}"
+
+
+class CambioConfiguracionFuncionalidad(models.Model):
+    """Auditoría inmutable de cada cambio de una funcionalidad."""
+
+    id = models.BigAutoField(primary_key=True)
+    funcionalidad = models.ForeignKey(
+        ConfiguracionFuncionalidad,
+        on_delete=models.PROTECT,
+        related_name="cambios",
+    )
+    anterior = models.BooleanField()
+    nuevo = models.BooleanField()
+    motivo = models.CharField(max_length=500, blank=True, default="")
+    cambiado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cambios_funcionalidades",
+    )
+    cambiado_por_nombre = models.CharField(max_length=160)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=300, blank=True, default="")
+    solicitud_id = models.UUIDField(unique=True, editable=False)
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "cambios_configuracion_funcionalidades"
+        ordering = ["-creado_en", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(anterior=F("nuevo")),
+                name="ccf_estado_debe_cambiar",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.funcionalidad_id}: "
+            f"{self.anterior} -> {self.nuevo}"
+        )
+
+
+class TurnoCaja(models.Model):
+    ESTADOS = (
+        ("ABIERTO", "ABIERTO"),
+        ("CIERRE", "CIERRE"),
+        ("CERRADO", "CERRADO"),
+    )
+
+    puntopago = models.ForeignKey("PuntosPago", on_delete=models.PROTECT, db_column="puntopago_id")
+    cajero    = models.ForeignKey("Usuario", on_delete=models.PROTECT, db_column="cajero_id")
+
+    inicio          = models.DateTimeField(auto_now_add=True)
+    cierre_iniciado = models.DateTimeField(null=True, blank=True)
+    fin             = models.DateTimeField(null=True, blank=True)
+
+    saldo_apertura_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    # ✅ ventas (snapshot)
+    ventas_total      = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    ventas_efectivo   = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    ventas_no_efectivo= models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    # ✅ cierre (comparación usuario vs esperado BD)
+    esperado_total     = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    real_total         = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)  # entregado total usuario
+    diferencia_total   = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    deuda_total        = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    # ✅ efectivo (solo informativo)
+    efectivo_real       = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    diferencia_efectivo = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    estado   = models.CharField(max_length=10, choices=ESTADOS, default="ABIERTO")
+    creado_en= models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "turnos_caja"
+
+class OperacionPTM(models.Model):
+    """Dinero de terceros: no es una venta ni un movimiento de inventario."""
+
+    turno = models.ForeignKey(TurnoCaja, on_delete=models.PROTECT, related_name="operaciones_ptm")
+    usuario = models.ForeignKey("Usuario", on_delete=models.PROTECT)
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    tipo = models.CharField(max_length=10, choices=[("retiro", "Retiro"), ("recarga", "Recarga o pago")])
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    referencia = models.CharField(max_length=100, unique=True)
+    solicitud_id = models.UUIDField(default=uuid4, unique=True, editable=False)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "operaciones_ptm"
+        ordering = ["-creado_en", "-pk"]
+        constraints = [
+            models.CheckConstraint(condition=Q(monto__gt=0), name="ptm_monto_positivo"),
+            models.CheckConstraint(condition=Q(tipo__in=["retiro", "recarga"]), name="ptm_tipo_valido"),
+            models.CheckConstraint(condition=~Q(referencia=""), name="ptm_referencia_obligatoria"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Las operaciones PTM registradas no se pueden editar.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Las operaciones PTM registradas no se pueden borrar.")
+
+
+class ConteoCierrePTM(models.Model):
+    """Conserva también los intentos de cierre cuyo conteo no coincide."""
+
+    turno = models.ForeignKey(TurnoCaja, on_delete=models.PROTECT, related_name="conteos_ptm")
+    usuario = models.ForeignKey("Usuario", on_delete=models.PROTECT)
+    declarado = models.PositiveIntegerField()
+    registrado = models.PositiveIntegerField()
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "conteos_cierre_ptm"
+        ordering = ["-creado_en", "-pk"]
 
 
 class TurnoCajaMedio(models.Model):
-    turno = models.ForeignKey(TurnoCaja, on_delete=models.CASCADE, related_name="medios", db_column="turno_id")
-    metodo = models.CharField(max_length=50)
-    esperado = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    contado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    diferencia = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    turno      = models.ForeignKey(TurnoCaja, related_name="medios", on_delete=models.CASCADE, db_column="turno_id")
+    metodo     = models.CharField(max_length=50)
+    esperado   = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    contado    = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    diferencia = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
 
     class Meta:
         db_table = "turno_caja_medios"
+        unique_together = (("turno", "metodo"),)
+        
+Q2 = Decimal("0.01")
+def _to_q2(x: Decimal) -> Decimal:
+    return (x or Decimal("0.00")).quantize(Q2)
+
+
+class CambioDevolucion(models.Model):
+    TIPO_CHOICES = (
+        ("Cambio", "Cambio"),
+        ("Devolucion", "Devolucion"),
+    )
+    ESTADO_CHOICES = (
+        ("Pendiente", "Pendiente"),
+        ("Completado", "Completado"),
+        ("Cancelado", "Cancelado"),
+    )
+
+    cambioid = models.AutoField(primary_key=True, db_column="cambioid")
+
+    productoid = models.ForeignKey(
+        "Producto",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        db_column="productoid",
+        related_name="cambios"
+    )
+
+    cantidad = models.IntegerField()
+    proveedorid = models.ForeignKey(
+        "Proveedor",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        db_column="proveedorid",
+        related_name="cambios"
+    )
+
+    tipo = models.CharField(max_length=50, choices=TIPO_CHOICES)
+    estado = models.CharField(max_length=50, choices=ESTADO_CHOICES)
+    fecha = models.DateField()
+
+    motivo = models.TextField(null=True, blank=True)
+
+    venta = models.ForeignKey(
+        "Venta",
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        db_column="ventaid",
+        related_name="cambios"
+    )
+
+    detalle = models.ForeignKey(
+        "DetalleVenta",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        db_column="detalle_id",
+        related_name="cambios"
+    )
+
+    class Meta:
+        db_table = "cambiosdevoluciones"
+
+    def __str__(self):
+        return f"{self.tipo} #{self.cambioid}"
+
+    # -------------------------
+    # Helpers internos
+    # -------------------------
+    @staticmethod
+    def _upsert_inventario_delta(sucursal_id: int, product_id: int, delta_cantidad: int):
+        """
+        DEVOLUCIÓN => delta_cantidad positivo => inventario +delta
+        """
+        from .models import Inventario
+
+        inv, created = Inventario.objects.select_for_update().get_or_create(
+            sucursalid_id=sucursal_id,
+            productoid_id=product_id,
+            defaults={"cantidad": int(delta_cantidad)},
+        )
+        if not created:
+            Inventario.objects.filter(pk=inv.pk).update(cantidad=F("cantidad") + int(delta_cantidad))
+
+    @staticmethod
+    def _upsert_turno_medio_delta(turno, metodo: str, delta):
+        """
+        Ajusta el saldo neto esperado de un medio de pago:
+        - Tu FK real se llama TURNO (no turnocaja)
+        - Si no existe TurnoCajaMedio para ese metodo, lo crea en 0
+        - Aplica delta en esperado
+        - Permite negativos cuando una devolución sale por un medio que no
+          tuvo ingresos suficientes durante el turno.
+        """
+        from mainApp.models import TurnoCajaMedio  # evita ciclos
+
+        metodo = (metodo or "").strip().lower()
+        delta = _to_q2(delta)
+
+        if not metodo or delta == 0:
+            return
+
+        # 1) Buscar registro del medio (LOCK)
+        obj = (
+            TurnoCajaMedio.objects
+            .select_for_update()
+            .filter(turno=turno, metodo=metodo)   # ✅ FK real: turno
+            .first()
+        )
+
+        # 2) Si no existe, crearlo
+        if obj is None:
+            obj = TurnoCajaMedio.objects.create(
+                turno=turno,                      # ✅ FK real: turno
+                metodo=metodo,
+                esperado=Decimal("0.00"),
+                contado=Decimal("0.00"),
+                diferencia=Decimal("0.00"),
+            )
+            obj = TurnoCajaMedio.objects.select_for_update().get(pk=obj.pk)
+
+        # 3) Aplicar delta a esperado
+        actual = _to_q2(obj.esperado)
+        nuevo = (actual + delta).quantize(Q2)
+
+        obj.esperado = nuevo
+
+        # Mantener diferencia coherente solo cuando ya existe un conteo. No
+        # usamos excepciones como flujo de control: capturar un IntegrityError
+        # aquí e intentar otro query deja roto el bloque atomic del llamador.
+        update_fields = ["esperado"]
+        if obj.contado is not None:
+            obj.diferencia = (_to_q2(obj.contado) - obj.esperado).quantize(Q2)
+            update_fields.append("diferencia")
+
+        obj.save(update_fields=update_fields)
+
+    @staticmethod
+    def _turno_abierto_para_venta_locked(venta):
+        from .models import TurnoCaja
+        return (
+            TurnoCaja.objects
+            .select_for_update()
+            .filter(puntopago_id=venta.puntopagoid_id, estado__in=["ABIERTO", "CIERRE"])
+            .order_by("-inicio")
+            .first()
+        )
+
+    @staticmethod
+    def _detalle_valor_bruto(detalle, cantidad=None) -> Decimal:
+        cant = int(cantidad if cantidad is not None else (detalle.cantidad or 0))
+        if cant <= 0:
+            return Decimal("0.00")
+        precio = detalle.preciounitario or Decimal("0.00")
+        return Decimal(cant) * precio
+
+    @classmethod
+    def _subtotal_actual_bruto(cls, venta) -> Decimal:
+        from .models import DetalleVenta
+
+        subtotal = Decimal("0.00")
+        for det in (
+            DetalleVenta.objects
+            .filter(ventaid=venta, cantidad__gt=0)
+            .only("cantidad", "preciounitario")
+        ):
+            subtotal += cls._detalle_valor_bruto(det)
+        return _to_q2(subtotal)
+
+    @classmethod
+    def calcular_total_devolucion(cls, venta, devoluciones) -> Decimal:
+        """
+        Calcula el valor realmente reintegrable.
+        Si la venta tiene descuento, prorratea la devolucion contra el total cobrado
+        para no devolver el precio bruto cuando el cliente pago menos.
+        """
+        bruto_dev = Decimal("0.00")
+        for item in devoluciones:
+            det = item["detalle"]
+            cant = int(item["cantidad"] or 0)
+            bruto_dev += cls._detalle_valor_bruto(det, cant)
+
+        bruto_dev = _to_q2(bruto_dev)
+        if bruto_dev <= 0:
+            return Decimal("0.00").quantize(Q2)
+
+        total_actual = _to_q2(venta.total or Decimal("0.00"))
+        if total_actual <= 0:
+            return Decimal("0.00").quantize(Q2)
+
+        subtotal_actual = cls._subtotal_actual_bruto(venta)
+        if subtotal_actual > 0 and total_actual < subtotal_actual:
+            total_dev = (bruto_dev * total_actual / subtotal_actual).quantize(Q2)
+        else:
+            total_dev = bruto_dev
+
+        if total_dev > total_actual:
+            total_dev = total_actual
+
+        return _to_q2(total_dev)
+
+    @classmethod
+    def _normalizar_reintegro_map(cls, reintegro_map, total_dev):
+        from collections.abc import Mapping
+        from decimal import InvalidOperation
+
+        from .services.payment_methods import (
+            CASH_PAYMENT_CODE,
+            active_payment_method_codes,
+            normalize_payment_method_code,
+        )
+
+        if reintegro_map is not None and not isinstance(reintegro_map, Mapping):
+            raise ValueError(
+                "La distribucion de la devolucion debe ser un mapa de pagos."
+            )
+
+        # Efectivo es un contrato contable protegido: sigue siendo el fallback
+        # aun si una configuracion incompleta lo marcara inactivo. Los demas
+        # metodos deben estar activos al momento de registrar la salida.
+        medios_validos = set(active_payment_method_codes())
+        medios_validos.add(CASH_PAYMENT_CODE)
+        normalizado = {}
+        for metodo_raw, monto_raw in (reintegro_map or {}).items():
+            metodo = normalize_payment_method_code(metodo_raw)
+            try:
+                monto_decimal = (
+                    monto_raw
+                    if isinstance(monto_raw, Decimal)
+                    else Decimal(str(monto_raw))
+                )
+                monto = _to_q2(monto_decimal)
+            except (InvalidOperation, TypeError, ValueError):
+                raise ValueError(
+                    f"Monto de devolucion invalido para {metodo or 'medio vacio'}."
+                ) from None
+            if not monto.is_finite():
+                raise ValueError(
+                    f"Monto de devolucion invalido para {metodo or 'medio vacio'}."
+                )
+            if monto < 0:
+                raise ValueError("Los montos de devolución no pueden ser negativos.")
+            if monto == 0:
+                continue
+            if metodo not in medios_validos:
+                raise ValueError(
+                    f"Medio de devolución no válido: {metodo or 'vacío'}."
+                )
+            normalizado[metodo] = _to_q2(
+                normalizado.get(metodo, Decimal("0.00")) + monto
+            )
+
+        suma = _to_q2(sum(normalizado.values(), Decimal("0.00")))
+        total_dev = _to_q2(total_dev)
+
+        # Efectivo es el medio predeterminado. Esto también protege llamadas
+        # al método de dominio que no pasan por la interfaz web.
+        if total_dev > 0 and not normalizado:
+            return {CASH_PAYMENT_CODE: total_dev}
+
+        if suma != total_dev:
+            raise ValueError(
+                f"La distribución de la devolución ({suma}) debe ser igual "
+                f"al total a devolver ({total_dev})."
+            )
+        return normalizado
+
+    # -------------------------
+    # ✅ Método principal
+    # -------------------------
+    @classmethod
+    def registrar_devolucion(
+        cls,
+        venta,
+        devoluciones,
+        reintegro_map: dict | None = None,
+        registrado_por=None,
+        turno_requerido=True,
+    ):
+        """
+        ✅ Hace TODO:
+        - Registra en cambiosdevoluciones
+        - inventario += cantidad devuelta
+        - detalleventa.cantidad -= devuelto (para consistencia visual)
+        - venta.total -= total devuelto
+        - Ajusta turno (ventas_total / ventas_efectivo / ventas_no_efectivo + turno_caja_medios.esperado)
+        """
+        from .models import DetalleVenta, ReintegroVenta, TurnoCaja
+
+        reintegro_map = reintegro_map or {}
+
+        hay_devolucion_fisica = any(
+            int(item.get("cantidad") or 0) > 0
+            for item in (devoluciones or [])
+        )
+        if not hay_devolucion_fisica:
+            return
+
+        # 1) calcular total devolución. Una venta gratuita devuelve $0,
+        # pero igualmente debe restaurar inventario y registrar el movimiento.
+        total_dev = cls.calcular_total_devolucion(venta, devoluciones)
+
+        venta.refresh_from_db()
+        nuevo_total = _to_q2((venta.total or Decimal("0.00")) - total_dev)
+        if nuevo_total < 0:
+            raise ValueError(f"La devolución ({total_dev}) deja el total negativo ({nuevo_total}).")
+
+        turno = None
+        if total_dev > 0:
+            reintegro_map = cls._normalizar_reintegro_map(reintegro_map, total_dev)
+            if turno_requerido:
+                turno = cls._turno_abierto_para_venta_locked(venta)
+            if turno_requerido and turno is None:
+                raise ValueError(
+                    "No hay un turno de caja activo para registrar la salida de esta devolución."
+                )
+
+        now = timezone.localdate()
+
+        # 2) inventario + detalle - + crear registros cambios
+        for item in devoluciones:
+            det: DetalleVenta = item["detalle"]
+            cant = int(item["cantidad"] or 0)
+            if cant <= 0:
+                continue
+
+            product_id = det.productoid_id
+            sucursal_id = venta.sucursalid_id
+
+            # ✅ inventario sube
+            cls._upsert_inventario_delta(sucursal_id, product_id, cant)
+
+            # ✅ detalle baja (recomendado)
+            DetalleVenta.objects.filter(pk=det.pk).update(cantidad=F("cantidad") - cant)
+
+            # ✅ registrar devolucion
+            cls.objects.create(
+                venta=venta,
+                productoid_id=product_id,
+                cantidad=cant,
+                tipo="Devolucion",
+                estado="Completado",
+                fecha=now,
+                motivo="Devolución registrada",
+                detalle_id=det.pk,
+            )
+
+        # 3) venta.total baja
+        venta.total = nuevo_total
+        venta.save(update_fields=["total"])
+
+        # En ventas gratuitas no hay caja, pago ni turno que ajustar.
+        if total_dev <= 0:
+            return
+
+        # 4) registrar cada salida sin modificar el pago original de la venta.
+        for metodo, monto in reintegro_map.items():
+            ReintegroVenta.objects.create(
+                venta=venta,
+                turno=turno,
+                medio_pago=metodo,
+                monto=monto,
+                registrado_por=registrado_por,
+            )
+
+        if turno is not None:
+            # 5) ajustar el snapshot del turno. El cierre vuelve a calcularlo
+            # desde ingresos originales menos este ledger de reintegros.
+            TurnoCaja.objects.filter(pk=turno.pk).update(
+                ventas_total=F("ventas_total") - total_dev
+            )
+
+            for metodo, monto in reintegro_map.items():
+                cls._upsert_turno_medio_delta(turno, metodo, -monto)
+
+                if metodo == "efectivo":
+                    TurnoCaja.objects.filter(pk=turno.pk).update(
+                        ventas_efectivo=F("ventas_efectivo") - monto
+                    )
+                else:
+                    TurnoCaja.objects.filter(pk=turno.pk).update(
+                        ventas_no_efectivo=F("ventas_no_efectivo") - monto
+                    )
+        else:
+            # Sin control de turnos no existe un cuadre individual. Aun así,
+            # el saldo global de la caja física debe reflejar el efectivo que
+            # realmente salió durante la devolución.
+            efectivo_devuelto = reintegro_map.get(
+                "efectivo",
+                Decimal("0.00"),
+            )
+            if efectivo_devuelto > 0:
+                PuntosPago.objects.filter(pk=venta.puntopagoid_id).update(
+                    dinerocaja=F("dinerocaja") - efectivo_devuelto
+                )
+
+
+class ReintegroVenta(models.Model):
+    """Salida de dinero por devolución, con turno cuando el control está activo."""
+
+    reintegroid = models.BigAutoField(primary_key=True, db_column="reintegroid")
+    venta = models.ForeignKey(
+        "Venta",
+        on_delete=models.CASCADE,
+        db_column="ventaid",
+        related_name="reintegros",
+    )
+    turno = models.ForeignKey(
+        "TurnoCaja",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        db_column="turno_id",
+        related_name="reintegros",
+    )
+    medio_pago = models.CharField(max_length=50, db_column="medio_pago")
+    monto = models.DecimalField(max_digits=12, decimal_places=2)
+    registrado_por = models.ForeignKey(
+        "Usuario",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="registrado_por_id",
+        related_name="reintegros_registrados",
+    )
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "venta_reintegros"
+        ordering = ["-creado_en", "-reintegroid"]
         constraints = [
-            models.UniqueConstraint(fields=["turno", "metodo"], name="turno_caja_medios_unique")
+            models.CheckConstraint(
+                condition=Q(monto__gt=0),
+                name="venta_reintegros_monto_positivo",
+            )
         ]
 
     def __str__(self):
-        return f"{self.turno_id} - {self.metodo}"
+        return f"Venta {self.venta_id} - {self.medio_pago} - {self.monto}"
+
+
+class NotificacionNequi(models.Model):
+    notificacionid = models.BigAutoField(primary_key=True)
+    titulo = models.CharField(max_length=180, blank=True)
+    texto = models.TextField()
+    app = models.CharField(max_length=120, blank=True)
+    paquete = models.CharField(max_length=160, blank=True)
+    monto = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    es_ingreso = models.BooleanField(
+        default=False,
+        db_default=False,
+        db_index=True,
+        help_text="Indica que la notificación corresponde a dinero recibido.",
+    )
+    remitente = models.CharField(max_length=160, blank=True)
+    referencia = models.CharField(max_length=120, blank=True)
+    recibido_en = models.DateTimeField(default=timezone.now)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    fingerprint = models.CharField(max_length=64, unique=True, db_index=True)
+    venta = models.ForeignKey(
+        "Venta",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_column="ventaid",
+        related_name="notificaciones_nequi",
+    )
+    usado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "notificaciones_nequi"
+        ordering = ["-recibido_en", "-notificacionid"]
+        indexes = [
+            models.Index(fields=["recibido_en"], name="notificacio_recibid_6f12d3_idx"),
+            models.Index(fields=["monto"], name="notificacio_monto_429441_idx"),
+            models.Index(fields=["venta"], name="notificacio_ventaid_41c4f5_idx"),
+        ]
+
+    def __str__(self):
+        monto = f" ${self.monto}" if self.monto is not None else ""
+        return f"Nequi{monto} - {self.recibido_en:%Y-%m-%d %H:%M}"

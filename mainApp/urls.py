@@ -1,5 +1,7 @@
 from django.urls import path, include
 from . import views
+from . import schedule_views
+from .ptm_views import OperacionesPTMView
 from django.contrib.auth import views as auth_views
 from .views import (
                     LoginView,
@@ -21,7 +23,6 @@ from .views import (
                     SucursalInventarioAutocompleteView,
                     EditarInventarioView,
                     SucursalInventarioAutocompleteEditarView,
-                    ProductoInventarioAutocompleteView,
                     ProveedorCreateView,
                     ProveedorListView,
                     ProveedorUpdateView,
@@ -55,7 +56,6 @@ from .views import (
                     HorarioUpdateAJAXView,
                     HorarioCajaCreateAJAXView,
                     SucursalHorarioCajaAutocomplete,
-                    PermisoCreateView,
 
                     )
 
@@ -65,6 +65,37 @@ urlpatterns = [
     path("", LoginView.as_view(), name="login"),
 
     path('home/', HomePageView.as_view(), name='home'),
+    path("horarios/empleados/", schedule_views.calendar_page, name="calendario_empleados"),
+    path("horarios/empleados/datos/", schedule_views.calendar_data, name="calendario_empleados_datos"),
+    path("horarios/empleados/guardar/", schedule_views.calendar_save, name="guardar_turno_empleado"),
+    path("horarios/empleados/rotacion/", schedule_views.rotation_create, name="crear_rotacion_empleados"),
+    path("mi-horario/", schedule_views.calendar_page, {"personal": True}, name="mi_horario"),
+    path("mi-horario/datos/", schedule_views.calendar_data, {"personal": True}, name="mi_horario_datos"),
+    path(
+        "configuracion/funcionalidades/",
+        views.ConfiguracionFuncionalidadesView.as_view(),
+        name="configuracion_funcionalidades",
+    ),
+    path(
+        "configuracion/impresion/",
+        views.ConfiguracionImpresionView.as_view(),
+        name="configuracion_impresion",
+    ),
+    path(
+        "configuracion/metodos-pago/",
+        views.ConfiguracionMetodosPagoView.as_view(),
+        name="configuracion_metodos_pago",
+    ),
+    path(
+        "configuracion/telegram/",
+        views.ConfiguracionTelegramBotView.as_view(),
+        name="configuracion_telegram_bot",
+    ),
+    path(
+        "api/telegram/webhook/",
+        views.TelegramWebhookView.as_view(),
+        name="telegram_webhook",
+    ),
 
     path('agregar_sucursal/', SucursalCreateAJAXView.as_view(), name='agregar_sucursal'),
     path("visualizar_sucursales/", SucursalListView.as_view(), name="visualizar_sucursales"),
@@ -85,8 +116,13 @@ urlpatterns = [
 
 
     path('agregar_inventario/', InventarioCreateAJAXView.as_view(), name='agregar_inventario'),
+    path(
+        'autocomplete/inventario/sucursal/agregar/',
+        views.sucursal_inventario_agregar_autocomplete,
+        name='sucursal_inventario_agregar_autocomplete',
+    ),
     # Ruta para autocompletar Sucursales sin Inventario
-    
+
     path("sucursal_inventario/", views.sucursal_sin_inventario_autocomplete, name="sucursal_sin_inventario_autocomplete"),
     # Ruta para autocompletar Productos (por ejemplo)
     path('autocomplete/producto_inventario/', ProductoAutocomplete.as_view(), name='producto_inventario_autocomplete'),
@@ -94,7 +130,14 @@ urlpatterns = [
     path('autocomplete/sucursal_con_inventario/', SucursalInventarioAutocompleteView.as_view(), name='sucursal_con_inventario_autocomplete'),
     path('editar_inventario/<int:sucursal_id>/', EditarInventarioView.as_view(), name='editar_inventario'),
     path('autocomplete/sucursal_inventario_editar/', SucursalInventarioAutocompleteEditarView.as_view(), name='sucursal_inventario_autocomplete'),
-    path('autocomplete/producto_inventario_editar/', ProductoInventarioAutocompleteView.as_view(), name='producto_inventario_autocomplete_editar'),
+    path("inventario/<int:sucursal_id>/item/", views.InventarioItemAjaxView.as_view(),
+         name="inventario_item_ajax"),
+    path("autocomplete/inventario/producto/nombre/", views.ProductoInventarioBuscarNombreView.as_view(),
+         name="producto_inventario_buscar_nombre"),
+    path("autocomplete/inventario/producto/barras/", views.ProductoInventarioBuscarBarrasView.as_view(),
+         name="producto_inventario_buscar_barras"),
+    path("autocomplete/inventario/producto/id/", views.ProductoInventarioBuscarIdView.as_view(),
+         name="producto_inventario_buscar_id"),
     path('inventario/eliminar/<int:inventario_id>/', views.eliminar_producto_inventario_view, name='eliminar_producto_inventario'),
 
     path('agregar_proveedor/', ProveedorCreateView.as_view(), name='agregar_proveedor'),
@@ -134,7 +177,11 @@ urlpatterns = [
 
     path("agregar_empleado/", EmpleadoCreateAJAXView.as_view(), name="agregar_empleado"),
     path("autocomplete/usuario/",   UsuarioDisponibleAutocomplete.as_view(), name="usuario_autocomplete"),
-    path("autocomplete/sucursal/",  SucursalAutocomplete.as_view(), name="sucursal_autocomplete"),
+    path(
+        "autocomplete/empleados/sucursal/",
+        SucursalAutocomplete.as_view(),
+        name="empleado_sucursal_autocomplete",
+    ),
     path("visualizar_empleados/",EmpleadoListView.as_view(), name="visualizar_empleados"),
     path("empleados/editar/<int:empleado_id>/", views.EmpleadoUpdateAJAXView.as_view(), name="editar_empleado"),
     path('eliminar_empleado/<int:empleado_id>/', views.eliminar_empleado_view, name='eliminar_empleado'),
@@ -165,12 +212,19 @@ urlpatterns = [
 
 
     path("generar_venta/", views.GenerarVentaView.as_view(), name="generar_venta"),
+    path(
+        "ventas/merk2888/claves/",
+        views.ClavesDescuentoMerk2888View.as_view(),
+        name="claves_descuento_merk2888",
+    ),
+    path("autocomplete/producto-id/", views.ProductoIdAutocompleteView.as_view(), name="producto_autocomplete_id"),
     path("api/productos/snapshot/", views.ProductoSnapshotView.as_view(), name="producto_snapshot"),
     path("ventas/imprimir/", views.ImprimirFacturaView.as_view(), name="imprimir_factura"),
     path("ventas/abrir-caja/", views.AbrirCajaView.as_view(),      name="abrir_caja"),
+    path("ventas/auditoria/carrito-limpiado/", views.VentaCarritoLimpioAuditView.as_view(), name="venta_carrito_limpio_audit"),
 
     # Autocompletes
-    path('autocomplete/sucursal/',   views.SucursalAutocompleteView.as_view(),
+    path('autocomplete/sucursal/',   views.VentaSucursalAutocompleteView.as_view(),
          name='sucursal_autocomplete'),
 
     path('autocomplete/puntopago/',  views.PuntoPagoAutocompleteView.as_view(),
@@ -187,39 +241,29 @@ urlpatterns = [
     path("producto_por_codigo/",      views.BuscarProductoPorCodigoView.as_view(), name="buscar_producto_por_codigo"),
     path('autocomplete/producto-codigo/',  views.ProductoCodigoAutocompleteView.as_view(),  name='producto_autocomplete_codigo'),
     path('autocomplete/producto-barras/',  views.ProductoBarrasAutocompleteView.as_view(),  name='producto_autocomplete_barras'),
+    path('autocomplete/producto-global/',  views.ProductoAutocompleteGlobalView.as_view(),  name='producto_autocomplete_global'),
 
     path('visualizar_ventas/', views.VentaListView.as_view(), name='visualizar_ventas'),
     path("ventas/data/", views.VentaDataTableView.as_view(), name="ventas_datatable"),
+    path("ventas/no-realizadas/", views.VentaCarritoAuditListView.as_view(), name="ventas_no_realizadas"),
     #  … otras urls …
     path('ver_venta/<int:venta_id>/', views.VentaDetailView.as_view(), name='ver_venta'),
     path("ventas/ticket-texto/", views.TicketTextoView.as_view(), name="ticket_texto"),
     path("cambios/", views.CambiosListView.as_view(), name="visualizar_cambios"),
-    path("ventas/imprimir/", views.ImprimirFacturaView.as_view(), name="imprimir_factura"),
-
-
-
     path("agregar_pedido/", views.PedidoProveedorCreateAJAXView.as_view(), name="agregar_pedido"),
+    path(
+        "autocomplete/pedidos/sucursal/",
+        SucursalAutocomplete.as_view(),
+        name="pedido_sucursal_autocomplete",
+    ),
     path("autocomplete/producto_pedido/", views.ProductoPedidoAutocomplete.as_view(), name="producto_pedido_autocomplete"),
     path("visualizar_pedidos/", views.PedidoListView.as_view(), name="visualizar_pedidos"),
     path('eliminar_pedido/<int:pedido_id>/', views.eliminar_pedido, name='eliminar_pedido'),
     path('ver_pedido/<int:pedido_id>/', views.PedidoDetailView.as_view(), name='ver_pedido'),
     path('editar_pedido/<int:pedido_id>/', views.EditarPedidoView.as_view(), name='editar_pedido'),
-    path(
-      "autocomplete/puntopago/",
-      views.PuntoPagoPorSucursalAutocomplete.as_view(),
-      name="puntopago_autocomplete"
-    ),
-
      path("logout/", auth_views.LogoutView.as_view(next_page="login"), name="logout"),
 
-     path("permisos/agregar/", views.PermisoCreateView.as_view(), name="permiso_agregar"),
      path("visualizar_permisos/", views.PermisoListView.as_view(), name="visualizar_permisos"),
-     path("permisos/editar/<int:permiso_id>/",
-         views.PermisoUpdateAJAXView.as_view(),
-         name="editar_permiso"),
-     path("permisos/<int:pk>/eliminar/", views.eliminar_permiso, name="eliminar_permiso"),
-
-
 
     path("roles_permisos/", views.RolPermisoAssignView.as_view(), name="roles_permisos"),
     path("autocomplete/rol/", views.RolAutocomplete.as_view(), name="rol_autocomplete"),
@@ -236,9 +280,8 @@ urlpatterns = [
 
      path("autocomplete/permiso_para_rol/", views.PermisoParaRolAutocomplete.as_view(),
          name="permiso_para_rol_autocomplete"),
-     # eliminar relación ya existente en visualizar:
-     path("roles_permisos/eliminar/<int:rp_id>/", views.eliminar_rol_permiso_view,
-         name="eliminar_rol_permiso"),
+     path("usuarios_permisos/", views.UsuarioPermisoAssignView.as_view(),
+         name="usuarios_permisos"),
 
      path("ventas_diarias/", views.VentasDiariasView.as_view(), name="ventas_diarias"),
      path("autocomplete/sucursal_ventas/", views.SucursalParaVentasAutocomplete.as_view(),
@@ -246,6 +289,15 @@ urlpatterns = [
      path("autocomplete/puntopago_ventas/", views.PuntoPagoParaVentasAutocomplete.as_view(),
      name="puntopago_ventas_autocomplete"),
      path("ventas/diarias/stats/", views.VentasDiariasStatsView.as_view(), name="ventas_diarias_stats"),
+     path("reportes/metricas/", views.MetricasNegocioView.as_view(), name="metricas_negocio"),
+     path("reportes/metricas/data/", views.MetricasNegocioDataView.as_view(), name="metricas_negocio_data"),
+     path("caja/registrar-pago/", views.RegistrarEgresoView.as_view(), name="registrar_egreso"),
+     path("nequi/notificaciones/", views.NequiNotificacionesView.as_view(), name="nequi_notificaciones"),
+     path("nequi/notificaciones/data/", views.NequiNotificacionesDataView.as_view(), name="nequi_notificaciones_data"),
+     path("nequi/notificaciones/<int:notificacion_id>/eliminar/", views.NequiNotificacionEliminarView.as_view(), name="nequi_notificacion_eliminar"),
+     path("nequi/notificaciones/eliminar-seleccionadas/", views.NequiNotificacionesEliminarSeleccionadasView.as_view(), name="nequi_notificaciones_eliminar_seleccionadas"),
+     path("nequi/notificaciones/disponibles/", views.NequiNotificacionesDisponiblesView.as_view(), name="nequi_notificaciones_disponibles"),
+     path("api/macrodroid/nequi/", views.NequiNotificationWebhookView.as_view(), name="macrodroid_nequi_webhook"),
 
 
      # --- Reporte: pedidos pagados ---
@@ -261,6 +313,102 @@ urlpatterns = [
      path("autocomplete/puntopago_con_pedidos_pagados/",
           views.PuntosPagoConPedidosPagadosAutocomplete.as_view(),
           name="puntopago_con_pedidos_pagados_autocomplete"),
+
+
+
+
+     path("ptm/", OperacionesPTMView.as_view(), name="operaciones_ptm"),
+     path("turno_caja/", views.TurnoCajaPageView.as_view(), name="turno_caja"),
+     path("turno_caja/cierre/<int:turno_id>/pagos/",
+          views.TurnoCajaCierrePageView.as_view(close_page="payments"), name="turno_caja_cierre_pagos"),
+     path("turno_caja/cierre/<int:turno_id>/efectivo/",
+          views.TurnoCajaCierrePageView.as_view(close_page="cash"), name="turno_caja_cierre_efectivo"),
+     path("turno_caja/cierre/<int:turno_id>/medios/",
+          views.TurnoCajaCierrePageView.as_view(close_page="media"), name="turno_caja_cierre_medios"),
+
+     path("turnos_caja/recuperar_o_iniciar/",
+         views.TurnoCajaRecuperarOIniciarView.as_view(),
+         name="turno_recuperar_o_iniciar"),
+
+    path("turno_caja/autocomplete/puntopago/", views.PuntoPagoAutocomplete.as_view(),
+         name="turno_caja_puntopago_ac"),
+    path("turno_caja/autocomplete/cajero/", views.CajeroAutocomplete.as_view(),
+         name="turno_caja_cajero_ac"),
+
+    path("turno_caja/api/iniciar/", views.TurnoCajaIniciarApi.as_view(),
+         name="turno_caja_iniciar"),
+    path("turno_caja/api/iniciar_cierre/", views.TurnoCajaIniciarCierreApi.as_view(),
+         name="turno_caja_iniciar_cierre"),
+    path("turno_caja/api/cerrar/", views.TurnoCajaCerrarApi.as_view(),
+         name="turno_caja_cerrar"),
+    path("turno_caja/retiro/", views.TurnoCajaRetiroActualView.as_view(),
+         name="turno_caja_retiro_actual"),
+    path("turno_caja/retiro/<int:turno_id>/", views.TurnoCajaRetiroView.as_view(),
+         name="turno_caja_retiro"),
      
-     path("cierre-caja/", views.cierre_caja, name="cierre_caja"),
+     path("turnos_caja_dashboard/", views.TurnosCajaDashboardView.as_view(), name="turnos_caja_dashboard"),
+
+    # APIs dashboard
+    path("api/turnos_caja/list/", views.TurnosCajaDashboardListAPI.as_view(), name="api_turnos_caja_list"),
+    path("api/turnos_caja/<int:turno_id>/", views.TurnoCajaDashboardDetailAPI.as_view(), name="api_turno_caja_detail"),
+
+    path("turnos_caja_admin/", views.TurnosCajaAdminPageView.as_view(), name="turnos_caja_admin"),
+
+    # APIs Admin
+    path("api/admin/turnos_caja/<int:turno_id>/", views.TurnoCajaAdminDetailAPI.as_view(), name="api_admin_turno_detail"),
+    path("api/admin/turnos_caja/<int:turno_id>/update/", views.TurnoCajaAdminUpdateAPI.as_view(), name="api_admin_turno_update"),
+    path("api/admin/turnos_caja/<int:turno_id>/delete/", views.TurnoCajaAdminDeleteAPI.as_view(), name="api_admin_turno_delete"),
+
+
+
+
+
+    path("a", views.GestionInventarioMasivaView.as_view(), name="inventario_masivo"),
+
+    path("inventario/plaza-whatsapp/", views.InventarioPlazaWhatsappView.as_view(), name="inventario_plaza_whatsapp"),
+    path("inventario/fotos/", views.InventarioFotosPageView.as_view(), name="inventario_fotos"),
+    path("inventario/fotos/catalogo/", views.InventarioFotosCatalogoView.as_view(), name="inventario_fotos_catalogo"),
+    path("inventario/fotos/proveedor/", views.InventarioFotosProveedorLookupView.as_view(), name="inventario_fotos_proveedor_lookup"),
+    path("inventario/fotos/procesar/", views.InventarioFotosProcesarView.as_view(), name="inventario_fotos_procesar"),
+    path("inventario/fotos/confirmar/", views.InventarioFotosConfirmarView.as_view(), name="inventario_fotos_confirmar"),
+
+    path("autocomplete/sucursales/", views.SucursalAutocompleteView.as_view(), name="sucursal_autocomplete_simple"),
+
+    path("autocomplete/productos/nombre/", views.ProductoBuscarNombreView.as_view(), name="producto_buscar_nombre_simple"),
+    path("autocomplete/productos/barras/", views.ProductoBuscarBarrasView.as_view(), name="producto_buscar_barras_simple"),
+    path("autocomplete/productos/id/", views.ProductoBuscarIdView.as_view(), name="producto_buscar_id_simple"),
+
+    path("inventario/producto_detalle/", views.ProductoDetalleInventarioView.as_view(), name="producto_detalle_inventario"),
+
+
+
+    path("v", views.VisorProductoBarcodeView.as_view(), name="visor_barcode"),
+    path("visor/cajeros/", views.VisorProductosCajeroView.as_view(), name="visor_cajero"),
+    path("visor/cajeros/buscar/", views.ProductoBuscarVisorCajeroView.as_view(), name="visor_cajero_buscar"),
+    path("visor/barcode/buscar/", views.ProductoBuscarBarrasVisorView.as_view(), name="visor_barcode_buscar"),
+    path("visor/barcode/lookup/", views.ProductoLookupPorBarrasVisorView.as_view(), name="visor_barcode_lookup"),
+
+
+
+    path(
+        "reportes/ventas-producto/",
+        views.VentasProductoRangoView.as_view(),
+        name="reporte_ventas_producto",
+    ),
+
+    # ✅ Endpoint stats (sin ID en la URL) -> sucursal_id via GET
+    # /ventas/producto/stats/?sucursal_id=1&productoid=123&desde=2026-02-01&hasta=2026-02-16
+    path(
+        "ventas/producto/stats/",
+        views.ProductoVentasStatsAjaxView.as_view(),
+        name="producto_ventas_stats",
+    ),
+
+    # ✅ DataTables server-side (sin ID en la URL) -> sucursal_id via GET
+    # /api/reportes/ventas-producto/?sucursal_id=1&fecha_ini=...&fecha_fin=...
+    path(
+        "api/reportes/ventas-producto/",
+        views.VentasProductoRangoDataView.as_view(),
+        name="ventas_producto_data",
+    ),
 ]

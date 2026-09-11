@@ -1,0 +1,1473 @@
+import re
+import time
+import unicodedata
+from typing import Dict, List, Optional, Set
+
+from django.core.cache import cache
+from django.db import DatabaseError, connection, transaction
+from django.urls import NoReverseMatch, reverse
+
+from .models import Permiso, Rol, RolPermiso
+from .services.feature_flags import (
+    FEATURE_REGISTRY,
+    disabled_feature_for_url,
+    is_feature_enabled,
+)
+
+
+WEB_MASTER_ROLE_NAMES = {"web_master", "webmaster"}
+ADMIN_ROLE_NAMES = {"admin", "administrador", "administradora", "supervisor"}
+PUBLIC_URL_NAMES = {"login", "logout", "visor_barcode", "visor_barcode_buscar", "visor_barcode_lookup", "macrodroid_nequi_webhook", "telegram_webhook"}
+ALWAYS_ALLOWED_URL_NAMES = {"home", "registrar_egreso", "mi_horario", "mi_horario_datos", "visor_cajero", "visor_cajero_buscar"}
+WEB_MASTER_ONLY_URL_NAMES = {
+    "ventas_no_realizadas",
+    "claves_descuento_merk2888",
+    "configuracion_funcionalidades",
+    "configuracion_impresion",
+    "configuracion_metodos_pago",
+    "configuracion_telegram_bot",
+}
+PERMISSION_CACHE_SECONDS = 300
+NAV_CACHE_SECONDS = 300
+ROLE_NAME_CACHE_SECONDS = 600
+PERMISSION_CACHE_VERSION_KEY = "mainapp:permissions:version"
+
+
+PERMISSION_DEFINITIONS = [
+    {
+        "code": "sucursales_crear",
+        "label": "Agregar sucursal",
+        "description": "Permite crear sucursales.",
+        "aliases": ["agregar_sucursal", "crear sucursal"],
+    },
+    {
+        "code": "sucursales_ver",
+        "label": "Visualizar sucursales",
+        "description": "Permite ver el listado de sucursales.",
+        "aliases": ["visualizar_sucursales", "ver sucursales"],
+    },
+    {
+        "code": "sucursales_editar",
+        "label": "Editar sucursal",
+        "description": "Permite modificar sucursales.",
+        "aliases": ["editar_sucursal"],
+    },
+    {
+        "code": "sucursales_eliminar",
+        "label": "Eliminar sucursal",
+        "description": "Permite eliminar sucursales.",
+        "aliases": ["eliminar_sucursal"],
+    },
+    {
+        "code": "categorias_crear",
+        "label": "Agregar categoria",
+        "description": "Permite crear categorias.",
+        "aliases": ["agregar_categoria"],
+    },
+    {
+        "code": "categorias_ver",
+        "label": "Visualizar categorias",
+        "description": "Permite ver categorias.",
+        "aliases": ["visualizar_categorias", "ver categorias"],
+    },
+    {
+        "code": "categorias_editar",
+        "label": "Editar categoria",
+        "description": "Permite modificar categorias.",
+        "aliases": ["editar_categoria"],
+    },
+    {
+        "code": "categorias_eliminar",
+        "label": "Eliminar categoria",
+        "description": "Permite eliminar categorias.",
+        "aliases": ["eliminar_categoria"],
+    },
+    {
+        "code": "productos_crear",
+        "label": "Agregar producto",
+        "description": "Permite crear productos.",
+        "aliases": ["agregar_producto"],
+    },
+    {
+        "code": "productos_ver",
+        "label": "Visualizar productos",
+        "description": "Permite ver productos.",
+        "aliases": ["visualizar_productos", "productos_datatable", "ver productos"],
+    },
+    {
+        "code": "productos_editar",
+        "label": "Editar producto",
+        "description": "Permite modificar productos.",
+        "aliases": ["editar_producto"],
+    },
+    {
+        "code": "productos_eliminar",
+        "label": "Eliminar producto",
+        "description": "Permite eliminar productos.",
+        "aliases": ["eliminar_producto"],
+    },
+    {
+        "code": "inventarios_crear",
+        "label": "Agregar inventario",
+        "description": "Permite crear inventario.",
+        "aliases": ["agregar_inventario"],
+    },
+    {
+        "code": "inventarios_ver",
+        "label": "Visualizar inventarios",
+        "description": "Permite ver inventarios.",
+        "aliases": ["visualizar_inventarios", "ver inventarios"],
+    },
+    {
+        "code": "inventarios_editar",
+        "label": "Editar inventario",
+        "description": "Permite modificar inventarios.",
+        "aliases": ["editar_inventario", "inventario_masivo", "gestion inventario masiva"],
+    },
+    {
+        "code": "inventarios_fotos",
+        "label": "Inventario desde fotos",
+        "description": "Permite cargar inventario desde fotos de facturas.",
+        "aliases": [
+            "inventario_fotos",
+            "inventario_fotos_catalogo",
+            "inventario_fotos_proveedor_lookup",
+            "inventario_fotos_procesar",
+            "inventario_fotos_confirmar",
+        ],
+    },
+    {
+        "code": "inventario_plaza_whatsapp",
+        "label": "Inventario plaza WhatsApp",
+        "description": "Permite llenar y enviar por WhatsApp el inventario de plaza.",
+        "aliases": [
+            "inventario_plaza_whatsapp",
+            "inventario plaza",
+            "inventario plaza whatsapp",
+        ],
+    },
+    {
+        "code": "inventarios_eliminar",
+        "label": "Eliminar inventario",
+        "description": "Permite eliminar productos de inventario.",
+        "aliases": ["eliminar_producto_inventario"],
+    },
+    {
+        "code": "proveedores_crear",
+        "label": "Agregar proveedor",
+        "description": "Permite crear proveedores.",
+        "aliases": ["agregar_proveedor"],
+    },
+    {
+        "code": "proveedores_ver",
+        "label": "Visualizar proveedores",
+        "description": "Permite ver proveedores.",
+        "aliases": ["visualizar_proveedores", "ver proveedores"],
+    },
+    {
+        "code": "proveedores_editar",
+        "label": "Editar proveedor",
+        "description": "Permite modificar proveedores.",
+        "aliases": ["editar_proveedor"],
+    },
+    {
+        "code": "proveedores_eliminar",
+        "label": "Eliminar proveedor",
+        "description": "Permite eliminar proveedores.",
+        "aliases": ["eliminar_proveedor"],
+    },
+    {
+        "code": "precios_proveedor_crear",
+        "label": "Agregar precios proveedor",
+        "description": "Permite crear precios de proveedor.",
+        "aliases": ["agregar_productos_precios_proveedor"],
+    },
+    {
+        "code": "precios_proveedor_ver",
+        "label": "Visualizar precios proveedor",
+        "description": "Permite ver precios de proveedor.",
+        "aliases": ["visualizar_productos_precios_proveedores"],
+    },
+    {
+        "code": "precios_proveedor_editar",
+        "label": "Editar precios proveedor",
+        "description": "Permite modificar precios de proveedor.",
+        "aliases": ["editar_productos_precios_proveedor"],
+    },
+    {
+        "code": "precios_proveedor_eliminar",
+        "label": "Eliminar precios proveedor",
+        "description": "Permite eliminar precios de proveedor.",
+        "aliases": ["eliminar_precio_proveedor"],
+    },
+    {
+        "code": "puntos_pago_crear",
+        "label": "Agregar punto de pago",
+        "description": "Permite crear puntos de pago.",
+        "aliases": ["agregar_punto_pago"],
+    },
+    {
+        "code": "puntos_pago_ver",
+        "label": "Visualizar puntos de pago",
+        "description": "Permite ver puntos de pago.",
+        "aliases": ["visualizar_puntos_pago"],
+    },
+    {
+        "code": "puntos_pago_editar",
+        "label": "Editar punto de pago",
+        "description": "Permite modificar puntos de pago.",
+        "aliases": ["editar_puntos_pago"],
+    },
+    {
+        "code": "puntos_pago_eliminar",
+        "label": "Eliminar punto de pago",
+        "description": "Permite eliminar puntos de pago.",
+        "aliases": ["eliminar_punto_pago"],
+    },
+    {
+        "code": "roles_crear",
+        "label": "Agregar rol",
+        "description": "Permite crear roles.",
+        "aliases": ["agregar_rol"],
+    },
+    {
+        "code": "roles_ver",
+        "label": "Visualizar roles",
+        "description": "Permite ver roles.",
+        "aliases": ["visualizar_roles"],
+    },
+    {
+        "code": "roles_editar",
+        "label": "Editar rol",
+        "description": "Permite modificar roles.",
+        "aliases": ["editar_rol"],
+    },
+    {
+        "code": "roles_eliminar",
+        "label": "Eliminar rol",
+        "description": "Permite eliminar roles.",
+        "aliases": ["eliminar_rol"],
+    },
+    {
+        "code": "usuarios_crear",
+        "label": "Agregar usuario",
+        "description": "Permite crear usuarios.",
+        "aliases": ["agregar_usuario"],
+    },
+    {
+        "code": "usuarios_ver",
+        "label": "Visualizar usuarios",
+        "description": "Permite ver usuarios.",
+        "aliases": ["visualizar_usuarios"],
+    },
+    {
+        "code": "usuarios_editar",
+        "label": "Editar usuario",
+        "description": "Permite modificar usuarios.",
+        "aliases": ["editar_usuario"],
+    },
+    {
+        "code": "usuarios_eliminar",
+        "label": "Eliminar usuario",
+        "description": "Permite eliminar usuarios.",
+        "aliases": ["eliminar_usuario"],
+    },
+    {
+        "code": "empleados_crear",
+        "label": "Agregar empleado",
+        "description": "Permite crear empleados.",
+        "aliases": ["agregar_empleado"],
+    },
+    {
+        "code": "empleados_ver",
+        "label": "Visualizar empleados",
+        "description": "Permite ver empleados.",
+        "aliases": ["visualizar_empleados"],
+    },
+    {
+        "code": "empleados_editar",
+        "label": "Editar empleado",
+        "description": "Permite modificar empleados.",
+        "aliases": ["editar_empleado"],
+    },
+    {
+        "code": "empleados_eliminar",
+        "label": "Eliminar empleado",
+        "description": "Permite eliminar empleados.",
+        "aliases": ["eliminar_empleado"],
+    },
+    {
+        "code": "horarios_crear",
+        "label": "Agregar horario",
+        "description": "Permite crear horarios.",
+        "aliases": ["agregar_horario"],
+    },
+    {
+        "code": "horarios_ver",
+        "label": "Visualizar horarios",
+        "description": "Permite ver horarios.",
+        "aliases": ["visualizar_horarios"],
+    },
+    {
+        "code": "horarios_editar",
+        "label": "Editar horario",
+        "description": "Permite modificar horarios.",
+        "aliases": ["editar_horarios"],
+    },
+    {
+        "code": "horarios_eliminar",
+        "label": "Eliminar horario",
+        "description": "Permite eliminar horarios.",
+        "aliases": ["eliminar_horario"],
+    },
+    {
+        "code": "horarios_caja_crear",
+        "label": "Agregar horario de caja",
+        "description": "Permite crear horarios de caja.",
+        "aliases": ["agregar_horario_caja"],
+    },
+    {
+        "code": "horarios_caja_ver",
+        "label": "Visualizar horarios de caja",
+        "description": "Permite ver horarios de caja.",
+        "aliases": ["visualizar_horarios_cajas"],
+    },
+    {
+        "code": "horarios_caja_editar",
+        "label": "Editar horario de caja",
+        "description": "Permite modificar horarios de caja.",
+        "aliases": ["editar_horarios_cajas"],
+    },
+    {
+        "code": "horarios_caja_eliminar",
+        "label": "Eliminar horario de caja",
+        "description": "Permite eliminar horarios de caja.",
+        "aliases": ["eliminar_horario_caja"],
+    },
+    {
+        "code": "clientes_crear",
+        "label": "Agregar cliente",
+        "description": "Permite crear clientes.",
+        "aliases": ["agregar_cliente"],
+    },
+    {
+        "code": "clientes_ver",
+        "label": "Visualizar clientes",
+        "description": "Permite ver clientes.",
+        "aliases": ["visualizar_clientes"],
+    },
+    {
+        "code": "clientes_editar",
+        "label": "Editar cliente",
+        "description": "Permite modificar clientes.",
+        "aliases": ["editar_cliente"],
+    },
+    {
+        "code": "clientes_eliminar",
+        "label": "Eliminar cliente",
+        "description": "Permite eliminar clientes.",
+        "aliases": ["eliminar_cliente"],
+    },
+    {
+        "code": "ventas_generar",
+        "label": "Generar venta",
+        "description": "Permite registrar ventas.",
+        "aliases": ["generar_venta", "abrir_caja"],
+    },
+    {
+        "code": "horarios_empleados_ver",
+        "label": "Ver calendario de empleados",
+        "description": "Permite consultar la planificación laboral de todos los empleados.",
+        "aliases": ["calendario_empleados", "calendario_empleados_datos"],
+    },
+    {
+        "code": "horarios_empleados_editar",
+        "label": "Gestionar turnos de empleados",
+        "description": "Permite crear, mover, editar y cancelar jornadas de empleados, sin modificar cajas.",
+        "aliases": ["guardar_turno_empleado"],
+    },
+    {
+        "code": "descuentos_especiales_generar",
+        "label": "Generar códigos de descuento especial",
+        "assignable": False,
+        "system_only": True,
+        "description": (
+            "Permite generar y revocar claves de un solo uso para el "
+            "beneficio especial merk2888. Uso exclusivo Web Master."
+        ),
+        "aliases": [
+            "claves_descuento_merk2888",
+            "claves merk2888",
+            "descuento especial merk2888",
+        ],
+    },
+    {
+        "code": "ventas_ver",
+        "label": "Visualizar ventas",
+        "description": "Permite ver ventas y facturas.",
+        "aliases": ["visualizar_ventas", "ver_venta", "ventas_datatable"],
+    },
+    {
+        "code": "ventas_no_realizadas",
+        "label": "Ventas no realizadas",
+        "assignable": False,
+        "system_only": True,
+        "description": "Permite ver carritos que fueron armados y luego limpiados sin finalizar venta. Uso exclusivo Web Master.",
+        "aliases": ["ventas_no_realizadas", "ventas no realizadas", "carritos limpiados", "auditoria carritos"],
+    },
+    {
+        "code": "ventas_imprimir",
+        "label": "Imprimir venta",
+        "description": "Permite abrir el detalle de una venta en modo solo lectura e imprimir la factura.",
+        "aliases": ["ver_venta_imprimir", "ticket_texto", "imprimir_factura", "imprimir venta", "solo imprimir venta"],
+    },
+    {
+        "code": "ventas_cambios",
+        "label": "Cambios y devoluciones",
+        "description": "Permite ver y gestionar cambios o devoluciones.",
+        "aliases": ["visualizar_cambios", "cambios devoluciones"],
+    },
+    {
+        "code": "ventas_diarias",
+        "label": "Ventas diarias",
+        "description": "Permite consultar ventas diarias.",
+        "aliases": ["ventas_diarias", "ventas_diarias_stats"],
+    },
+    {
+        "code": "reportes_ventas_producto",
+        "label": "Ventas por producto",
+        "description": "Permite consultar ventas por producto.",
+        "aliases": ["reporte_ventas_producto", "ventas_producto_data", "producto_ventas_stats"],
+    },
+    {
+        "code": "metricas_negocio",
+        "label": "Metricas del negocio",
+        "description": "Permite consultar metricas estadisticas generales del negocio.",
+        "aliases": ["metricas_negocio", "metricas_negocio_data", "metricas del negocio", "analitica"],
+    },
+    {
+        "code": "nequi_notificaciones",
+        "label": "Notificaciones Nequi",
+        "description": "Permite ver las notificaciones de pagos recibidos por Nequi.",
+        "aliases": [
+            "nequi_notificaciones",
+            "nequi_notificaciones_data",
+            "pagos nequi",
+            "notificaciones nequi",
+        ],
+    },
+    {
+        "code": "nequi_notificaciones_eliminar",
+        "label": "Eliminar notificaciones Nequi",
+        "description": "Permite eliminar notificaciones de pagos recibidos por Nequi.",
+        "aliases": [
+            "nequi_notificacion_eliminar",
+            "nequi_notificaciones_eliminar_seleccionadas",
+            "eliminar notificaciones nequi",
+        ],
+    },
+    {
+        "code": "pedidos_crear",
+        "label": "Agregar pedido",
+        "description": "Permite crear pedidos a proveedores.",
+        "aliases": ["agregar_pedido"],
+    },
+    {
+        "code": "pedidos_ver",
+        "label": "Visualizar pedidos",
+        "description": "Permite ver pedidos.",
+        "aliases": ["visualizar_pedidos", "ver_pedido"],
+    },
+    {
+        "code": "pedidos_editar",
+        "label": "Editar pedido",
+        "description": "Permite modificar pedidos.",
+        "aliases": ["editar_pedido"],
+    },
+    {
+        "code": "pedidos_eliminar",
+        "label": "Eliminar pedido",
+        "description": "Permite eliminar pedidos.",
+        "aliases": ["eliminar_pedido"],
+    },
+    {
+        "code": "reportes_pedidos_pagados",
+        "label": "Pedidos pagados",
+        "description": "Permite consultar pedidos pagados.",
+        "aliases": ["pedidos_pagados"],
+    },
+    {
+        "code": "caja_turno",
+        "label": "Turno de caja",
+        "description": "Permite operar el turno de caja propio.",
+        "aliases": ["turno_caja", "turno_recuperar_o_iniciar"],
+    },
+    {
+        "code": "caja_retiro_base",
+        "label": "Retiro base de caja",
+        "description": "Permite entrar a la pagina donde se retira dinero para dejar la base de caja.",
+        "aliases": ["turno_caja_retiro", "turno_caja_retiro_actual", "retiro base de caja", "sacar dinero base caja"],
+    },
+    {
+        "code": "caja_dashboard",
+        "label": "Dashboard turnos",
+        "description": "Permite consultar el dashboard de turnos de caja.",
+        "aliases": ["turnos_caja_dashboard"],
+    },
+    {
+        "code": "caja_admin",
+        "label": "Administrar turnos de caja",
+        "description": "Permite editar, cerrar y eliminar turnos desde el panel administrativo.",
+        "aliases": [
+            "Administrar turnos",
+            "api_admin_turno_delete",
+            "Eliminar turnos de caja",
+        ],
+    },
+    {
+        "code": "caja_turnos_editar",
+        "label": "Editar turnos de caja",
+        "description": "Permite cargar y editar turnos de caja desde el panel administrativo, sin eliminar turnos.",
+        "aliases": [
+            "editar turnos de caja",
+            "editar_turnos_caja",
+            "api_admin_turno_detail",
+            "api_admin_turno_update",
+        ],
+    },
+    {
+        "code": "seguridad_permisos",
+        "label": "Administrar permisos",
+        "description": "Permite consultar el catálogo y asignar permisos a roles o usuarios.",
+        "aliases": ["visualizar_permisos", "roles_permisos", "usuarios_permisos"],
+    },
+    {
+        "code": "configuracion_funcionalidades",
+        "label": "Administrar funcionalidades del sistema",
+        "assignable": False,
+        "system_only": True,
+        "description": (
+            "Permite activar o desactivar funcionalidades globales preparadas "
+            "para operar en ambos modos. Uso exclusivo Web Master."
+        ),
+        "aliases": [
+            "configuracion_funcionalidades",
+            "funcionalidades del sistema",
+            "feature flags",
+        ],
+    },
+    {
+        "code": "configuracion_impresion",
+        "label": "Configurar impresión",
+        "assignable": False,
+        "system_only": True,
+        "description": (
+            "Permite definir el sistema operativo y el tamaño de factura "
+            "de cada punto de pago. Uso exclusivo Web Master."
+        ),
+        "aliases": [
+            "configuracion_impresion",
+            "configuración de impresión",
+            "configurar impresora",
+        ],
+    },
+    {
+        "code": "configuracion_metodos_pago",
+        "label": "Administrar métodos de pago",
+        "assignable": False,
+        "system_only": True,
+        "description": (
+            "Permite agregar, ordenar, activar y desactivar los métodos de "
+            "pago. Uso exclusivo Web Master."
+        ),
+        "aliases": [
+            "configuracion_metodos_pago",
+            "métodos de pago",
+            "medios de pago",
+        ],
+    },
+    {
+        "code": "configuracion_telegram_bot",
+        "label": "Administrar bot inteligente de Telegram",
+        "assignable": False,
+        "system_only": True,
+        "description": (
+            "Permite vincular usuarios, configurar el webhook y revisar la "
+            "operación del bot. Uso exclusivo Web Master."
+        ),
+        "aliases": ["configuracion_telegram_bot", "bot de telegram"],
+    },
+]
+
+
+PERMISSION_BY_CODE = {item["code"]: item for item in PERMISSION_DEFINITIONS}
+
+
+PERMISSION_IMPLICATIONS = {
+    "caja_turnos_editar": ["caja_admin"],
+    "caja_retiro_base": ["caja_turno"],
+    "inventarios_fotos": ["inventarios_editar"],
+    "sucursales_ver": ["sucursales_editar", "sucursales_eliminar"],
+    "categorias_ver": ["categorias_editar", "categorias_eliminar"],
+    "productos_ver": ["productos_editar", "productos_eliminar"],
+    "inventarios_ver": ["inventarios_editar", "inventarios_eliminar", "inventarios_fotos"],
+    "proveedores_ver": ["proveedores_editar", "proveedores_eliminar"],
+    "precios_proveedor_ver": ["precios_proveedor_editar", "precios_proveedor_eliminar"],
+    "puntos_pago_ver": ["puntos_pago_editar", "puntos_pago_eliminar"],
+    "roles_ver": ["roles_editar", "roles_eliminar"],
+    "usuarios_ver": ["usuarios_editar", "usuarios_eliminar"],
+    "empleados_ver": ["empleados_editar", "empleados_eliminar"],
+    "horarios_ver": ["horarios_editar", "horarios_eliminar"],
+    "horarios_caja_ver": ["horarios_caja_editar", "horarios_caja_eliminar"],
+    "horarios_empleados_ver": ["horarios_empleados_editar"],
+    "clientes_ver": ["clientes_editar", "clientes_eliminar"],
+    "pedidos_ver": ["pedidos_editar", "pedidos_eliminar"],
+}
+
+
+ROUTE_PERMISSIONS = {
+    "agregar_sucursal": "sucursales_crear",
+    "visualizar_sucursales": "sucursales_ver",
+    "editar_sucursal": "sucursales_editar",
+    "eliminar_sucursal": "sucursales_eliminar",
+    "agregar_categoria": "categorias_crear",
+    "visualizar_categorias": "categorias_ver",
+    "editar_categoria": "categorias_editar",
+    "eliminar_categoria": "categorias_eliminar",
+    "agregar_producto": "productos_crear",
+    "categoria_autocomplete": "productos_crear",
+    "visualizar_productos": "productos_ver",
+    "productos_datatable": "productos_ver",
+    "editar_producto": "productos_editar",
+    "eliminar_producto": "productos_eliminar",
+    "agregar_inventario": "inventarios_crear",
+    "visualizar_inventarios": "inventarios_ver",
+    "editar_inventario": "inventarios_editar",
+    "inventario_masivo": "inventarios_editar",
+    "inventario_fotos": "inventarios_fotos",
+    "inventario_fotos_catalogo": "inventarios_fotos",
+    "inventario_fotos_proveedor_lookup": "inventarios_fotos",
+    "inventario_fotos_procesar": "inventarios_fotos",
+    "inventario_fotos_confirmar": "inventarios_fotos",
+    "inventario_plaza_whatsapp": "inventario_plaza_whatsapp",
+    "inventario_item_ajax": "inventarios_editar",
+    "producto_inventario_autocomplete": "inventarios_crear",
+    "sucursal_inventario_agregar_autocomplete": "inventarios_crear",
+    "sucursal_sin_inventario_autocomplete": "inventarios_crear",
+    "sucursal_con_inventario_autocomplete": "inventarios_ver",
+    "sucursal_inventario_autocomplete": "inventarios_editar",
+    "producto_inventario_buscar_nombre": "inventarios_ver",
+    "producto_inventario_buscar_barras": "inventarios_ver",
+    "producto_inventario_buscar_id": "inventarios_ver",
+    "producto_buscar_nombre_simple": "inventarios_editar",
+    "producto_buscar_barras_simple": "inventarios_editar",
+    "producto_buscar_id_simple": "inventarios_editar",
+    "sucursal_autocomplete_simple": "inventarios_editar",
+    "producto_detalle_inventario": "inventarios_ver",
+    "eliminar_producto_inventario": "inventarios_eliminar",
+    "agregar_proveedor": "proveedores_crear",
+    "visualizar_proveedores": "proveedores_ver",
+    "editar_proveedor": "proveedores_editar",
+    "eliminar_proveedor": "proveedores_eliminar",
+    "agregar_productos_precios_proveedor": "precios_proveedor_crear",
+    "proveedor_precios_autocomplete": "precios_proveedor_crear",
+    "producto_precios_autocomplete": "precios_proveedor_crear",
+    "visualizar_productos_precios_proveedores": "precios_proveedor_ver",
+    "proveedor_con_productos_autocomplete": "precios_proveedor_ver",
+    "editar_productos_precios_proveedor": "precios_proveedor_editar",
+    "eliminar_precio_proveedor": "precios_proveedor_eliminar",
+    "agregar_punto_pago": "puntos_pago_crear",
+    "sucursal_punto_pago_autocomplete": "puntos_pago_crear",
+    "visualizar_puntos_pago": "puntos_pago_ver",
+    "sucursal_punto_pago_visualizar_autocomplete": "puntos_pago_ver",
+    "editar_puntos_pago": "puntos_pago_editar",
+    "sucursal_editar_punto_pago_autocomplete": "puntos_pago_editar",
+    "eliminar_punto_pago": "puntos_pago_eliminar",
+    "agregar_rol": "roles_crear",
+    "visualizar_roles": "roles_ver",
+    "editar_rol": "roles_editar",
+    "eliminar_rol": "roles_eliminar",
+    "agregar_usuario": "usuarios_crear",
+    "rol_autocomplete_usuarios": "usuarios_crear",
+    "visualizar_usuarios": "usuarios_ver",
+    "editar_usuario": "usuarios_editar",
+    "eliminar_usuario": "usuarios_eliminar",
+    "agregar_empleado": "empleados_crear",
+    "usuario_autocomplete": "empleados_crear",
+    "empleado_sucursal_autocomplete": "empleados_crear",
+    "visualizar_empleados": "empleados_ver",
+    "editar_empleado": "empleados_editar",
+    "eliminar_empleado": "empleados_eliminar",
+    "agregar_horario": "horarios_crear",
+    "calendario_empleados": "horarios_empleados_ver",
+    "calendario_empleados_datos": "horarios_empleados_ver",
+    "guardar_turno_empleado": "horarios_empleados_editar",
+    "crear_rotacion_empleados": "horarios_empleados_editar",
+    "horarios_sucursal_autocomplete": "horarios_crear",
+    "visualizar_horarios": "horarios_ver",
+    "sucursal_horario_visualizar_autocomplete": "horarios_ver",
+    "editar_horarios": "horarios_editar",
+    "eliminar_horario": "horarios_eliminar",
+    "agregar_horario_caja": "horarios_caja_crear",
+    "sucursal_horario_caja_autocomplete": "horarios_caja_crear",
+    "puntopago_horario_caja_autocomplete": "horarios_caja_crear",
+    "visualizar_horarios_cajas": "horarios_caja_ver",
+    "visualizar_horarios_cajas_sucursal_autocomplete": "horarios_caja_ver",
+    "visualizar_horarios_cajas_puntopago_autocomplete": "horarios_caja_ver",
+    "editar_horarios_cajas": "horarios_caja_editar",
+    "sucursal_caja_editar_autocomplete": "horarios_caja_editar",
+    "puntopago_caja_editar_autocomplete": "horarios_caja_editar",
+    "eliminar_horario_caja": "horarios_caja_eliminar",
+    "agregar_cliente": "clientes_crear",
+    "visualizar_clientes": "clientes_ver",
+    "editar_cliente": "clientes_editar",
+    "eliminar_cliente": "clientes_eliminar",
+    "generar_venta": "ventas_generar",
+    "claves_descuento_merk2888": "descuentos_especiales_generar",
+    "cliente_autocomplete": "ventas_generar",
+    "sucursal_autocomplete": "ventas_generar",
+    "puntopago_autocomplete": "ventas_generar",
+    "producto_autocomplete": "ventas_generar",
+    "producto_autocomplete_id": "ventas_generar",
+    "producto_autocomplete_codigo": "ventas_generar",
+    "producto_autocomplete_barras": "ventas_generar",
+    "producto_autocomplete_global": "ventas_generar",
+    "producto_snapshot": "ventas_generar",
+    "verificar_producto": "ventas_generar",
+    "buscar_producto_por_codigo": "ventas_generar",
+    "abrir_caja": "ventas_generar",
+    "venta_carrito_limpio_audit": "ventas_generar",
+    "imprimir_factura": "ventas_ver",
+    "ticket_texto": "ventas_ver",
+    "visualizar_ventas": "ventas_ver",
+    "ventas_datatable": "ventas_ver",
+    "ventas_no_realizadas": "ventas_no_realizadas",
+    "ver_venta": "ventas_ver",
+    "visualizar_cambios": "ventas_cambios",
+    "ventas_diarias": "ventas_diarias",
+    "ventas_diarias_stats": "ventas_diarias",
+    "sucursal_ventas_autocomplete": "ventas_diarias",
+    "puntopago_ventas_autocomplete": "ventas_diarias",
+    "reporte_ventas_producto": "reportes_ventas_producto",
+    "ventas_producto_data": "reportes_ventas_producto",
+    "producto_ventas_stats": "reportes_ventas_producto",
+    "metricas_negocio": "metricas_negocio",
+    "metricas_negocio_data": "metricas_negocio",
+    "nequi_notificaciones": "nequi_notificaciones",
+    "nequi_notificaciones_data": "nequi_notificaciones",
+    "nequi_notificacion_eliminar": "nequi_notificaciones_eliminar",
+    "nequi_notificaciones_eliminar_seleccionadas": "nequi_notificaciones_eliminar",
+    "nequi_notificaciones_disponibles": "ventas_generar",
+    "agregar_pedido": "pedidos_crear",
+    "pedido_sucursal_autocomplete": "pedidos_crear",
+    "producto_pedido_autocomplete": "pedidos_crear",
+    "visualizar_pedidos": "pedidos_ver",
+    "ver_pedido": "pedidos_ver",
+    "editar_pedido": "pedidos_editar",
+    "eliminar_pedido": "pedidos_eliminar",
+    "pedidos_pagados": "reportes_pedidos_pagados",
+    "sucursal_con_pedidos_pagados_autocomplete": "reportes_pedidos_pagados",
+    "puntopago_con_pedidos_pagados_autocomplete": "reportes_pedidos_pagados",
+    "turno_caja": "caja_turno",
+    "turno_caja_cierre_pagos": "caja_turno",
+    "turno_caja_cierre_efectivo": "caja_turno",
+    "turno_caja_cierre_medios": "caja_turno",
+    "operaciones_ptm": "caja_turno",
+    "turno_recuperar_o_iniciar": "caja_turno",
+    "turno_caja_puntopago_ac": "caja_turno",
+    "turno_caja_cajero_ac": "caja_turno",
+    "turno_caja_iniciar": "caja_turno",
+    "turno_caja_iniciar_cierre": "caja_turno",
+    "turno_caja_cerrar": "caja_turno",
+    "turno_caja_retiro_actual": "caja_retiro_base",
+    "turno_caja_retiro": "caja_retiro_base",
+    "turnos_caja_dashboard": "caja_dashboard",
+    "api_turnos_caja_list": "caja_dashboard",
+    "api_turno_caja_detail": "caja_dashboard",
+    "turnos_caja_admin": "caja_turnos_editar",
+    "api_admin_turno_detail": "caja_turnos_editar",
+    "api_admin_turno_update": "caja_turnos_editar",
+    "api_admin_turno_delete": "caja_admin",
+    "visualizar_permisos": "seguridad_permisos",
+    "roles_permisos": "seguridad_permisos",
+    "rol_autocomplete": "seguridad_permisos",
+    "permiso_autocomplete": "seguridad_permisos",
+    "visualizar_roles_permisos": "seguridad_permisos",
+    "rol_con_permisos_autocomplete": "seguridad_permisos",
+    "editar_roles_permisos": "seguridad_permisos",
+    "permiso_para_rol_autocomplete": "seguridad_permisos",
+    "eliminar_rol_permiso": "seguridad_permisos",
+    "usuarios_permisos": "seguridad_permisos",
+    "configuracion_funcionalidades": "configuracion_funcionalidades",
+    "configuracion_impresion": "configuracion_impresion",
+    "configuracion_metodos_pago": "configuracion_metodos_pago",
+    "configuracion_telegram_bot": "configuracion_telegram_bot",
+}
+
+
+ROUTE_PERMISSION_ALTERNATIVES = {
+    "operaciones_ptm": ["caja_turno", "caja_turnos_editar"],
+    "ver_venta": ["ventas_ver", "ventas_imprimir", "ventas_cambios"],
+    "ticket_texto": ["ventas_ver", "ventas_imprimir", "ventas_cambios"],
+    "imprimir_factura": ["ventas_generar", "ventas_ver", "ventas_imprimir", "ventas_cambios"],
+    "proveedor_precios_autocomplete": ["precios_proveedor_crear", "precios_proveedor_editar"],
+    "producto_precios_autocomplete": ["precios_proveedor_crear", "precios_proveedor_editar"],
+    "categoria_autocomplete": ["productos_crear", "productos_editar"],
+    "producto_autocomplete_global": ["ventas_generar", "ventas_ver"],
+    "proveedor_con_productos_autocomplete": [
+        "precios_proveedor_ver",
+        "pedidos_crear",
+        "pedidos_editar",
+    ],
+    "rol_autocomplete_usuarios": ["usuarios_crear", "usuarios_editar"],
+    "usuario_autocomplete": ["empleados_crear", "empleados_editar"],
+    "empleado_sucursal_autocomplete": ["empleados_crear", "empleados_editar"],
+    "horarios_sucursal_autocomplete": ["horarios_crear", "horarios_editar"],
+    "puntopago_horario_caja_autocomplete": ["horarios_caja_crear", "pedidos_editar"],
+    "pedido_sucursal_autocomplete": ["pedidos_crear", "pedidos_editar"],
+    "producto_pedido_autocomplete": ["pedidos_crear", "pedidos_editar"],
+    "sucursal_autocomplete_simple": ["inventarios_editar", "inventarios_fotos"],
+    "inventario_plaza_whatsapp": ["inventario_plaza_whatsapp", "inventarios_ver", "inventarios_editar", "inventarios_fotos"],
+    "producto_inventario_buscar_nombre": ["inventarios_ver", "inventarios_editar", "inventarios_fotos", "reportes_ventas_producto"],
+    "producto_inventario_buscar_barras": ["inventarios_ver", "inventarios_editar", "inventarios_fotos", "reportes_ventas_producto"],
+    "producto_inventario_buscar_id": ["inventarios_ver", "inventarios_editar", "inventarios_fotos", "reportes_ventas_producto"],
+    "producto_detalle_inventario": ["inventarios_ver", "inventarios_editar"],
+}
+
+
+NAV_GROUPS = [
+    {"label": "Inicio", "url_name": "home"},
+    {"label": "Metricas", "url_name": "metricas_negocio"},
+    {
+        "label": "Sucursales",
+        "children": [
+            {"label": "Agregar sucursal", "url_name": "agregar_sucursal"},
+            {"label": "Visualizar sucursales", "url_name": "visualizar_sucursales"},
+        ],
+    },
+    {
+        "label": "Categorias",
+        "children": [
+            {"label": "Agregar categoria", "url_name": "agregar_categoria"},
+            {"label": "Visualizar categorias", "url_name": "visualizar_categorias"},
+        ],
+    },
+    {
+        "label": "Productos",
+        "children": [
+            {"label": "Agregar producto", "url_name": "agregar_producto"},
+            {"label": "Visualizar productos", "url_name": "visualizar_productos"},
+        ],
+    },
+    {
+        "label": "Inventarios",
+        "children": [
+            {"label": "Agregar inventario", "url_name": "agregar_inventario"},
+            {"label": "Visualizar inventarios", "url_name": "visualizar_inventarios"},
+            {"label": "Inventario masivo", "url_name": "inventario_masivo"},
+            {"label": "Inventario desde fotos", "url_name": "inventario_fotos"},
+            {"label": "Inventario plaza WhatsApp", "url_name": "inventario_plaza_whatsapp"},
+        ],
+    },
+    {
+        "label": "Proveedores",
+        "children": [
+            {"label": "Agregar proveedor", "url_name": "agregar_proveedor"},
+            {"label": "Visualizar proveedores", "url_name": "visualizar_proveedores"},
+        ],
+    },
+    {
+        "label": "Precios Proveedor",
+        "children": [
+            {"label": "Agregar precios", "url_name": "agregar_productos_precios_proveedor"},
+            {"label": "Visualizar precios", "url_name": "visualizar_productos_precios_proveedores"},
+        ],
+    },
+    {
+        "label": "Puntos de Pago",
+        "children": [
+            {"label": "Agregar punto de pago", "url_name": "agregar_punto_pago"},
+            {"label": "Visualizar puntos", "url_name": "visualizar_puntos_pago"},
+        ],
+    },
+    {
+        "label": "Usuarios",
+        "children": [
+            {"label": "Agregar usuario", "url_name": "agregar_usuario"},
+            {"label": "Visualizar usuarios", "url_name": "visualizar_usuarios"},
+        ],
+    },
+    {
+        "label": "Empleados",
+        "children": [
+            {"label": "Agregar empleado", "url_name": "agregar_empleado"},
+            {"label": "Visualizar empleados", "url_name": "visualizar_empleados"},
+        ],
+    },
+    {
+        "label": "Horarios",
+        "children": [
+            {"label": "Mi horario", "url_name": "mi_horario"},
+            {"label": "Calendario de empleados", "url_name": "calendario_empleados"},
+            {"label": "Agregar horario", "url_name": "agregar_horario"},
+            {"label": "Visualizar horarios", "url_name": "visualizar_horarios"},
+        ],
+    },
+    {
+        "label": "Horarios de Cajas",
+        "children": [
+            {"label": "Agregar horario de caja", "url_name": "agregar_horario_caja"},
+            {"label": "Visualizar horarios de cajas", "url_name": "visualizar_horarios_cajas"},
+        ],
+    },
+    {
+        "label": "Clientes",
+        "children": [
+            {"label": "Agregar cliente", "url_name": "agregar_cliente"},
+            {"label": "Visualizar clientes", "url_name": "visualizar_clientes"},
+        ],
+    },
+    {
+        "label": "Ventas",
+        "children": [
+            {"label": "Generar venta", "url_name": "generar_venta"},
+            {"label": "Consultar productos (cajeros)", "url_name": "visor_cajero"},
+            {"label": "Claves merk2888", "url_name": "claves_descuento_merk2888"},
+            {"label": "Visualizar ventas", "url_name": "visualizar_ventas"},
+            {"label": "Ventas no realizadas", "url_name": "ventas_no_realizadas"},
+            {"label": "Cambios / Devoluciones", "url_name": "visualizar_cambios"},
+            {"label": "Ventas diarias", "url_name": "ventas_diarias"},
+            {"label": "Ventas por producto", "url_name": "reporte_ventas_producto"},
+        ],
+    },
+    {
+        "label": "Pedidos",
+        "children": [
+            {"label": "Agregar pedido", "url_name": "agregar_pedido"},
+            {"label": "Visualizar pedidos", "url_name": "visualizar_pedidos"},
+            {"label": "Pedidos pagados", "url_name": "pedidos_pagados"},
+        ],
+    },
+    {
+        "label": "Caja",
+        "children": [
+            {"label": "Turno de caja", "url_name": "turno_caja"},
+            {"label": "Operaciones PTM", "url_name": "operaciones_ptm"},
+            {"label": "Registrar pago", "url_name": "registrar_egreso"},
+            {"label": "Retiro base de caja", "url_name": "turno_caja_retiro_actual"},
+            {"label": "Dashboard turnos", "url_name": "turnos_caja_dashboard"},
+            {"label": "Admin turnos", "url_name": "turnos_caja_admin"},
+            {"label": "Notificaciones Nequi", "url_name": "nequi_notificaciones"},
+        ],
+    },
+    {
+        "label": "Seguridad",
+        "children": [
+            {"label": "Agregar rol", "url_name": "agregar_rol"},
+            {"label": "Visualizar roles", "url_name": "visualizar_roles"},
+            {"label": "Visualizar permisos", "url_name": "visualizar_permisos"},
+            {"label": "Asignar roles-permisos", "url_name": "roles_permisos"},
+            {"label": "Visualizar relaciones", "url_name": "visualizar_roles_permisos"},
+            {"label": "Permisos por usuario", "url_name": "usuarios_permisos"},
+            {"label": "Funcionalidades del sistema", "url_name": "configuracion_funcionalidades"},
+            {"label": "Configuración de impresión", "url_name": "configuracion_impresion"},
+            {"label": "Métodos de pago", "url_name": "configuracion_metodos_pago"},
+            {"label": "Bot inteligente de Telegram", "url_name": "configuracion_telegram_bot"},
+        ],
+    },
+    {"label": "Visor Barcode", "url_name": "visor_barcode"},
+]
+
+
+def normalize_permission_key(value: object) -> str:
+    text = str(value or "").strip().lower()
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^a-z0-9]+", "_", text)
+    return text.strip("_")
+
+
+def _permission_keys_for_definition(code: str) -> Set[str]:
+    definition = PERMISSION_BY_CODE.get(code, {})
+    raw_values = [code, definition.get("label", ""), *definition.get("aliases", [])]
+    return {normalize_permission_key(value) for value in raw_values if value}
+
+
+def _keys_for_db_permission(permission_name: str) -> Set[str]:
+    key = normalize_permission_key(permission_name)
+    keys = {key} if key else set()
+    for definition in PERMISSION_DEFINITIONS:
+        if key in _permission_keys_for_definition(definition["code"]):
+            keys.add(definition["code"])
+            keys.update(_permission_keys_for_definition(definition["code"]))
+    return keys
+
+
+def permission_catalog(*, assignable_only: bool = True) -> List[Dict[str, object]]:
+    """Devuelve el catálogo administrable; las políticas internas no se asignan."""
+    if not assignable_only:
+        return list(PERMISSION_DEFINITIONS)
+    return [
+        definition
+        for definition in PERMISSION_DEFINITIONS
+        if definition.get("assignable", True)
+    ]
+
+
+def is_assignable_permission_name(value: object) -> bool:
+    """Indica si un registro de BD pertenece al catálogo delegable."""
+    key = normalize_permission_key(value)
+    return any(
+        key in _permission_keys_for_definition(definition["code"])
+        for definition in permission_catalog()
+    )
+
+
+def assignable_permissions_queryset():
+    """QuerySet seguro para listas, autocompletes y validación de POST."""
+    assignable_ids = [
+        permission_id
+        for permission_id, name in Permiso.objects.values_list("pk", "nombre")
+        if is_assignable_permission_name(name)
+    ]
+    return Permiso.objects.filter(pk__in=assignable_ids)
+
+
+def sync_permission_catalog() -> int:
+    """Sincroniza únicamente permisos delegables de forma transaccional."""
+    created = 0
+    updated = 0
+    with transaction.atomic():
+        if connection.vendor == "postgresql":
+            # Serializa despliegues/requests concurrentes incluso antes de que
+            # exista el índice único de la migración de saneamiento.
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [2026081601])
+
+        existing_permissions = list(
+            Permiso.objects.select_for_update().order_by("pk")
+        )
+        for definition in permission_catalog():
+            canonical_label = definition["label"]
+            accepted_keys = _permission_keys_for_definition(definition["code"])
+            matches = [
+                permission
+                for permission in existing_permissions
+                if normalize_permission_key(permission.nombre) in accepted_keys
+            ]
+            matches.sort(
+                key=lambda permission: (
+                    permission.nombre.casefold() != canonical_label.casefold(),
+                    permission.pk,
+                )
+            )
+
+            if matches:
+                permission = matches[0]
+            else:
+                permission, was_created = Permiso.objects.get_or_create(
+                    nombre=canonical_label,
+                    defaults={"descripcion": definition["description"]},
+                )
+                if was_created:
+                    created += 1
+                    existing_permissions.append(permission)
+
+            changed_fields = []
+            if permission.nombre != canonical_label:
+                permission.nombre = canonical_label
+                changed_fields.append("nombre")
+            if permission.descripcion != definition["description"]:
+                permission.descripcion = definition["description"]
+                changed_fields.append("descripcion")
+            if changed_fields:
+                permission.save(update_fields=changed_fields)
+                updated += 1
+
+    if created or updated:
+        _bump_permission_cache_version()
+    return created
+
+
+def grant_all_permissions_to_web_master(role_id: Optional[int] = None) -> int:
+    sync_permission_catalog()
+    roles = Rol.objects.all()
+    if role_id is not None:
+        roles = roles.filter(pk=role_id)
+    web_master_roles = [
+        role
+        for role in roles
+        if normalize_permission_key(role.nombre) in WEB_MASTER_ROLE_NAMES
+    ]
+    if not web_master_roles:
+        return 0
+
+    assignable_definitions = permission_catalog()
+    permissions = [
+        permission
+        for permission in Permiso.objects.all()
+        if any(
+            normalize_permission_key(permission.nombre)
+            in _permission_keys_for_definition(definition["code"])
+            for definition in assignable_definitions
+        )
+    ]
+    granted = 0
+    for role in web_master_roles:
+        existing_ids = set(
+            RolPermiso.objects
+            .filter(rol=role)
+            .values_list("permiso_id", flat=True)
+        )
+        missing = [
+            RolPermiso(rol=role, permiso=permission)
+            for permission in permissions
+            if permission.pk not in existing_ids
+        ]
+        if missing:
+            RolPermiso.objects.bulk_create(missing, ignore_conflicts=True)
+            granted += len(missing)
+
+    if granted:
+        _bump_permission_cache_version()
+    return granted
+
+
+def role_name(user) -> str:
+    role_id = getattr(user, "rolid_id", None)
+    if role_id:
+        fields_cache = getattr(getattr(user, "_state", None), "fields_cache", {})
+        if "rolid" in fields_cache:
+            return (getattr(fields_cache.get("rolid"), "nombre", "") or "").strip()
+
+        cache_key = f"mainapp:role-name:{_permission_cache_version()}:{role_id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        try:
+            value = (Rol.objects.filter(pk=role_id).values_list("nombre", flat=True).first() or "").strip()
+        except DatabaseError:
+            value = ""
+        cache.set(cache_key, value, ROLE_NAME_CACHE_SECONDS)
+        return value
+
+    try:
+        return (getattr(getattr(user, "rolid", None), "nombre", "") or "").strip()
+    except Exception:
+        return ""
+
+
+def is_web_master_role(user) -> bool:
+    return normalize_permission_key(role_name(user)) in WEB_MASTER_ROLE_NAMES
+
+
+def is_privileged_role_name(value: object) -> bool:
+    normalized = normalize_permission_key(value)
+    return normalized in WEB_MASTER_ROLE_NAMES or normalized in ADMIN_ROLE_NAMES
+
+
+def is_permission_admin(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+        return True
+    return normalize_permission_key(role_name(user)) in ADMIN_ROLE_NAMES
+
+
+def _permission_cache_version() -> str:
+    version = cache.get(PERMISSION_CACHE_VERSION_KEY)
+    if version is None:
+        version = str(time.time_ns())
+        cache.add(PERMISSION_CACHE_VERSION_KEY, version, None)
+    return str(version)
+
+
+def _bump_permission_cache_version() -> None:
+    cache.set(PERMISSION_CACHE_VERSION_KEY, str(time.time_ns()), None)
+
+
+def _user_permission_cache_key(user) -> str:
+    return ":".join([
+        "mainapp:permission-state",
+        _permission_cache_version(),
+        str(getattr(user, "pk", "anon") or "anon"),
+        str(getattr(user, "rolid_id", "") or "none"),
+        "1" if getattr(user, "is_staff", False) else "0",
+        "1" if getattr(user, "is_superuser", False) else "0",
+    ])
+
+
+def _serializable_permission_state(state: Dict[str, Set[str]]) -> Dict[str, tuple]:
+    return {key: tuple(sorted(values)) for key, values in state.items()}
+
+
+def _permission_state_from_cache(cached) -> Optional[Dict[str, Set[str]]]:
+    if not isinstance(cached, dict):
+        return None
+    return {
+        "role": set(cached.get("role") or ()),
+        "allow": set(cached.get("allow") or ()),
+        "deny": set(cached.get("deny") or ()),
+    }
+
+
+def _load_permission_state(user) -> Dict[str, Set[str]]:
+    cache_name = "_mainapp_permission_state"
+    cached = getattr(user, cache_name, None)
+    if cached is not None:
+        return cached
+
+    state = {"role": set(), "allow": set(), "deny": set()}
+    if not getattr(user, "is_authenticated", False):
+        setattr(user, cache_name, state)
+        return state
+
+    cache_key = _user_permission_cache_key(user)
+    cached_state = _permission_state_from_cache(cache.get(cache_key))
+    if cached_state is not None:
+        setattr(user, cache_name, cached_state)
+        return cached_state
+
+    try:
+        role_id = getattr(user, "rolid_id", None)
+        if role_id:
+            role_names = (
+                RolPermiso.objects
+                .filter(rol_id=role_id)
+                .select_related("permiso")
+                .values_list("permiso__nombre", flat=True)
+            )
+            for permission_name in role_names:
+                state["role"].update(_keys_for_db_permission(permission_name))
+    except DatabaseError:
+        state["role"] = set()
+
+    try:
+        from .models import UsuarioPermiso
+
+        direct_rows = (
+            UsuarioPermiso.objects
+            .filter(usuario_id=getattr(user, "pk", None))
+            .select_related("permiso")
+            .values_list("permiso__nombre", "permitido")
+        )
+        for permission_name, allowed in direct_rows:
+            target = "allow" if allowed else "deny"
+            state[target].update(_keys_for_db_permission(permission_name))
+    except DatabaseError:
+        state["allow"] = set()
+        state["deny"] = set()
+
+    cache.set(cache_key, _serializable_permission_state(state), PERMISSION_CACHE_SECONDS)
+    setattr(user, cache_name, state)
+    return state
+
+
+def clear_permission_cache(user=None) -> None:
+    if user is not None and hasattr(user, "_mainapp_permission_state"):
+        delattr(user, "_mainapp_permission_state")
+    _bump_permission_cache_version()
+
+
+def user_has_permission(user, code: Optional[str]) -> bool:
+    if not code:
+        return True
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
+        return True
+
+    wanted = _permission_keys_for_definition(code)
+    wanted.add(normalize_permission_key(code))
+    state = _load_permission_state(user)
+
+    if state["deny"] & wanted:
+        return False
+    if is_permission_admin(user):
+        return True
+    if state["allow"] & wanted:
+        return True
+    if state["role"] & wanted:
+        return True
+
+    for parent_code in PERMISSION_IMPLICATIONS.get(code, []):
+        parent_wanted = _permission_keys_for_definition(parent_code)
+        parent_wanted.add(normalize_permission_key(parent_code))
+        if state["deny"] & parent_wanted:
+            continue
+        if (state["allow"] & parent_wanted) or (state["role"] & parent_wanted):
+            return True
+
+    return False
+
+
+def user_can_change_sale(user) -> bool:
+    """Misma política para cambios/devoluciones web y Telegram."""
+    if not getattr(user, "is_authenticated", False) or not getattr(user, "is_active", False):
+        return False
+    role = str(getattr(getattr(user, "rolid", None), "nombre", "") or "").strip().lower()
+    # El rol Cajero conserva acceso solo de consulta/impresión de facturas.
+    return role != "cajero" and user_has_permission(user, "ventas_cambios")
+
+
+def route_permission_for_url_name(url_name: Optional[str]) -> Optional[str]:
+    if not url_name or url_name in PUBLIC_URL_NAMES or url_name in ALWAYS_ALLOWED_URL_NAMES:
+        return None
+    return ROUTE_PERMISSIONS.get(url_name)
+
+
+def route_permissions_for_url_name(url_name: Optional[str]) -> List[str]:
+    if not url_name or url_name in PUBLIC_URL_NAMES or url_name in ALWAYS_ALLOWED_URL_NAMES:
+        return []
+    alternatives = ROUTE_PERMISSION_ALTERNATIVES.get(url_name)
+    if alternatives:
+        return alternatives
+    permission = ROUTE_PERMISSIONS.get(url_name)
+    return [permission] if permission else []
+
+
+def user_can_access_url_name(user, url_name: Optional[str]) -> bool:
+    if not url_name:
+        return True
+    if url_name in PUBLIC_URL_NAMES:
+        return True
+    if url_name in ALWAYS_ALLOWED_URL_NAMES:
+        return getattr(user, "is_authenticated", False)
+    if disabled_feature_for_url(url_name):
+        return False
+    if is_web_master_role(user):
+        return True
+    if url_name in WEB_MASTER_ONLY_URL_NAMES:
+        return False
+    permissions = route_permissions_for_url_name(url_name)
+    if not permissions:
+        return True
+    return any(user_has_permission(user, permission) for permission in permissions)
+
+
+def _resolve_nav_item(raw_item: Dict[str, object], user) -> Optional[Dict[str, object]]:
+    url_name = raw_item.get("url_name")
+    if (
+        url_name == "visor_barcode"
+        and getattr(user, "is_authenticated", False)
+    ):
+        url_name = "visor_cajero"
+    if url_name and not user_can_access_url_name(user, str(url_name)):
+        return None
+
+    try:
+        url = reverse(str(url_name), args=raw_item.get("args", [])) if url_name else "#"
+    except NoReverseMatch:
+        return None
+
+    return {
+        "label": raw_item["label"],
+        "url": url,
+        "children": [],
+    }
+
+
+def _nav_cache_key(user) -> str:
+    feature_signature = ",".join(
+        f"{key}:{int(is_feature_enabled(key))}"
+        for key in sorted(FEATURE_REGISTRY)
+    )
+    return ":".join([
+        "mainapp:nav:v3",
+        _permission_cache_version(),
+        feature_signature,
+        str(getattr(user, "pk", "anon") or "anon"),
+        str(getattr(user, "rolid_id", "") or "none"),
+        "1" if getattr(user, "is_staff", False) else "0",
+        "1" if getattr(user, "is_superuser", False) else "0",
+    ])
+
+
+def _visible_nav_menu(user) -> List[Dict[str, object]]:
+    cache_key = _nav_cache_key(user)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    menu = []
+    for raw_group in NAV_GROUPS:
+        children = raw_group.get("children")
+        if not children:
+            item = _resolve_nav_item(raw_group, user)
+            if item:
+                menu.append(item)
+            continue
+
+        visible_children = [
+            child
+            for child in (
+                _resolve_nav_item(raw_child, user)
+                for raw_child in children
+            )
+            if child
+        ]
+        if not visible_children:
+            continue
+
+        group = {
+            "label": raw_group["label"],
+            "url": visible_children[0]["url"],
+            "children": visible_children,
+        }
+        menu.append(group)
+
+    cache.set(cache_key, menu, NAV_CACHE_SECONDS)
+    return menu
+
+
+def _nav_match_score(current_path: str, target_url: str) -> int:
+    if not target_url or target_url == "#":
+        return -1
+    if current_path == target_url:
+        return 100_000 + len(target_url)
+    if target_url == "/":
+        return -1
+    prefix = target_url if target_url.endswith("/") else f"{target_url}/"
+    return len(target_url) if current_path.startswith(prefix) else -1
+
+
+def _mark_nav_active(menu: List[Dict[str, object]], current_path: str) -> List[Dict[str, object]]:
+    path = current_path or ""
+    best_target = None
+    best_score = -1
+
+    for item_index, item in enumerate(menu):
+        children = item.get("children", [])
+        candidates = (
+            ((item_index, child_index), child)
+            for child_index, child in enumerate(children)
+        ) if children else [((item_index, None), item)]
+        for target, candidate in candidates:
+            score = _nav_match_score(path, str(candidate.get("url", "#")))
+            if score > best_score:
+                best_target = target
+                best_score = score
+
+    marked = []
+    for item_index, item in enumerate(menu):
+        children = [
+            {
+                **child,
+                "active": best_target == (item_index, child_index),
+            }
+            for child_index, child in enumerate(item.get("children", []))
+        ]
+        item_active = (
+            any(child["active"] for child in children)
+            if children
+            else best_target == (item_index, None)
+        )
+        marked.append({**item, "active": item_active, "children": children})
+    return marked
+
+
+def build_nav_menu(user, current_path: str) -> List[Dict[str, object]]:
+    if not getattr(user, "is_authenticated", False):
+        return []
+    return _mark_nav_active(_visible_nav_menu(user), current_path)

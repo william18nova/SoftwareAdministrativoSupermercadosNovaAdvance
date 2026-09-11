@@ -1,18 +1,19 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Detalle Venta #{{ venta.ventaid }}{% endblock %}
+{% block title %}Detalle Venta #{{ venta.pk }}{% endblock %}
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}">
-  <link rel="stylesheet" href="{% static 'css/ver_venta.css' %}">
+  <link rel="stylesheet" href="{% static 'css/ver_venta.css' %}?v=3">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 {% endblock %}
 
 {% block content %}
 <div class="venta-card">
   <h1 class="venta-card__title">
     <i class="fas fa-file-invoice-dollar me-2"></i>
-    Detalle de la Venta #{{ venta.ventaid }}
+    Detalle de la Venta #{{ venta.pk }}
   </h1>
 
   <form method="post" id="venta-form">
@@ -21,6 +22,16 @@
     {{ dev_formset.management_form }}
     {{ pagos_formset.management_form }}
     {{ reintegro_formset.management_form }}
+
+    {% if not reintegro_ledger_ready and not venta_print_only %}
+    <div class="reintegro-maintenance" role="alert">
+      <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+      <span>
+        Las devoluciones están temporalmente bloqueadas hasta aplicar la migración 0021.
+        Puedes consultar e imprimir la venta normalmente.
+      </span>
+    </div>
+    {% endif %}
 
     <div class="venta-grid">
       <div>
@@ -34,34 +45,62 @@
 
       <div>
         <label for="id_mediopago">Medio de Pago</label>
+        {% if venta_print_only or beneficio_merk2888 %}
+          <input
+            readonly
+            {% if not beneficio_merk2888 %}data-payment-method-code="{{ venta.mediopago|lower }}"{% endif %}
+            value="{% if beneficio_merk2888 %}Sin pago · beneficio 100%{% elif venta.mediopago == 'tarjeta' or venta.mediopago == 'banco_caja_social' %}Tarjeta / Banco Caja Social{% else %}{{ venta.mediopago|cut:'_'|title }}{% endif %}">
+        {% else %}
+        {% with mp=venta.mediopago|lower %}
         <select name="mediopago" id="id_mediopago">
-          <option value="efectivo" {% if venta.mediopago == "efectivo" %}selected{% endif %}>Efectivo</option>
-          <option value="nequi" {% if venta.mediopago == "nequi" %}selected{% endif %}>Nequi</option>
-          <option value="daviplata" {% if venta.mediopago == "daviplata" %}selected{% endif %}>Daviplata</option>
-          <option value="tarjeta" {% if venta.mediopago == "tarjeta" %}selected{% endif %}>Tarjeta</option>
-          <option value="banco_caja_social" {% if venta.mediopago == "banco_caja_social" %}selected{% endif %}>Banco Caja Social</option>
-          <option value="mixto" {% if venta.mediopago == "mixto" %}selected{% endif %}>Mixto</option>
+          {% for method in payment_methods %}
+          <option value="{{ method.code }}"
+                  data-payment-method-active="{{ method.active|yesno:'1,0' }}"
+                  {% if not method.active and method.code != mp %}disabled{% endif %}
+                  {% if method.code == mp %}selected{% endif %}>
+            {{ method.label }}{% if not method.active %} (inactivo){% endif %}
+          </option>
+          {% empty %}
+          <option value="efectivo" {% if mp == "efectivo" %}selected{% endif %}>Efectivo</option>
+          <option value="nequi" {% if mp == "nequi" %}selected{% endif %}>Nequi</option>
+          <option value="daviplata" {% if mp == "daviplata" %}selected{% endif %}>Daviplata</option>
+          <option value="tarjeta" {% if mp == "tarjeta" or mp == "banco_caja_social" %}selected{% endif %}>Tarjeta / Banco Caja Social</option>
+          {% endfor %}
+          <option value="mixto" {% if mp == "mixto" %}selected{% endif %}>Mixto</option>
         </select>
+        {% endwith %}
+        {% endif %}
+        {% if nequi_payment %}
+          <div class="nequi-detail-status {% if nequi_linked %}nequi-detail-status--linked{% else %}nequi-detail-status--unlinked{% endif %}"
+               title="{% if nequi_linked %}Notificación Nequi #{{ nequi_notification_id }} vinculada{% else %}Esta venta no tiene una notificación Nequi vinculada{% endif %}">
+            <i class="fas {% if nequi_linked %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}" aria-hidden="true"></i>
+            <span>Nequi {% if nequi_linked %}vinculado{% else %}no vinculado{% endif %}</span>
+          </div>
+        {% endif %}
       </div>
 
       <div>
         <label>Cliente</label>
         <input readonly value="{% if venta.clienteid %}{{ venta.clienteid.nombre }} {{ venta.clienteid.apellido }}{% else %}N/A{% endif %}">
       </div>
+
       <div>
         <label>Empleado</label>
         <input readonly value="{{ venta.empleadoid.nombre }} {{ venta.empleadoid.apellido }}">
       </div>
+
       <div>
         <label>Sucursal</label>
         <input readonly value="{{ venta.sucursalid.nombre }}">
       </div>
+
       <div>
         <label>Punto de Pago</label>
         <input readonly value="{{ venta.puntopagoid.nombre }}">
       </div>
     </div>
 
+    {% if not venta_print_only %}
     <!-- ===================== PAGO MIXTO: COMO SE PAGO ===================== -->
     <div id="bloque-mixto-pagos"
          class="mixto-card"
@@ -73,8 +112,9 @@
       <div class="mixto-grid">
         {% for f in pagos_formset.forms %}
           <div class="mixto-row">
-            <span class="mixto-label">
-              {{ f.medio_pago.value|cut:"_"|title }}
+            <span class="mixto-label"
+                  data-payment-method-code="{{ f.medio_pago.value|lower }}">
+              {{ f.payment_method_label }}
             </span>
             <div class="mixto-input">
               {{ f.monto }}
@@ -85,7 +125,7 @@
       </div>
 
       <div class="mixto-summary">
-        Total venta: <strong>$<span id="mixto-total-venta">{{ venta.total|floatformat:2 }}</span></strong>
+        Total pagado originalmente: <strong>$<span id="mixto-total-venta">{{ venta_total_cobrado|floatformat:2 }}</span></strong>
         &nbsp;|&nbsp;
         Suma pagos: <strong>$<span id="mixto-suma-pagos">0.00</span></strong>
       </div>
@@ -96,6 +136,7 @@
 
       <div class="mixto-error" id="mixto-error-pagos" style="display:none;"></div>
     </div>
+    {% endif %}
 
     <h2 class="venta-card__subtitle">Productos</h2>
 
@@ -107,66 +148,123 @@
             <th class="text-end">Cant.</th>
             <th class="text-end">Precio U.</th>
             <th class="text-end">Subtotal</th>
+            {% if not venta_print_only %}
             <th class="text-end">Devolver</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
           {% for det, f in filas %}
-          <tr data-precio="{{ det.preciounitario }}">
+          <tr data-precio="{{ det.preciounitario }}" data-cantidad="{{ det.cantidad }}">
             <td>{{ det.productoid.nombre }}</td>
             <td class="text-end">{{ det.cantidad }}</td>
             <td class="text-end">${{ det.preciounitario|floatformat:2 }}</td>
             <td class="text-end">${{ det.subtotal|floatformat:2 }}</td>
+            {% if not venta_print_only %}
             <td class="text-end">
               {{ f.devolver }} {{ f.detalle_id }}
             </td>
+            {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="empty">Sin productos</td></tr>
+          <tr><td colspan="{% if venta_print_only %}4{% else %}5{% endif %}" class="empty">Sin productos</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
+    {% if not venta_print_only %}
     <!-- ===================== REINTEGRO MIXTO: CON QUE MEDIOS SE DEVUELVE ===================== -->
     <div id="bloque-mixto-reintegro"
          class="mixto-card"
-         style="{% if es_mixto %}display:block;{% else %}display:none;{% endif %}">
+         style="display:none;">
       <h2 class="mixto-title">
-        <i class="fas fa-undo me-2"></i> Devolución por medio de pago (mixto)
+        <i class="fas fa-money-bill-transfer me-2"></i> ¿Por qué medio entregaste el dinero?
       </h2>
+
+      <p class="reintegro-explanation">
+        Por defecto, todo el dinero se asigna a Efectivo. Cámbialo solamente si
+        la devolución salió por otro medio o si necesitas repartirla.
+      </p>
 
       <div class="mixto-summary">
         Total a devolver: <strong>$<span id="reintegro-total">0.00</span></strong>
         &nbsp;|&nbsp;
-        Suma inputs: <strong>$<span id="reintegro-suma">0.00</span></strong>
+        Suma distribuida: <strong>$<span id="reintegro-suma">0.00</span></strong>
       </div>
 
       <div class="mixto-grid">
         {% for f in reintegro_formset.forms %}
           <div class="mixto-row">
-            <span class="mixto-label">
-              {{ f.medio_pago.value|cut:"_"|title }}
+            <span class="mixto-label"
+                  data-payment-method-code="{{ f.medio_pago.value|lower }}">
+              {{ f.payment_method_label }}
             </span>
             <div class="mixto-input">
               {{ f.monto }}
               {{ f.medio_pago }}
+              <button type="button"
+                      class="reintegro-todo"
+                      data-reintegro-target="{{ f.monto.id_for_label }}">
+                Todo aquí
+              </button>
             </div>
           </div>
         {% endfor %}
       </div>
 
       <small class="mixto-hint">
-        Si devuelves productos, debes repartir el valor entre uno o varios medios.
-        La suma debe ser EXACTA al total a devolver.
+        Puedes usar un solo medio o repartir la devolución entre varios. La suma
+        debe ser exactamente igual al total a devolver.
       </small>
 
       <div class="mixto-error" id="mixto-error-reintegro" style="display:none;"></div>
     </div>
+    {% endif %}
+
+    {% if beneficio_merk2888 %}
+    <div class="reintegro-maintenance" role="status">
+      <i class="fas fa-gift" aria-hidden="true"></i>
+      <span>
+        Beneficio merk2888 del 100% aplicado con una clave de un solo uso.
+        {% if autorizacion_merk2888.usada_en %}
+          Autorizado el {{ autorizacion_merk2888.usada_en|date:"d/m/Y H:i" }}.
+        {% endif %}
+      </span>
+    </div>
+    {% endif %}
+
+    {% if reintegros %}
+    <section class="reintegro-history" aria-labelledby="reintegro-history-title">
+      <h2 id="reintegro-history-title" class="mixto-title">
+        <i class="fas fa-clock-rotate-left me-2"></i> Dinero devuelto anteriormente
+      </h2>
+      <div class="reintegro-history__list">
+        {% for reintegro in reintegros %}
+        <div class="reintegro-history__item">
+          <span data-payment-method-code="{{ reintegro.medio_pago|lower }}">
+            {{ reintegro.payment_method_label }}
+          </span>
+          <strong>-${{ reintegro.monto|floatformat:2 }}</strong>
+          <small>
+            {% if reintegro.turno_id %}
+              Turno #{{ reintegro.turno_id }}
+            {% else %}
+              Sin turno · modo directo
+            {% endif %}
+            · {{ reintegro.creado_en|date:"d/m/Y H:i" }}
+          </small>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
 
     <div class="venta-footer">
       <h3>Total actual: <span>${{ venta.total|floatformat:2 }}</span></h3>
+
       <div class="btn-group">
+        {% if not venta_print_only %}
         <button type="submit" class="btn-primary-alt" name="accion" value="guardar">
           <i class="fas fa-save me-1"></i> Guardar cambios / devolución
         </button>
@@ -175,6 +273,17 @@
           <i class="fas fa-list me-1"></i> Volver a la lista
         </button>
 
+        {% endif %}
+
+        {% if venta_print_only %}
+        <a href="{{ venta_solicitud_cambio_whatsapp_url }}"
+           class="btn-whatsapp-change"
+           target="_blank"
+           rel="noopener noreferrer">
+          <i class="fab fa-whatsapp me-1"></i> Solicitar cambio/devolución
+        </a>
+        {% endif %}
+
         <button type="button"
                 id="btn-imprimir-factura"
                 class="btn-primary"
@@ -182,6 +291,26 @@
           <i class="fas fa-print me-1"></i> Imprimir factura
         </button>
       </div>
+
+      {% if venta_print_only %}
+      <div class="venta-whatsapp-qr">
+        <div class="venta-whatsapp-qr__copy">
+          <strong>Solicitud por WhatsApp</strong>
+          <span>Escanea este QR para pedir el cambio/devolucion de esta venta.</span>
+        </div>
+        <a href="{{ venta_solicitud_cambio_whatsapp_url }}"
+           class="venta-whatsapp-qr__link"
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="Abrir solicitud de cambio o devolucion por WhatsApp">
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data={{ venta_solicitud_cambio_whatsapp_url|urlencode }}"
+            alt="QR para solicitar cambio o devolucion por WhatsApp"
+            loading="lazy"
+            decoding="async">
+        </a>
+      </div>
+      {% endif %}
     </div>
 
   </form>
@@ -189,11 +318,24 @@
 
 <script>
   window.VENTA_TOTAL = "{{ venta.total|floatformat:2 }}";
+  window.VENTA_TOTAL_COBRADO = "{{ venta_total_cobrado|floatformat:2 }}";
+  window.REINTEGRO_LEDGER_READY = {% if reintegro_ledger_ready %}true{% else %}false{% endif %};
+  window.ticketTextoUrl = "{% url 'ticket_texto' %}";
   window.imprimirFacturaUrl = "{% url 'imprimir_factura' %}";
-  window.ticketTextoUrl     = "{% url 'ticket_texto' %}";
-  window.POS_AGENT_URL      = "{{ POS_AGENT_URL|default:'http://127.0.0.1:8787'|escapejs }}".trim();
-  window.POS_AGENT_TOKEN    = "{{ POS_AGENT_TOKEN|default:''|escapejs }}".trim();
+</script>
+
+{% if payment_method_labels %}
+  {{ payment_method_labels|json_script:"payment-method-labels-data" }}
+{% else %}
+  <script id="payment-method-labels-data" type="application/json">{}</script>
+{% endif %}
+
+<!-- POS Agent (mismo método que generar_venta) -->
+<script>
+  window.POS_AGENT_URL   = "{{ POS_AGENT_URL|default:'http://127.0.0.1:8787'|escapejs }}".trim();
+  window.POS_AGENT_TOKEN = "{{ POS_AGENT_TOKEN|default:''|escapejs }}".trim();
   if (!/^https?:\/\//.test(window.POS_AGENT_URL)) window.POS_AGENT_URL = "http://127.0.0.1:8787";
 </script>
-<script src="{% static 'javascript/ver_venta.js' %}"></script>
+
+<script src="{% static 'javascript/ver_venta.js' %}?v=7"></script>
 {% endblock %}

@@ -1,10 +1,12 @@
 # settings.py – perfil simple para runserver local
 from pathlib import Path
 import os
+import sys
+from decouple import Config, RepositoryEnv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 
 SECRET_KEY = "django-insecure-k!0q10!2q+_i^ni9rz#a+8p!%n+um*7k&3+$=in3dom^6uy5as"
 
@@ -30,11 +32,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "mainApp.middleware.PagePermissionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "csp.middleware.CSPMiddleware",  # ✅
@@ -53,7 +56,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "mainApp.context_processors.pos_agent",  
+                "mainApp.context_processors.pos_agent",
+                "mainApp.context_processors.permissions_nav",
             ],
         },
     },
@@ -70,6 +74,19 @@ DATABASES = {
         "HOST": "desarrollo-william84859-1d6e.g.aivencloud.com",
         "PORT": "16802",
         "OPTIONS": {"sslmode": "require"},
+        # `runserver` crea un hilo por solicitud. Mantener conexiones abiertas
+        # en esos hilos agota rápidamente los cupos de la base remota.
+        # Producción puede habilitar persistencia explícitamente con la variable.
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "0")),
+        "CONN_HEALTH_CHECKS": True,
+    }
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "mainapp-fast-cache",
+        "TIMEOUT": 300,
     }
 }
 
@@ -79,8 +96,23 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "mainApp" / "static"]
+# ``mainApp/static`` ya se descubre automáticamente mediante
+# AppDirectoriesFinder porque mainApp está en INSTALLED_APPS. Declararla de
+# nuevo en STATICFILES_DIRS duplicaba cada archivo durante collectstatic.
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# runserver debe servir los CSS/JS fuente y refrescar sus metadatos aunque
+# DEBUG esté desactivado. Así no mezcla plantillas nuevas con copias antiguas
+# de collectstatic ni trunca archivos al actualizar esas copias en caliente.
+# En PythonAnywhere (WSGI) se mantiene el comportamiento de producción.
+WHITENOISE_AUTOREFRESH = DEBUG or "runserver" in sys.argv
+WHITENOISE_USE_FINDERS = WHITENOISE_AUTOREFRESH
+WHITENOISE_MAX_AGE = 0 if WHITENOISE_AUTOREFRESH else 60
+
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 AUTH_USER_MODEL = "mainApp.Usuario"
 LOGIN_URL = "login"
@@ -92,7 +124,7 @@ AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_NAME = "sessionid"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_SAVE_EVERY_REQUEST = os.getenv("SESSION_SAVE_EVERY_REQUEST", "0") == "1"
 
 APPEND_SLASH = True
 
@@ -108,15 +140,24 @@ LOGGING = {
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ("'self'",),
-        "script-src": ("'self'", "https:", "'unsafe-inline'"),   
+        "script-src": ("'self'", "https:", "'unsafe-inline'"),
         "style-src":  ("'self'", "https:", "'unsafe-inline'"),
-        "img-src":    ("'self'", "https:", "data:"),
+        "img-src":    (
+            "'self'",
+            "https:",
+            "data:",
+            "blob:",
+            "http://127.0.0.1:8788",
+            "http://localhost:8788",
+        ),
         "font-src":   ("'self'", "https:", "data:"),
         "connect-src": (
             "'self'",
             "https:",
             "http://127.0.0.1:8787",
             "http://localhost:8787",
+            "http://127.0.0.1:8788",
+            "http://localhost:8788",
         ),
     }
 }
@@ -127,5 +168,100 @@ CONTENT_SECURITY_POLICY = {
 POS_AGENT_URL = os.getenv("POS_AGENT_URL", "http://127.0.0.1:8787")
 POS_AGENT_TOKEN = os.getenv(
     "POS_AGENT_TOKEN",
-    "7f3d9a8c2e1b4d6f9a0c3e5f7b1d2c4e6a8f0b2d4c6e8a0f1b3d5f7a9c1e3d5"
+    "BmFclqQdWkKjArLIYvakHG426BuLDUtJA0zVG5DJOgjZTWSEVa_i0hxiyXskSHUi"
 )
+
+# Token privado que MacroDroid debe enviar en X-Macrodroid-Token.
+MACRODROID_NEQUI_TOKEN = os.getenv("MACRODROID_NEQUI_TOKEN", "")
+
+# ========= Variables del agente local de inventario por fotos =========
+INVENTARIO_AGENT_URL = os.getenv("INVENTARIO_AGENT_URL", "http://127.0.0.1:8788")
+INVENTARIO_AGENT_TOKEN = os.getenv(
+    "INVENTARIO_AGENT_TOKEN",
+    POS_AGENT_TOKEN,
+)
+INVENTARIO_FOTOS_ALLOW_SERVER_PROCESS = os.getenv("INVENTARIO_FOTOS_ALLOW_SERVER_PROCESS", "0") == "1"
+INVENTARIO_FOTOS_SCRIPT = os.getenv("INVENTARIO_FOTOS_SCRIPT", str(BASE_DIR / "gemini_selenium_cli.py"))
+INVENTARIO_FOTOS_TIMEOUT = int(os.getenv("INVENTARIO_FOTOS_TIMEOUT", "900"))
+
+# ========= Sincronización de precios desde el catálogo Plaza =========
+# Las credenciales reales deben existir únicamente en el entorno del servidor.
+PRICE_SYNC_SOURCE_HOST = os.getenv("PRICE_SYNC_SOURCE_HOST", "").strip()
+PRICE_SYNC_SOURCE_PORT = os.getenv("PRICE_SYNC_SOURCE_PORT", "5432").strip()
+PRICE_SYNC_SOURCE_NAME = os.getenv("PRICE_SYNC_SOURCE_NAME", "").strip()
+PRICE_SYNC_SOURCE_USER = os.getenv("PRICE_SYNC_SOURCE_USER", "").strip()
+PRICE_SYNC_SOURCE_PASSWORD = os.getenv("PRICE_SYNC_SOURCE_PASSWORD", "")
+PRICE_SYNC_SOURCE_SSLMODE = os.getenv(
+    "PRICE_SYNC_SOURCE_SSLMODE",
+    "require",
+).strip()
+PRICE_SYNC_SOURCE_SSLROOTCERT = os.getenv(
+    "PRICE_SYNC_SOURCE_SSLROOTCERT",
+    "",
+).strip()
+PRICE_SYNC_MAPPING_FILE = os.getenv(
+    "PRICE_SYNC_MAPPING_FILE",
+    str(BASE_DIR / "mainApp" / "data" / "price_sync_plaza_map.json"),
+)
+PRICE_SYNC_CONNECT_TIMEOUT = os.getenv("PRICE_SYNC_CONNECT_TIMEOUT", "10")
+PRICE_SYNC_STATEMENT_TIMEOUT_MS = os.getenv(
+    "PRICE_SYNC_STATEMENT_TIMEOUT_MS",
+    "30000",
+)
+# Bloquea saltos extremos (por ejemplo, confundir precio por gramo y unidad).
+PRICE_SYNC_MAX_PRICE_FACTOR = os.getenv("PRICE_SYNC_MAX_PRICE_FACTOR", "5")
+
+# Bot inteligente de Telegram. Además del entorno del proceso, Django puede
+# leer el mismo archivo privado que usa la tarea Always-on. Así no hay que
+# copiar claves dentro de settings.py ni del archivo WSGI.
+TELEGRAM_ENV_FILE = os.getenv(
+    "TELEGRAM_ENV_FILE",
+    str(Path.home() / ".telegram_bot.env"),
+).strip()
+_telegram_private_config = (
+    Config(RepositoryEnv(TELEGRAM_ENV_FILE))
+    if TELEGRAM_ENV_FILE and Path(TELEGRAM_ENV_FILE).is_file()
+    else None
+)
+
+
+def _telegram_setting(name, default=""):
+    value = os.getenv(name)
+    if value is None and _telegram_private_config is not None:
+        value = _telegram_private_config(name, default=default)
+    return str(default if value is None else value).strip()
+
+
+TELEGRAM_BOT_TOKEN = _telegram_setting("TELEGRAM_BOT_TOKEN")
+TELEGRAM_WEBHOOK_SECRET = _telegram_setting("TELEGRAM_WEBHOOK_SECRET")
+TELEGRAM_WEBHOOK_URL = _telegram_setting("TELEGRAM_WEBHOOK_URL")
+GEMINI_API_KEY = _telegram_setting("GEMINI_API_KEY")
+GEMINI_MODEL = _telegram_setting("GEMINI_MODEL", "gemini-3.8-flash")
+GROQ_API_KEY = _telegram_setting("GROQ_API_KEY")
+GROQ_CHAT_MODEL = _telegram_setting(
+    "GROQ_CHAT_MODEL",
+    "openai/gpt-oss-120b",
+)
+GROQ_WHISPER_MODEL = _telegram_setting(
+    "GROQ_WHISPER_MODEL",
+    "whisper-large-v3-turbo",
+)
+
+# Orden vacío desactiva la etapa. Los proveedores sin clave se omiten.
+TELEGRAM_TEXT_PROVIDERS = _telegram_setting("TELEGRAM_TEXT_PROVIDERS", "gemini,groq,cerebras,openrouter")
+TELEGRAM_VOICE_PROVIDERS = _telegram_setting("TELEGRAM_VOICE_PROVIDERS", "groq,azure,deepgram,assemblyai,gemini")
+CEREBRAS_API_KEY = _telegram_setting("CEREBRAS_API_KEY")
+CEREBRAS_CHAT_MODEL = _telegram_setting("CEREBRAS_CHAT_MODEL", "gpt-oss-120b")
+OPENROUTER_API_KEY = _telegram_setting("OPENROUTER_API_KEY")
+OPENROUTER_CHAT_MODEL = _telegram_setting("OPENROUTER_CHAT_MODEL", "openai/gpt-oss-120b:free")
+GEMINI_AUDIO_MODEL = _telegram_setting("GEMINI_AUDIO_MODEL", GEMINI_MODEL)
+AZURE_SPEECH_KEY = _telegram_setting("AZURE_SPEECH_KEY")
+AZURE_SPEECH_RESOURCE = _telegram_setting("AZURE_SPEECH_RESOURCE")
+AZURE_SPEECH_FREE_TIER_CONFIRMED = _telegram_setting("AZURE_SPEECH_FREE_TIER_CONFIRMED", "false")
+DEEPGRAM_API_KEY = _telegram_setting("DEEPGRAM_API_KEY")
+DEEPGRAM_MODEL = _telegram_setting("DEEPGRAM_MODEL", "nova-3")
+DEEPGRAM_TRIAL_CONFIRMED = _telegram_setting("DEEPGRAM_TRIAL_CONFIRMED", "false")
+ASSEMBLYAI_API_KEY = _telegram_setting("ASSEMBLYAI_API_KEY")
+ASSEMBLYAI_MODEL = _telegram_setting("ASSEMBLYAI_MODEL", "universal-2")
+ASSEMBLYAI_TRIAL_CONFIRMED = _telegram_setting("ASSEMBLYAI_TRIAL_CONFIRMED", "false")
+TELEGRAM_FFMPEG_BIN = _telegram_setting("TELEGRAM_FFMPEG_BIN", "ffmpeg")

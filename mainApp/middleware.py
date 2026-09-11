@@ -1,0 +1,114 @@
+from django.contrib import messages
+from django.contrib.auth.views import redirect_to_login
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect
+from django.urls import NoReverseMatch, reverse
+
+from .permissions import (
+    ALWAYS_ALLOWED_URL_NAMES,
+    PUBLIC_URL_NAMES,
+    is_web_master_role,
+    route_permission_for_url_name,
+    user_can_access_url_name,
+)
+from .services.feature_flags import disabled_feature_for_url
+
+
+class PagePermissionMiddleware:
+    """
+    Enforces the same app permission catalog used by the navbar.
+    New internal routes fail closed until they are added to the permission map.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        match = getattr(request, "resolver_match", None)
+        url_name = getattr(match, "url_name", None)
+        if not url_name or url_name in PUBLIC_URL_NAMES:
+            return None
+
+        required_permission = route_permission_for_url_name(url_name)
+        view_class = getattr(view_func, "view_class", None)
+        view_module = getattr(
+            view_class or view_func,
+            "__module__",
+            "",
+        )
+        is_internal_view = (
+            view_module == "mainApp"
+            or view_module.startswith("mainApp.")
+        )
+        if (
+            not required_permission
+            and url_name not in ALWAYS_ALLOWED_URL_NAMES
+            and not is_internal_view
+        ):
+            return None
+
+        user = getattr(request, "user", None)
+        wants_json = (
+            request.headers.get("x-requested-with") == "XMLHttpRequest"
+            or "application/json" in request.headers.get("accept", "")
+        )
+        if not getattr(user, "is_authenticated", False):
+            if wants_json:
+                return JsonResponse({"success": False, "error": "Tu sesion expiro. Vuelve a iniciar sesion."}, status=401)
+            return redirect_to_login(request.get_full_path())
+
+        if url_name in ALWAYS_ALLOWED_URL_NAMES:
+            return None
+
+        if not required_permission:
+            if is_web_master_role(user):
+                return None
+            message = (
+                "Esta pagina todavia no tiene un permiso configurado. "
+                "Contacta al Web Master."
+            )
+            if wants_json:
+                return JsonResponse(
+                    {"success": False, "error": message},
+                    status=403,
+                )
+            messages.error(request, message)
+            return redirect("home")
+
+        disabled_feature = disabled_feature_for_url(url_name, fresh=True)
+        if disabled_feature:
+            message = (
+                f'La función "{disabled_feature["label"]}" está desactivada '
+                "en la configuración del sistema."
+            )
+            if wants_json:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": message,
+                        "feature_disabled": disabled_feature["key"],
+                    },
+                    status=409,
+                )
+            messages.warning(request, message)
+            return redirect("home")
+
+        if user_can_access_url_name(user, url_name):
+            return None
+
+        message = "No tienes permiso para acceder a esta pagina."
+        if wants_json:
+            return JsonResponse({"success": False, "error": message}, status=403)
+
+        messages.error(request, message)
+        try:
+            home_url = reverse("home")
+        except NoReverseMatch:
+            return HttpResponseForbidden(message)
+
+        if request.path == home_url:
+            return HttpResponseForbidden(message)
+        return redirect("home")

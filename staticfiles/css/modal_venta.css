@@ -1,74 +1,762 @@
-/* ----- VARIABLES (heredamos la paleta) ----- */
+/* =========================================================
+   ✅ MODAL “Pagos (puede ser mixto)” — ULTRA estético (Nova)
+   - Desktop: ✅ scroll vertical en el BACKDROP (#myModal)
+   - Mobile:  ✅ 1 SOLO SCROLL (backdrop #myModal)
+   - Page scroll bloqueado (body/html)
+   ========================================================= */
+
 :root{
-  --principal: #005091;
-  --secundario:#ADD8E6;
-  --blanco:#ffffff;
-  --verde:#28a745;
-  --verde-hover:#218838;
+  --na-bg1:#153060;
+  --na-bg2:#20497d;
+  --na-accent:#4da6ff;
+  --na-white:#ffffff;
+
+  --na-green:#28a745;
+  --na-green2:#1f8a3a;
+
+  --na-danger:#ff4d6d;
+
+  --na-glass: rgba(255,255,255,.10);
+  --na-glass2: rgba(255,255,255,.06);
+  --na-border: rgba(255,255,255,.16);
+  --na-border2: rgba(255,255,255,.10);
+
+  --na-shadow: 0 26px 80px rgba(0,0,0,.55);
+  --na-shadow-soft: 0 12px 28px rgba(0,0,0,.22);
+
+  --na-radius: 20px;
+  --na-radius2: 16px;
+
+  --na-ease: cubic-bezier(.2,.9,.2,1);
 }
 
-/* ----- CAPA OPACA ----- */
-.modal{
-  display:none;             /* Oculto por defecto */
-  position:fixed; z-index:1050;
-  top:0;left:0;height:100%;width:100%;
-  backdrop-filter: blur(2px);
-  background:rgba(0,0,0,.45);
+/* =========================================================
+   ✅ BLOQUEO SCROLL DEL DOCUMENTO (sin JS) + fallback
+   ========================================================= */
+html:has(#myModal.modal[style*="display: block"]),
+body:has(#myModal.modal[style*="display: block"]),
+html:has(#myModal.modal.is-open),
+body:has(#myModal.modal.is-open){
+  overflow: hidden !important;
 }
 
-/* ----- CONTENIDO ----- */
-.modal-content{
-  background: linear-gradient(145deg,var(--secundario),var(--principal));
-  color:var(--blanco);
-  margin:10% auto; max-width:380px; width:90%;
-  padding:30px 25px 35px;
-  border-radius:12px;
-  box-shadow:0 8px 15px rgba(0,0,0,.4);
+body.modal-open{
+  overflow: hidden !important;
+}
+
+/* =========================================================
+   ✅ MODAL BACKDROP
+   ✅ Desktop/Mobile: el scroll VIVE AQUÍ (no en la card)
+   ========================================================= */
+#myModal.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index: 2147483647 !important;
+
+  background:
+    radial-gradient(900px 600px at 50% 10%, rgba(77,166,255,.25), transparent 60%),
+    radial-gradient(800px 550px at 15% 88%, rgba(77,166,255,.12), transparent 58%),
+    radial-gradient(700px 520px at 88% 85%, rgba(32,73,125,.22), transparent 60%),
+    rgba(0,0,0,.66);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  /* 🔥 CLAVE: que el backdrop sí tenga altura y sí scrollee */
+  height: 100vh;
+  max-height: 100vh;
+
+  /* 🔥 CLAVE: NO FLEX en desktop (evita “captura” rara del overflow) */
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+
+  /* Espacio para que el card no pegue arriba/abajo */
+  padding: 22px 18px;
+
+  /* evita “arrastre” al body (aunque esté locked) */
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+
+  /* estabilidad del layout cuando aparece scrollbar */
+  scrollbar-gutter: stable;
+
+  opacity: 0;
+  transition: opacity .18s var(--na-ease);
+}
+
+/* abierto */
+#myModal.modal[style*="display: block"],
+#myModal.modal.is-open{
+  display:block !important; /* 🔥 block + overflow auto = scroll seguro */
+  opacity: 1;
+}
+
+/* =========================================================
+   ✅ CONTENEDOR (CARD)
+   - Se centra con margin auto
+   - NO scrollea (evita doble scroll)
+   ========================================================= */
+#myModal .modal-content{
+  width: min(580px, 94vw);
+
+  /* Centrado horizontal + top-aligned (y el backdrop scrollea) */
+  margin: 0 auto;
+
+  /* ✅ NO scroll en la card */
+  max-height: none !important;
+  overflow: visible !important;
+
+  padding: 18px 18px 16px;
+  border-radius: var(--na-radius);
+
+  color: var(--na-white);
+
+  background:
+    linear-gradient(165deg, rgba(77,166,255,.20), rgba(21,48,96,.92)),
+    radial-gradient(900px 500px at 20% 10%, rgba(255,255,255,.10), transparent 60%);
+
+  border: 1px solid var(--na-border);
+  box-shadow: var(--na-shadow);
   position:relative;
-  overflow:hidden;
-  animation:fadeIn .4s ease-out;
+
+  transform: translateY(12px) scale(.99);
+  transition: transform .22s var(--na-ease);
 }
 
-@keyframes fadeIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
-
-/* ----- CERRAR “X” ----- */
-.close{
-  position:absolute; top:12px; right:16px;
-  font-size:28px; font-weight:bold; color:var(--blanco);
-  cursor:pointer; transition:transform .2s;
+#myModal.modal[style*="display: block"] .modal-content,
+#myModal.modal.is-open .modal-content{
+  transform: translateY(0) scale(1);
 }
-.close:hover{transform:scale(1.15);}
 
-/* ----- TÍTULO ----- */
-.modal-content h2{
-  margin:0 0 25px; font-size:22px; font-weight:700;
+/* Anti overflow lateral global dentro del modal */
+#myModal *,
+#myModal *::before,
+#myModal *::after{
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+#myModal .mix-grid,
+#myModal .mix-row,
+#myModal .radio-wrap{
+  overflow-x: hidden !important;
+}
+
+/* Halo / borde iluminado */
+#myModal .modal-content::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  border-radius: var(--na-radius);
+  pointer-events:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.26), rgba(255,255,255,.04));
+  -webkit-mask: linear-gradient(#000,#000) content-box, linear-gradient(#000,#000);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding:1px;
+  opacity:.55;
+}
+
+/* =========================================================
+   ✅ TÍTULO
+   ========================================================= */
+#myModal .modal-content h2{
+  margin: 6px 50px 12px 0;
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: .2px;
+  text-shadow: 0 10px 26px rgba(0,0,0,.30);
+}
+
+/* =========================================================
+   ✅ BOTÓN CERRAR
+   ========================================================= */
+#myModal .close{
+  position:absolute;
+  top: 12px; right: 12px;
+
+  width: 38px; height: 38px;
+  border-radius: 14px;
+
+  display:grid; place-items:center;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 900;
+
+  color:#fff;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
+
+  cursor:pointer;
+  box-shadow: 0 14px 26px rgba(0,0,0,.20);
+  transition: transform .14s var(--na-ease), background .14s var(--na-ease), border-color .14s var(--na-ease);
+}
+#myModal .close:hover{
+  transform: scale(1.06);
+  background: rgba(255,255,255,.14);
+  border-color: rgba(77,166,255,.35);
+}
+#myModal .close:active{ transform: scale(1.02); }
+
+/* =========================================================
+   ✅ BANNER TOTAL
+   ========================================================= */
+#myModal .total-banner{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+
+  padding: 12px 12px;
+  border-radius: var(--na-radius2);
+
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+  border: 1px solid rgba(255,255,255,.16);
+
+  box-shadow: var(--na-shadow-soft);
+}
+#myModal .total-icon{
+  width: 34px; height: 34px;
+  display:grid; place-items:center;
+  border-radius: 14px;
+  background: rgba(77,166,255,.18);
+  border: 1px solid rgba(77,166,255,.22);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+#myModal .total-label{
+  font-weight: 900;
+  opacity: .95;
+}
+#myModal .total-amount{
+  margin-left:auto;
+  font-weight: 950;
+  letter-spacing: .2px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.20);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 10px 18px rgba(0,0,0,.18);
+}
+
+/* =========================================================
+   ✅ PENDING / RESTANTE
+   ========================================================= */
+#myModal .pending-banner{
+  padding: 10px 12px;
+  border-radius: var(--na-radius2);
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 12px 22px rgba(0,0,0,.14);
+}
+#myModal #monto-pendiente{
+  display:block;
+  font-weight: 950;
+  letter-spacing: .1px;
+  color: rgba(255,255,255,.94);
+}
+
+#myModal .employee-discount-auth{
+  margin: 10px 0 12px;
+  padding: 13px 14px;
+  border-radius: var(--na-radius2);
+  background: rgba(40,167,69,.15);
+  border: 1px solid rgba(40,167,69,.34);
+  box-shadow: 0 12px 24px rgba(0,0,0,.16);
+}
+#myModal .employee-discount-auth strong,
+#myModal .employee-discount-auth span,
+#myModal .employee-discount-auth label,
+#myModal .employee-discount-auth small{
+  display:block;
+}
+#myModal .merk2888-discount-auth{
+  background:rgba(124,58,237,.18);
+  border-color:rgba(167,139,250,.48);
+}
+#myModal .employee-discount-auth strong{
+  font-weight:950;
+  margin-bottom:4px;
+}
+#myModal .employee-discount-auth span{
+  color:rgba(255,255,255,.88);
+  font-size:13px;
+  margin-bottom:10px;
+}
+#myModal .employee-discount-auth label{
+  font-weight:900;
+  margin-bottom:7px;
+}
+#myModal .employee-discount-auth input{
+  width:100%;
+  height:44px;
+  padding:11px 12px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.30);
+  background:rgba(255,255,255,.96);
+  color:#0b1220;
+  outline:none;
+  box-shadow:0 12px 24px rgba(0,0,0,.14);
+}
+#myModal .employee-discount-auth input:focus{
+  border-color:rgba(77,166,255,.85);
+  box-shadow:0 0 0 3px rgba(77,166,255,.18), 0 12px 24px rgba(0,0,0,.14);
+}
+#myModal .employee-discount-auth small{
+  margin-top:7px;
+  color:rgba(255,255,255,.76);
+  font-size:12px;
+}
+
+/* =========================================================
+   ✅ TEXTO GUÍA
+   ========================================================= */
+#myModal .modal-content > p{
+  margin: 10px 0 12px !important;
+  padding: 12px 12px;
+  border-radius: var(--na-radius2);
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 12px 22px rgba(0,0,0,.14);
+  color: rgba(255,255,255,.92);
+}
+
+/* =========================================================
+   ✅ FILAS (TARJETAS) DE MÉTODOS
+   ========================================================= */
+#myModal .mix-grid{ display:block; }
+
+#myModal .mix-row,
+#myModal .radio-wrap{
+  display:grid;
+  grid-template-columns: 1fr !important;
+  gap: 12px;
+  align-items:center;
+
+  padding: 12px 12px;
+  border-radius: 18px;
+
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 10px 22px rgba(0,0,0,.12), inset 0 0 0 1px rgba(255,255,255,.04);
+
+  margin: 10px 0;
+  transition: transform .14s var(--na-ease), background .14s var(--na-ease), border-color .14s var(--na-ease);
+}
+#myModal .mix-row:hover,
+#myModal .radio-wrap:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.085);
+  border-color: rgba(255,255,255,.16);
+}
+
+#myModal .mix-row.show-amt,
+#myModal .radio-wrap.show-amt{
+  grid-template-columns: 1fr 190px !important;
+}
+
+#myModal .mix-check{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  user-select:none;
+}
+#myModal .mix-check span{
+  font-weight: 950;
+  letter-spacing: .1px;
+  text-shadow: 0 8px 18px rgba(0,0,0,.22);
+}
+#myModal .mix-check input[type="checkbox"]{
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--na-accent);
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,.18));
+}
+
+/* =========================================================
+   ✅ INPUT MONTO
+   ========================================================= */
+#myModal .pm-amt{
+  display:none;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 42px;
+
+  padding: 10px 12px;
+  border-radius: 16px;
+
+  border: 1px solid rgba(255,255,255,.30);
+  background: rgba(255,255,255,.96);
+  color: #0b1220;
+
+  outline: none;
+  box-shadow: 0 12px 24px rgba(0,0,0,.14);
+  transition: box-shadow .14s var(--na-ease), border-color .14s var(--na-ease), transform .14s var(--na-ease);
+}
+
+#myModal .mix-row.show-amt .pm-amt,
+#myModal .radio-wrap.show-amt .pm-amt{
+  display:block;
+}
+#myModal .pm-amt:not(:disabled){
+  display:block !important;
+}
+
+@supports selector(.mix-row:has(.pm-amt)){
+  #myModal .mix-row:has(.pm-amt:not(:disabled)),
+  #myModal .radio-wrap:has(.pm-amt:not(:disabled)){
+    grid-template-columns: 1fr 190px !important;
+  }
+}
+
+#myModal .pm-amt::placeholder{ color: rgba(11,18,32,.52); }
+#myModal .pm-amt:focus{
+  border-color: rgba(77,166,255,.85);
+  box-shadow: 0 0 0 3px rgba(77,166,255,.18), 0 12px 24px rgba(0,0,0,.14);
+  transform: translateY(-1px);
+}
+#myModal .pm-amt:disabled{
+  opacity: .92;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Quitar spinners */
+#myModal input[type="number"]::-webkit-outer-spin-button,
+#myModal input[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance: none;
+  margin: 0;
+}
+#myModal input[type="number"]{ -moz-appearance:textfield; }
+
+#myModal .mix-row:has(.pm-check:checked),
+#myModal .radio-wrap:has(.pm-check:checked){
+  background: linear-gradient(180deg, rgba(77,166,255,.18), rgba(255,255,255,.06));
+  border-color: rgba(77,166,255,.30);
+  box-shadow: 0 14px 30px rgba(0,0,0,.16), inset 0 0 0 1px rgba(255,255,255,.05);
+}
+
+/* =========================================================
+   ✅ EFECTIVO OPTIONS (solo NO mixto)
+   ========================================================= */
+#myModal #efectivo-options{
+  display:none;
+  margin: 12px 0 10px;
+  padding: 14px 14px;
+  border-radius: 18px;
+
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: 0 16px 30px rgba(0,0,0,.16);
+}
+#myModal #efectivo-options label{
+  margin: 0 0 8px 0;
+  display:block;
+  font-weight: 950;
+  color:#fff;
+  opacity: .98;
+}
+#myModal #monto-recibido{
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 46px;
+
+  padding: 12px 12px;
+  border-radius: 16px;
+
+  border: 1px solid rgba(255,255,255,.30);
+  background: rgba(255,255,255,.96);
+  color:#0b1220;
+
+  outline:none;
+  box-shadow: 0 12px 24px rgba(0,0,0,.14);
+}
+#myModal #monto-recibido:focus{
+  border-color: rgba(77,166,255,.85);
+  box-shadow: 0 0 0 3px rgba(77,166,255,.18), 0 12px 24px rgba(0,0,0,.14);
+}
+#myModal #cambio{
+  margin: 10px 0 0;
+  font-weight: 950;
+  color: #eaffea;
+  text-shadow: 0 10px 22px rgba(0,0,0,.22);
+}
+
+#myModal.modal[data-mixto="1"] #efectivo-options{
+  display:none !important;
+}
+
+/* =========================================================
+   Nequi: lista de envios recibidos
+   ========================================================= */
+#myModal .nequi-payment-panel{
+  margin: 12px 0 10px;
+  padding: 13px 13px;
+  border-radius: 18px;
+  background: rgba(25,195,125,.10);
+  border: 1px solid rgba(25,195,125,.28);
+  box-shadow: 0 16px 30px rgba(0,0,0,.16);
+}
+#myModal .nequi-payment-panel[hidden]{ display:none !important; }
+#myModal .nequi-payment-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+#myModal .nequi-payment-head strong,
+#myModal .nequi-payment-head small{ display:block; }
+#myModal .nequi-payment-head strong{ font-weight:950; }
+#myModal .nequi-payment-head small,
+#myModal .nequi-payment-status{
+  color:rgba(255,255,255,.78);
+  font-size:12px;
+  line-height:1.35;
+}
+#myModal .nequi-mini-btn{
+  flex:0 0 auto;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  padding:8px 11px;
+  background:rgba(255,255,255,.10);
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+#myModal .nequi-live-refresh{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+}
+#myModal .nequi-live-refresh span{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#19c37d;
+  box-shadow:0 0 0 4px rgba(25,195,125,.16);
+  animation:nequiLivePulse 1.25s ease-in-out infinite;
+}
+@keyframes nequiLivePulse{
+  0%,100%{ transform:scale(1); opacity:1; }
+  50%{ transform:scale(.72); opacity:.65; }
+}
+#myModal .nequi-payment-list{
+  display:grid;
+  gap:8px;
+  max-height:260px;
+  overflow-y:auto;
+  padding-right:2px;
+}
+#myModal .nequi-payment-item{
+  width:100%;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:16px;
+  padding:11px 12px;
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  text-align:left;
+  cursor:pointer;
+  box-shadow:0 10px 20px rgba(0,0,0,.12);
+}
+#myModal .nequi-payment-item:hover,
+#myModal .nequi-payment-item.is-selected{
+  border-color:rgba(25,195,125,.58);
+  background:rgba(25,195,125,.16);
+}
+#myModal .nequi-payment-item.is-new{
+  border-color:rgba(45,212,191,.78);
+  background:rgba(45,212,191,.18);
+  animation:nequiNewPaymentPulse 1.15s ease-in-out 3;
+}
+@keyframes nequiNewPaymentPulse{
+  0%,100%{ box-shadow:0 10px 20px rgba(0,0,0,.12); }
+  45%{ box-shadow:0 0 0 4px rgba(45,212,191,.22), 0 16px 30px rgba(0,0,0,.18); }
+}
+#myModal .nequi-payment-item.is-low{
+  border-color:rgba(251,191,36,.46);
+  background:rgba(251,191,36,.12);
+}
+#myModal .nequi-payment-item-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+#myModal .nequi-payment-badge{
+  flex:0 0 auto;
+  display:inline-flex !important;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  padding:5px 8px;
+  background:rgba(255,255,255,.12);
+  color:rgba(255,255,255,.9) !important;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+}
+#myModal .nequi-payment-item.is-low .nequi-payment-badge{
+  background:rgba(251,191,36,.20);
+  color:#ffe8a3 !important;
+}
+#myModal .nequi-payment-meta{
+  margin-top:4px;
+}
+#myModal .nequi-payment-item strong,
+#myModal .nequi-selected-payment strong{
+  display:block;
+  font-size:18px;
+  font-weight:950;
+}
+#myModal .nequi-payment-item span,
+#myModal .nequi-payment-item small,
+#myModal .nequi-selected-payment small{
+  display:block;
+  color:rgba(255,255,255,.78);
+  line-height:1.35;
+}
+#myModal .nequi-selected-payment{
+  margin:0 0 9px;
+  padding:10px 12px;
+  border-radius:16px;
+  background:rgba(77,166,255,.15);
+  border:1px solid rgba(77,166,255,.28);
+}
+#myModal .nequi-selected-payment.is-low{
+  background:rgba(251,191,36,.14);
+  border-color:rgba(251,191,36,.34);
+}
+#myModal .nequi-selected-payment button{
+  margin-top:8px;
+  border:0;
+  border-radius:999px;
+  padding:7px 10px;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+}
+#myModal .nequi-empty{
+  border:1px dashed rgba(255,255,255,.22);
+  border-radius:16px;
+  padding:14px;
+  color:rgba(255,255,255,.78);
   text-align:center;
+  font-weight:800;
 }
 
-/* ----- OPCIONES RADIO ----- */
-.radio-wrap{
-  display:flex;align-items:center;
-  margin:8px 0;
+/* =========================================================
+   ✅ ERROR MIX
+   ========================================================= */
+#myModal #mix-error{
+  display:none;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255,77,109,.12);
+  border: 1px solid rgba(255,77,109,.28);
+  color: #ffd7df;
+  box-shadow: 0 14px 28px rgba(0,0,0,.14);
 }
-.radio-wrap input{margin-right:10px;transform:scale(1.15);}
-.radio-wrap label{font-size:16px;cursor:pointer;}
 
-/* ----- EFECTIVO extra ----- */
-#efectivo-options{
-  display:none;margin:10px 0 0;
-}
-#efectivo-options label{display:block;margin-bottom:4px;font-weight:700;}
-#efectivo-options input{
-  width:100%;padding:6px;border-radius:6px;border:none;
-  outline:none;font-size:15px;
-}
-#cambio{margin-top:6px;font-weight:bold;}
+/* =========================================================
+   ✅ BOTÓN CONFIRMAR
+   ========================================================= */
+#myModal #confirmar-pago,
+#myModal .btn-confirmar{
+  width:100%;
+  height: 54px;
+  margin-top: 14px;
 
-/* ----- BOTÓN CONFIRMAR ----- */
-#confirmar-pago{
-  display:block;width:100%;padding:12px 0;margin-top:25px;
-  background:var(--verde);color:var(--blanco);border:none;
-  font-size:17px;font-weight:700;border-radius:8px;
-  cursor:pointer;transition:background .25s;
+  border: none;
+  border-radius: 18px;
+
+  color:#fff;
+  font-weight: 950;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0)),
+    linear-gradient(180deg, var(--na-green), var(--na-green2));
+
+  box-shadow: 0 22px 44px rgba(40,167,69,.30), inset 0 0 0 1px rgba(255,255,255,.18);
+  cursor:pointer;
+
+  transition: transform .14s var(--na-ease), filter .14s var(--na-ease), box-shadow .14s var(--na-ease);
 }
-#confirmar-pago:hover{background:var(--verde-hover);}
+#myModal #confirmar-pago:hover,
+#myModal .btn-confirmar:hover{
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 28px 56px rgba(40,167,69,.36), inset 0 0 0 1px rgba(255,255,255,.22);
+}
+#myModal #confirmar-pago:active,
+#myModal .btn-confirmar:active{
+  transform: translateY(0);
+}
+
+/* =========================================================
+   ✅ MOBILE: se mantiene 1 SOLO SCROLL (backdrop)
+   ========================================================= */
+@media (max-width: 600px){
+  #myModal.modal{
+    padding: 12px 10px;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+
+  #myModal .modal-content{
+    width: min(580px, 96vw);
+    margin: 0 auto;
+    padding: 16px 14px 14px;
+    border-radius: 18px;
+  }
+
+  /* Anti-scroll horizontal extremo */
+  #myModal,
+  #myModal *{
+    overflow-x: hidden !important;
+  }
+
+  /* En móvil: montos debajo del label (1 columna) */
+  #myModal .mix-row.show-amt,
+  #myModal .radio-wrap.show-amt{
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+
+  @supports selector(.mix-row:has(.pm-amt)){
+    #myModal .mix-row:has(.pm-amt:not(:disabled)),
+    #myModal .radio-wrap:has(.pm-amt:not(:disabled)){
+      grid-template-columns: 1fr !important;
+      gap: 10px;
+    }
+  }
+
+  #myModal .pm-amt{ height: 44px; }
+}
+
+/* =========================================================
+   ✅ ACCESIBILIDAD / SISTEMA
+   ========================================================= */
+@media (prefers-reduced-motion: reduce){
+  #myModal .modal-content{ transition:none; }
+  #myModal.modal{ transition:none; }
+}
+
+@media (forced-colors: active){
+  #myModal.modal{ background: rgba(0,0,0,.6); }
+  #myModal .modal-content{
+    background: Canvas; color: CanvasText; border: 1px solid CanvasText;
+  }
+  #myModal .total-banner{
+    background: Canvas; border: 1px solid CanvasText; box-shadow:none;
+  }
+  #myModal .total-label, #myModal .total-amount{ color: CanvasText; text-shadow:none; }
+  #myModal #confirmar-pago{ forced-color-adjust: auto; }
+}
