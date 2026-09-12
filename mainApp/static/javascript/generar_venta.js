@@ -1,6 +1,7 @@
 // static/javascript/generar_venta.js
 $(function () {
   "use strict";
+  console.info("[BARCODE] Flujo restaurado desde f039e2a9af3e1d25bdda89470a2c139fc45b5432");
   const $ = window.jQuery;
 
   /* ================== URLs inyectadas ================== */
@@ -1940,114 +1941,16 @@ $(function () {
 
   /* ================== Cache producto ================== */
   const productCache = new Map(); // pid -> {nombre, barcode, price, stock, ts}
-  const barcodeIndex = new Map(); // barcode normalizado -> pid unico
-  const barcodePidSets = new Map(); // barcode normalizado -> Set(pid)
+  const barcodeIndex = new Map(); // barcode -> pid
   const nameIndex    = new Map(); // name(lc) -> pid
-
-  function syncBarcodeIndexKey(codeKey) {
-    if (!codeKey) return;
-    const set = barcodePidSets.get(codeKey);
-    if (!set || set.size === 0) {
-      barcodePidSets.delete(codeKey);
-      barcodeIndex.delete(codeKey);
-      return;
-    }
-    if (set.size === 1) {
-      barcodeIndex.set(codeKey, set.values().next().value);
-      return;
-    }
-    barcodeIndex.delete(codeKey);
-  }
-
-  function addBarcodePidIndex(code, pid) {
-    const codeKey = onlyDigits(code);
-    const pidKey = String(pid || "").trim();
-    if (!codeKey || !pidKey) return;
-    if (!barcodePidSets.has(codeKey)) barcodePidSets.set(codeKey, new Set());
-    barcodePidSets.get(codeKey).add(pidKey);
-    syncBarcodeIndexKey(codeKey);
-  }
-
-  function removeBarcodePidIndex(code, pid) {
-    const codeKey = onlyDigits(code);
-    const pidKey = String(pid || "").trim();
-    if (!codeKey || !pidKey) return;
-    const set = barcodePidSets.get(codeKey);
-    if (set) set.delete(pidKey);
-    syncBarcodeIndexKey(codeKey);
-  }
-
-  function isBarcodeLocallyAmbiguous(code) {
-    const codeKey = onlyDigits(code);
-    const set = codeKey ? barcodePidSets.get(codeKey) : null;
-    return !!(set && set.size > 1);
-  }
-
-  // ✅ Fast-path seguro para escáner:
-  // usa SOLO coincidencia exacta y única de código de barras ya cargada en snapshot/cache.
-  // Si no hay certeza local, retorna null y se mantiene el camino original por servidor.
-  function getLocalExactBarcodeProduct(code) {
-    if (!FAST_BARCODE_LOCAL || !hasSucursal()) return null;
-
-    const clean = onlyDigits(code);
-    if (!clean) return null;
-    if (isBarcodeLocallyAmbiguous(clean)) return null;
-
-    const idx = preIndex.get(sucursalID);
-    if (idx && Array.isArray(idx.codes)) {
-      let found = null;
-
-      for (const c of idx.codes) {
-        if (!c || c.nbarcode !== clean) continue;
-
-        const ref = idx.map.get(String(c.id));
-        if (!ref) continue;
-
-        if (found && String(found.id) !== String(ref.id)) return null;
-
-        found = {
-          id: ref.id,
-          name: ref.name || c.label || `Producto ${ref.id}`,
-          barcode: ref.barcode || clean,
-          price: ref.price ?? c.price,
-          stock: ref.stock ?? c.stock,
-        };
-      }
-
-      if (found) {
-        updateCache(found.id, {
-          nombre: found.name,
-          barcode: found.barcode,
-          precio_unitario: found.price,
-          cantidad_disponible: found.stock,
-        });
-        return found;
-      }
-    }
-
-    const cachedPid = barcodeIndex.get(clean);
-    const cached = cachedPid ? productCache.get(String(cachedPid)) : null;
-    const cachedBarcode = onlyDigits(String(cached?.barcode || ""));
-
-    if (cachedPid && cached && cachedBarcode === clean) {
-      return {
-        id: String(cachedPid),
-        name: cached.nombre || `Producto ${cachedPid}`,
-        barcode: cached.barcode || clean,
-        price: cached.price || 0,
-        stock: cached.stock,
-      };
-    }
-
-    return null;
-  }
 
   function updateCache(pid, data = {}) {
     const key = String(pid);
     const prev = productCache.get(key) || {};
 
     if (prev.barcode) {
-      removeBarcodePidIndex(prev.barcode, key);
+      const oldB = String(prev.barcode);
+      if (barcodeIndex.get(oldB) === key) barcodeIndex.delete(oldB);
     }
     if (prev.nombre) {
       const oldN = String(prev.nombre).toLowerCase();
@@ -2069,11 +1972,7 @@ $(function () {
 
     productCache.set(key, rec);
 
-    if (rec.barcode) {
-      addBarcodePidIndex(rec.barcode, key);
-      // Compatibilidad exacta del flujo viejo: barcode -> último pid cacheado.
-      barcodeIndex.set(String(rec.barcode), key);
-    }
+    if (rec.barcode) barcodeIndex.set(String(rec.barcode), key);
     if (rec.nombre)  nameIndex.set(String(rec.nombre).toLowerCase(), key);
 
     return rec;
@@ -2894,26 +2793,6 @@ $(function () {
     });
   }
 
-  /* ================== BARCODE LEGACY: agregado igual al commit viejo ================== */
-  const barcodeLegacyAddGuard = { pid: null, ts: 0 };
-  const barcodeLegacyBurst = { timer: null, last: null, windowMs: 60 };
-
-  function addBarcodeLegacyLastOnly(pid, qty = 1) {
-    if (!pid || !qty || qty < 1) return;
-    barcodeLegacyBurst.last = { pid: String(pid), qty: Number(qty) || 1 };
-    if (barcodeLegacyBurst.timer) clearTimeout(barcodeLegacyBurst.timer);
-    barcodeLegacyBurst.timer = setTimeout(() => {
-      barcodeLegacyBurst.timer = null;
-      const { pid: p, qty: q } = barcodeLegacyBurst.last || {};
-      if (!p || !q || q < 1) return;
-      const ts = now();
-      if (String(barcodeLegacyAddGuard.pid) === String(p) && (ts - barcodeLegacyAddGuard.ts) < 250) return;
-      barcodeLegacyAddGuard.pid = String(p);
-      barcodeLegacyAddGuard.ts = ts;
-      addToCart(p, q);
-    }, barcodeLegacyBurst.windowMs);
-  }
-
   /* ================== Resolutores rápidos ================== */
   // ✅ BARCODE GUARD: este resolver SOLO devuelve un pid si el producto resultante
   //    tiene EXACTAMENTE el mismo código de barras que se le pidió resolver.
@@ -3149,43 +3028,6 @@ $(function () {
     blockNavOpenWhenEmpty($inp, openIfEmpty ? 0 : minChars);
   }
 
-  function createBarcodeACLegacy({ $inp, sourceFn, onSelect, openIfEmpty=false, enableInstantSearch=true, minChars=1 }) {
-    attachAltEnterBypass($inp[0]);
-    $inp.autocomplete({
-      minLength: minChars,
-      delay: 0,
-      autoFocus: true,
-      appendTo: "body",
-      position:{ my:"left top+6", at:"left bottom", collision:"flipfit" },
-      source: sourceFn,
-      open(){ $inp.autocomplete("widget").css("z-index", 3000); },
-      select(_e, ui){
-        if ($inp.data("skipAcSelectOnce")) { $inp.data("skipAcSelectOnce", false); return false; }
-        if (!ui || !ui.item) return false;
-        onSelect?.(ui.item);
-        return false;
-      }
-    });
-
-    $inp.on("focus", function(){
-      const v = this.value || "";
-      if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
-      $inp.autocomplete("search", v);
-    });
-
-    if (enableInstantSearch) {
-      let raf = null;
-      $inp.on("input", function(){
-        const v = this.value || "";
-        if (v.length < minChars && !openIfEmpty) { try { $inp.autocomplete("close"); } catch {} return; }
-        if (raf) cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(()=> $inp.autocomplete("search", v));
-      });
-    }
-
-    blockNavOpenWhenEmpty($inp, openIfEmpty ? 0 : minChars);
-  }
-
   function applyPriceTemplate($inp, {mode="name"} = {}) {
     const inst = $inp.autocomplete("instance");
     if (!inst) return;
@@ -3276,8 +3118,6 @@ $(function () {
     return net;
   }, 45);
 
-
-
   const netSearchId = throttleAsync(async (term, signal) => {
     const t = onlyDigits(term);
     if (!t || !PRODUCTO_ID_URL) return [];
@@ -3299,6 +3139,32 @@ $(function () {
   let inflightIdAC   = null;
   let autoPickGuardTS = 0;
 
+
+  /* ================== BARCODE LEGACY f039e2a ==================
+     Estas dos ventanas son las del commit estable: 250 ms y 60 ms.
+     Se usan SOLO en entradas originadas por código de barras. */
+  const barcodeLegacyAddGuard = { pid: null, ts: 0 };
+  const barcodeLegacyBurst = { timer: null, last: null, windowMs: 60 };
+
+  function addBarcodeToCartLegacy(pid, qty = 1) {
+    if (!pid || !qty || qty < 1) return;
+
+    barcodeLegacyBurst.last = { pid: String(pid), qty: Number(qty) || 1 };
+    if (barcodeLegacyBurst.timer) clearTimeout(barcodeLegacyBurst.timer);
+
+    barcodeLegacyBurst.timer = setTimeout(() => {
+      barcodeLegacyBurst.timer = null;
+      const { pid: p, qty: q } = barcodeLegacyBurst.last || {};
+      if (!p) return;
+
+      const ts = now();
+      if (String(barcodeLegacyAddGuard.pid) === String(p) && (ts - barcodeLegacyAddGuard.ts) < 250) return;
+      barcodeLegacyAddGuard.pid = String(p);
+      barcodeLegacyAddGuard.ts = ts;
+      addToCart(p, q);
+    }, barcodeLegacyBurst.windowMs);
+  }
+
   function maybeAutoPickBarcode(term, items){
     const info = classifyQuery(term);
     if (!info.isBarcodeLike || !hasSucursal() || !Array.isArray(items) || items.length !== 1) return;
@@ -3312,7 +3178,7 @@ $(function () {
     bumpPick(item.id);
     try { $inpCode.autocomplete("close"); } catch {}
     try { $inpNombre.autocomplete("close"); } catch {}
-    addBarcodeLegacyLastOnly(item.id, 1);
+    addBarcodeToCartLegacy(item.id, 1);
   }
 
   function toACItems(raw, {labelMode="name"} = {}) {
@@ -3586,6 +3452,87 @@ $(function () {
   }
 
   function sourceSmartFactory({ cacheLRU, labelMode }) {
+    // ✅ Determinar el input que originó esta búsqueda para gating de autopick
+    const $sourceInput = (labelMode === "code") ? $inpCode : $inpNombre;
+    return function(req, resp){
+      (async ()=>{
+        const term = (req.term||"").trim();
+        const qU = normalizeUnits(term);
+        if (!qU || !hasSucursal()) { resp([]); return; }
+
+        const info = classifyQuery(term);
+        const strictBarcodeLookup = info.isBarcodeLike;
+        const cacheKey = `${sucursalID}|smart|${labelMode}|${qU}|${info.digits}`;
+        if (!strictBarcodeLookup) {
+          const cached = cacheLRU.get(cacheKey);
+          if (cached) { resp(cached); maybeAutoPickBarcode(term, cached, $sourceInput); return; }
+        }
+
+        const idx = preIndex.get(sucursalID);
+        let locals = [];
+        if (idx && !strictBarcodeLookup) {
+          const rawLocal = (labelMode === "code" && info.isBarcodeLike)
+            ? rankCodeLocal(term, idx, 40)
+            : buildLocalSmart(term, idx, 40);
+          locals = toACItems(rawLocal, { labelMode });
+          for (const it of locals) updateCache(it.id, { nombre:it.name, barcode:it.barcode, precio_unitario:it.price, cantidad_disponible:it.stock });
+        }
+
+        resp(locals);
+        if (!strictBarcodeLookup) cacheLRU.set(cacheKey, locals);
+        maybeAutoPickBarcode(term, locals, $sourceInput);
+
+        try {
+          const useCode = info.isBarcodeLike;
+          const controllerKey = (labelMode === "code") ? "code" : "name";
+
+          if (controllerKey === "name") { inflightNameAC?.abort?.(); inflightNameAC = new AbortController(); }
+          else { inflightCodeAC?.abort?.(); inflightCodeAC = new AbortController(); }
+
+          const signal = (controllerKey === "name") ? inflightNameAC.signal : inflightCodeAC.signal;
+          const netRaw = useCode ? await netSearchCode(term, signal) : await netSearchName(term, signal);
+          if (!Array.isArray(netRaw) || !netRaw.length) return;
+
+          let netItems = toACItems(netRaw, { labelMode });
+          if (strictBarcodeLookup) {
+            netItems = uniqueExactBarcodeItemsForTerm(term, netItems);
+            if (!netItems.length) {
+              const current = (labelMode === "code")
+                ? normalizeUnits(String($inpCode.val()||""))
+                : normalizeUnits(String($inpNombre.val()||""));
+              if (current === qU) resp([]);
+              return;
+            }
+          }
+          for (const it of netItems) updateCache(it.id, { nombre:it.name, barcode:it.barcode, precio_unitario:it.price, cantidad_disponible:it.stock });
+
+          const seen = new Set(locals.map(x=>String(x.id)+"::"+(x.barcode||"")));
+          const merged = locals.slice();
+          for (const it of netItems) {
+            const k = String(it.id)+"::"+(it.barcode||"");
+            if (!seen.has(k)) merged.push(it);
+            if (merged.length >= 40) break;
+          }
+
+          if (!strictBarcodeLookup) cacheLRU.set(cacheKey, merged);
+
+          const current = (labelMode === "code")
+            ? normalizeUnits(String($inpCode.val()||""))
+            : normalizeUnits(String($inpNombre.val()||""));
+
+          if (current === qU) {
+            resp(merged);
+            // El gating dentro de maybeAutoPickBarcode (foco + recencia) impide
+            // que esta llamada diferida agregue un producto si el usuario ya
+            // se movió de campo o dejó de tipear.
+            maybeAutoPickBarcode(term, merged, $sourceInput);
+          }
+        } catch {}
+      })();
+    };
+  }
+
+  function sourceSmartFactoryBarcodeLegacy({ cacheLRU, labelMode }) {
     return function(req, resp){
       (async ()=>{
         const term = (req.term||"").trim();
@@ -3645,8 +3592,6 @@ $(function () {
       })();
     };
   }
-
-
 
   function sourceIdFactory(){
     return function(req, resp){
@@ -3710,16 +3655,16 @@ $(function () {
   });
   applyPriceTemplate($inpNombre, { mode: "name" });
 
-  createBarcodeACLegacy({
+  createAC({
     $inp: $inpCode,
     minChars: 1,
     openIfEmpty: false,
-    sourceFn: sourceSmartFactory({ cacheLRU: termCacheCode, labelMode: "code" }),
+    sourceFn: sourceSmartFactoryBarcodeLegacy({ cacheLRU: termCacheCode, labelMode: "code" }),
     onSelect: (item) => {
       updateCache(item.id, { nombre:item.name, barcode:item.barcode, precio_unitario:item.price, cantidad_disponible:item.stock });
       setProductFields({ nombre:item.name, pid:item.id, barcode:item.barcode || item.label });
       bumpPick(item.id);
-      addBarcodeLegacyLastOnly(item.id, 1);
+      addBarcodeToCartLegacy(item.id, 1);
     }
   });
   applyPriceTemplate($inpCode, { mode: "code" });
@@ -4260,8 +4205,6 @@ $(function () {
     } else { try { $inpCode.autocomplete("close"); } catch {} }
   });
 
-
-
   /* ================== Cantidad principal (#cantidad): (si existe) ================== */
   function normalizeQtyOnCommit(el){
     const raw = String(el.value || "").trim();
@@ -4270,11 +4213,6 @@ $(function () {
     else el.value = String(n);
     return el.value;
   }
-  const clampQty = (x) => {
-    const n = parseInt(String(x).replace(/\D+/g, ""), 10);
-    return Number.isFinite(n) && n > 0 ? n : 1;
-  };
-
   function clampQtyAnySign(x){
     const n = parseInt(String(x).trim(), 10);
     if (!Number.isFinite(n) || n === 0) return 1;
@@ -5248,7 +5186,7 @@ $(function () {
      ======================================================================================= */
   (function scannerGuardInsideModal() {
     const MIN_CHARS = 8;
-    const GAP_MS = 80;
+    const GAP_MS = 35;
     const SCAN_AVG_MS = 45;
 
     let buf = "";
@@ -6251,6 +6189,7 @@ Cambio: ${money(cambio)}` : "";
     return ($cantidad && $cantidad.length && el === $cantidad[0]) || (el.classList && el.classList.contains("qty-input"));
   }
 
+  // ✅ BLOQUEO TOTAL: si el modal está abierto, NO se agrega al carrito, NO se escribe en inputs de venta
   function pushCodeIntoCodeInputAndAdd(code){
     const clean = onlyDigits(code);
     if (!clean) return;
@@ -6265,8 +6204,9 @@ Cambio: ${money(cambio)}` : "";
     });
 
     if (!hasSucursal()) return;
-    resolveByBarcode(clean).then(pid => { if (pid) addBarcodeLegacyLastOnly(pid, 1); });
+    resolveByBarcode(clean).then(pid => { if (pid) addBarcodeToCartLegacy(pid, 1); });
   }
+
 
   /* =======================================================================================
      ✅ ESCÁNER CÁMARA UNIVERSAL (BarcodeDetector + ZXing fallback) — iPhone/Safari OK
@@ -6678,7 +6618,7 @@ Cambio: ${money(cambio)}` : "";
       const committed = normalizeQtyOnCommit($cantidad[0]);
       const qty = clampQty(committed);
       const pid = $pid.val();
-      if (pid && $agregar && $agregar.length && !$agregar.prop("disabled")) addBarcodeLegacyLastOnly(pid, qty);
+      if (pid && $agregar && $agregar.length && !$agregar.prop("disabled")) addBarcodeToCartLegacy(pid, qty);
       return;
     }
     if (originEl && originEl.classList && originEl.classList.contains("qty-input")) {

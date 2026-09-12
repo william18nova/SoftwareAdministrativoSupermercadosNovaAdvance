@@ -7251,49 +7251,26 @@ class VerificarProductoView(LoginRequiredMixin, View):
 
 class BuscarProductoPorCodigoView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        codigo = (request.GET.get("codigo_de_barras", "") or "").strip()
+        codigo      = request.GET.get("codigo_de_barras", "")
         sucursal_id = request.GET.get("sucursal_id")
+        producto = Producto.objects.filter(
+            codigo_de_barras=codigo, inventario__sucursalid=sucursal_id
+        ).first()
+        if not producto:
+            return JsonResponse({'exists': False})
 
-        if not codigo or not (sucursal_id and str(sucursal_id).isdigit()):
-            return JsonResponse({"exists": False})
-
-        sid = int(sucursal_id)
-
-        rows = list(
-            Inventario.objects
-            .filter(sucursalid=sid, productoid__codigo_de_barras=codigo)
-            .select_related("productoid")
-            .values(
-                "productoid_id",
-                "cantidad",
-                "productoid__nombre",
-                "productoid__codigo_de_barras",
-                "productoid__precio",
-            )
-            .order_by("productoid_id", "inventarioid")
-        )
-
-        if not rows:
-            return JsonResponse({"exists": False})
-
-        product_ids = {row["productoid_id"] for row in rows}
-        if len(product_ids) > 1:
-            return JsonResponse({
-                "exists": False,
-                "ambiguous": True,
-                "error": f'El código de barras "{codigo}" está asignado a más de un producto en esta sucursal.',
-            })
-
-        row = rows[0]
+        stock = Inventario.objects.filter(
+            productoid=producto, sucursalid=sucursal_id
+        ).values_list("cantidad", flat=True).first() or 0
 
         return JsonResponse({
-            "exists": True,
-            "producto": {
-                "id": row["productoid_id"],
-                "nombre": row["productoid__nombre"],
-                "codigo_de_barras": row["productoid__codigo_de_barras"] or "",
-                "precio": float(row["productoid__precio"] or 0),
-                "stock": int(row["cantidad"] or 0),
+            'exists': True,
+            'producto': {
+                'id':              producto.productoid,
+                'nombre':          producto.nombre,
+                'codigo_de_barras':producto.codigo_de_barras,
+                'precio':          float(producto.precio or 0),
+                'stock':           int(stock),
             }
         })
 
@@ -7328,7 +7305,6 @@ class ProductoCodigoAutocompleteView(LoginRequiredMixin, View):
         results = [{
             "id": p.productoid,
             "text": p.nombre,
-            "barcode": p.codigo_de_barras or "",
             "precio": float(p.precio or 0),
             "stock": int(inv_map.get(p.productoid, 0)),
         } for p in qs]
@@ -7340,7 +7316,6 @@ class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         term = (request.GET.get("term","") or "").strip()
         sid  = (request.GET.get("sucursal_id") or "").strip()
-        exact = request.GET.get("exact") == "1"
         if not sid.isdigit():
             return JsonResponse({"results": [], "has_more": False})
 
@@ -7348,10 +7323,7 @@ class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
             inventario__sucursalid=sid, inventario__cantidad__gt=0
         ).distinct()
         if term:
-            if exact:
-                qs = qs.filter(codigo_de_barras=term)
-            else:
-                qs = qs.filter(Q(codigo_de_barras__icontains=term) | Q(nombre__icontains=term))
+            qs = qs.filter(Q(codigo_de_barras__icontains=term) | Q(nombre__icontains=term))
 
         total = qs.count()
         qs = qs.order_by("nombre")[:self.per_page]
