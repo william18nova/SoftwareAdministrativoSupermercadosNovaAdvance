@@ -163,7 +163,7 @@ class SaleDraftCacheContractTests(SimpleTestCase):
         self.assertIn("js-draft-discard", rendered)
         self.assertIn("saleDraftLastAnnouncedCount", rendered)
 
-    def test_tab_ownership_only_detects_remote_changes_to_the_active_cart(self):
+    def test_tab_collision_moves_the_active_cart_to_a_unique_key(self):
         persist = self._function_source("persistSaleDraftNow()", "scheduleSaleDraftSave()")
         self.assertIn("const saleDraftTabID", self.script)
         self.assertIn("owner_tab_id: saleDraftTabID", persist)
@@ -172,7 +172,9 @@ class SaleDraftCacheContractTests(SimpleTestCase):
         storage_source = self.script[storage_start:]
         self.assertIn("event.key !== saleDraftStorageKey()", storage_source)
         self.assertIn("incomingOwner !== saleDraftTabID", self.script)
-        self.assertIn("Otra pestaña modificó la venta pendiente", self.script)
+        self.assertIn("forkSaleDraftAfterCollision()", persist)
+        self.assertIn("forkSaleDraftAfterCollision()", storage_source)
+        self.assertNotIn("Otra pestaña modificó la venta pendiente", self.script)
 
     def test_restore_revalidates_quantity_stock_price_and_exact_client(self):
         verify = self._function_source(

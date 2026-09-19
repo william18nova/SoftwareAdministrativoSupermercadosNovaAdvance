@@ -41,7 +41,7 @@ const draftCode = [
   between("function listManagedSaleDrafts()", "function renderSaleDraftManager()"),
   between("async function refreshSaleDraftAvailability()", "function continueWithNewSale()"),
   between("async function restorePendingSaleDraft(", "async function discardPendingSaleDraft("),
-  between('window.addEventListener("storage",', 'if (!POS_AGENT_TOKEN) console.warn'),
+  between('window.addEventListener("storage",', 'if (!POS_AGENT_TOKEN) {'),
 ].join("\n");
 const scopeKey = "nova:venta-draft:v2:u1:s1:p1:t1";
 const originalKey = `${scopeKey}:doriginal`;
@@ -91,7 +91,7 @@ function scenario({legacy = false, status = "active"} = {}) {
     const context = {
       SALE_DRAFT_VERSION: 2, SALE_DRAFT_MAX_ITEMS: 500, SALE_DRAFT_TTL_MS: 86400000,
       saleDraftTabID: name, saleDraftActiveID: `${name}-cart`, saleDraftAutosaveReady: true,
-      saleDraftRestoring: false, saleDraftOwnershipLost: false, saleDraftSaleConfirmed: false,
+      saleDraftRestoring: false, saleDraftSaleConfirmed: false,
       saleDraftPaymentState: null, saleDraftSubmissionPending: false, saleDraftSubmittedKey: "",
       saleDraftLastStorageKey: "", saleDraftSaveTimer: null, saleDraftValidationPending: false,
       saleDraftValidationError: "", saleDraftInvalidProductIds: new Set(), saleDraftManagerSignature: "",
@@ -204,10 +204,57 @@ test("dos clics simultáneos solo permiten recuperar el respaldo una vez", async
   assert.equal(tabs.filter(tab => tab.productos.length).length, 1);
   assert.equal(app.storage.size, 1);
   for (const tab of tabs) {
-    assert.equal(tab.saleDraftOwnershipLost, false);
     assert.equal(tab.saleDraftValidationError, "");
     assert.equal(tab.alerts.length, 0);
   }
+});
+
+test("si otra pestaña cambia la clave activa, el carrito se guarda con una clave propia", async () => {
+  const app = scenario();
+  const tab = app.tab("A");
+  await tab.ready;
+  tab.insertOrUpdateRowInstant("99", 1, "LECHE", 5000);
+  assert.equal(tab.persistSaleDraftNow(), true);
+  const sharedKey = tab.saleDraftStorageKey();
+  const foreign = {...tab.current(), owner_tab_id: "B", items: [{
+    producto_id: "12", nombre: "ARROZ", cantidad: 2, precio: 1500,
+  }]};
+  app.externalWrite(sharedKey, JSON.stringify(foreign));
+  app.flush();
+  assert.notEqual(tab.saleDraftStorageKey(), sharedKey);
+  assert.equal(JSON.parse(app.storage.get(sharedKey)).owner_tab_id, "B");
+  assert.equal(tab.current().items[0].producto_id, "99");
+  assert.equal(tab.saleDraftValidationError, "");
+  assert.equal(tab.alerts.length, 0);
+});
+
+test("el autoguardado detecta una colisión aunque no llegue el evento storage", async () => {
+  const app = scenario();
+  const tab = app.tab("A");
+  await tab.ready;
+  tab.insertOrUpdateRowInstant("99", 1, "LECHE", 5000);
+  assert.equal(tab.persistSaleDraftNow(), true);
+  const sharedKey = tab.saleDraftStorageKey();
+  const foreign = {...tab.current(), owner_tab_id: "B"};
+  app.externalWrite(sharedKey, JSON.stringify(foreign));
+  assert.equal(tab.persistSaleDraftNow(), true);
+  assert.notEqual(tab.saleDraftStorageKey(), sharedKey);
+  assert.equal(JSON.parse(app.storage.get(sharedKey)).owner_tab_id, "B");
+  assert.equal(tab.current().items[0].producto_id, "99");
+});
+
+test("terminar una venta no borra un respaldo que ahora pertenece a otra pestaña", async () => {
+  const app = scenario();
+  const tab = app.tab("A");
+  await tab.ready;
+  tab.insertOrUpdateRowInstant("99", 1, "LECHE", 5000);
+  assert.equal(tab.persistSaleDraftNow(), true);
+  const sharedKey = tab.saleDraftStorageKey();
+  app.externalWrite(sharedKey, JSON.stringify({...tab.current(), owner_tab_id: "B"}));
+  tab.saleDraftSaleConfirmed = true;
+  assert.equal(tab.persistSaleDraftNow(), true);
+  tab.clearSaleDraftForCurrentScope(sharedKey);
+  assert.equal(JSON.parse(app.storage.get(sharedKey)).owner_tab_id, "B");
 });
 
 test("facturar el carrito recuperado no deja ningún respaldo para recuperar otra vez", async () => {
@@ -231,7 +278,6 @@ test("cambiar o eliminar el origen viejo no afecta al carrito recuperado", async
   app.externalWrite(app.sourceKey, JSON.stringify({...app.original, status: "submission_pending"}));
   app.flush();
   app.externalWrite(app.sourceKey, null); app.flush();
-  assert.equal(tab.saleDraftOwnershipLost, false);
   assert.equal(tab.saleDraftValidationError, "");
   assert.equal(tab.current().items[0].cantidad, 2);
 });
@@ -376,7 +422,6 @@ test("volver con Atrás no revive una venta que ya se recuperó en otra pestaña
   app.flush();
   await oldTab.resumeSaleDraftPage();
   assert.equal(oldTab.productos.length, 0);
-  assert.equal(oldTab.saleDraftOwnershipLost, false);
   assert.equal(oldTab.saleDraftValidationError, "");
   assert.equal(app.storage.has(oldKey), false);
   assert.equal(nextTab.current().items.length, 1);

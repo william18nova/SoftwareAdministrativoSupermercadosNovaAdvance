@@ -290,7 +290,6 @@ $(function () {
   let saleDraftSaleConfirmed = false;
   let saleDraftSubmittedKey = "";
   let saleDraftLastStorageKey = "";
-  let saleDraftOwnershipLost = false;
   let saleDraftValidationPending = false;
   let saleDraftValidationError = "";
   let saleDraftManagerSignature = "";
@@ -558,8 +557,9 @@ $(function () {
     if (saleDraftSaveTimer) clearTimeout(saleDraftSaveTimer);
     saleDraftSaveTimer = null;
     const key = keyOverride || saleDraftStorageKey();
-    removeConsumedSaleDraftSources(readSaleDraftByKey(key));
-    const removed = removeSaleDraftByKey(key);
+    const foreign = isForeignSaleDraftKey(key);
+    if (!foreign) removeConsumedSaleDraftSources(readSaleDraftByKey(key));
+    const removed = foreign ? false : removeSaleDraftByKey(key);
     if (key && saleDraftLastStorageKey === key) saleDraftLastStorageKey = "";
     saleDraftInvalidProductIds.clear();
     setSaleDraftValidation();
@@ -667,17 +667,29 @@ $(function () {
     }
   }
 
+  function isForeignSaleDraftKey(key){
+    try {
+      const raw = JSON.parse(localStorage.getItem(key) || "null");
+      const owner = sanitizeDraftText(raw?.owner_tab_id || "", 100);
+      return !!owner && owner !== saleDraftTabID;
+    } catch (_) { return false; }
+  }
+
+  function forkSaleDraftAfterCollision(){
+    // Conservar este carrito en otra clave sin modificar el respaldo ajeno.
+    saleDraftActiveID = createSaleDraftID();
+    saleDraftLastStorageKey = "";
+    if (saleDraftSubmissionPending) saleDraftSubmittedKey = saleDraftStorageKey();
+  }
+
   function persistSaleDraftNow(){
     if (!saleDraftAutosaveReady || saleDraftRestoring || saleDraftPageHidden) return false;
     let key = saleDraftStorageKey();
     if (!key) return false;
-
-    if (saleDraftOwnershipLost) {
-      updateSaleDraftStatus(
-        "Otra pestaña tomó control de esta venta. Recarga la página antes de continuar.",
-        "error",
-      );
-      return false;
+    if (isForeignSaleDraftKey(key)) {
+      if (!productos.length || saleDraftSaleConfirmed) return true;
+      forkSaleDraftAfterCollision();
+      key = saleDraftStorageKey();
     }
 
     if (saleDraftSaleConfirmed) {
@@ -701,9 +713,8 @@ $(function () {
     ) {
       // Si el cajero empieza otra venta sin recuperar la ofrecida, el carrito
       // nuevo recibe su propia clave y jamás sobrescribe el pendiente.
-      saleDraftActiveID = createSaleDraftID();
+      forkSaleDraftAfterCollision();
       key = saleDraftStorageKey();
-      saleDraftOwnershipLost = false;
     }
     if (!items.length) {
       if (pendingSaleDraft?.storage_key === key && !saleDraftSaleConfirmed) {
@@ -742,10 +753,9 @@ $(function () {
       && previousOwner
       && previousOwner !== saleDraftTabID
     ) {
-      const conflict = "Otra pestaña tiene un borrador activo para esta caja. Recarga la página y elige cuál recuperar antes de continuar.";
-      setSaleDraftValidation({ error: conflict });
-      updateSaleDraftStatus(conflict, "error");
-      return false;
+      forkSaleDraftAfterCollision();
+      key = saleDraftStorageKey();
+      createdAt = Date.now();
     }
 
     saleDraftPaymentState = captureSaleDraftPayment() || saleDraftPaymentState;
@@ -770,7 +780,6 @@ $(function () {
 
     try {
       localStorage.setItem(key, JSON.stringify(payload));
-      saleDraftOwnershipLost = false;
       saleDraftLastStorageKey = key;
       const stamp = new Date(payload.updated_at).toLocaleTimeString("es-CO", {
         hour: "2-digit",
@@ -954,7 +963,6 @@ $(function () {
         saleDraftActiveID = createSaleDraftID();
         saleDraftLastStorageKey = "";
         saleDraftRecoveredFrom = [];
-        saleDraftOwnershipLost = false;
         setSaleDraftValidation();
         updateSaleDraftStatus("Ese respaldo ya se recuperó o se descartó. Puedes iniciar otra venta.");
       }
@@ -976,7 +984,6 @@ $(function () {
       saleDraftActiveID = createSaleDraftID();
       saleDraftLastStorageKey = "";
       saleDraftRecoveredFrom = [];
-      saleDraftOwnershipLost = false;
     }
     closeSaleDraftPanel(true);
     renderSaleDraftManager();
@@ -1196,7 +1203,6 @@ $(function () {
     pendingSaleDraft = null;
 
     saleDraftRestoring = true;
-    saleDraftOwnershipLost = false;
     if (saleDraftSaveTimer) clearTimeout(saleDraftSaveTimer);
     saleDraftSaveTimer = null;
     try {
@@ -6839,10 +6845,8 @@ Cambio: ${money(cambio)}` : "";
     try { incoming = JSON.parse(event.newValue || "null"); } catch (_) {}
     const incomingOwner = sanitizeDraftText(incoming?.owner_tab_id || "", 100);
     if (!incoming || (incomingOwner && incomingOwner !== saleDraftTabID)) {
-      const message = "Otra pestaña modificó la venta pendiente de esta caja. Recarga esta página antes de cobrar para evitar sobrescribirla.";
-      saleDraftOwnershipLost = true;
-      setSaleDraftValidation({ error: message });
-      updateSaleDraftStatus(message, "error");
+      forkSaleDraftAfterCollision();
+      persistSaleDraftNow();
     }
   });
   if (!POS_AGENT_TOKEN) {

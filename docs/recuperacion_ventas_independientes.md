@@ -15,6 +15,8 @@ valida de nuevo las existencias, los precios y el cliente en el servidor.
   la página del nuevo carrito sin facturar.
 - Dos pestañas no pueden recuperar el mismo respaldo simultáneamente. La
   comprobación se repite bajo un bloqueo exclusivo, incluso con un listado viejo.
+- Si otra pestaña cambia por accidente la clave del carrito activo, este se
+  guarda con otro identificador y no sobrescribe el respaldo ajeno.
 - Para recuperar hay que usar un carrito vacío: una venta que aún se está
   atendiendo no se reemplaza ni se manda a pendientes. Puede abrirse otra pestaña.
 - No se copian pagos seleccionados, importes recibidos, asociaciones Nequi,
