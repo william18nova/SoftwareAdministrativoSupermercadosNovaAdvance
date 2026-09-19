@@ -7251,13 +7251,25 @@ class VerificarProductoView(LoginRequiredMixin, View):
 
 class BuscarProductoPorCodigoView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
-        codigo      = request.GET.get("codigo_de_barras", "")
-        sucursal_id = request.GET.get("sucursal_id")
-        producto = Producto.objects.filter(
-            codigo_de_barras=codigo, inventario__sucursalid=sucursal_id
-        ).first()
-        if not producto:
+        codigo = (request.GET.get("codigo_de_barras") or "").strip()
+        sucursal_id = (request.GET.get("sucursal_id") or "").strip()
+        if not codigo or len(codigo) > 100 or not sucursal_id.isdigit():
             return JsonResponse({'exists': False})
+
+        # Nunca elegir arbitrariamente el primero si el mismo código está
+        # asignado a dos productos en esta sucursal.
+        matches = list(Producto.objects.filter(
+            codigo_de_barras=codigo, inventario__sucursalid=sucursal_id
+        ).distinct().order_by("productoid")[:2])
+        if len(matches) > 1:
+            return JsonResponse({
+                'exists': False,
+                'ambiguous': True,
+                'error': 'Este código de barras pertenece a varios productos. Corrige el inventario antes de venderlo.',
+            })
+        if not matches:
+            return JsonResponse({'exists': False})
+        producto = matches[0]
 
         stock = Inventario.objects.filter(
             productoid=producto, sucursalid=sucursal_id
@@ -7316,14 +7328,17 @@ class ProductoBarrasAutocompleteView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         term = (request.GET.get("term","") or "").strip()
         sid  = (request.GET.get("sucursal_id") or "").strip()
-        if not sid.isdigit():
+        if not sid.isdigit() or len(term) > 100:
             return JsonResponse({"results": [], "has_more": False})
 
         qs = Producto.objects.filter(
             inventario__sucursalid=sid, inventario__cantidad__gt=0
         ).distinct()
         if term:
-            qs = qs.filter(Q(codigo_de_barras__icontains=term) | Q(nombre__icontains=term))
+            if request.GET.get("exact") == "1":
+                qs = qs.filter(codigo_de_barras=term)
+            else:
+                qs = qs.filter(Q(codigo_de_barras__icontains=term) | Q(nombre__icontains=term))
 
         total = qs.count()
         qs = qs.order_by("nombre")[:self.per_page]
