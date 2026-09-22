@@ -1219,3 +1219,14 @@ body:has(.page-grid):not(.modal-open):not(.nv-menu-open) .table-wrap{
 @media print{
   .venta-draft-center{ display:none !important; }
 }
+
+.barcode-scan-status{
+  display:block;
+  margin-top:6px;
+  padding:7px 9px;
+  border-radius:8px;
+  background:var(--err-bg-soft);
+  color:#fff;
+  font-weight:700;
+}
+.barcode-scan-status:empty{display:none}

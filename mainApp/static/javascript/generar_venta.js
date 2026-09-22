@@ -1967,16 +1967,16 @@ $(function () {
   }
 
   function addBarcodePidIndex(code, pid) {
-    const codeKey = onlyDigits(code);
+    const codeKey = String(code || "").trim();
     const pidKey = String(pid || "").trim();
-    if (!codeKey || !pidKey) return;
+    if (!/^\d+$/.test(codeKey) || !pidKey) return;
     if (!barcodePidSets.has(codeKey)) barcodePidSets.set(codeKey, new Set());
     barcodePidSets.get(codeKey).add(pidKey);
     syncBarcodeIndexKey(codeKey);
   }
 
   function removeBarcodePidIndex(code, pid) {
-    const codeKey = onlyDigits(code);
+    const codeKey = String(code || "").trim();
     const pidKey = String(pid || "").trim();
     if (!codeKey || !pidKey) return;
     const set = barcodePidSets.get(codeKey);
@@ -1985,7 +1985,7 @@ $(function () {
   }
 
   function isBarcodeLocallyAmbiguous(code) {
-    const codeKey = onlyDigits(code);
+    const codeKey = String(code || "").trim();
     const set = codeKey ? barcodePidSets.get(codeKey) : null;
     return !!(set && set.size > 1);
   }
@@ -1996,19 +1996,19 @@ $(function () {
   function getLocalExactBarcodeProduct(code) {
     if (!FAST_BARCODE_LOCAL || !hasSucursal()) return null;
 
-    const clean = onlyDigits(code);
-    if (!clean) return null;
+    const clean = String(code || "").trim();
+    if (!/^\d+$/.test(clean)) return null;
     if (isBarcodeLocallyAmbiguous(clean)) return null;
 
     const idx = preIndex.get(sucursalID);
-    if (idx && Array.isArray(idx.codes)) {
+    if (idx?.complete && Array.isArray(idx.codes)) {
       let found = null;
 
       for (const c of idx.codes) {
         if (!c || c.nbarcode !== clean) continue;
 
         const ref = idx.map.get(String(c.id));
-        if (!ref) continue;
+        if (!ref || String(ref.barcode || "").trim() !== clean) continue;
 
         if (found && String(found.id) !== String(ref.id)) return null;
 
@@ -2031,21 +2031,6 @@ $(function () {
         return found;
       }
     }
-
-    const cachedPid = barcodeIndex.get(clean);
-    const cached = cachedPid ? productCache.get(String(cachedPid)) : null;
-    const cachedBarcode = onlyDigits(String(cached?.barcode || ""));
-
-    if (cachedPid && cached && cachedBarcode === clean) {
-      return {
-        id: String(cachedPid),
-        name: cached.nombre || `Producto ${cachedPid}`,
-        barcode: cached.barcode || clean,
-        price: cached.price || 0,
-        stock: cached.stock,
-      };
-    }
-
     return null;
   }
 
@@ -2092,7 +2077,9 @@ $(function () {
   }
 
   function buildPreIndexFor(sid, items){
-    const idx = { names: [], codes: [], ids: [], map:new Map() };
+    // El servidor limita el snapshot a 15 000 filas. Una vista recortada no
+    // demuestra que un código sea único; en ese caso se consulta al servidor.
+    const idx = { names: [], codes: [], ids: [], map:new Map(), complete: items.length < 15000 };
     for (const p of items) {
       const id = p.id;
       const idStr = String(id);
@@ -2102,7 +2089,7 @@ $(function () {
       const toks = nnameU ? nnameU.split(/\s+/).filter(Boolean) : [];
 
       const barcodeRaw = (p.barcode || "").toString();
-      const nbarcode = barcodeRaw ? onlyDigits(barcodeRaw) : "";
+      const nbarcode = /^\d+$/.test(barcodeRaw) ? barcodeRaw : "";
 
       idx.names.push({ id, nnameU, toks, label: rawName || "", price: p.price, stock: p.stock, barcode: barcodeRaw || "" });
       idx.codes.push({ id, nbarcode, label: barcodeRaw || rawName || "", price: p.price, stock: p.stock });
@@ -2576,6 +2563,7 @@ $(function () {
   ]);
 
   const BARCODE_RESOLVE_BLOCKED = "__BARCODE_RESOLVE_BLOCKED__";
+  const BARCODE_RESOLVE_UNAVAILABLE = "__BARCODE_RESOLVE_UNAVAILABLE__";
 
   // ✅ OPTIMIZACIÓN SCANNER:
   // - FAST_BARCODE_LOCAL=true usa el snapshot/cache local cuando el código de barras es exacto y único.
@@ -2671,7 +2659,7 @@ $(function () {
 
     const qtyKey = autoAddQtyKey(qty);
     const termKey = autoAddTermKey(ctx.term || "");
-    const barcodeKey = onlyDigits(ctx.barcode || "");
+    const barcodeKey = String(ctx.barcode || "").trim();
     const ttlOrDefault = (value, fallback) => {
       const n = Number(value);
       return Number.isFinite(n) ? Math.max(0, n) : fallback;
@@ -2708,7 +2696,7 @@ $(function () {
   }
 
   function beginBarcodeResolve(code) {
-    const key = onlyDigits(code);
+    const key = String(code || "").trim();
     if (!key) return 0;
     const seq = ++barcodeResolveSeq;
     activeBarcodeResolves.set(key, seq);
@@ -2716,23 +2704,23 @@ $(function () {
   }
 
   function endBarcodeResolve(code, seq) {
-    const key = onlyDigits(code);
+    const key = String(code || "").trim();
     if (key && activeBarcodeResolves.get(key) === seq) activeBarcodeResolves.delete(key);
   }
 
   function isBarcodeResolveActive(code) {
-    const key = onlyDigits(code);
+    const key = String(code || "").trim();
     return !!(key && activeBarcodeResolves.has(key));
   }
 
   function suppressBarcodeAutocompleteAdd(code, ms = 1200) {
-    const key = onlyDigits(code);
+    const key = String(code || "").trim();
     if (!key) return;
     suppressedBarcodeAC.set(key, now() + Math.max(0, ms | 0));
   }
 
   function isBarcodeAutocompleteSuppressed(code) {
-    const key = onlyDigits(code);
+    const key = String(code || "").trim();
     if (!key) return false;
 
     const until = Number(suppressedBarcodeAC.get(key) || 0);
@@ -2747,13 +2735,13 @@ $(function () {
   }
 
   function rememberBarcodeAutoAdd(code, pid) {
-    barcodeAutoAddGuard.code = onlyDigits(code);
+    barcodeAutoAddGuard.code = String(code || "").trim();
     barcodeAutoAddGuard.pid = String(pid || "");
     barcodeAutoAddGuard.ts = now();
   }
 
   function wasRecentlyAutoAddedByBarcode(code, pid, windowMs = AUTO_ADD_BARCODE_LOCK_MS) {
-    const key = onlyDigits(code);
+    const key = String(code || "").trim();
     return !!(
       key &&
       barcodeAutoAddGuard.code === key &&
@@ -2762,8 +2750,8 @@ $(function () {
     );
   }
 
-  function isDuplicateScannerPush(code, windowMs = 140) {
-    const key = onlyDigits(code);
+  function isDuplicateScannerPush(code, windowMs = 30) {
+    const key = String(code || "").trim();
     const ts = now();
     if (key && scannerPushGuard.code === key && ts - scannerPushGuard.ts < windowMs) return true;
     scannerPushGuard.code = key;
@@ -2809,7 +2797,15 @@ $(function () {
     return null; // longitud no estándar: no rechazamos, pero tampoco confirmamos
   }
 
-  // ✅ Feedback visual breve cuando se rechaza un scan por checksum
+  let barcodeScanStatusTimer = null;
+  function clearBarcodeScanStatus() {
+    const status = document.getElementById("barcode-scan-status");
+    if (status) status.textContent = "";
+    if (barcodeScanStatusTimer) clearTimeout(barcodeScanStatusTimer);
+    barcodeScanStatusTimer = null;
+  }
+
+  // Mostrar el motivo en caja además de marcar el campo visualmente.
   function flashScanError(message) {
     try {
       const el = ($inpCode && $inpCode.length) ? $inpCode[0] : null;
@@ -2827,7 +2823,18 @@ $(function () {
         }, 700);
       }
     } catch (_){}
-    if (message) console.warn("[BARCODE GUARD]", message);
+    if (message) {
+      const status = document.getElementById("barcode-scan-status");
+      if (status) {
+        status.textContent = message;
+        if (barcodeScanStatusTimer) clearTimeout(barcodeScanStatusTimer);
+        barcodeScanStatusTimer = setTimeout(() => {
+          if (status.textContent === message) status.textContent = "";
+          barcodeScanStatusTimer = null;
+        }, 4500);
+      }
+      console.warn("[BARCODE GUARD]", message);
+    }
   }
 
   function addToCartGuarded(pid, qty = 1) {
@@ -2867,6 +2874,15 @@ $(function () {
     return true;
   }
 
+  function addScannedProduct(pid, code) {
+    // Una lectura completa equivale a una unidad. Los bloqueos temporales del
+    // autocomplete no deben descartar una segunda lectura física del mismo código.
+    suppressBarcodeAutocompleteAdd(code, 1200);
+    rememberBarcodeAutoAdd(code, pid);
+    clearBarcodeScanStatus();
+    addToCart(pid, 1);
+  }
+
   function addToCart(pid, qty = 1) {
     if (!pid || qty === 0) return;
 
@@ -2904,7 +2920,7 @@ $(function () {
   //    distinto, retornamos null y el camino del scanner aborta el agregado.
   function resolveByBarcode(code) {
     if (!code) return Promise.resolve(null);
-    const cleanCode = onlyDigits(String(code));
+    const cleanCode = String(code).trim();
     if (!cleanCode) return Promise.resolve(null);
 
     // 1) Fast-path local: si el snapshot/cache ya tiene un match exacto y único,
@@ -2927,7 +2943,12 @@ $(function () {
 
     // 3) Consultar servidor con validación estricta de la respuesta
     const params = { codigo_de_barras: cleanCode, sucursal_id: sucursalID, _ts: Date.now() };
-    return asNativePromise($.getJSON(POR_COD_URL, params))
+    const request = () => asNativePromise($.ajax({
+      url: POR_COD_URL, method: "GET", dataType: "json", data: params,
+      timeout: 3500, cache: false,
+    }));
+    // Un fallo transitorio del enlace no debe hacer perder la lectura.
+    return request().catch(request)
       .then((r) => {
         if (r && r.ambiguous) {
           flashScanError(r.error || ("Codigo de barras duplicado en inventario: " + cleanCode));
@@ -2935,10 +2956,10 @@ $(function () {
         }
         if (!r || !r.exists) return null;
         const p = r.producto || {};
-        const serverBarcodeDigits = onlyDigits(String(p.codigo_de_barras || ""));
+        const serverBarcodeDigits = String(p.codigo_de_barras || "").trim();
         // ✅ El servidor DEBE devolver un producto cuyo barcode coincida con el
         //    solicitado. Cualquier otra cosa es un bug y se rechaza.
-        if (!serverBarcodeDigits || serverBarcodeDigits !== cleanCode) {
+        if (!/^\d+$/.test(String(p.id || "")) || serverBarcodeDigits !== cleanCode) {
           console.warn("[BARCODE GUARD] Servidor devolvió producto con barcode distinto", {
             requested: cleanCode,
             returned: serverBarcodeDigits,
@@ -2950,7 +2971,7 @@ $(function () {
         setProductFields({ nombre: p.nombre, pid: p.id, barcode: p.codigo_de_barras, focusQty: false });
         return p.id;
       })
-      .catch(() => null);
+      .catch(() => BARCODE_RESOLVE_UNAVAILABLE);
   }
 
   function setProductFields({
@@ -3367,6 +3388,10 @@ $(function () {
     const resolveSeq = beginBarcodeResolve(clean);
     resolveByBarcode(clean).then(pid => {
       if (pid === BARCODE_RESOLVE_BLOCKED) return;
+      if (pid === BARCODE_RESOLVE_UNAVAILABLE) {
+        flashScanError("No se pudo consultar el código. Revisa la conexión y vuelve a escanearlo.");
+        return;
+      }
       if (!pid) {
         flashScanError("Codigo de barras no encontrado: " + clean);
         return;
@@ -6297,17 +6322,15 @@ Cambio: ${money(cambio)}` : "";
       return;
     }
 
-    const clean = onlyDigits(code);
-    if (!clean) return;
+    const clean = String(code || "").trim();
+    if (!clean || clean.length > 100) return;
     if (isDuplicateScannerPush(clean)) return;
 
-    // ✅ ANTI-MISREAD: si el formato es estándar (EAN/UPC/ITF) y el dígito
-    //    verificador NO cuadra, el escáner leyó mal. Rechazamos sin tocar el
-    //    carrito y avisamos visualmente al cajero.
+    // Hay códigos internos de 8, 12 o 13 dígitos sin dígito verificador válido.
+    // Una coincidencia exacta en inventario prevalece sobre este indicio.
     const checksumValid = validateBarcodeChecksum(clean);
     if (checksumValid === false) {
-      flashScanError("Checksum inválido — posible mala lectura del escáner: " + clean);
-      return;
+      console.warn("[BARCODE] Dígito verificador inválido; se consultará el código exacto", clean);
     }
 
     suppressBarcodeAutocompleteAdd(clean, 1200);
@@ -6321,7 +6344,10 @@ Cambio: ${money(cambio)}` : "";
       if ($inpCode.is(":visible")) { $inpCode.focus(); $inpCode[0]?.select?.(); }
     });
 
-    if (!hasSucursal()) return;
+    if (!hasSucursal()) {
+      flashScanError("Selecciona una sucursal antes de escanear.");
+      return;
+    }
 
     // ✅ Camino ultrarrápido: si el código está en el snapshot/cache local como match exacto y único,
     //    se agrega inmediatamente. Si no hay certeza local, sigue el flujo original con servidor.
@@ -6334,25 +6360,17 @@ Cambio: ${money(cambio)}` : "";
         focusQty: false,
       });
 
-      if (!wasRecentlyAutoAddedByBarcode(clean, localFast.id, SCANNER_REPEAT_LOCK_MS)) {
-        suppressBarcodeAutocompleteAdd(clean, SCANNER_SUPPRESS_AC_MS);
-        if (addAutoProductToCartOnce(localFast.id, 1, {
-          source: "scanner-local-fast",
-          term: clean,
-          barcode: clean,
-          pidTtlMs: SCANNER_REPEAT_LOCK_MS,
-          termTtlMs: SCANNER_REPEAT_LOCK_MS,
-          barcodeTtlMs: SCANNER_REPEAT_LOCK_MS,
-        })) {
-          rememberBarcodeAutoAdd(clean, localFast.id);
-        }
-      }
+      addScannedProduct(localFast.id, clean);
       return;
     }
 
     const resolveSeq = beginBarcodeResolve(clean);
     resolveByBarcode(clean).then(pid => {
       if (pid === BARCODE_RESOLVE_BLOCKED) return;
+      if (pid === BARCODE_RESOLVE_UNAVAILABLE) {
+        flashScanError("No se pudo consultar el código. Revisa la conexión y vuelve a escanearlo.");
+        return;
+      }
       if (!pid) {
         flashScanError("Codigo de barras no encontrado: " + clean);
         return;
@@ -6364,7 +6382,7 @@ Cambio: ${money(cambio)}` : "";
       //    resuelto NO tiene este barcode en cache, abortamos: jamás se agregará
       //    un producto cuyo barcode no coincida exactamente con el escaneado.
       const finalRec = productCache.get(String(pid));
-      const finalBarcodeDigits = onlyDigits(String(finalRec?.barcode || ""));
+      const finalBarcodeDigits = String(finalRec?.barcode || "").trim();
       if (!finalBarcodeDigits || finalBarcodeDigits !== clean) {
         console.warn("[BARCODE GUARD] Abort: pid resuelto no tiene el barcode escaneado en cache", {
           scanned: clean,
@@ -6374,18 +6392,7 @@ Cambio: ${money(cambio)}` : "";
         return;
       }
 
-      if (wasRecentlyAutoAddedByBarcode(clean, pid, SCANNER_REPEAT_LOCK_MS)) return;
-      suppressBarcodeAutocompleteAdd(clean, SCANNER_SUPPRESS_AC_MS);
-      if (addAutoProductToCartOnce(pid, 1, {
-        source: "scanner",
-        term: clean,
-        barcode: clean,
-        pidTtlMs: SCANNER_REPEAT_LOCK_MS,
-        termTtlMs: SCANNER_REPEAT_LOCK_MS,
-        barcodeTtlMs: SCANNER_REPEAT_LOCK_MS,
-      })) {
-        rememberBarcodeAutoAdd(clean, pid);
-      }
+      addScannedProduct(pid, clean);
     }).finally(() => {
       endBarcodeResolve(clean, resolveSeq);
     });
@@ -6798,10 +6805,8 @@ Cambio: ${money(cambio)}` : "";
 
   function commitCurrentQtyLikeEnterIfNeeded(originEl){
     if ($cantidad && $cantidad.length && originEl === $cantidad[0]) {
-      const committed = normalizeQtyOnCommit($cantidad[0]);
-      const qty = clampQtyAnySign(committed);
-      const pid = $pid.val();
-      if (pid && $agregar && $agregar.length && !$agregar.prop("disabled")) addToCartLastOnly(pid, qty);
+      // La lectura corresponde únicamente al código escaneado. Conservar la
+      // selección previa sin añadirla por el Enter que envía el lector.
       return;
     }
     if (originEl && originEl.classList && originEl.classList.contains("qty-input")) {
@@ -6813,8 +6818,8 @@ Cambio: ${money(cambio)}` : "";
   }
 
   (function scannerDetectorWithQtyGuard() {
-    const MIN_CHARS = 8;
-    const GAP_MS = 80;
+    const MIN_CHARS = 6;
+    const GAP_MS = 110;
 
     let buf = "";
     let first = 0;
@@ -6825,6 +6830,7 @@ Cambio: ${money(cambio)}` : "";
     let scanning = false;
     let originEl = null;
     let originStartValue = "";
+    let scannerSuffixBlockUntil = 0;
 
     function isCodeInput(el) {
       return !!($inpCode && $inpCode.length && el === $inpCode[0]);
@@ -6838,7 +6844,7 @@ Cambio: ${money(cambio)}` : "";
     }
 
     function focusCodeInputWith(value, { search = false } = {}) {
-      const clean = onlyDigits(value);
+      const clean = String(value || "").trim();
       if (!clean || !$inpCode || !$inpCode.length || !$inpCode.is(":visible")) return;
 
       try { if (document.activeElement !== $inpCode[0]) $inpCode.focus(); } catch (_) {}
@@ -6863,8 +6869,9 @@ Cambio: ${money(cambio)}` : "";
     }
 
     function finalize(code){
-      const c = onlyDigits(code || "");
+      const c = String(code || "").trim();
       if (!c) { resetAll(); return; }
+      scannerSuffixBlockUntil = Date.now() + 500;
 
       const wasQty = isQtyElement(originEl);
 
@@ -6886,7 +6893,7 @@ Cambio: ${money(cambio)}` : "";
       finalizeTimer = setTimeout(() => {
         if (scanning && buf.length >= MIN_CHARS) finalize(buf);
         else resetAll();
-      }, GAP_MS * 4);
+      }, GAP_MS * 2);
     }
 
     document.addEventListener("keydown", function (e) {
@@ -6901,13 +6908,17 @@ Cambio: ${money(cambio)}` : "";
       if (e.ctrlKey || e.metaKey) { resetAll(); return; }
 
       const active = document.activeElement;
-      const inQty = isQtyElement(active);
       if (isClienteBusquedaElement(active)) { resetAll(); return; }
       const t = Date.now();
 
       if (e.key === "Enter" || e.key === "Tab") {
+        if (!buf && t < scannerSuffixBlockUntil) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          return;
+        }
         const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
-        if (fastEnough && buf.length >= MIN_CHARS) {
+        if (scanning && fastEnough && buf.length >= MIN_CHARS) {
           e.preventDefault();
           e.stopImmediatePropagation();
           finalize(buf);
@@ -6919,11 +6930,11 @@ Cambio: ${money(cambio)}` : "";
 
       if (e.key && e.key.length === 1) {
         const char = e.key;
-        const isDigit = /^\d$/.test(char);
+        const isBarcodeChar = /^[0-9A-Za-z]$/.test(char);
 
-        // El lector de códigos de barras en caja debe redirigir principalmente dígitos.
-        // Si llega texto/letras, se deja que los autocompletes manuales trabajen normal.
-        if (!isDigit) { resetAll(); return; }
+        // Code 39/128 también pueden contener letras. La velocidad de la ráfaga
+        // y el mínimo de caracteres distinguen la lectura del tipeo manual.
+        if (!isBarcodeChar) { resetAll(); return; }
 
         if (originEl && active !== originEl && !scanning) resetAll();
 
@@ -6950,7 +6961,11 @@ Cambio: ${money(cambio)}` : "";
         // ✅ Restauración del comportamiento perdido:
         // Apenas detectamos una ráfaga de escáner, movemos el foco al autocomplete de código
         // y lo vamos llenando aunque el foco original estuviera en cliente, nombre, cantidad, tabla, etc.
-        if (!scanning && buf.length >= 2 && (last - first) <= GAP_MS + 8) {
+        const fromScanField = isCodeInput(originEl) || isQtyElement(originEl);
+        const startLength = fromScanField ? 2 : 4;
+        const plausibleCode = fromScanField || /^\d+$/.test(buf) || (buf.length >= 4 && /\d/.test(buf));
+        if (!scanning && plausibleCode && buf.length >= startLength
+            && (last - first) <= (buf.length - 1) * (GAP_MS + 8)) {
           scanning = true;
           restoreOriginIfNeeded();
           focusCodeInputWith(buf, { search: false });
@@ -6966,60 +6981,10 @@ Cambio: ${money(cambio)}` : "";
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => resetAll(), GAP_MS * 8);
 
-        if (scanning && buf.length >= MIN_CHARS && inQty) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          finalize(buf);
-          return;
-        }
-
         return;
       }
 
       if (e.key !== "Shift") resetAll();
-    }, true);
-  })();
-
-  (function globalScannerFallback() {
-    const MIN_CHARS = 8, GAP_MS = 80;
-    let buf="", first=0, last=0, idleTimer=null;
-
-    function reset(){ buf=""; first=0; last=0; if(idleTimer){clearTimeout(idleTimer); idleTimer=null;} }
-
-    document.addEventListener("keydown", function (e) {
-      // ✅ si el modal está abierto, NO uses este fallback (lo maneja el guard del modal)
-      if (isModalOpen()) { reset(); return; }
-
-      const active = document.activeElement;
-      if (isQtyElement(active) || isClienteBusquedaElement(active)) { reset(); return; }
-
-      // ✅ Ignorar teclas artefacto de lectores genéricos (Alt, NumLock, CapsLock, etc).
-      if (SCANNER_ARTIFACT_KEYS.has(e.key)) return;
-
-      // Solo reseteamos en atajos reales (Ctrl+algo / Meta+algo)
-      if (e.ctrlKey || e.metaKey) { reset(); return; }
-      const t = Date.now();
-
-      if (e.key === "Enter" || e.key === "Tab") {
-        const fastEnough = buf && (t-first) < buf.length * (GAP_MS+5) && (t-last) < GAP_MS*3;
-        if (fastEnough && buf.length >= MIN_CHARS) {
-          e.preventDefault(); e.stopImmediatePropagation();
-          const code = buf; reset();
-          pushCodeIntoCodeInputAndAdd(code);
-          return;
-        }
-        reset(); return;
-      }
-
-      if (e.key && e.key.length === 1) {
-        if (buf && (t-last) > GAP_MS) { buf = ""; first = t; }
-        if (!buf) first = t;
-        buf += e.key; last = t;
-        if (idleTimer) clearTimeout(idleTimer);
-        idleTimer = setTimeout(reset, GAP_MS*5);
-      } else {
-        if (e.key !== "Shift") reset();
-      }
     }, true);
   })();
 

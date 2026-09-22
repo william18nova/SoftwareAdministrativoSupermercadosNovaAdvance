@@ -7,7 +7,7 @@
 {% block extra_head %}
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
   <link rel="stylesheet" href="{% static 'vendor/jquery-ui/jquery-ui-1.13.2.min.css' %}?v=1"/>
-  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}?v=26">
+  <link rel="stylesheet" href="{% static 'css/generar_venta.css' %}?v=27">
   <link rel="stylesheet" href="{% static 'css/modal_venta.css' %}?v=19">
 {% endblock %}
 
@@ -118,7 +118,7 @@
             id="codigo_o_barras"
             placeholder="Escribe o escanea…"
             autocomplete="off"
-            inputmode="numeric"
+            inputmode="text"
             autocapitalize="off"
             autocorrect="off"
             spellcheck="false"
@@ -129,6 +129,7 @@
           </button>
         </div>
 
+        <small id="barcode-scan-status" class="barcode-scan-status" role="status" aria-live="polite"></small>
         <small class="hint">Tip: Alt+7 abre la cámara. En iPhone usa Safari con HTTPS.</small>
       </div>
 
@@ -336,5 +337,5 @@
 </script>
 
 <script src="{% static 'javascript/sale_draft_lifecycle.js' %}?v=1"></script>
-<script src="{% static 'javascript/generar_venta.js' %}?v=45"></script>
+<script src="{% static 'javascript/generar_venta.js' %}?v=47"></script>
 {% endblock %}
